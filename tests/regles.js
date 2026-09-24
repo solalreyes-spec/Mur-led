@@ -1852,6 +1852,27 @@ export const REGLES = [
       v.egal('canShare en erreur : téléchargement', modeEnregistrement({ ...partage, canShare: () => { throw new Error('non'); } }, fichiers), 'telechargement');
       v.egal('pas de navigateur : téléchargement', modeEnregistrement(undefined, fichiers), 'telechargement');
     },
+  },  {
+    id: 'R107',
+    titre: 'Capacité des ports 1G Brompton : la formule donne exactement les valeurs de l\'aide en ligne Tessera (13.1.4)',
+    etape: 2,
+    verifier(v, contexte) {
+      // Brompton, aide en ligne Tessera, page « Output Capacity » (13.1.4), consultée le 25/09/2026 : 8, 10 et 12 bits par couleur.
+      const constructeur = {
+        24: [1312500, 1050000, 875000],
+        25: [1260000, 1008000, 840000],
+        30: [1050000, 840000, 700000],
+      };
+      const sx40 = processeurDeBase(contexte, 'brompton-sx40');
+      for (const [frequence, valeurs] of Object.entries(constructeur)) {
+        valeurs.forEach((attendu, i) => {
+          const reglages = { frequenceHz: Number(frequence), bits: [8, 10, 12][i] };
+          v.egal(`${frequence} Hz, ${reglages.bits} bits`, calculs.capacitePort('brompton', reglages), attendu);
+          v.egal(`${frequence} Hz, ${reglages.bits} bits, ULL : la moitié`, calculs.capacitePort('brompton', { ...reglages, ull: true }), attendu / 2);
+          v.egal(`${frequence} Hz, ${reglages.bits} bits : même valeur avec la fiche du SX40`, calculs.capacitePortProcesseur(sx40, reglages).capacite, attendu);
+        });
+      }
+    },
   },
 ];
 

@@ -27,6 +27,13 @@
       "date": null,
       "confiance": "à confirmer avec la fiche exacte (fiches S4, M2 et T1 à récupérer)"
     },
+    "brompton-aide-tessera-13-1-4": {
+      "titre": "Brompton, aide en ligne Tessera, page « Output Capacity » (13.1.4), consultée le 25/09/2026 : capacité des ports 1G à 24, 25 et 30 Hz en 8, 10 et 12 bits par couleur, divisée par deux en ULL",
+      "court": "Aide en ligne Tessera 13.1.4",
+      "date": "2026-09-25",
+      "confiance": "constructeur",
+      "url": "https://www.bromptontech.com/online-help/Content/Tessera%20User%20Manual/03.%20Feature%20Topics/13.1.4%20-%20Output%20Capacity.htm"
+    },
     "cahier-des-charges-formules": {
       "titre": "Cahier des charges du projet : formules de capacité du module 4 et fiche processeur (débit utile par port)",
       "court": "Cahier des charges du projet, module 4",
@@ -178,7 +185,7 @@
       "famille": "brompton",
       "debitUtileBps": {
         "valeur": 756000000,
-        "source": "cahier-des-charges-formules"
+        "source": "brompton-aide-tessera-13-1-4"
       },
       "pixelsMax": {
         "valeur": 500000,
@@ -258,7 +265,7 @@
       "famille": "brompton",
       "debitUtileBps": {
         "valeur": 756000000,
-        "source": "cahier-des-charges-formules"
+        "source": "brompton-aide-tessera-13-1-4"
       },
       "pixelsMax": {
         "valeur": 2073600,
@@ -330,7 +337,7 @@
       "famille": "brompton",
       "debitUtileBps": {
         "valeur": 756000000,
-        "source": "cahier-des-charges-formules"
+        "source": "brompton-aide-tessera-13-1-4"
       },
       "pixelsMax": {
         "valeur": 2073600,
@@ -411,7 +418,7 @@
       "famille": "brompton",
       "debitUtileBps": {
         "valeur": 756000000,
-        "source": "cahier-des-charges-formules"
+        "source": "brompton-aide-tessera-13-1-4"
       },
       "pixelsMax": {
         "valeur": 4500000,
@@ -465,7 +472,7 @@
       "famille": "brompton",
       "debitUtileBps": {
         "valeur": 756000000,
-        "source": "cahier-des-charges-formules"
+        "source": "brompton-aide-tessera-13-1-4"
       },
       "pixelsMax": {
         "valeur": 9000000,

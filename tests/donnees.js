@@ -466,5 +466,22 @@ export const DONNEES = [
       v.vrai('tests.html : meta robots noindex, nofollow', noindex.test(f['tests.html'] ?? ''));
       v.egal('robots.txt : tout interdit', (f['robots.txt'] ?? '').split('\n').filter((l) => l.trim() && !l.startsWith('#')), ['User-agent: *', 'Disallow: /']);
     },
+  },  {
+    id: 'D26',
+    titre: 'Capacité des Brompton : source constructeur (aide en ligne Tessera, Output Capacity 13.1.4)',
+    etape: 2,
+    verifier(v, contexte) {
+      const base = baseProcesseurs(contexte);
+      const resolus = base.processeurs.map((p) => calculs.resoudreFiche(p, base.sources));
+      const brompton = resolus.filter((p) => p.famille === 'brompton');
+      v.egal('les cinq Brompton de la base', brompton.map((p) => p.id), ['brompton-t1', 'brompton-s4', 'brompton-m2', 'brompton-s8', 'brompton-sx40']);
+      v.vrai('débit utile inchangé : 756 000 000 bit/s', brompton.every((p) => p.debitUtileBps === 756000000));
+      const sources = brompton.map((p) => p.sources.debitUtileBps.source);
+      v.vrai('source constructeur : aide en ligne Tessera, page Output Capacity (13.1.4)',
+        sources.every((s) => s.confiance === 'constructeur' && /Output Capacity/.test(s.titre) && /13\.1\.4/.test(s.titre)));
+      v.vrai('adresse de la page donnée', sources.every((s) => /^https:\/\/www\.bromptontech\.com\/online-help\//.test(s.url ?? '')));
+      v.egal('date de consultation', sources[0].date, '2026-09-25');
+      v.egal('Novastar : source inchangée', resolus.find((p) => p.id === 'novastar-mctrl660').sources.debitUtileBps.source.id, 'cahier-des-charges-formules');
+    },
   },
 ];
