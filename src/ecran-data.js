@@ -3,7 +3,7 @@
 
 import {
   evaluerProcesseur, processeurConseille, entierInferieur, champsManquants,
-  BIT_DEPTH_PAR_DEFAUT, RAPPEL_TESSERA, ErreurSaisie,
+  BIT_DEPTH_PAR_DEFAUT, RAPPEL_TESSERA, LIBELLES_COIN, ErreurSaisie,
 } from './calculs.js';
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
@@ -20,6 +20,8 @@ let etatMur = null;
 let familleAffichee = null;
 let surChangement = () => {};
 let nomParc = null;
+// Coin de départ du câblage data, choisi dans l'onglet Schéma : le serpentin au plus juste en dépend.
+let departData = 'haut-gauche';
 
 const NOMS_FAMILLE = { brompton: 'Brompton', novastar: 'Novastar et COEX', colorlight: 'Colorlight' };
 const LIBELLES_MANQUANTS = {
@@ -147,7 +149,9 @@ function sectionPorts(e, dalle, r) {
       tuile('Dalles par port', nombre(r.dallesParPort),
         `partie entière de ${nombre(entierInferieur(r.capacite))} / ${nombre(r.pxParDalle)}`,
         r.plafondBoucle ? `plafonné à ${proc.maxDallesParBoucleRedondance} par boucle en redondance` : null),
-      tuile('Ports au plus juste', nombre(g.auPlusJuste), redondance(g.redondance.auPlusJuste), texteCharge(g.chargeMax.auPlusJuste),
+      tuile('Ports au plus juste', nombre(g.serpentin.ports), `serpentin depuis ${LIBELLES_COIN[g.serpentin.depart]}`,
+        g.serpentin.ecart ? `décompte théorique : ${nombre(g.auPlusJuste)}` : null,
+        redondance(2 * g.serpentin.ports), texteCharge(g.serpentin.chargeMax),
         g.auPlusJusteRealisable ? null : 'non réalisable tel quel dans NovaLCT'),
       g.rectangles
         ? tuile('Conseil NovaLCT', nombre(g.rectangles.ports),
@@ -197,8 +201,8 @@ function tableDecoupage(r) {
   const distributeur = nomDistributeur(proc);
   const red = r.reglages.redondance;
   const ports = (p) => (red
-    ? `${p.redondance.colonnes} (${p.redondance.auPlusJuste} au plus juste)`
-    : `${p.colonnes} (${p.auPlusJuste} au plus juste)`);
+    ? `${p.redondance.colonnes} (${2 * p.auPlusJusteSerpentin} au plus juste)`
+    : `${p.colonnes} (${p.auPlusJusteSerpentin} au plus juste)`);
   const lignes = r.groupes.map((g, i) => el('tr', {},
     el('th', { scope: 'row' }, `n° ${i + 1}`),
     el('td', {}, `${g.premiereColonne} à ${g.derniereColonne}`,
@@ -235,8 +239,8 @@ function sectionProcesseur(r, conseil) {
   }
   const g = r.global;
   const distributeur = nomDistributeur(proc);
-  const globalTexte = `Décompte global, sans découpage par processeur : ${g.auPlusJuste} ports au plus juste`
-    + `${g.distributeurs && distributeur ? ` (${g.distributeurs.auPlusJuste} ${distributeur})` : ''}, `
+  const globalTexte = `Décompte global, sans découpage par processeur : ${g.serpentin.ports} ports au plus juste`
+    + `${g.distributeurs && distributeur ? ` (${Math.ceil(g.serpentin.ports / proc.sortiesParDistributeur)} ${distributeur})` : ''}, `
     + `${g.colonnes.ports} en colonnes entières`
     + `${g.distributeurs && distributeur ? ` (${g.distributeurs.colonnes} ${distributeur})` : ''}.`;
   return el('section', { class: 'bloc-resultats' },
@@ -308,6 +312,7 @@ function calculer(e) {
   const { dalle, mur } = etatMur;
   const reglages = {
     frequenceHz: e.frequenceHz, bits: e.bits, ull: e.ull, cartesPro: e.cartesPro, redondance: e.redondance, modeOptique: e.modeOptique,
+    departCablage: departData,
   };
 
   const candidats = processeurs.filter((p) => p.famille === e.famille);
@@ -337,8 +342,9 @@ function calculer(e) {
     return null;
   }
   if (choisie.global) {
-    const { auPlusJuste, colonnes } = choisie.global.chargeMax;
-    for (const [charge, cablage] of [[auPlusJuste, 'au plus juste'], [colonnes, 'en colonnes entières']]) {
+    const { colonnes } = choisie.global.chargeMax;
+    if (choisie.global.serpentin.ecart) alertes.push(alerte(choisie.global.serpentin.ecart, 'alerte-info'));
+    for (const [charge, cablage] of [[choisie.global.serpentin.chargeMax, 'au plus juste'], [colonnes, 'en colonnes entières']]) {
       if (charge.auDela95) {
         alertes.push(alerte(`Câblage ${cablage} : un port est chargé à ${nombre(charge.taux * 100, 1)} %, `
           + 'au-delà de 95 %. Garde de la marge.'));
@@ -398,6 +404,12 @@ export function actualiserData(base, premiereFois = false) {
   nomParc = base.nomParc ?? null;
   preparerFamille(lireFormulaire().famille, !premiereFois);
   if (!premiereFois) mettreAJour();
+}
+
+// Appelé par l'onglet Schéma quand le coin de départ du câblage data change.
+export function definirDepartData(depart) {
+  departData = depart;
+  if (etatMur) mettreAJour();
 }
 
 // Appelé par l'onglet Mur après chaque calcul.

@@ -5,9 +5,10 @@ import { el, remplacer } from './dom.js';
 import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc } from './fiches.js';
 import { lire, ecrire } from './stockage.js';
 import { initialiserMur, actualiserMur, signalerErreurMur } from './ecran-mur.js';
-import { initialiserData, actualiserData, murModifie } from './ecran-data.js';
+import { initialiserData, actualiserData, murModifie, definirDepartData } from './ecran-data.js';
 import { initialiserCanvas, actualiserRegies, donneesModifiees } from './ecran-canvas.js';
-import { initialiserElec, murModifiePourElec } from './ecran-elec.js';
+import { initialiserElec, murModifiePourElec, definirDepartElec } from './ecran-elec.js';
+import { initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema } from './ecran-schema.js';
 import { initialiserPoids, actualiserBumpers, murModifiePourPoids } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
 import { restaurerConfiguration, suivreConfiguration, reglagesParDefaut } from './configuration.js';
@@ -52,7 +53,7 @@ async function demanderStockagePersistant() {
 }
 let persistant = null;
 
-const ONGLETS = ['mur', 'data', 'canvas', 'elec', 'poids', 'base'];
+const ONGLETS = ['mur', 'data', 'canvas', 'elec', 'poids', 'schema', 'base'];
 
 async function lireJson(chemin) {
   const reponse = await fetch(chemin);
@@ -189,18 +190,31 @@ for (const select of selecteursParc) {
 }
 remplirParcs();
 
-// Chaîne des onglets : Mur → Data → Canvas.
+// Chaîne des onglets : Mur → Data → Canvas et Schéma ; Mur → Élec → Schéma ; Mur → Poids.
+// Le Schéma renvoie le coin de départ du câblage aux onglets Data et Élec (serpentin au plus juste).
+initialiserSchema({
+  surDepart: ({ data, elec }) => {
+    definirDepartData(data);
+    definirDepartElec(elec);
+  },
+});
 if (connectique) {
   initialiserCanvas({ ...connectique, regies: courant.regies, sourcesRegies: courant.sourcesRegies, erreurRegies });
 }
-if (depart.processeurs) initialiserData(pourData(), connectique ? donneesModifiees : () => {});
-initialiserElec();
+if (depart.processeurs) {
+  initialiserData(pourData(), (etat) => {
+    if (connectique) donneesModifiees(etat);
+    dataModifieePourSchema(etat);
+  });
+}
+initialiserElec(elecModifiePourSchema);
 if (depart.dalles) {
   initialiserPoids(courant.bumpers);
   initialiserMur(pourMur(), (etat) => {
     if (depart.processeurs) murModifie(etat);
     murModifiePourElec(etat);
     murModifiePourPoids(etat);
+    murModifiePourSchema(etat);
   });
 }
 initialiserBase({ base, depart, fusion: courant.fusion, parcActif, persistant }, enregistrerBase);
@@ -215,7 +229,7 @@ demanderStockagePersistant().then((accorde) => {
   actualiserEcranBase({ base, depart, fusion: courant.fusion, parcActif, persistant });
 });
 document.getElementById('reglages-defaut').addEventListener('click', () => {
-  if (confirm('Remettre toutes les saisies des onglets Mur, Data, Canvas, Élec et Poids à leurs valeurs par défaut ? Ta base et tes parcs ne changent pas.')) {
+  if (confirm('Remettre toutes les saisies des onglets Mur, Data, Canvas, Élec, Poids et Schéma à leurs valeurs par défaut ? Ta base et tes parcs ne changent pas.')) {
     reglagesParDefaut();
   }
 });

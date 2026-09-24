@@ -41,7 +41,7 @@ export function references(chemin, texte) {
 
 export async function chargerFichiersAppli(lire) {
   const textes = {};
-  const aLire = ['index.html', 'sw.js', 'manifest.webmanifest'];
+  const aLire = ['index.html', 'sw.js', 'manifest.webmanifest', 'tests.html', 'robots.txt'];
   while (aLire.length > 0) {
     const chemin = aLire.shift();
     if (chemin in textes || chemin === '' || chemin === '.') continue;

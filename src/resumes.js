@@ -2,7 +2,7 @@
 // sans tirets de liste ni tirets longs (le texte part chez des chefs de projet). Fonctions pures :
 // elles mettent en forme les résultats de calculs.js, sans rien recalculer.
 
-import { pitchCalculeMm, entierInferieur } from './calculs.js';
+import { pitchCalculeMm, entierInferieur, LIBELLES_COIN } from './calculs.js';
 import { nombre, nombreCourt, sourceCourte } from './format.js';
 
 // Une ligne propre : espaces simples, tirets longs remplacés par une virgule, pas de puce en début de ligne.
@@ -77,11 +77,13 @@ export function resumeData(r, { conseille = false, distributeur = null } = {}) {
   ];
   const alertesPorts = [];
   if (g) {
-    lignes.push(`Ports au plus juste : ${nombre(g.auPlusJuste)}${g.auPlusJusteRealisable ? '' : ', non réalisable tel quel dans NovaLCT'}`);
+    lignes.push(`Ports au plus juste : ${nombre(g.serpentin.ports)}, serpentin depuis ${LIBELLES_COIN[g.serpentin.depart]}`
+      + `${g.auPlusJusteRealisable ? '' : ', non réalisable tel quel dans NovaLCT'}`);
+    if (g.serpentin.ecart) lignes.push(`Décompte théorique au plus juste : ${nombre(g.auPlusJuste)} ports`);
     if (g.rectangles) lignes.push(`Ports en rectangles NovaLCT (conseil) : ${nombre(g.rectangles.ports)}`);
     lignes.push(`Ports en colonnes entières : ${nombre(g.colonnes.ports)}`);
     if (reg.redondance) lignes.push(`Ports avec la redondance : ${nombre(g.redondance.colonnes)} en colonnes entières`);
-    for (const [charge, cablage] of [[g.chargeMax.auPlusJuste, 'au plus juste'], [g.chargeMax.colonnes, 'en colonnes entières']]) {
+    for (const [charge, cablage] of [[g.serpentin.chargeMax, 'au plus juste'], [g.chargeMax.colonnes, 'en colonnes entières']]) {
       if (charge.auDela95) alertesPorts.push(`Alerte : câblage ${cablage}, un port chargé à ${nombre(charge.taux * 100, 1)} %, au-delà de 95 %`);
     }
   }
@@ -151,7 +153,8 @@ export function resumeElec(r, { dalle, mur: m }) {
       ? `Puissance utile par ligne : ${watts(r.ligne.utileW)}, saisie`
       : `Puissance utile par ligne : ${watts(r.ligne.utileW)} (${nombreCourt(reg.tensionV)} V × ${nombreCourt(reg.departA)} A × ${nombreCourt(reg.marge * 100)} %)`,
     `Dalles par ligne : ${nombre(d.retenu)}${d.limite === 'chaînage' ? ', limité par le chaînage du constructeur' : ''}`,
-    `Lignes au plus juste : ${nombre(r.lignes.auPlusJuste.nombre)}`,
+    `Lignes au plus juste : ${nombre(r.lignes.auPlusJuste.nombre)}, serpentin depuis ${LIBELLES_COIN[r.lignes.auPlusJuste.depart]}`,
+    r.lignes.auPlusJuste.ecart ? `Décompte théorique au plus juste : ${nombre(r.lignes.auPlusJuste.theorique)} lignes` : null,
     `Lignes en colonnes entières : ${nombre(r.lignes.colonnes.nombre)}`,
   ];
   const a = r.arrivee;
@@ -212,6 +215,45 @@ export function resumePoids(r, { dalle, mur: m }) {
     lignes.push('Points d\'accroche : répartition à faire établir par le rigger');
   }
   lignes.push(...alertes(r.alertes), ...(r.rappels ?? []).map((x) => `Rappel : ${x}`));
+  return texte(lignes);
+}
+
+// Câblage data et élec d'une variante chacun (celle conseillée par défaut) : une ligne par port ou par ligne,
+// avec sa première et sa dernière dalle. L'élec est marquée indicative.
+export function resumeCablage({ data = null, modeData = null, elec = null, modeElec = null }) {
+  const lignes = ['CÂBLAGE'];
+  const choisir = (t, mode) => t?.variantes.find((x) => x.mode === (mode ?? t.conseil)) ?? null;
+  const vd = choisir(data, modeData);
+  if (vd) {
+    lignes.push(`Data : ${vd.libelle}, départ ${LIBELLES_COIN[data.depart]}`);
+    if (!vd.possible) lignes.push(`Impossible : ${vd.raison}`);
+    lignes.push(`Ports : ${vd.ports}${vd.portsSecours ? `, plus ${vd.portsSecours} de secours` : ''}, charge maxi ${nombre(vd.chargeMax * 100, 1)} %`);
+    lignes.push(`Câbles : ${vd.cablesTete} câbles de tête, ${vd.liaisons} liaisons entre dalles`);
+    for (const p of vd.processeurs) {
+      for (const port of p.ports) {
+        lignes.push(`${p.modele} n° ${p.numero}, ${port.libelle} : ${pluriel(port.dalles.length, 'dalle', 'dalles')} `
+          + `de ${port.dalles[0]} à ${port.dalles[port.dalles.length - 1]}, ${nombre(port.taux * 100, 1)} %`
+          + `${port.secours ? `, secours ${port.secours.libelle}` : ''}`
+          + `${port.fibreM !== null ? `, fibre environ ${Math.ceil(port.fibreM)} m` : ''}`
+          + `${port.longueurCuivreM !== null ? `, cuivre environ ${Math.ceil(port.longueurCuivreM)} m` : ''}`);
+      }
+    }
+    lignes.push(...alertes(vd.alertes));
+  }
+  const ve = choisir(elec, modeElec);
+  if (ve) {
+    const mono = ve.phases.length === 1;
+    lignes.push(`Élec : ${ve.libelle}, départ ${LIBELLES_COIN[elec.depart]} (indicatif, à valider par l'électricien)`);
+    lignes.push(`Lignes : ${ve.lignes}, charge maxi ${nombre(ve.chargeMax * 100, 1)} %`);
+    lignes.push(`Câbles : ${ve.cablesTete} câbles de tête, ${ve.liaisons} liaisons entre dalles`);
+    for (const l of ve.lignesDetail) {
+      lignes.push(`Ligne ${l.numero}, phase ${mono ? 'mono' : `L${l.phase}`} : ${pluriel(l.dalles.length, 'dalle', 'dalles')} `
+        + `de ${l.dalles[0]} à ${l.dalles[l.dalles.length - 1]}, ${watts(l.puissanceW)}`
+        + `${l.longueurTeteM !== null ? `, câble de tête environ ${Math.ceil(l.longueurTeteM)} m` : ''}`);
+    }
+    if (!mono) for (const p of ve.phases) lignes.push(`Phase L${p.numero} : ${pluriel(p.lignes, 'ligne', 'lignes')}, ${watts(p.puissanceW)}, ${nombreCourt(p.intensiteA, 1)} A`);
+    lignes.push(...alertes(ve.alertes));
+  }
   return texte(lignes);
 }
 

@@ -19,6 +19,7 @@ const FICHIERS = [
   'src/ecran-elec.js',
   'src/ecran-mur.js',
   'src/ecran-poids.js',
+  'src/ecran-schema.js',
   'src/fiches.js',
   'src/format.js',
   'src/manques.js',

@@ -41,6 +41,7 @@ export const CHAMPS = {
     { nom: 'maxAccroche', libelle: 'Maximum en accroche', genre: 'nombre', unite: 'dalles', niveau: 'complet' },
     { nom: 'maxStack', libelle: 'Maximum en stack', genre: 'nombre', unite: 'dalles', niveau: 'complet' },
     { nom: 'ledsParPixel', libelle: 'LED par pixel', genre: 'entier' },
+    { nom: 'rotationPossible', libelle: 'Rotation possible (portrait et paysage)', genre: 'booleen' },
   ],
   processeur: [
     { nom: 'marque', libelle: 'Marque', genre: 'brut', niveau: 'enregistrer' },
@@ -112,6 +113,7 @@ function valeurValide(genre, valeur) {
   if (genre === 'entier') return Number.isInteger(valeur) && valeur > 0;
   if (genre === 'texte') return typeof valeur === 'string' && valeur.trim() !== '';
   if (genre === 'liste') return Array.isArray(valeur) && valeur.length > 0;
+  if (genre === 'booleen') return typeof valeur === 'boolean';
   return true;
 }
 
@@ -144,7 +146,7 @@ export function validerFiche(type, fiche, sources = {}) {
       else if (!sources[entree.source]) erreurs.push(`${libelle} : source « ${entree.source} » inconnue.`);
       else sourcesUtilisees.add(entree.source);
       if (spec && !valeurValide(spec.genre, entree.valeur)) {
-        erreurs.push(`${libelle} : « ${entree.valeur} » n'est pas ${{ nombre: 'un nombre positif', entier: 'un entier positif', texte: 'un texte', liste: 'une liste' }[spec.genre] ?? 'valide'}.`);
+        erreurs.push(`${libelle} : « ${entree.valeur} » n'est pas ${{ nombre: 'un nombre positif', entier: 'un entier positif', texte: 'un texte', liste: 'une liste', booleen: 'oui ou non (true ou false)' }[spec.genre] ?? 'valide'}.`);
       }
       if (entree.type !== undefined && !TYPES_VALEUR.includes(entree.type)) {
         erreurs.push(`${libelle} : type de valeur « ${entree.type} » inconnu (max, typique ou mesuré).`);
@@ -387,7 +389,7 @@ export function filtrerParParc(liste, base, parcId, type) {
 }
 
 // Réglages d'une dalle propres à un parc : une même dalle existe avec plusieurs cartes de réception selon le loueur.
-export const CHAMPS_REGLAGE_PARC = ['carteReceptionMarque', 'carteReceptionModele', 'fichierConfig'];
+export const CHAMPS_REGLAGE_PARC = ['carteReceptionMarque', 'carteReceptionModele', 'fichierConfig', 'rotationPossible'];
 
 export function reglageDalleParc(base, parcId, dalleId) {
   return base.parcs.find((p) => p.id === parcId)?.reglages?.[dalleId] ?? null;
@@ -397,7 +399,9 @@ export function reglageDalleParc(base, parcId, dalleId) {
 export function reglerDalleParc(base, parcId, dalleId, reglage) {
   const propre = {};
   for (const nom of CHAMPS_REGLAGE_PARC) {
-    const valeur = typeof reglage?.[nom] === 'string' ? reglage[nom].trim() : reglage?.[nom];
+    let valeur = typeof reglage?.[nom] === 'string' ? reglage[nom].trim() : reglage?.[nom];
+    // Rotation : oui ou non (« true » ou « false » depuis un formulaire), vide = la fiche décide.
+    if (nom === 'rotationPossible' && typeof valeur === 'string') valeur = valeur === '' ? null : valeur === 'true';
     if (!vide(valeur)) propre[nom] = valeur;
   }
   return {
@@ -462,7 +466,7 @@ export const MODELES_JSON = {
       pMaxW: { valeurs: [s(160, { type: 'max' }), { valeur: 180, source: 'fiche-loueur', type: 'max' }] },
       pMoyW: s(null, { type: 'typique' }),
       tensionEntreeV: s(230), carteReceptionMarque: s('Novastar'), carteReceptionModele: s('A8s Pro'),
-      fichierConfig: s(null), maxAccroche: s(20), maxStack: s(null),
+      fichierConfig: s(null), maxAccroche: s(20), maxStack: s(null), rotationPossible: s(null),
     },
   },
   processeur: {

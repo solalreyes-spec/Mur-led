@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
+  <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#0e1014">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -41,6 +42,7 @@
     <a class="onglet" href="#canvas">Canvas</a>
     <a class="onglet" href="#elec">Élec</a>
     <a class="onglet" href="#poids">Poids</a>
+    <a class="onglet" href="#schema">Schéma</a>
     <a class="onglet" href="#base">Base</a>
   </nav>
 
@@ -61,6 +63,10 @@
           </select>
         </div>
         <div id="alerte-dalle"></div>
+        <div id="bloc-rotation" hidden>
+          <label class="case"><input type="checkbox" name="tourner"><span>Tourner la dalle (portrait ou paysage)</span></label>
+          <p id="source-rotation" class="note"></p>
+        </div>
         <details id="fiche" class="fiche">
           <summary>Fiche et sources de la dalle</summary>
           <div id="fiche-contenu"></div>
@@ -401,6 +407,70 @@
         <span class="etat-copie" aria-live="polite"></span>
       </div>
       <div id="resultats-poids" class="resultats" aria-live="polite"></div>
+    </section>
+
+    <section id="schema" aria-labelledby="titre-schema" hidden>
+      <h2 id="titre-schema" class="cache-visuel">Schéma de câblage et pixel map</h2>
+
+      <form id="form-schema" class="carte formulaire" novalidate>
+        <fieldset class="segmente">
+          <legend>Vue</legend>
+          <div class="segments">
+            <label><input type="radio" name="vue" value="physique" checked><span>Physique (mm)</span></label>
+            <label><input type="radio" name="vue" value="pixels"><span>Pixels</span></label>
+          </div>
+        </fieldset>
+        <div id="bloc-canvas-vue" class="champ" hidden>
+          <label for="canvas-vue">Canvas</label>
+          <select id="canvas-vue" name="canvasVue"></select>
+        </div>
+        <fieldset class="segmente">
+          <legend>Câblage affiché</legend>
+          <div class="segments">
+            <label><input type="radio" name="cablage" value="aucun"><span>Aucun</span></label>
+            <label><input type="radio" name="cablage" value="data" checked><span>Data</span></label>
+            <label><input type="radio" name="cablage" value="elec"><span>Élec</span></label>
+          </div>
+        </fieldset>
+        <div class="paire">
+          <div class="champ">
+            <label for="depart-data">Départ data</label>
+            <select id="depart-data" name="departData"><option value="haut-gauche">Haut gauche</option><option value="haut-droite">Haut droite</option><option value="bas-gauche">Bas gauche</option><option value="bas-droite">Bas droite</option></select>
+          </div>
+          <div class="champ">
+            <label for="depart-elec">Départ élec</label>
+            <select id="depart-elec" name="departElec"><option value="haut-gauche">Haut gauche</option><option value="haut-droite">Haut droite</option><option value="bas-gauche">Bas gauche</option><option value="bas-droite">Bas droite</option></select>
+          </div>
+        </div>
+        <details class="fiche">
+          <summary>Longueur des câbles de tête (facultatif)</summary>
+          <div class="formulaire">
+            <div class="paire">
+              <div class="champ">
+                <label for="distance-regie">Régie à mur (m)</label>
+                <input id="distance-regie" name="distanceRegieM" inputmode="decimal" autocomplete="off">
+              </div>
+              <div class="champ">
+                <label for="distance-armoire">Armoire élec à mur (m)</label>
+                <input id="distance-armoire" name="distanceArmoireM" inputmode="decimal" autocomplete="off">
+              </div>
+            </div>
+            <div class="champ">
+              <label for="marge-mou">Marge de mou (%)</label>
+              <input id="marge-mou" name="margeMouPourcent" inputmode="decimal" autocomplete="off" value="10">
+            </div>
+            <p class="note">Estimation indicative : distance saisie, plus le trajet le long du mur depuis le coin de départ jusqu'à la première dalle, plus le mou.</p>
+          </div>
+        </details>
+        <input type="hidden" name="varianteData" value="">
+        <input type="hidden" name="varianteElec" value="">
+      </form>
+
+      <div class="barre-copie">
+        <button class="bouton bouton-petit" type="button" data-copier="schema">Copier les résultats</button>
+        <span class="etat-copie" aria-live="polite"></span>
+      </div>
+      <div id="resultats-schema" class="resultats" aria-live="polite"></div>
     </section>
 
     <section id="base" aria-labelledby="titre-base" hidden>

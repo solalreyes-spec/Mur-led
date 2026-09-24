@@ -121,6 +121,16 @@ function formulaireReglage(parc, brute, resolue) {
   const actuel = reglageDalleParc(ctx.base, parc.id, brute.id) ?? {};
   const champs = CHAMPS_REGLAGE_PARC.map((nom) => {
     const id = `reglage-${parc.id}-${brute.id}-${nom}`;
+    if (nom === 'rotationPossible') {
+      const deFiche = resolue.rotationPossible === undefined ? 'non précisé' : (resolue.rotationPossible ? 'oui' : 'non');
+      const actuelle = actuel.rotationPossible === undefined ? '' : String(actuel.rotationPossible);
+      return el('div', { class: 'champ' },
+        el('label', { for: id }, 'Rotation possible avec les bumpers de ce parc'),
+        el('select', { id, name: nom },
+          el('option', { value: '', selected: actuelle === '' ? '' : null }, `comme la fiche (${deFiche})`),
+          el('option', { value: 'true', selected: actuelle === 'true' ? '' : null }, 'oui'),
+          el('option', { value: 'false', selected: actuelle === 'false' ? '' : null }, 'non')));
+    }
     return el('div', { class: 'champ' },
       el('label', { for: id }, `${libelleChamp('dalle', nom)}, dans ce parc`),
       el('input', { id, name: nom, type: 'text', autocomplete: 'off', value: actuel[nom] ?? null,
@@ -225,6 +235,8 @@ function champGuide(type, c) {
   let saisie;
   if (c.valeurs) {
     saisie = el('select', { id, name: c.nom }, el('option', { value: '' }, '—'), c.valeurs.map((v) => el('option', { value: v }, v)));
+  } else if (c.genre === 'booleen') {
+    saisie = el('select', { id, name: c.nom }, el('option', { value: '' }, 'non précisé'), el('option', { value: 'true' }, 'oui'), el('option', { value: 'false' }, 'non'));
   } else if (c.genre === 'nombre' || c.genre === 'entier' || (type === 'bumper' && c.nom === 'colonnes')) {
     saisie = el('input', { id, name: c.nom, inputmode: c.genre === 'entier' || c.nom === 'colonnes' ? 'numeric' : 'decimal', autocomplete: 'off' });
   } else {
@@ -285,6 +297,8 @@ function preparerJson() {
       valeur = Number.isFinite(n) ? n : brut;
     } else if (c.genre === 'liste') {
       valeur = brut.split(',').map((x) => x.trim()).filter(Boolean);
+    } else if (c.genre === 'booleen') {
+      valeur = brut === 'true';
     }
     fiche[c.nom] = c.genre === 'brut' ? valeur : { valeur, source: 'SOURCE', ...(AVEC_TYPE[c.nom] ? { type: valeurDe(`${c.nom}-type`) } : {}) };
   }

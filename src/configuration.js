@@ -1,11 +1,11 @@
-// Configuration en cours : les saisies des onglets Mur, Data, Canvas, Élec et Poids sont gardées dans
+// Configuration en cours : les saisies des onglets Mur, Data, Canvas, Élec, Poids et Schéma sont gardées dans
 // IndexedDB à chaque changement et reviennent à la prochaine ouverture. Le parc actif est gardé à part.
 
 import { lire, ecrire } from './stockage.js';
 import { sourceEstModifiee, definirSourceModifiee } from './ecran-canvas.js';
 
 const CLE = 'configuration';
-const FORMULAIRES = ['form-mur', 'form-data', 'form-source', 'form-elec', 'form-poids'];
+const FORMULAIRES = ['form-mur', 'form-data', 'form-source', 'form-elec', 'form-poids', 'form-schema'];
 const IGNORES = new Set(['parc']);
 // Champs de la source : restaurés seulement si la source a été modifiée à la main.
 const CHAMPS_SOURCE = new Set(['largeurPx', 'hauteurPx', 'frequenceHz', 'liaison']);

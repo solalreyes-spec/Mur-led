@@ -1,7 +1,7 @@
 // Onglet Mur (dimensionnement). Aucune règle de calcul ici : tout passe par calculs.js,
 // et chaque résultat affiche la valeur utilisée et sa source.
 
-import { dimensionner, densite, pitchCalculeMm } from './calculs.js';
+import { dimensionner, densite, pitchCalculeMm, dalleTournee } from './calculs.js';
 import { nombre, nombreCourt, signe, sourceCourte, dateCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
 import { resumeMur } from './resumes.js';
@@ -47,6 +47,7 @@ function lireFormulaire() {
     neDepassePasHauteur: d.has('neDepassePasHauteur'),
     demi: d.has('demi'),
     positionDemi: d.get('positionDemi'),
+    tourner: d.has('tourner'),
   };
 }
 
@@ -75,9 +76,11 @@ const CHAMPS_FICHE = [
   { nom: 'courbure', libelle: 'Courbure', unite: '' },
   { nom: 'maxAccroche', libelle: 'Maximum en accroche', unite: 'dalles' },
   { nom: 'maxStack', libelle: 'Maximum en stack', unite: 'dalles' },
+  { nom: 'rotationPossible', libelle: 'Rotation possible', unite: '' },
 ];
 
 function valeurAvecUnite(valeur, unite) {
+  if (typeof valeur === 'boolean') return valeur ? 'oui' : 'non';
   const texte = typeof valeur === 'number' ? nombreCourt(valeur, 3) : String(valeur);
   return unite ? `${texte} ${unite}` : texte;
 }
@@ -263,7 +266,13 @@ function tableauVariantes(r) {
 
 function mettreAJour(fiches, surChangement) {
   const e = lireFormulaire();
-  const dalle = fiches.get(e.dalleId);
+  const fiche = fiches.get(e.dalleId);
+  // Rotation : proposée seulement si la fiche, ou le parc actif, la permet. La dalle tournée n'a pas de demi-dalle.
+  const peutTourner = fiche.rotationPossible === true;
+  document.getElementById('bloc-rotation').hidden = !peutTourner;
+  const sourceRotation = fiche.sources?.rotationPossible?.sources.map(sourceCourte).join(', ');
+  document.getElementById('source-rotation').textContent = peutTourner && sourceRotation ? `Rotation permise : ${sourceRotation}.` : '';
+  const dalle = peutTourner && e.tourner ? dalleTournee(fiche) : fiche;
   const demi = dalle.demiDalle ? fiches.get(dalle.demiDalle) ?? null : null;
 
   for (const groupe of formulaire.querySelectorAll('.groupe-mode')) {

@@ -1,0 +1,3 @@
+# Appli discrète : aucun moteur de recherche ne doit la parcourir.
+User-agent: *
+Disallow: /

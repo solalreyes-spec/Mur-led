@@ -6,6 +6,7 @@ import { resumeOngletData } from './ecran-data.js';
 import { resumeOngletCanvas } from './ecran-canvas.js';
 import { resumeOngletElec } from './ecran-elec.js';
 import { resumeOngletPoids } from './ecran-poids.js';
+import { resumeOngletSchema } from './ecran-schema.js';
 
 const RESUMES = {
   mur: resumeOngletMur,
@@ -13,6 +14,7 @@ const RESUMES = {
   canvas: resumeOngletCanvas,
   elec: resumeOngletElec,
   poids: resumeOngletPoids,
+  schema: resumeOngletSchema,
 };
 
 async function copier(texte) {

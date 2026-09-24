@@ -6,11 +6,11 @@ import * as fiches from '../src/fiches.js';
 import * as resumes from '../src/resumes.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
-  CABINET_CAS_4, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
+  CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
   DALLE_CARTE_A10S, DALLE_CARTE_CA50E, DALLE_200, DALLE_120, DALLE_12,
   DALLE_100W_CHAINAGE, DALLE_APPEL, DALLE_SANS_PMAX, DALLE_MAX_METRES, DALLE_MAX_KILOS,
 } from './dalles-fictives.js';
-import { processeurDeBase, liaisonsDeBase, regieDeBase, dalleDeBase, bumperDeBase } from './base.js';
+import { processeurDeBase, liaisonsDeBase, regieDeBase, dalleDeBase, bumperDeBase, baseProcesseurs } from './base.js';
 
 // Tableau du manuel Tessera v3.5 §13.1.4 (repris dans le cahier des charges du projet) :
 // fréquence → [8, 10, 12 bits, 8, 10, 12 bits en ULL].
@@ -1511,5 +1511,356 @@ export const REGLES = [
       const inconnue = evaluer(DALLE_CAS_7, 'brompton-sx40');
       v.egal('carte inconnue : calculé avec l\'alerte actuelle', [inconnue.nombre, inconnue.manques.map((m) => m.champ)], [1, ['carteReceptionModele']]);
     },
+  },  {
+    id: 'R93',
+    titre: 'Pixel map du cas 13 : chaque dalle une fois, ses pixels exacts, un canvas par processeur',
+    etape: '8a',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const dalles = calculs.dallesDuMur(m, DALLE_CAS_13);
+      v.egal('72 dalles, chacune une seule fois', [dalles.length, new Set(dalles.map((d) => d.id)).size], [72, 72]);
+      v.egal('première dalle en haut à gauche : C1 R1, pixel (0,0), 0 mm',
+        [dalles[0].id, dalles[0].px.x, dalles[0].px.y, dalles[0].mm.x, dalles[0].mm.y], ['C1 R1', 0, 0, 0, 0]);
+      v.egal('dernière dalle : C12 R6, 500 × 500 mm', [dalles[71].id, dalles[71].mm.x, dalles[71].mm.y, dalles[71].mm.largeur], ['C12 R6', 5500, 2500, 500]);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      const pm = calculs.pixelMap(m, DALLE_CAS_13, e);
+      verifierCouverture(v, 'mur de 2304 × 1152 px', pm.mur.dalles, 2304, 1152);
+      v.egal('un canvas par processeur', pm.canvas.length, 2);
+      pm.canvas.forEach((c) => verifierCouverture(v, `canvas n° ${c.numero} : bloc de ${c.bloc.largeurPx} × ${c.bloc.hauteurPx} px`, c.dalles, c.bloc.largeurPx, c.bloc.hauteurPx));
+      const ids = pm.canvas.flatMap((c) => c.dalles.map((d) => d.id));
+      v.egal('chaque dalle dans un seul canvas', [ids.length, new Set(ids).size], [72, 72]);
+      v.egal('canvas n° 2 : position dans le mur', [pm.canvas[1].xMur, pm.canvas[1].yMur], [[1152, 2303], [0, 1151]]);
+      v.egal('canvas n° 2 : bloc dans sa source, de 0 à largeur − 1', pm.canvas[1].source, { x: [0, 1151], y: [0, 1151] });
+      v.egal('canvas n° 2 : C7 R1 en (0,0) de son canvas', pm.canvas[1].dalles.find((d) => d.id === 'C7 R1').x, [0, 191]);
+      v.vrai('dalles dans le canvas du processeur', pm.canvas.every((c) => c.dalles.every((d) => d.x[1] < c.canvas.largeurPx && d.y[1] < c.canvas.hauteurPx)));
+    },
+  },
+  {
+    id: 'R94',
+    titre: 'Vue physique et pixel map : demi-dalles et dalles de 500 × 1000 mm',
+    etape: '8a',
+    verifier(v, contexte) {
+      const cb5 = dalleDeBase(contexte, 'roe-cb5-mkii');
+      const demi = dalleDeBase(contexte, 'roe-cb5-mkii-demi');
+      const m = calculs.mur(cb5, 4, 2, { demi, rangeeDemi: true, positionDemi: 'haut' });
+      const dalles = calculs.dallesDuMur(m, cb5);
+      v.egal('12 dalles, rangée 1 en demi-dalles', [dalles.length, dalles.filter((d) => d.type === 'demi').map((d) => d.rangee)], [12, [1, 1, 1, 1]]);
+      const c1r2 = dalles.find((d) => d.id === 'C1 R2');
+      v.egal('C1 R2 sous la demi-dalle : ses vrais pixels et millimètres', [c1r2.mm.y, c1r2.mm.hauteur, c1r2.px.y, c1r2.px.hauteur], [600, 1200, 104, 208]);
+      verifierCouverture(v, 'mur avec demi-dalles', calculs.pixelMap(m, cb5).mur.dalles, m.pxLargeur, m.pxHauteur);
+      const m5 = calculs.mur(CABINET_CAS_5, 10, 3);
+      const d5 = calculs.dallesDuMur(m5, CABINET_CAS_5);
+      v.egal('cas 5 : cabinets de 500 × 1000 mm, 192 × 384 px', [d5[0].mm.largeur, d5[0].mm.hauteur, d5[0].px.largeur, d5[0].px.hauteur], [500, 1000, 192, 384]);
+      const dernier = calculs.pixelMap(m5, CABINET_CAS_5).mur.dalles.find((d) => d.id === 'C10 R3');
+      v.egal('cas 5 : C10 R3 de x 1728 à 1919, y 768 à 1151', [dernier.x, dernier.y], [[1728, 1919], [768, 1151]]);
+      verifierCouverture(v, 'cas 5 : 1920 × 1152 px', calculs.pixelMap(m5, CABINET_CAS_5).mur.dalles, 1920, 1152);
+    },
+  },
+  {
+    id: 'R95',
+    titre: 'Câblage data du cas 7 : chaque dalle une fois, aucun port dépassé, mêmes décomptes que l\'onglet Data',
+    etape: '8a',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_7, 44, 10);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      const t = calculs.cablageData(m, DALLE_CAS_7, e, { depart: 'haut-gauche' });
+      v.egal('variantes', t.variantes.map((x) => x.mode), ['colonnes', 'rangees', 'auPlusJuste']);
+      for (const variante of t.variantes.filter((x) => x.possible)) verifierPorts(v, variante, 440, e);
+      const par = (mode) => t.variantes.find((x) => x.mode === mode).processeurs.map((p) => p.ports.length);
+      v.egal('par colonnes : ports par SX40, comme l\'onglet Data', par('colonnes'), e.groupes.map((g) => g.ports.colonnes));
+      v.egal('au plus juste : ports par SX40, comme l\'onglet Data', par('auPlusJuste'), e.groupes.map((g) => g.ports.auPlusJuste));
+      const ports = t.variantes[0].processeurs[0].ports;
+      v.egal('ports du SX40 sur ses XD', [ports[0].libelle, ports[10].libelle], ['XD 1, port 1', 'XD 2, port 1']);
+      v.egal('conseil : par colonnes', t.conseil, 'colonnes');
+      const cb5 = dalleDeBase(contexte, 'roe-cb5-mkii');
+      const demi = dalleDeBase(contexte, 'roe-cb5-mkii-demi');
+      const md = calculs.mur(cb5, 4, 2, { demi, rangeeDemi: true, positionDemi: 'haut' });
+      const ed = calculs.evaluerProcesseur(md, cb5, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      for (const variante of calculs.cablageData(md, cb5, ed, { depart: 'bas-droite' }).variantes.filter((x) => x.possible)) verifierPorts(v, variante, 12, ed);
+    },
+  },
+  {
+    id: 'R96',
+    titre: 'Serpentin depuis les quatre coins : dalles voisines, départ au coin choisi',
+    etape: '8a',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      const departs = { 'haut-gauche': 'C1 R1', 'haut-droite': 'C6 R1', 'bas-gauche': 'C1 R6', 'bas-droite': 'C6 R6' };
+      v.egal('quatre coins', calculs.COINS, Object.keys(departs));
+      for (const [depart, premiere] of Object.entries(departs)) {
+        const t = calculs.cablageData(m, DALLE_CAS_13, e, { depart });
+        for (const variante of t.variantes) {
+          const chemins = variante.processeurs.flatMap((p) => p.ports.map((port) => port.dalles));
+          v.vrai(`${depart}, ${variante.mode} : dalles d'un même port toujours voisines`, chemins.every(voisines));
+        }
+        v.egal(`${depart} : premier port du processeur 1 depuis ${premiere}`, t.variantes[0].processeurs[0].ports[0].dalles[0], premiere);
+      }
+      const elec = calculs.electricite(m, DALLE_CAS_13, {});
+      for (const depart of calculs.COINS) {
+        const t = calculs.cablageElec(m, DALLE_CAS_13, elec, { depart });
+        v.vrai(`élec ${depart} : dalles d'une même ligne voisines`, t.variantes.every((x) => x.lignesDetail.every((l) => voisines(l.dalles))));
+      }
+    },
+  },
+  {
+    id: 'R97',
+    titre: 'Redondance : secours selon la marque (paires Brompton, N + p Novastar), rectangles NovaLCT respectés',
+    etape: '8a',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const mctrl = processeurDeBase(contexte, 'novastar-mctrl660');
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_13, mctrl, NOVASTAR_60_8);
+      const t = calculs.cablageData(m, DALLE_CAS_13, e, { depart: 'haut-gauche' });
+      v.egal('MCTRL660 : variantes avec les rectangles NovaLCT', t.variantes.map((x) => x.mode), ['colonnes', 'rangees', 'auPlusJuste', 'rectangles']);
+      const rect = t.variantes.find((x) => x.mode === 'rectangles');
+      v.egal('rectangles : 3 ports de 2 colonnes par MCTRL660', rect.processeurs.map((p) => p.ports.map((x) => x.dalles.length)), [[12, 12, 12], [12, 12, 12]]);
+      v.vrai('rectangles : chaque port couvre un rectangle plein', rect.processeurs.every((p) => p.ports.every((x) => rectanglePlein(x.dalles))));
+      verifierPorts(v, rect, 72, e);
+      v.egal('conseil NovaLCT : les rectangles', t.conseil, 'rectangles');
+      const apj = t.variantes.find((x) => x.mode === 'auPlusJuste');
+      v.egal('au plus juste : non réalisable tel quel dans NovaLCT', [apj.possible, /non réalisable tel quel dans NovaLCT/.test(apj.raison ?? '')], [false, true]);
+      const er = calculs.evaluerProcesseur(m, DALLE_CAS_13, mctrl, { ...NOVASTAR_60_8, redondance: true });
+      const col = calculs.cablageData(m, DALLE_CAS_13, er, { depart: 'haut-gauche' }).variantes.find((x) => x.mode === 'colonnes');
+      const ports = col.processeurs.flatMap((p) => p.ports);
+      v.vrai('redondance : chaque port a son secours', ports.every((p) => p.secours !== null));
+      v.vrai('redondance : secours distincts des ports principaux', col.processeurs.every((p) => {
+        const numeros = [...p.ports.map((x) => x.numero), ...p.ports.map((x) => x.secours.numero)];
+        return new Set(numeros).size === numeros.length;
+      }));
+      v.egal('redondance : ports doublés, comme l\'onglet Data', col.processeurs.map((p) => 2 * p.ports.length), er.groupes.map((g) => g.ports.redondance.colonnes));
+      v.egal('câbles de tête : ports et secours', col.cablesTete, 2 * ports.length);
+      v.egal('Novastar : secours du port 1 = port 3 sur un MCTRL660 (N + p, N = moitié des ports)', [ports[0].secours.libelle, ports[0].secours.convention], ['port 3', true]);
+      v.vrai('Novastar : convention affichée comme telle', /convention par défaut, à régler dans le logiciel du processeur/.test(col.noteSecours ?? ''));
+      const e4k = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl4k'), { ...NOVASTAR_60_8, redondance: true });
+      v.egal('MCTRL4K : secours du port 1 = port 9 (vu en formation)',
+        calculs.cablageData(m, DALLE_CAS_13, e4k, { depart: 'haut-gauche' }).variantes[0].processeurs[0].ports[0].secours.libelle, 'port 9');
+      const es8 = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'brompton-s8'), { ...BROMPTON_60_10, redondance: true });
+      const s8 = calculs.cablageData(m, DALLE_CAS_13, es8, { depart: 'haut-gauche' }).variantes[0];
+      v.egal('S8 : paires de ports voisins, impair principal et pair secours',
+        s8.processeurs[0].ports.map((x) => [x.libelle, x.secours.libelle]), [['port 1', 'port 2'], ['port 3', 'port 4'], ['port 5', 'port 6'], ['port 7', 'port 8']]);
+      v.egal('S8 : règle Brompton, pas une convention', [s8.processeurs[0].ports[0].secours.convention, s8.noteSecours], [false, null]);
+      const t1 = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_13, 2, 2), DALLE_CAS_13, processeurDeBase(contexte, 'brompton-t1'), { ...BROMPTON_60_10, redondance: true });
+      v.vrai('T1 : un seul port, pas de redondance possible', t1.nombre === null && /un seul port/.test(t1.impossible ?? ''));
+      const m7 = calculs.mur(DALLE_CAS_7, 44, 10);
+      const e7 = calculs.evaluerProcesseur(m7, DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), { ...BROMPTON_60_10, redondance: true });
+      const p7 = calculs.cablageData(m7, DALLE_CAS_7, e7, { depart: 'haut-gauche' }).variantes[0].processeurs[0].ports[0];
+      v.egal('SX40 en redondance : secours sur le XD miroir', [p7.libelle, p7.secours.libelle], ['XD 1, port 1', 'XD miroir 1, port 1']);
+    },
+  },
+  {
+    id: 'R98',
+    titre: 'Câblage élec : chaque dalle une fois, lignes et phases comme l\'onglet Élec, chaînage respecté',
+    etape: '8a',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const elec = calculs.electricite(m, DALLE_CAS_13, {});
+      const t = calculs.cablageElec(m, DALLE_CAS_13, elec, { depart: 'bas-gauche' });
+      v.egal('variantes', t.variantes.map((x) => x.mode), ['colonnes', 'colonnesEquilibre', 'rangees', 'auPlusJuste', 'auPlusJusteEquilibre']);
+      for (const variante of t.variantes) verifierLignes(v, variante, 72, elec.ligne.utileW, DALLE_CAS_13.chainagePowerMax);
+      const nb = (mode) => t.variantes.find((x) => x.mode === mode).lignesDetail.length;
+      v.egal('lignes : comme l\'onglet Élec', [nb('colonnes'), nb('auPlusJuste'), nb('auPlusJusteEquilibre')],
+        [elec.lignes.colonnes.nombre, elec.lignes.auPlusJuste.nombre, elec.triphase.auPlusJuste.equilibre.lignes.length]);
+      v.egal('équilibre : charge des phases comme l\'onglet Élec', t.variantes.find((x) => x.mode === 'auPlusJusteEquilibre').phases.map((p) => p.puissanceW),
+        elec.triphase.auPlusJuste.equilibre.phases.map((p) => p.puissanceW));
+      v.egal('conseil : au plus juste, phases équilibrées', t.conseil, 'auPlusJusteEquilibre');
+      const cb5 = dalleDeBase(contexte, 'roe-cb5-mkii');
+      const m5 = calculs.mur(cb5, 10, 4);
+      const e5 = calculs.electricite(m5, cb5, {});
+      for (const variante of calculs.cablageElec(m5, cb5, e5, { depart: 'haut-droite' }).variantes) verifierLignes(v, variante, 40, e5.ligne.utileW, 7);
+      const mono = calculs.electricite(m, DALLE_CAS_13, { arrivee: { type: 'mono', intensiteA: 32 } });
+      const tm = calculs.cablageElec(m, DALLE_CAS_13, mono, { depart: 'haut-gauche' });
+      v.egal('mono : pas de variante équilibrée, une seule phase', [tm.variantes.map((x) => x.mode), tm.variantes[0].lignesDetail.every((l) => l.phase === 1)],
+        [['colonnes', 'rangees', 'auPlusJuste'], true]);
+    },
+  },
+  {
+    id: 'R99',
+    titre: 'Longueur des câbles de tête : estimée avec une marge de mou (10 % par défaut), alerte au-delà de 100 m de cuivre pour la data',
+    etape: '8a',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      const t = calculs.cablageData(m, DALLE_CAS_13, e, { depart: 'haut-gauche', distanceRegieM: 90 });
+      const col = t.variantes.find((x) => x.mode === 'colonnes');
+      const ports = col.processeurs.flatMap((p) => p.ports);
+      v.proche('port 1 : (90 m + trajet jusqu\'au centre de C1 R1, 0,5 m) × 1,10 de mou par défaut', ports[0].longueurCuivreM, 99.55, 0.001);
+      v.proche('port depuis C5 R1 : (90 + 2,5 m) × 1,10', ports.find((p) => p.dalles[0] === 'C5 R1').longueurCuivreM, 101.75, 0.001);
+      v.vrai('mou compté dans le contrôle : au-delà de 100 m en cuivre, alerte, passer en fibre (CVT10)', col.alertes.some((a) => /100 m/.test(a) && /fibre/.test(a) && /CVT10/.test(a)));
+      const sansMou = calculs.cablageData(m, DALLE_CAS_13, e, { depart: 'haut-gauche', distanceRegieM: 90, margeMou: 0 }).variantes.find((x) => x.mode === 'colonnes');
+      v.proche('marge de mou réglable : à 0 %, 90,5 m', sansMou.processeurs[0].ports[0].longueurCuivreM, 90.5, 0.001);
+      v.vrai('à 0 % de mou : plus d\'alerte', !sansMou.alertes.some((a) => /100 m/.test(a)));
+      v.egal('sans distance : pas d\'estimation', calculs.cablageData(m, DALLE_CAS_13, e, { depart: 'haut-gauche' }).variantes[0].processeurs[0].ports[0].longueurCuivreM, null);
+      const m7 = calculs.mur(DALLE_CAS_7, 44, 10);
+      const e7 = calculs.evaluerProcesseur(m7, DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      const c7 = calculs.cablageData(m7, DALLE_CAS_7, e7, { depart: 'bas-gauche', distanceRegieM: 150 }).variantes[0];
+      const p7 = c7.processeurs[0].ports[0];
+      v.proche('SX40 : la distance passe en fibre jusqu\'au XD, mou compris', p7.fibreM, 165, 0.001);
+      v.proche('SX40 : le cuivre part du pied du mur, mou compris', p7.longueurCuivreM, 0.55, 0.001);
+      v.vrai('SX40 : pas d\'alerte cuivre', !c7.alertes.some((a) => /100 m/.test(a)));
+      const elec = calculs.electricite(m, DALLE_CAS_13, {});
+      const l1 = calculs.cablageElec(m, DALLE_CAS_13, elec, { depart: 'bas-gauche', distanceArmoireM: 30 }).variantes[0].lignesDetail[0];
+      v.proche('élec : ligne 1, (30 m + trajet jusqu\'à C1 R6) × 1,10', l1.longueurTeteM, 33.55, 0.001);
+    },
+  },
+  {
+    id: 'R100',
+    titre: 'Rotation portrait ou paysage seulement si la fiche le permet',
+    etape: '8a',
+    verifier(v, contexte) {
+      const cb5 = dalleDeBase(contexte, 'roe-cb5-mkii');
+      let message = '';
+      try {
+        calculs.dalleTournee(cb5);
+      } catch (erreur) {
+        message = erreur.message;
+      }
+      v.vrai('fiche sans « rotation possible » : refus clair', /rotation/i.test(message));
+      const tournee = calculs.dalleTournee({ ...cb5, rotationPossible: true });
+      v.egal('CB5 tournée : 1200 × 600 mm, 208 × 104 px', [tournee.largeurMm, tournee.hauteurMm, tournee.pxH, tournee.pxV], [1200, 600, 208, 104]);
+      v.vrai('nom marqué « tournée »', /tournée/.test(tournee.nom));
+      const sources = { f: { titre: 'fiche.pdf, p. 2', court: 'Fiche', date: '2025-01', confiance: 'constructeur' } };
+      const fiche = { marque: 'T', modele: 'R', largeurMm: { valeur: 500, source: 'f' }, hauteurMm: { valeur: 1000, source: 'f' }, pxH: { valeur: 192, source: 'f' }, pxV: { valeur: 384, source: 'f' } };
+      v.egal('champ « rotation possible » accepté', fiches.validerFiche('dalle', { ...fiche, rotationPossible: { valeur: true, source: 'f' } }, sources).enregistrable, true);
+      v.egal('« rotation possible » : oui ou non seulement', fiches.validerFiche('dalle', { ...fiche, rotationPossible: { valeur: 'oui', source: 'f' } }, sources).enregistrable, false);
+    },
+  },
+  {
+    id: 'R101',
+    titre: 'Export d\'image : limite en surface (16 777 216 px), tuiles au-delà',
+    etape: '8a',
+    verifier(v, contexte) {
+      v.egal('limite de surface', calculs.SURFACE_MAX_IMAGE, 16777216);
+      v.egal('4096 × 2160 : une seule image', calculs.tuilesImage(4096, 2160), [{ x: 0, y: 0, largeurPx: 4096, hauteurPx: 2160 }]);
+      v.egal('NovaPro UHD Jr, 7680 × 1350 (10,4 M px) : une seule image', calculs.tuilesImage(7680, 1350).length, 1);
+      const grand = calculs.tuilesImage(7680, 4320);
+      v.vrai('7680 × 4320 (33 M px) : plusieurs tuiles, chacune sous la limite', grand.length > 1 && grand.every((x) => x.largeurPx * x.hauteurPx <= calculs.SURFACE_MAX_IMAGE));
+      verifierCouverture(v, 'tuiles de 7680 × 4320 : sans trou ni chevauchement',
+        grand.map((x, i) => ({ id: `T${i}`, x: [x.x, x.x + x.largeurPx - 1], y: [x.y, x.y + x.hauteurPx - 1] })), 7680, 4320);
+      const actifs = baseProcesseurs(contexte).processeurs.map((p) => calculs.resoudreFiche(p, baseProcesseurs(contexte).sources)).filter((p) => calculs.champsManquants(p).length === 0);
+      const plusGrand = actifs.reduce((a, b) => (b.pixelsMax > a.pixelsMax ? b : a));
+      v.egal('plus grand canvas de la base : NovaPro UHD Jr, 10,4 M px, une seule image', [plusGrand.id, plusGrand.pixelsMax <= calculs.SURFACE_MAX_IMAGE], ['novastar-novapro-uhd-jr', true]);
+      v.vrai('Colorlight Z8t (17,69 M px, à compléter) : il passerait en tuiles', calculs.tuilesImage(16384, 1080).length > 1);
+    },
+  },
+  {
+    id: 'R102',
+    titre: 'Copier les résultats : le câblage en texte simple',
+    etape: '8a',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      const data = calculs.cablageData(m, DALLE_CAS_13, e, { depart: 'haut-gauche', distanceRegieM: 20 });
+      const elec = calculs.cablageElec(m, DALLE_CAS_13, calculs.electricite(m, DALLE_CAS_13, {}), { depart: 'bas-droite' });
+      const texte = resumes.resumeCablage({ data, modeData: 'rectangles', elec, modeElec: 'auPlusJusteEquilibre' });
+      const lignes = texte.split('\n');
+      v.egal('titre', lignes[0], 'CÂBLAGE');
+      v.vrai('data : variante et départ', lignes.includes('Data : rectangles NovaLCT, départ en haut à gauche'));
+      v.vrai('data : une ligne par port, avec sa première et sa dernière dalle', lignes.some((l) => /^MCTRL660 n° 1, port 1 : 12 dalles de C1 R1 à C2 R1, /.test(l)));
+      v.vrai('élec : marquée indicatif, à valider', lignes.includes('Élec : au plus juste, phases équilibrées, départ en bas à droite (indicatif, à valider par l\'électricien)'));
+      v.vrai('élec : une ligne par câble, avec sa phase', lignes.some((l) => /^Ligne 1, phase L1 : 12 dalles de C12 R6 à /.test(l)));
+      v.egal('aucun tiret long ni puce', [/[—–]/.test(texte), lignes.filter((l) => /^\s*[-•*]/.test(l))], [false, []]);
+    },
+  },  {
+    id: 'R103',
+    titre: 'Au plus juste avec demi-dalles : le serpentin réel fait foi, le décompte théorique reste affiché',
+    etape: '8a',
+    verifier(v, contexte) {
+      const md = calculs.mur(CB5, 10, 4, { demi: CB5_DEMI, rangeeDemi: true, positionDemi: 'haut' });
+      const e = calculs.evaluerProcesseur(md, CB5, processeurDeBase(contexte, 'novastar-vx6s'), { frequenceHz: 60, bits: 10, departCablage: 'haut-gauche' });
+      v.egal('VX6s : décompte théorique 3 ports, serpentin 4', [e.global.auPlusJuste, e.global.serpentin.ports], [3, 4]);
+      v.egal('serpentin par processeur et au total', [e.groupes.map((g) => g.ports.auPlusJusteSerpentin), e.totaux.ports.auPlusJusteSerpentin], [[4], 4]);
+      v.vrai('raison de l\'écart donnée', /serpentin/.test(e.global.serpentin.ecart ?? ''));
+      v.egal('même nombre que le schéma de câblage', calculs.cablageData(md, CB5, e, { depart: 'haut-gauche' }).variantes
+        .find((x) => x.mode === 'auPlusJuste').processeurs.map((p) => p.ports.length), [4]);
+      const me = calculs.mur(CB5, 4, 6, { demi: CB5_DEMI, rangeeDemi: true, positionDemi: 'haut' });
+      const el = calculs.electricite(me, CB5, { depart: 'bas-gauche' });
+      v.egal('élec : décompte théorique 5 lignes, serpentin 6', [el.lignes.auPlusJuste.theorique, el.lignes.auPlusJuste.nombre], [5, 6]);
+      v.vrai('élec : raison de l\'écart donnée', /serpentin/.test(el.lignes.auPlusJuste.ecart ?? ''));
+      v.egal('élec : même nombre que le schéma de câblage', calculs.cablageElec(me, CB5, el, { depart: 'bas-gauche' }).variantes
+        .find((x) => x.mode === 'auPlusJuste').lignesDetail.length, 6);
+      const eq = el.triphase.auPlusJuste.equilibre.lignes;
+      v.vrai('élec : l\'équilibre part du serpentin (6 lignes au moins, multiple de 3)', eq.length >= 6 && eq.length % 3 === 0);
+      const m13 = calculs.mur(DALLE_CAS_13, 12, 6);
+      const e13 = calculs.evaluerProcesseur(m13, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      v.egal('sans demi-dalles : pas d\'écart en data', [e13.global.auPlusJuste, e13.global.serpentin.ports, e13.global.serpentin.ecart], [5, 5, null]);
+      const el13 = calculs.electricite(m13, DALLE_CAS_13, {});
+      v.egal('sans demi-dalles : pas d\'écart en élec', [el13.lignes.auPlusJuste.theorique, el13.lignes.auPlusJuste.nombre, el13.lignes.auPlusJuste.ecart], [4, 4, null]);
+    },
+  },
+  {
+    id: 'R104',
+    titre: 'Rotation réglable par parc : le prestataire sait si ses bumpers permettent de tourner les dalles',
+    etape: '8a',
+    verifier(v, contexte) {
+      const cb5 = dalleDeBase(contexte, 'roe-cb5-mkii');
+      let base = fiches.creerParc(fiches.baseVide(), 'Loueur R');
+      const parc = base.parcs[0].id;
+      base = fiches.basculerMembre(base, parc, 'dalle', 'roe-cb5-mkii');
+      v.vrai('la rotation fait partie des réglages de parc', fiches.CHAMPS_REGLAGE_PARC.includes('rotationPossible'));
+      base = fiches.reglerDalleParc(base, parc, 'roe-cb5-mkii', { rotationPossible: true });
+      v.egal('réglage enregistré', fiches.reglageDalleParc(base, parc, 'roe-cb5-mkii'), { rotationPossible: true });
+      const vue = fiches.appliquerReglagesParc(cb5, base, parc);
+      v.egal('dans ce parc : rotation possible, avec le parc pour source', [vue.rotationPossible, vue.sources.rotationPossible?.source.court], [true, 'Parc Loueur R']);
+      v.egal('dalle tournée dans ce parc', calculs.dalleTournee(vue).largeurMm, 1200);
+      const non = fiches.appliquerReglagesParc({ ...cb5, rotationPossible: true }, fiches.reglerDalleParc(base, parc, 'roe-cb5-mkii', { rotationPossible: false }), parc);
+      v.egal('le parc peut aussi dire non', non.rotationPossible, false);
+      v.egal('saisie « oui » du formulaire', fiches.reglageDalleParc(fiches.reglerDalleParc(base, parc, 'roe-cb5-mkii', { rotationPossible: 'true' }), parc, 'roe-cb5-mkii'), { rotationPossible: true });
+      v.egal('« Tous » : la fiche seule', fiches.appliquerReglagesParc(cb5, base, null).rotationPossible, undefined);
+    },
   },
 ];
+
+// Pixels couverts exactement une fois : dans le cadre, surfaces égales et aucun chevauchement.
+function verifierCouverture(v, libelle, dalles, largeur, hauteur) {
+  const dedans = dalles.every((d) => d.x[0] >= 0 && d.y[0] >= 0 && d.x[1] <= largeur - 1 && d.y[1] <= hauteur - 1 && d.x[1] >= d.x[0] && d.y[1] >= d.y[0]);
+  const surface = dalles.reduce((s, d) => s + (d.x[1] - d.x[0] + 1) * (d.y[1] - d.y[0] + 1), 0);
+  let chevauchement = false;
+  for (let i = 0; i < dalles.length && !chevauchement; i += 1) {
+    for (let j = i + 1; j < dalles.length; j += 1) {
+      const a = dalles[i];
+      const b = dalles[j];
+      if (a.x[0] <= b.x[1] && b.x[0] <= a.x[1] && a.y[0] <= b.y[1] && b.y[0] <= a.y[1]) {
+        chevauchement = true;
+        break;
+      }
+    }
+  }
+  v.egal(`${libelle} : dans le cadre, sans trou ni chevauchement`, [dedans, surface, chevauchement], [true, largeur * hauteur, false]);
+}
+
+const position = (id) => id.match(/^C(\d+) R(\d+)$/).slice(1).map(Number);
+
+// Dalles consécutives d'un trajet : voisines (une colonne ou une rangée d'écart).
+function voisines(ids) {
+  return ids.every((id, i) => {
+    if (i === 0) return true;
+    const [c1, r1] = position(ids[i - 1]);
+    const [c2, r2] = position(id);
+    return Math.abs(c1 - c2) + Math.abs(r1 - r2) === 1;
+  });
+}
+
+function rectanglePlein(ids) {
+  const pos = ids.map(position);
+  const cs = pos.map((p) => p[0]);
+  const rs = pos.map((p) => p[1]);
+  return (Math.max(...cs) - Math.min(...cs) + 1) * (Math.max(...rs) - Math.min(...rs) + 1) === ids.length;
+}
+
+// Une variante data : chaque dalle une seule fois, aucun port au-delà de sa capacité ni de son plafond de dalles.
+function verifierPorts(v, variante, total, evaluation) {
+  const ports = variante.processeurs.flatMap((p) => p.ports);
+  const ids = ports.flatMap((p) => p.dalles);
+  v.egal(`${variante.mode} : chaque dalle une seule fois`, [ids.length, new Set(ids).size], [total, total]);
+  const plafond = evaluation.reglages.redondance && evaluation.processeur.maxDallesParBoucleRedondance ? evaluation.processeur.maxDallesParBoucleRedondance : Infinity;
+  v.vrai(`${variante.mode} : aucun port au-delà de sa capacité`, ports.every((p) => p.px <= evaluation.capacite + 1e-6 && p.taux <= 1 + 1e-9 && p.dalles.length <= plafond));
+}
+
+// Une variante élec : chaque dalle une seule fois, aucune ligne au-delà de sa puissance utile ni du chaînage.
+function verifierLignes(v, variante, total, utileW, chainage) {
+  const ids = variante.lignesDetail.flatMap((l) => l.dalles);
+  v.egal(`${variante.mode} : chaque dalle une seule fois`, [ids.length, new Set(ids).size], [total, total]);
+  v.vrai(`${variante.mode} : aucune ligne au-delà de ${utileW} W${chainage ? ` ni de ${chainage} dalles` : ''}`,
+    variante.lignesDetail.every((l) => l.puissanceW <= utileW + 1e-6 && l.dalles.length <= (chainage ?? Infinity)));
+}

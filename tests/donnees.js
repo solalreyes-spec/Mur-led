@@ -190,7 +190,7 @@ export const DONNEES = [
   },
   {
     id: 'D11',
-    titre: 'Valeurs clés des processeurs (données de référence)',
+    titre: 'Valeurs clés des processeurs (cahier des charges du projet)',
     etape: 2,
     verifier(v, contexte) {
       const base = baseProcesseurs(contexte);
@@ -453,6 +453,18 @@ export const DONNEES = [
       v.vrai('icône masquable (Android)', icones.some((i) => (i.purpose ?? '').includes('maskable') && typeof f[i.src] === 'string'));
       const apple = /<link rel="apple-touch-icon" href="([^"]+)">/.exec(f['index.html'] ?? '');
       v.vrai('icône de l\'écran d\'accueil iPhone', Boolean(apple) && typeof f[apple[1]] === 'string');
+    },
+  },
+  {
+    id: 'D25',
+    titre: 'Site discret : pages non indexées par les moteurs de recherche, robots.txt qui interdit tout',
+    etape: 7,
+    verifier(v, contexte) {
+      const f = fichiersAppli(contexte);
+      const noindex = /<meta name="robots" content="noindex, nofollow">/;
+      v.vrai('index.html : meta robots noindex, nofollow', noindex.test(f['index.html'] ?? ''));
+      v.vrai('tests.html : meta robots noindex, nofollow', noindex.test(f['tests.html'] ?? ''));
+      v.egal('robots.txt : tout interdit', (f['robots.txt'] ?? '').split('\n').filter((l) => l.trim() && !l.startsWith('#')), ['User-agent: *', 'Disallow: /']);
     },
   },
 ];

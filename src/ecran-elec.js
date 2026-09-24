@@ -1,7 +1,7 @@
 // Onglet Élec : lignes, phases, arrivée, courant d'appel. Résultats indicatifs, à valider par l'électricien.
 // Aucune règle de calcul ici : tout passe par calculs.js.
 
-import { electricite, ARRIVEES, ErreurSaisie } from './calculs.js';
+import { electricite, ARRIVEES, LIBELLES_COIN, ErreurSaisie } from './calculs.js';
 import { nombre, nombreCourt, lireNombre, sourceCourte } from './format.js';
 import { el, remplacer } from './dom.js';
 import { alertesSansManques, ligneManques } from './manques.js';
@@ -12,6 +12,9 @@ const zone = document.getElementById('resultats-elec');
 
 let etatMur = null;
 let typeAffiche = null;
+// Coin de départ du câblage élec, choisi dans l'onglet Schéma ; le résultat est publié pour ce même onglet.
+let departElec = 'haut-gauche';
+let publier = () => {};
 
 const alerte = (texte, genre = '') => el('div', { class: `alerte ${genre}`.trim() }, texte);
 const pluriel = (n, singulier, plurielForme) => `${nombre(n)} ${n > 1 ? plurielForme : singulier}`;
@@ -49,6 +52,7 @@ function lireFormulaire() {
       departA: lireNombre(d.get('departA')),
       arrivee: { type, intensiteA: choix === 'libre' ? lireNombre(d.get('arriveeLibre')) : Number(choix) },
       courbe: d.get('courbe') || null,
+      depart: departElec,
     },
   };
 }
@@ -141,6 +145,7 @@ function mettreAJour() {
     return;
   }
   document.getElementById('bloc-arrivee-libre').hidden = !e.arriveeLibre;
+  publier(null);
   if (!etatMur) return;
   if (!etatMur.mur) {
     remplacer(zone, alerte('Le mur n\'est pas valide : corrige-le dans l\'onglet Mur.', 'alerte-erreur'));
@@ -157,6 +162,7 @@ function mettreAJour() {
   }
 
   dernier = { r, dalle, mur };
+  publier({ r, dalle, mur });
   const recap = el('p', { class: 'recap-mur' },
     `Mur : ${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}. P max retenue : ${textePMax(dalle, r.pMax.dalle)}`
     + `${r.pMax.demi ? ` ; demi-dalle : ${textePMax(mur.demi, r.pMax.demi)}` : ''}. `,
@@ -170,6 +176,7 @@ function mettreAJour() {
   remplacer(zone,
     recap,
     alerte('Résultats indicatifs : l\'électricité est validée par l\'électricien.', 'alerte-info'),
+    r.lignes.auPlusJuste.ecart ? alerte(r.lignes.auPlusJuste.ecart, 'alerte-info') : null,
     ligneManques(r.manques),
     alertesSansManques(r.alertes, r.manques).map((texte) => alerte(texte)),
     el('section', { class: 'bloc-resultats' },
@@ -185,7 +192,9 @@ function mettreAJour() {
           d.limite === 'chaînage' ? `limité par le chaînage du constructeur (${d.chainage}) ; ${d.puissance} en puissance` : null,
           d.chainage && d.limite !== 'chaînage' ? `chaînage du constructeur : ${d.chainage}` : null,
           `${d.theoriques230} théoriques à 230 V, jamais appliqué`),
-        tuile('Lignes au plus juste', nombre(r.lignes.auPlusJuste.nombre), `dalles : ${r.lignes.auPlusJuste.lignes.map((l) => l.dalles).join(' + ')}`),
+        tuile('Lignes au plus juste', nombre(r.lignes.auPlusJuste.nombre), `serpentin depuis ${LIBELLES_COIN[r.lignes.auPlusJuste.depart]}`,
+          r.lignes.auPlusJuste.ecart ? `décompte théorique : ${nombre(r.lignes.auPlusJuste.theorique)}` : null,
+          `dalles : ${r.lignes.auPlusJuste.lignes.map((l) => l.dalles).join(' + ')}`),
         tuile('Lignes en colonnes entières', nombre(colonnes.nombre), detailColonnes))),
     sectionArrivee(r),
     sectionAppel(r),
@@ -194,7 +203,15 @@ function mettreAJour() {
       el('ul', { class: 'rappels' }, RAPPELS.map((texte) => el('li', {}, texte)))));
 }
 
-export function initialiserElec() {
+// Appelé par l'onglet Schéma quand le coin de départ du câblage élec change.
+export function definirDepartElec(depart) {
+  departElec = depart;
+  mettreAJour();
+}
+
+// `rappel({ r, dalle, mur })` reçoit chaque calcul valide (null sinon), pour l'onglet Schéma.
+export function initialiserElec(rappel = () => {}) {
+  publier = rappel;
   formulaire.addEventListener('input', mettreAJour);
   formulaire.addEventListener('change', mettreAJour);
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());
