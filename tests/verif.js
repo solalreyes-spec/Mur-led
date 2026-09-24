@@ -31,6 +31,20 @@ function memeValeur(a, b) {
   return a === b;
 }
 
+// Même chose pour un cas asynchrone (images, canvas) : `verifier` renvoie une promesse.
+export async function executerCasAsync(cas, contexte = {}) {
+  const v = creerVerif();
+  try {
+    await cas.verifier(v, contexte);
+  } catch (erreur) {
+    return { statut: 'erreur', controles: v.controles, erreur };
+  }
+  if (v.controles.length === 0) {
+    return { statut: 'erreur', controles: [], erreur: new Error('Aucun contrôle dans ce cas.') };
+  }
+  return { statut: v.controles.every((c) => c.ok) ? 'reussi' : 'echec', controles: v.controles };
+}
+
 // Statuts : 'a-venir' (pas encore de vérification), 'reussi', 'echec', 'erreur'.
 // `contexte` porte les données lues une seule fois (par exemple data/dalles.json).
 export function executerCas(cas, contexte = {}) {

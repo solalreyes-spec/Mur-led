@@ -4,6 +4,7 @@
 import * as calculs from '../src/calculs.js';
 import * as fiches from '../src/fiches.js';
 import * as resumes from '../src/resumes.js';
+import { modeEnregistrement } from '../src/export.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
@@ -1807,6 +1808,49 @@ export const REGLES = [
       v.egal('le parc peut aussi dire non', non.rotationPossible, false);
       v.egal('saisie « oui » du formulaire', fiches.reglageDalleParc(fiches.reglerDalleParc(base, parc, 'roe-cb5-mkii', { rotationPossible: 'true' }), parc, 'roe-cb5-mkii'), { rotationPossible: true });
       v.egal('« Tous » : la fiche seule', fiches.appliquerReglagesParc(cb5, base, null).rotationPossible, undefined);
+    },
+  },  {
+    id: 'R105',
+    titre: 'Pixel map exportée : fond de chaque dalle à ses pixels exacts, mire et numéros en option',
+    etape: '8c',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      const zone = calculs.pixelMap(m, DALLE_CAS_13, e).canvas[1];
+      const nu = calculs.motifPixelMap(zone, {});
+      v.egal('taille exacte du canvas', [nu.largeurPx, nu.hauteurPx], [1152, 1152]);
+      verifierCouverture(v, 'fonds : chaque dalle à ses pixels', nu.fonds.map((f, i) => ({ id: `F${i}`, x: [f.x, f.x + f.largeur - 1], y: [f.y, f.y + f.hauteur - 1] })), 1152, 1152);
+      const teinte = (id) => nu.fonds.find((f) => f.id === id).teinte;
+      v.vrai('dalles voisines de teintes différentes', teinte('C7 R1') !== teinte('C8 R1') && teinte('C7 R1') !== teinte('C7 R2') && teinte('C8 R1') !== teinte('C8 R2'));
+      v.egal('sans option : ni mire ni numéros', [nu.contours.length, nu.traits.length, nu.cercles.length, nu.textes.length], [0, 0, 0, 0]);
+      const tout = calculs.motifPixelMap(zone, { grille: true, cercles: true, diagonales: true, numeros: true });
+      v.egal('grille : un contour par dalle', tout.contours.length, 36);
+      v.egal('diagonales : deux par dalle, deux sur tout le bloc', tout.traits.length, 36 * 2 + 2);
+      v.egal('cercles : un par dalle, un sur tout le bloc', tout.cercles.length, 37);
+      v.egal('numéros : un par dalle, avec son premier pixel', [tout.textes.length, tout.textes[0].texte, tout.textes[0].detail], [36, 'C7 R1', '0, 0']);
+      const dedans = (x, y) => x >= 0 && y >= 0 && x <= 1152 && y <= 1152;
+      v.vrai('mire entièrement dans le canvas',
+        tout.traits.every((t) => dedans(t.x1, t.y1) && dedans(t.x2, t.y2)) && tout.cercles.every((c) => dedans(c.cx - c.r, c.cy - c.r) && dedans(c.cx + c.r, c.cy + c.r)));
+      const sx40 = processeurDeBase(contexte, 'brompton-sx40');
+      const petit = calculs.mur(DALLE_CAS_13, 3, 3);
+      const zonePetite = calculs.pixelMap(petit, DALLE_CAS_13, calculs.evaluerProcesseur(petit, DALLE_CAS_13, sx40, BROMPTON_60_10)).canvas[0];
+      const motif = calculs.motifPixelMap(zonePetite, {});
+      v.egal('SX40 : canvas de 720 × 720 px au minimum, bloc de 576 × 576 en haut à gauche',
+        [motif.largeurPx, motif.hauteurPx, Math.max(...motif.fonds.map((f) => f.x + f.largeur)), Math.max(...motif.fonds.map((f) => f.y + f.hauteur))], [720, 720, 576, 576]);
+    },
+  },  {
+    id: 'R106',
+    titre: 'Enregistrer une image : feuille de partage quand l\'appareil sait partager des fichiers, téléchargement sinon',
+    etape: '8c',
+    verifier(v) {
+      const fichiers = [{ name: 'pixel-map.png', type: 'image/png' }];
+      const partage = { share: () => Promise.resolve(), canShare: () => true };
+      v.egal('iPhone (partage de fichiers possible) : feuille de partage', modeEnregistrement(partage, fichiers), 'partage');
+      v.egal('navigateur sans partage : téléchargement', modeEnregistrement({}, fichiers), 'telechargement');
+      v.egal('partage sans fichiers (canShare refuse) : téléchargement', modeEnregistrement({ ...partage, canShare: () => false }, fichiers), 'telechargement');
+      v.egal('share sans canShare : téléchargement, par prudence', modeEnregistrement({ share: partage.share }, fichiers), 'telechargement');
+      v.egal('canShare en erreur : téléchargement', modeEnregistrement({ ...partage, canShare: () => { throw new Error('non'); } }, fichiers), 'telechargement');
+      v.egal('pas de navigateur : téléchargement', modeEnregistrement(undefined, fichiers), 'telechargement');
     },
   },
 ];

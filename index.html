@@ -471,6 +471,16 @@
         <span class="etat-copie" aria-live="polite"></span>
       </div>
       <div id="resultats-schema" class="resultats" aria-live="polite"></div>
+
+      <section class="carte formulaire" aria-labelledby="titre-exports">
+        <h3 id="titre-exports">Exports</h3>
+        <p class="note">Pixel map en PNG, 1 pixel du fichier pour 1 pixel du mur, pour le media server et le graphiste. Au-delà de 16,7 M px (limite des iPhone), l'image est découpée en tuiles.</p>
+        <label class="case"><input id="export-mire" type="checkbox"><span>Mire : grille, cercles, diagonales</span></label>
+        <label class="case"><input id="export-numeros" type="checkbox"><span>Numéros des dalles</span></label>
+        <ul id="liste-exports" class="liste-exports"></ul>
+        <button id="export-schema" class="bouton" type="button">Schéma de câblage en image (PNG)</button>
+        <p id="etat-export" class="etat-copie" aria-live="polite"></p>
+      </section>
     </section>
 
     <section id="base" aria-labelledby="titre-base" hidden>

@@ -5,7 +5,8 @@ import { CAS } from './cas.js';
 import { REGLES } from './regles.js';
 import { DONNEES } from './donnees.js';
 import { BANC } from './banc.js';
-import { executerCas } from './verif.js';
+import { executerCas, executerCasAsync } from './verif.js';
+import { NAVIGATEUR } from './navigateur.js';
 import { chargerFichiersAppli } from './fichiers.js';
 import { el } from '../src/dom.js';
 
@@ -123,7 +124,19 @@ const cas = afficher(CAS, document.getElementById('liste-cas'), contexte);
 const regles = afficher(REGLES, document.getElementById('liste-regles'), contexte);
 const donnees = afficher(DONNEES, document.getElementById('liste-donnees'), contexte);
 const banc = afficher(BANC, document.getElementById('liste-banc'), contexte);
-const problemes = cas.problemes + regles.problemes + donnees.problemes + banc.problemes;
+// Contrôles dans le navigateur : asynchrones (images), exécutés l'un après l'autre.
+const resultatsNav = [];
+for (const c of NAVIGATEUR) {
+  const resultat = await executerCasAsync(c, contexte);
+  document.getElementById('liste-navigateur').append(carteCas(c, resultat));
+  resultatsNav.push(resultat);
+}
+const nav = {
+  total: NAVIGATEUR.length,
+  reussis: resultatsNav.filter((r) => r.statut === 'reussi').length,
+  problemes: resultatsNav.filter((r) => r.statut === 'echec' || r.statut === 'erreur').length,
+};
+const problemes = cas.problemes + regles.problemes + donnees.problemes + banc.problemes + nav.problemes;
 const sur = (bilanSection) => `${bilanSection.reussis} sur ${bilanSection.total}`;
 
 const bilan = document.getElementById('bilan');
@@ -133,7 +146,7 @@ bilan.replaceChildren(
   problemes ? `✗ ${pluriel(problemes, 'test en échec', 'tests en échec')}` : '✓ Aucun test en échec',
   el('small', {},
     `Cas tests : ${pluriel(cas.reussis, 'réussi', 'réussis')} · ${cas.problemes} en échec · ${cas.aVenir} à venir. `
-    + `Règles : ${sur(regles)}. Données : ${sur(donnees)}. Banc de test : ${sur(banc)}. `
+    + `Règles : ${sur(regles)}. Données : ${sur(donnees)}. Navigateur : ${sur(nav)}. Banc de test : ${sur(banc)}. `
     + `Lancé à ${new Date().toLocaleTimeString('fr-FR')}.`),
 );
 document.title = `${problemes ? '✗' : '✓'} Tests — Mur LED`;

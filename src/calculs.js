@@ -2049,3 +2049,52 @@ export function tuilesImage(largeurPx, hauteurPx, { surfaceMax = SURFACE_MAX_IMA
   }
   return tuiles;
 }
+
+// Motif de la pixel map exportée, à la taille exacte de la zone (le mur, ou le canvas d'un processeur avec son bloc
+// en haut à gauche) : fond de chaque dalle en quatre teintes alternées, pour distinguer ses voisines. En option,
+// la mire (contour de chaque dalle, diagonales et cercle de chaque dalle, plus deux diagonales et un cercle sur tout
+// le bloc, marqués `global`) et les numéros de dalles avec leur premier pixel. Le dessin ne fait que l'afficher.
+export function motifPixelMap(zone, { grille = false, cercles = false, diagonales = false, numeros = false } = {}) {
+  const largeurPx = zone.canvas ? zone.canvas.largeurPx : zone.largeurPx ?? zone.bloc.largeurPx;
+  const hauteurPx = zone.canvas ? zone.canvas.hauteurPx : zone.hauteurPx ?? zone.bloc.hauteurPx;
+  const fonds = zone.dalles.map((d) => ({
+    id: d.id,
+    x: d.x[0],
+    y: d.y[0],
+    largeur: d.x[1] - d.x[0] + 1,
+    hauteur: d.y[1] - d.y[0] + 1,
+    teinte: ((d.colonne - 1) % 2) + 2 * ((d.rangee - 1) % 2),
+  }));
+  const x0 = Math.min(...fonds.map((f) => f.x));
+  const y0 = Math.min(...fonds.map((f) => f.y));
+  const bloc = { x: x0, y: y0, largeur: Math.max(...fonds.map((f) => f.x + f.largeur)) - x0, hauteur: Math.max(...fonds.map((f) => f.y + f.hauteur)) - y0 };
+  const traits = [];
+  const ronds = [];
+  if (diagonales) {
+    for (const f of fonds) {
+      traits.push({ x1: f.x, y1: f.y, x2: f.x + f.largeur, y2: f.y + f.hauteur, global: false });
+      traits.push({ x1: f.x + f.largeur, y1: f.y, x2: f.x, y2: f.y + f.hauteur, global: false });
+    }
+    traits.push({ x1: bloc.x, y1: bloc.y, x2: bloc.x + bloc.largeur, y2: bloc.y + bloc.hauteur, global: true });
+    traits.push({ x1: bloc.x + bloc.largeur, y1: bloc.y, x2: bloc.x, y2: bloc.y + bloc.hauteur, global: true });
+  }
+  if (cercles) {
+    for (const f of fonds) ronds.push({ cx: f.x + f.largeur / 2, cy: f.y + f.hauteur / 2, r: Math.min(f.largeur, f.hauteur) / 2 - 0.5, global: false });
+    ronds.push({ cx: bloc.x + bloc.largeur / 2, cy: bloc.y + bloc.hauteur / 2, r: Math.min(bloc.largeur, bloc.hauteur) / 2 - 0.5, global: true });
+  }
+  return {
+    largeurPx,
+    hauteurPx,
+    bloc,
+    fonds,
+    contours: grille ? fonds.map(({ x, y, largeur, hauteur }) => ({ x, y, largeur, hauteur })) : [],
+    traits,
+    cercles: ronds,
+    textes: numeros
+      ? fonds.map((f) => ({
+        x: f.x + f.largeur / 2, y: f.y + f.hauteur / 2, texte: f.id, detail: `${f.x}, ${f.y}`,
+        taille: Math.max(8, Math.round(Math.min(f.largeur, f.hauteur) * 0.16)),
+      }))
+      : [],
+  };
+}

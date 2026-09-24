@@ -2,11 +2,15 @@
 // Tout est calculé par calculs.js (dallesDuMur, pixelMap, cablageData, cablageElec) : ici, seulement le dessin.
 
 import {
-  dallesDuMur, pixelMap, cablageData, cablageElec, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie,
+  dallesDuMur, pixelMap, cablageData, cablageElec, tuilesImage, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie,
 } from './calculs.js';
 import { resumeCablage } from './resumes.js';
 import { nombre, nombreCourt, lireNombre } from './format.js';
 import { el, svg, remplacer } from './dom.js';
+import {
+  trajetsSchema, geometrieSchema, blocsSchema, construireSvg, couleurTrajet, PALETTE_ECRAN, PALETTE_EXPORT,
+} from './dessin-schema.js';
+import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, telecharger, enregistrer, modeEnregistrement } from './export.js';
 
 const formulaire = document.getElementById('form-schema');
 const zone = document.getElementById('resultats-schema');
@@ -27,10 +31,6 @@ let dernier = null;
 const alerte = (texte, genre = '') => el('div', { class: `alerte ${genre}`.trim() }, texte);
 const pluriel = (n, singulier, plurielForme) => `${nombre(n)} ${n > 1 ? plurielForme : singulier}`;
 const pourcent = (taux) => `${nombre(taux * 100, 1)} %`;
-const NB_COULEURS = 8;
-// Motifs de trait, pour distinguer les trajets sans compter sur la couleur (mode rouge).
-const MOTIFS = [null, [3, 2], [0.6, 1.6]];
-
 function lireFormulaire() {
   const d = new FormData(formulaire);
   const facultatif = (nom) => {
@@ -81,141 +81,17 @@ function calculer(e) {
 
 const varianteChoisie = (t, mode) => (t ? t.variantes.find((x) => x.mode === mode) ?? t.variantes.find((x) => x.mode === t.conseil) : null);
 
-// Trajets à dessiner : un par port (data) ou par ligne (élec), avec sa couleur, son motif et ses dalles.
-function trajetsDe(e, vd, ve, canvasNumero) {
-  if (e.cablage === 'data' && vd) {
-    const plusieurs = vd.processeurs.length > 1;
-    let rang = 0;
-    return vd.processeurs.flatMap((p) => p.ports.map((port) => {
-      const i = rang;
-      rang += 1;
-      return {
-        cle: `p${p.numero}-${port.numero}`,
-        groupe: plusieurs ? `${p.modele} n° ${p.numero}` : p.modele,
-        processeur: p.numero,
-        etiquette: plusieurs ? `${p.numero}.${port.numero}` : `${port.numero}`,
-        libelle: `${port.libelle} : ${pluriel(port.dalles.length, 'dalle', 'dalles')}, ${pourcent(port.taux)}`,
-        dalles: port.dalles,
-        couleur: `var(--trace-${(i % NB_COULEURS) + 1})`,
-        motif: MOTIFS[Math.floor(i / NB_COULEURS) % MOTIFS.length],
-        secours: port.secours,
-      };
-    })).filter((t) => !canvasNumero || t.processeur === canvasNumero);
-  }
-  if (e.cablage === 'elec' && ve) {
-    const mono = ve.phases.length === 1;
-    return ve.lignesDetail.map((l) => ({
-      cle: `l${l.numero}`,
-      groupe: mono ? 'Lignes' : `Phase L${l.phase}`,
-      etiquette: `${l.numero}`,
-      libelle: `ligne ${l.numero}${mono ? '' : `, L${l.phase}`} : ${pluriel(l.dalles.length, 'dalle', 'dalles')}, ${nombreCourt(l.puissanceW)} W`,
-      dalles: l.dalles,
-      couleur: `var(--phase-${mono ? 1 : l.phase})`,
-      motif: mono ? null : MOTIFS[(l.phase - 1) % MOTIFS.length],
-      secours: null,
-    }));
-  }
-  return [];
-}
-
-// ---------------------------------------------------------------------------
-// Dessin
-// ---------------------------------------------------------------------------
-
-// Géométrie de la vue : rectangles des dalles (mm ou px), taille du cadre et blocs de processeurs.
-function geometrie(e, mur, dalle, pm) {
-  const dalles = dallesDuMur(mur, dalle);
-  if (e.vue === 'physique') {
-    return {
-      unite: 'mm',
-      largeur: mur.largeurMm,
-      hauteur: mur.hauteurMm,
-      rects: new Map(dalles.map((d) => [d.id, { x: d.mm.x, y: d.mm.y, w: d.mm.largeur, h: d.mm.hauteur, d }])),
-    };
-  }
-  const numero = e.canvasVue.startsWith('p') ? Number(e.canvasVue.slice(1)) : null;
-  const canvas = numero ? pm?.canvas.find((c) => c.numero === numero) : null;
-  if (canvas) {
-    const parId = new Map(dalles.map((d) => [d.id, d]));
-    return {
-      unite: 'px',
-      canvas,
-      largeur: canvas.canvas?.largeurPx ?? canvas.bloc.largeurPx,
-      hauteur: canvas.canvas?.hauteurPx ?? canvas.bloc.hauteurPx,
-      rects: new Map(canvas.dalles.map((z) => [z.id, { x: z.x[0], y: z.y[0], w: z.x[1] - z.x[0] + 1, h: z.y[1] - z.y[0] + 1, d: parId.get(z.id) }])),
-    };
-  }
-  return {
-    unite: 'px',
-    largeur: mur.pxLargeur,
-    hauteur: mur.pxHauteur,
-    rects: new Map(dalles.map((d) => [d.id, { x: d.px.x, y: d.px.y, w: d.px.largeur, h: d.px.hauteur, d }])),
-  };
-}
-
-const centre = (r) => [r.x + r.w / 2, r.y + r.h / 2];
-
+// Dessin à l'écran : couleurs du thème, cadrage courant (zoom), gestes branchés.
 function dessin(e, geo, trajets, coin, blocs) {
-  const { largeur, hauteur, rects } = geo;
-  const marge = 0.12 * Math.max(largeur, hauteur);
-  const complet = { x: -marge, y: -marge, w: largeur + 2 * marge, h: hauteur + 2 * marge };
-  const cle = `${e.vue}|${e.canvasVue}|${largeur}x${hauteur}`;
+  const cle = `${e.vue}|${e.canvasVue}|${geo.largeur}x${geo.hauteur}`;
+  const { svg: racine, complet } = construireSvg({
+    geo, trajets, coin, blocs, palette: PALETTE_ECRAN, cadrage: cle === cleDessin ? cadrage : null, selection, dalleChoisie,
+  });
   if (cle !== cleDessin) {
     cadrage = { ...complet };
     cleDessin = cle;
   }
   cadrageComplet = complet;
-  const cote = Math.min(...[...rects.values()].map((r) => Math.min(r.w, r.h)));
-  const trait = cote * 0.07;
-  const police = cote * 0.2;
-  const surligne = selection !== null;
-
-  const marqueurs = [...new Set(trajets.map((t) => t.couleur))].map((couleur, i) => svg('marker', {
-    id: `fleche-${i}`, viewBox: '0 0 10 10', refX: 5, refY: 5, markerWidth: 3.2, markerHeight: 3.2, orient: 'auto',
-  }, svg('path', { d: 'M1,1 L9,5 L1,9 z', style: `fill: ${couleur}` })));
-  const idMarqueur = new Map([...new Set(trajets.map((t) => t.couleur))].map((c, i) => [c, `fleche-${i}`]));
-
-  const tuiles = [...rects.entries()].map(([id, r]) => svg('g', { 'data-dalle': id },
-    svg('rect', { class: `dalle${r.d?.type === 'demi' ? ' demi' : ''}${id === dalleChoisie ? ' choisie' : ''}`, x: r.x, y: r.y, width: r.w, height: r.h, 'stroke-width': cote * (id === dalleChoisie ? 0.05 : 0.015) }),
-    svg('text', { class: 'etiquette-dalle', x: r.x + r.w / 2, y: r.y + r.h / 2 - (geo.unite === 'px' ? police * 0.6 : 0), 'font-size': police }, id),
-    geo.unite === 'px' ? svg('text', { class: 'etiquette-dalle', x: r.x + r.w / 2, y: r.y + r.h / 2 + police * 0.7, 'font-size': police * 0.75 }, `${r.x}, ${r.y}`) : null));
-
-  const contours = blocs.map((b) => svg('g', {},
-    svg('rect', { class: 'bloc', x: b.x, y: b.y, width: b.w, height: b.h, 'stroke-width': trait * 0.6 }),
-    svg('text', { class: 'etiquette-bloc', x: b.x + trait, y: b.y - trait * 1.5, 'font-size': police * 1.1 }, b.libelle)));
-
-  // Trajet : talon depuis le bord du côté du départ, serpentin fléché, retour de redondance en pointillés.
-  const bordY = coin.startsWith('haut') ? -marge * 0.35 : hauteur + marge * 0.35;
-  const lignes = trajets.map((t) => {
-    const points = t.dalles.filter((id) => rects.has(id)).map((id) => centre(rects.get(id)));
-    if (points.length === 0) return null;
-    const [x0, y0] = points[0];
-    const [xn, yn] = points[points.length - 1];
-    const actif = !surligne || selection === t.cle;
-    const largeurTrait = trait * (selection === t.cle ? 1.8 : 1);
-    const pointilles = t.motif ? t.motif.map((x) => x * trait * 2).join(' ') : null;
-    const style = `stroke: ${t.couleur}`;
-    return svg('g', { 'data-trajet': t.cle, class: actif ? null : 'attenue' },
-      svg('line', { class: 'trajet', x1: x0, y1: bordY, x2: x0, y2: y0, style, 'stroke-width': largeurTrait, 'stroke-dasharray': pointilles }),
-      svg('polyline', {
-        class: 'trajet', points: points.map((p) => p.join(',')).join(' '), style, 'stroke-width': largeurTrait,
-        'stroke-dasharray': pointilles, 'marker-mid': `url(#${idMarqueur.get(t.couleur)})`, 'marker-end': `url(#${idMarqueur.get(t.couleur)})`,
-      }),
-      t.secours ? svg('line', { class: 'trajet', x1: xn, y1: yn, x2: xn, y2: bordY, style, 'stroke-width': largeurTrait * 0.7, 'stroke-dasharray': `${trait * 1.2} ${trait * 1.4}` }) : null,
-      svg('circle', { cx: x0, cy: bordY, r: police * 0.95, style: `fill: var(--fond); stroke: ${t.couleur}`, 'stroke-width': trait * 0.6 }),
-      svg('text', { class: 'numero-trajet', x: x0, y: bordY, 'font-size': police * (t.etiquette.length > 3 ? 0.7 : 0.95), style: `fill: ${t.couleur}` }, t.etiquette));
-  });
-
-  const racine = svg('svg', {
-    viewBox: `${cadrage.x} ${cadrage.y} ${cadrage.w} ${cadrage.h}`,
-    preserveAspectRatio: 'xMidYMid meet',
-    role: 'img',
-    'aria-label': `Schéma du mur, ${geo.unite === 'mm' ? 'vue physique en millimètres' : 'vue en pixels'}`,
-    style: `aspect-ratio: ${complet.w} / ${complet.h}`,
-  },
-  svg('defs', {}, marqueurs),
-  svg('rect', { x: 0, y: 0, width: largeur, height: hauteur, style: 'fill: none; stroke: var(--texte-doux)', 'stroke-width': cote * 0.02 }),
-  tuiles, contours, lignes);
   brancherGestes(racine);
   return racine;
 }
@@ -349,7 +225,7 @@ function legende(trajets) {
     ...trajets.filter((t) => t.groupe === g).map((t) => {
       const puce = el('button', { type: 'button', class: 'puce-trajet', 'aria-pressed': String(selection === t.cle) },
         svg('svg', { viewBox: '0 0 26 10', 'aria-hidden': 'true' },
-          svg('line', { x1: 1, y1: 5, x2: 25, y2: 5, style: `stroke: ${t.couleur}`, 'stroke-width': 3, 'stroke-dasharray': t.motif ? t.motif.map((x) => x * 3).join(' ') : null })),
+          svg('line', { x1: 1, y1: 5, x2: 25, y2: 5, style: `stroke: ${couleurTrajet(t, PALETTE_ECRAN)}`, 'stroke-width': 3, 'stroke-dasharray': t.motif ? t.motif.map((x) => x * 3).join(' ') : null })),
         t.libelle);
       puce.addEventListener('click', () => {
         selection = selection === t.cle ? null : t.cle;
@@ -397,6 +273,95 @@ function tableCanvas(pm) {
 // Mise à jour
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Exports : pixel map en PNG (mur entier et canvas de chaque processeur, en tuiles au-delà de 16,7 M px),
+// schéma de câblage en PNG. Les fichiers sont produits au moment de l'appui, un par un.
+// ---------------------------------------------------------------------------
+
+let contexteExport = null;
+const etatExport = () => document.getElementById('etat-export');
+const mpx = (l, h) => `${nombreCourt((l * h) / 1e6, 1)} M px`;
+
+function optionsPixelMap() {
+  const mire = document.getElementById('export-mire').checked;
+  return { grille: mire, cercles: mire, diagonales: mire, numeros: document.getElementById('export-numeros').checked };
+}
+
+// Prépare l'image, puis l'enregistre : feuille de partage si l'appareil sait partager des fichiers (iPhone),
+// téléchargement sinon. Le partage part d'un second appui : Safari ne l'ouvre que sur un appui direct.
+async function produire(nom, fabriquer) {
+  const etat = etatExport();
+  etat.textContent = `Préparation de ${nom}…`;
+  let blob;
+  try {
+    blob = await fabriquer();
+  } catch (erreur) {
+    etat.textContent = `Export impossible : ${erreur.message}`;
+    return;
+  }
+  const taille = `${nom} (${nombreCourt(blob.size / 1e6, 1)} Mo)`;
+  if (modeEnregistrement(navigator, [new File([blob], nom, { type: 'image/png' })]) !== 'partage') {
+    telecharger(blob, nom);
+    etat.textContent = `Image téléchargée : ${taille}.`;
+    return;
+  }
+  const partager = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Enregistrer ou partager');
+  partager.addEventListener('click', async () => {
+    const resultat = await enregistrer(blob, nom);
+    etat.textContent = { partage: `Image partagée : ${taille}.`, annule: 'Partage annulé : appuie de nouveau sur l\'export pour recommencer.', telechargement: `Image téléchargée : ${taille}.` }[resultat];
+  });
+  const secours = el('button', { type: 'button', class: 'bouton bouton-petit bouton-discret' }, 'Télécharger');
+  secours.addEventListener('click', () => {
+    telecharger(blob, nom);
+    etat.textContent = `Image téléchargée : ${taille}.`;
+  });
+  remplacer(etat, el('span', {}, `Image prête : ${taille}. `), el('span', { class: 'actions' }, partager, secours));
+}
+
+function boutonExport(texte, nom, fabriquer) {
+  const bouton = el('button', { type: 'button', class: 'bouton bouton-petit' }, texte);
+  bouton.addEventListener('click', () => produire(nom, fabriquer));
+  return bouton;
+}
+
+// Une zone (mur ou canvas) : un bouton, ou un bouton par tuile au-delà de la limite de surface.
+function elementZone(libelle, zone, prefixe) {
+  const l = zone.canvas ? zone.canvas.largeurPx : zone.largeurPx;
+  const h = zone.canvas ? zone.canvas.hauteurPx : zone.hauteurPx;
+  const tuiles = tuilesImage(l, h);
+  const nom = (suffixe) => `mur-led-pixel-map-${prefixe}${suffixe}.png`;
+  return el('li', {},
+    el('span', {}, `${libelle} : ${l} × ${h} px (${mpx(l, h)})${tuiles.length > 1 ? `, en ${tuiles.length} tuiles` : ''}`),
+    el('span', { class: 'actions' }, tuiles.length === 1
+      ? boutonExport('PNG', nom(`-${l}x${h}`), () => canvasEnPng(pixelMapEnCanvas(zone, optionsPixelMap())))
+      : tuiles.map((t, i) => boutonExport(`Tuile ${i + 1}`, nom(`-tuile-${i + 1}-sur-${tuiles.length}-x${t.x}-y${t.y}-${t.largeurPx}x${t.hauteurPx}`),
+        () => canvasEnPng(pixelMapEnCanvas(zone, optionsPixelMap(), t))))));
+}
+
+function afficherExports(contexte) {
+  contexteExport = contexte;
+  const { pm } = contexte;
+  remplacer(document.getElementById('liste-exports'),
+    elementZone('Tout le mur', pm.mur, 'mur'),
+    pm.canvas.map((c) => elementZone(`Processeur n° ${c.numero}`, c, `processeur-${c.numero}`)));
+}
+
+function exporterSchema() {
+  if (!contexteExport) return;
+  const { e, geo, trajets, coin, blocs, data, vd, elec, ve } = contexteExport;
+  const { svg: image } = construireSvg({ geo, trajets, coin, blocs, palette: PALETTE_EXPORT, largeurPx: 2000 });
+  const sujet = { data: vd ? `câblage data ${vd.libelle}, départ ${LIBELLES_COIN[data.depart]}` : null, elec: ve ? `câblage élec ${ve.libelle}, départ ${LIBELLES_COIN[elec.depart]}` : null }[e.cablage];
+  const texte = e.cablage === 'data' && vd ? resumeCablage({ data, modeData: vd.mode })
+    : e.cablage === 'elec' && ve ? resumeCablage({ elec, modeElec: ve.mode }) : '';
+  const d = new Date();
+  const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  produire(`mur-led-schema-${e.cablage === 'aucun' ? 'mur' : e.cablage}-${jour}.png`, () => schemaEnPng(image, {
+    largeurPx: 2000,
+    titre: `Mur LED${sujet ? `, ${sujet}` : ''}`,
+    lignes: texte ? texte.split('\n').slice(1) : [],
+  }));
+}
+
 export function resumeOngletSchema() {
   return dernier ? resumeCablage(dernier) : null;
 }
@@ -433,19 +398,11 @@ function mettreAJour() {
   const vueCanvas = e.vue === 'pixels' && select.value !== 'mur' ? Number(select.value.slice(1)) : null;
   const eVue = { ...e, canvasVue: select.value };
 
-  const geo = geometrie(eVue, mur, dalle, pm);
-  const trajets = trajetsDe(e, vd, ve, vueCanvas);
+  const geo = geometrieSchema(eVue, mur, dalle, pm);
+  const trajets = trajetsSchema(e, vd, ve, vueCanvas);
   const coin = e.cablage === 'elec' ? e.departElec : e.departData;
-  // Contour de chaque bloc de processeur (vue physique ou mur entier en pixels, mur découpé).
-  const blocs = [];
-  if (!vueCanvas && pm.canvas.length > 1 && e.cablage !== 'elec') {
-    for (const c of pm.canvas) {
-      const rs = c.dalles.map((z) => geo.rects.get(z.id));
-      const x = Math.min(...rs.map((r) => r.x));
-      const y = Math.min(...rs.map((r) => r.y));
-      blocs.push({ x, y, w: Math.max(...rs.map((r) => r.x + r.w)) - x, h: Math.max(...rs.map((r) => r.y + r.h)) - y, libelle: `Processeur n° ${c.numero}` });
-    }
-  }
+  const blocs = blocsSchema(geo, pm, { vueCanvas, cablage: e.cablage });
+  afficherExports({ pm, e, geo, trajets, coin, blocs, data, vd, elec, ve });
 
   const alertes = [...erreurs.map((x) => alerte(x, 'alerte-erreur'))];
   let entete = null;
@@ -509,6 +466,7 @@ export function initialiserSchema({ surDepart = () => {} } = {}) {
   formulaire.addEventListener('input', mettreAJour);
   formulaire.addEventListener('change', mettreAJour);
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());
+  document.getElementById('export-schema').addEventListener('click', exporterSchema);
 }
 
 export function murModifiePourSchema(etat) {

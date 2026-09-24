@@ -242,6 +242,9 @@ details.manques p { margin: 0 14px 10px; }
 .puce-trajet svg { width: 26px; height: 10px; flex: none; }
 .legende-groupe { width: 100%; margin: 6px 0 0; color: var(--texte-doux); font-size: 0.8rem; }
 .info-dalle { margin-top: 10px; }
+.liste-exports { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.liste-exports li { display: grid; gap: 6px; font-size: 0.9rem; }
+.liste-exports .actions { margin-top: 0; }
 .lien-discret {
   display: inline-flex;
   align-items: center;
