@@ -231,7 +231,8 @@ details.manques p { margin: 0 14px 10px; }
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
 }
-.formulaire { display: grid; gap: 14px; }
+/* Grilles à une ou deux colonnes : minmax(0, 1fr) empêche une liste ou un tableau d'élargir la page (Safari). */
+.formulaire { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 #alerte-dalle:empty { display: none; }
 #alerte-dalle .alerte:first-child { margin-top: 0; }
 .champ { display: grid; gap: 6px; min-width: 0; }
@@ -251,7 +252,26 @@ input:not([type]), input[type="text"], select {
 input:not([type]) { font-family: var(--police-chiffres); font-size: 1.1rem; }
 input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-.paire { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.paire { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+/* Un sélecteur ne dépasse jamais l'écran : Safari lui donne sinon la largeur de sa plus longue option. */
+select, input, textarea { max-width: 100%; min-width: 0; }
+/* Sélecteur dessiné par l'appli : WebKit laisse sinon le texte de l'option choisie déborder et élargir la page.
+   Le texte trop long finit par « … » ; la flèche suit les couleurs du thème (mode rouge compris). */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding-right: 36px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--texte-doux) 50%),
+    linear-gradient(135deg, var(--texte-doux) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 55%, calc(100% - 14px) 55%;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+main, main section, .carte, details, .champ, .resultats, .bloc-resultats { min-width: 0; }
 
 .case {
   display: flex;
@@ -308,7 +328,11 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); ou
 .table-fiche thead th { color: var(--texte-doux); font-weight: 600; }
 .table-fiche tbody th { font-weight: 400; color: var(--texte-doux); }
 .table-fiche .source { color: var(--texte-doux); }
-.table-fiche .source span { display: block; white-space: nowrap; }
+.table-fiche .source span { display: block; }
+/* Textes longs : à la ligne. Dans un tableau, un mot n'est coupé que s'il ne tient pas dans sa colonne. */
+.table-fiche td, .table-fiche th { overflow-wrap: break-word; -webkit-hyphens: auto; hyphens: auto; }
+.table-fiche td.source { overflow-wrap: anywhere; }
+.note, .alerte, p.source, .recap-mur { overflow-wrap: anywhere; }
 .conflit { margin-top: 2px; color: var(--alerte); font-size: 0.8rem; }
 
 /* Alertes */
@@ -489,7 +513,8 @@ input[type="file"] { color: var(--texte); min-height: var(--cible); }
   .cas-corps dd { margin: 0; }
 }
 
-.tableau-defilant { overflow-x: auto; }
+/* Chaque tableau défile dans son propre cadre, jamais la page entière. */
+.tableau-defilant { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .controles { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .controles th, .controles td {
   padding: 6px 8px;
