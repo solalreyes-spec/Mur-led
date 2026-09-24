@@ -1,0 +1,1084 @@
+{
+  "format": "appli-mur-led/dalles",
+  "version": 1,
+  "note": "Base de départ du MVP, reprise du cahier des charges du projet. Chaque valeur chiffrée porte sa source. En cas de valeurs contradictoires, toutes restent listées : le calcul retient la plus défavorable.",
+  "sources": {
+    "cahier-des-charges-dalles": {
+      "titre": "Cahier des charges du projet : valeurs reprises de fiches ROE et Absen et de revendeurs, à confirmer sur la fiche constructeur",
+      "court": "Cahier des charges du projet, à confirmer sur la fiche constructeur",
+      "date": null,
+      "confiance": "à confirmer avec la fiche exacte"
+    },
+    "cahier-des-charges-gabarits": {
+      "titre": "Cahier des charges du projet : gabarits génériques",
+      "court": "Cahier des charges du projet",
+      "date": null,
+      "confiance": "non sourcé"
+    },
+    "roe-brochure-bp2-v2-2021-03": {
+      "titre": "Brochure ROE Black Pearl BP2 V2",
+      "court": "Brochure ROE",
+      "date": "2021-03-08",
+      "confiance": "constructeur"
+    },
+    "roe-fiche-bp2-v2-2021-05": {
+      "titre": "Fiche technique ROE Black Pearl BP2 V2",
+      "court": "Fiche ROE",
+      "date": "2021-05-18",
+      "confiance": "constructeur"
+    },
+    "roe-manuel-black-onyx-pearl-v1-8": {
+      "titre": "Manuel ROE Black Onyx & Pearl V1.8",
+      "court": "Manuel ROE V1.8",
+      "date": "2023-10-08",
+      "confiance": "constructeur"
+    },
+    "4wall-bp2-v2": {
+      "titre": "Fiche du loueur 4Wall, ROE BP2 V2",
+      "court": "Loueur 4Wall",
+      "date": null,
+      "confiance": "loueur"
+    },
+    "roe-fiche-cb5-mkii-2023-01": {
+      "titre": "Fiche technique ROE CB5 MKII",
+      "court": "Fiche ROE",
+      "date": "2023-01-13",
+      "confiance": "constructeur"
+    },
+    "roe-brochure-cb5-mkii-2024-02": {
+      "titre": "Brochure ROE CB5 MKII",
+      "court": "Brochure ROE",
+      "date": "2024-02-05",
+      "confiance": "constructeur"
+    },
+    "roe-page-produit-cb5-mkii": {
+      "titre": "Page produit ROE CB5 MKII",
+      "court": "Page produit ROE",
+      "date": null,
+      "confiance": "constructeur"
+    },
+    "absen-fiche-pl-pro-v10": {
+      "titre": "Fiche Absen PL2.5 Pro V10",
+      "court": "Fiche Absen",
+      "date": null,
+      "confiance": "constructeur"
+    },
+    "absen-fiche-rentex-pl-pro-v10": {
+      "titre": "Fiche Absen PL2.5 Pro V10 diffusée par le loueur Rentex",
+      "court": "Fiche Absen (Rentex)",
+      "date": null,
+      "confiance": "constructeur, via un loueur"
+    },
+    "absen-usa-pl-pro-v10-2025": {
+      "titre": "Fiche Absen USA PL2.5 Pro V10 (2025)",
+      "court": "Fiche Absen USA",
+      "date": "2025",
+      "confiance": "constructeur"
+    },
+    "rentex-pl-pro-v10": {
+      "titre": "Fiche du loueur Rentex, Absen PL2.5 Pro V10",
+      "court": "Loueur Rentex",
+      "date": null,
+      "confiance": "loueur"
+    },
+    "ledwallcentral-pl-pro-v10": {
+      "titre": "Base tierce LEDwallcentral, Absen PL2.5 Pro V10",
+      "court": "LEDwallcentral",
+      "date": null,
+      "confiance": "base tierce"
+    },
+    "4wall-europe-upad-iv-2-6": {
+      "titre": "Fiche 4Wall Europe, Unilumin Upad IV 2.6 (cdn01.4wall.com)",
+      "court": "4Wall Europe",
+      "date": null,
+      "confiance": "loueur"
+    },
+    "lmg-upad-iv-2-6": {
+      "titre": "lmg.net, Unilumin Upad IV 2.6 (version 1/16 scan)",
+      "court": "LMG",
+      "date": null,
+      "confiance": "loueur"
+    },
+    "ledwallcentral-upad-iv-2-6": {
+      "titre": "ledwallcentral.com, Unilumin Upad IV 2.6, version « 8 scan »",
+      "court": "LEDwallcentral (8 scan)",
+      "date": null,
+      "confiance": "base tierce"
+    },
+    "sources-communes-upad-iv-2-6": {
+      "titre": "Valeur commune à la fiche 4Wall Europe, à LMG et à LEDwallcentral (attribution non précisée)",
+      "court": "4Wall Europe, LMG, LEDwallcentral",
+      "date": null,
+      "confiance": "loueurs et base tierce"
+    },
+    "ledwallcentral-upad-iv-2-6-pro": {
+      "titre": "ledwallcentral.com, Unilumin « UpadIV 2 Pro »",
+      "court": "LEDwallcentral",
+      "date": null,
+      "confiance": "base tierce"
+    },
+    "plsn-ar3-9-2019-11": {
+      "titre": "PLSN, novembre 2019 : INFiLED AR3.9",
+      "court": "PLSN",
+      "date": "2019-11",
+      "confiance": "presse spécialisée"
+    },
+    "ledwallcentral-ar3-9": {
+      "titre": "ledwallcentral.com, INFiLED AR3.9",
+      "court": "LEDwallcentral",
+      "date": null,
+      "confiance": "base tierce"
+    },
+    "sources-communes-ar3-9": {
+      "titre": "Valeur commune à PLSN (novembre 2019) et à LEDwallcentral (attribution non précisée)",
+      "court": "PLSN, LEDwallcentral",
+      "date": null,
+      "confiance": "presse spécialisée et base tierce"
+    },
+    "ledwallcentral-ez2-6-mk2": {
+      "titre": "ledwallcentral.com, INFiLED EZ2.6 mk2",
+      "court": "LEDwallcentral",
+      "date": null,
+      "confiance": "base tierce"
+    },
+    "4wall-page-absen-m2-9": {
+      "titre": "4wall.com, page produit Absen M2.9",
+      "court": "4Wall (page produit)",
+      "date": null,
+      "confiance": "loueur"
+    },
+    "4wall-calculateur-absen-m2-9": {
+      "titre": "4wall.com, calculateur de mur : Absen M2.9",
+      "court": "4Wall (calculateur)",
+      "date": null,
+      "confiance": "loueur"
+    },
+    "ledwallcentral-jp5-pro": {
+      "titre": "ledwallcentral.com, Absen JP5 Pro",
+      "court": "LEDwallcentral",
+      "date": null,
+      "confiance": "base tierce"
+    },
+    "roe-chainage-cb5-mkii": {
+      "titre": "Chaînage power ROE CB5 MKII : 7 dalles par ligne 16 A",
+      "court": "ROE (chaînage)",
+      "date": "2026-09-24",
+      "confiance": "à confirmer sur la fiche ROE"
+    },
+    "roe-manuel-carbon-ancien": {
+      "titre": "Ancien manuel ROE Carbon : barre d'accroche avec clamp et manille, 4,44 kg pour 1 colonne, 8,95 kg pour 2 colonnes",
+      "court": "Ancien manuel ROE Carbon",
+      "date": null,
+      "confiance": "ancien manuel Carbon, à confirmer pour la MKII"
+    },
+    "roe-structure-5-fois": {
+      "titre": "ROE : structure dimensionnée pour 5 fois le poids suspendu",
+      "court": "ROE",
+      "date": null,
+      "confiance": "constructeur, à confirmer sur le manuel"
+    }
+  },
+  "dalles": [
+    {
+      "id": "roe-bp2-v2",
+      "marque": "ROE",
+      "modele": "BP2",
+      "version": "V2",
+      "pitchMm": {
+        "valeur": 2.84,
+        "source": "cahier-des-charges-dalles"
+      },
+      "largeurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-dalles"
+      },
+      "hauteurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxH": {
+        "valeur": 176,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxV": {
+        "valeur": 176,
+        "source": "cahier-des-charges-dalles"
+      },
+      "poidsKg": {
+        "valeur": 9.35,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pMaxW": {
+        "valeurs": [
+          {
+            "valeur": 160,
+            "source": "roe-brochure-bp2-v2-2021-03",
+            "type": "max"
+          },
+          {
+            "valeur": 185,
+            "source": "roe-fiche-bp2-v2-2021-05",
+            "type": "max"
+          },
+          {
+            "valeur": 190,
+            "source": "roe-manuel-black-onyx-pearl-v1-8",
+            "type": "max"
+          },
+          {
+            "valeur": 190,
+            "source": "4wall-bp2-v2",
+            "type": "max"
+          }
+        ]
+      },
+      "pMoyW": {
+        "valeurs": [
+          {
+            "valeur": 80,
+            "source": "roe-brochure-bp2-v2-2021-03",
+            "type": "moyenne"
+          },
+          {
+            "valeur": 92,
+            "source": "roe-fiche-bp2-v2-2021-05",
+            "type": "moyenne"
+          },
+          {
+            "valeur": 95,
+            "source": "roe-manuel-black-onyx-pearl-v1-8",
+            "type": "moyenne"
+          },
+          {
+            "valeur": 95,
+            "source": "4wall-bp2-v2",
+            "type": "moyenne"
+          }
+        ]
+      }
+    },
+    {
+      "id": "roe-cb5-mkii",
+      "marque": "ROE",
+      "modele": "CB5",
+      "version": "MKII",
+      "demiDalle": "roe-cb5-mkii-demi",
+      "pitchMm": {
+        "valeur": 5.77,
+        "source": "cahier-des-charges-dalles"
+      },
+      "largeurMm": {
+        "valeur": 600,
+        "source": "cahier-des-charges-dalles"
+      },
+      "hauteurMm": {
+        "valeur": 1200,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxH": {
+        "valeur": 104,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxV": {
+        "valeur": 208,
+        "source": "cahier-des-charges-dalles"
+      },
+      "poidsKg": {
+        "valeurs": [
+          {
+            "valeur": 12.2,
+            "source": "roe-fiche-cb5-mkii-2023-01"
+          },
+          {
+            "valeur": 12.2,
+            "source": "roe-brochure-cb5-mkii-2024-02"
+          },
+          {
+            "valeur": 13.6,
+            "source": "roe-page-produit-cb5-mkii"
+          }
+        ]
+      },
+      "pMaxW": {
+        "valeur": 480,
+        "source": "cahier-des-charges-dalles",
+        "type": "max"
+      },
+      "chainagePowerMax": {
+        "valeur": 7,
+        "source": "roe-chainage-cb5-mkii"
+      }
+    },
+    {
+      "id": "roe-cb5-mkii-demi",
+      "marque": "ROE",
+      "modele": "CB5",
+      "version": "MKII",
+      "variante": "demi-dalle",
+      "demiDe": "roe-cb5-mkii",
+      "pitchMm": {
+        "valeur": 5.77,
+        "source": "cahier-des-charges-dalles"
+      },
+      "largeurMm": {
+        "valeur": 600,
+        "source": "cahier-des-charges-dalles"
+      },
+      "hauteurMm": {
+        "valeur": 600,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxH": {
+        "valeur": 104,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxV": {
+        "valeur": 104,
+        "source": "cahier-des-charges-dalles"
+      },
+      "poidsKg": {
+        "valeur": 7.2,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pMaxW": {
+        "valeur": 250,
+        "source": "cahier-des-charges-dalles",
+        "type": "max"
+      }
+    },
+    {
+      "id": "roe-cb3-mkii",
+      "marque": "ROE",
+      "modele": "CB3",
+      "version": "MKII",
+      "pitchMm": {
+        "valeur": 3.75,
+        "source": "cahier-des-charges-dalles"
+      },
+      "largeurMm": {
+        "valeur": 600,
+        "source": "cahier-des-charges-dalles"
+      },
+      "hauteurMm": {
+        "valeur": 1200,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxH": {
+        "valeur": 160,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxV": {
+        "valeur": 320,
+        "source": "cahier-des-charges-dalles"
+      },
+      "poidsKg": {
+        "valeur": 14,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pMaxW": {
+        "valeur": 600,
+        "source": "cahier-des-charges-dalles",
+        "type": "max"
+      }
+    },
+    {
+      "id": "absen-pl2-5-pro-v10",
+      "marque": "Absen",
+      "modele": "PL2.5 Pro",
+      "version": "V10",
+      "pitchMm": {
+        "valeur": 2.5,
+        "source": "cahier-des-charges-dalles"
+      },
+      "largeurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-dalles"
+      },
+      "hauteurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxH": {
+        "valeur": 200,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxV": {
+        "valeur": 200,
+        "source": "cahier-des-charges-dalles"
+      },
+      "poidsKg": {
+        "valeurs": [
+          {
+            "valeur": 8.6,
+            "source": "absen-fiche-pl-pro-v10"
+          },
+          {
+            "valeur": 8.8,
+            "source": "ledwallcentral-pl-pro-v10"
+          }
+        ]
+      },
+      "pMaxW": {
+        "valeurs": [
+          {
+            "valeur": 170,
+            "source": "ledwallcentral-pl-pro-v10",
+            "type": "max"
+          },
+          {
+            "valeur": 192.5,
+            "source": "rentex-pl-pro-v10",
+            "type": "max"
+          }
+        ]
+      },
+      "rafraichissementHz": {
+        "valeurs": [
+          {
+            "valeur": 3840,
+            "source": "absen-fiche-rentex-pl-pro-v10"
+          },
+          {
+            "valeur": 7680,
+            "source": "absen-usa-pl-pro-v10-2025"
+          }
+        ]
+      }
+    },
+    {
+      "id": "absen-pl1-9-pro-v10",
+      "marque": "Absen",
+      "modele": "PL1.9 Pro",
+      "version": "V10",
+      "pitchMm": {
+        "valeur": 1.95,
+        "source": "cahier-des-charges-dalles"
+      },
+      "largeurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-dalles"
+      },
+      "hauteurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxH": {
+        "valeur": 256,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pxV": {
+        "valeur": 256,
+        "source": "cahier-des-charges-dalles"
+      },
+      "poidsKg": {
+        "valeur": 9,
+        "source": "cahier-des-charges-dalles"
+      },
+      "pMaxW": {
+        "valeur": 180,
+        "source": "cahier-des-charges-dalles",
+        "type": "max"
+      }
+    },
+    {
+      "id": "unilumin-upad-iv-2-6",
+      "marque": "Unilumin",
+      "modele": "Upad IV",
+      "version": "2.6",
+      "note": "La dalle existe en versions 1/8 et 1/16 scan ; la 1/8 consomme plus. Les 165 W retenus couvrent les deux versions.",
+      "pitchMm": {
+        "valeur": 2.604,
+        "source": "sources-communes-upad-iv-2-6"
+      },
+      "largeurMm": {
+        "valeur": 500,
+        "source": "sources-communes-upad-iv-2-6"
+      },
+      "hauteurMm": {
+        "valeur": 500,
+        "source": "sources-communes-upad-iv-2-6"
+      },
+      "profondeurMm": {
+        "valeur": 70.1,
+        "source": "sources-communes-upad-iv-2-6"
+      },
+      "pxH": {
+        "valeur": 192,
+        "source": "sources-communes-upad-iv-2-6"
+      },
+      "pxV": {
+        "valeur": 192,
+        "source": "sources-communes-upad-iv-2-6"
+      },
+      "poidsKg": {
+        "valeur": 6.3,
+        "source": "sources-communes-upad-iv-2-6"
+      },
+      "pMaxW": {
+        "valeurs": [
+          {
+            "valeur": 120,
+            "source": "4wall-europe-upad-iv-2-6",
+            "type": "max"
+          },
+          {
+            "valeur": 150,
+            "source": "lmg-upad-iv-2-6",
+            "type": "max"
+          },
+          {
+            "valeur": 165,
+            "source": "ledwallcentral-upad-iv-2-6",
+            "type": "max"
+          }
+        ]
+      },
+      "pMoyW": {
+        "valeurs": [
+          {
+            "valeur": 40,
+            "source": "4wall-europe-upad-iv-2-6",
+            "type": "moyenne"
+          },
+          {
+            "valeur": 50,
+            "source": "lmg-upad-iv-2-6",
+            "type": "moyenne"
+          },
+          {
+            "valeur": 58,
+            "source": "ledwallcentral-upad-iv-2-6",
+            "type": "moyenne"
+          }
+        ]
+      },
+      "rafraichissementHz": {
+        "valeurs": [
+          {
+            "valeur": 3840,
+            "source": "4wall-europe-upad-iv-2-6"
+          },
+          {
+            "valeur": 7680,
+            "source": "lmg-upad-iv-2-6"
+          },
+          {
+            "valeur": 7680,
+            "source": "ledwallcentral-upad-iv-2-6"
+          }
+        ]
+      },
+      "scan": {
+        "valeurs": [
+          {
+            "valeur": "1/16",
+            "source": "lmg-upad-iv-2-6"
+          },
+          {
+            "valeur": "1/8",
+            "source": "ledwallcentral-upad-iv-2-6"
+          }
+        ]
+      },
+      "carteReceptionMarque": {
+        "valeur": "Novastar",
+        "source": "4wall-europe-upad-iv-2-6"
+      },
+      "carteReceptionModele": {
+        "valeur": "A10s",
+        "source": "4wall-europe-upad-iv-2-6"
+      },
+      "courbure": {
+        "valeur": "−5° à +10°",
+        "source": "sources-communes-upad-iv-2-6"
+      },
+      "indiceIP": {
+        "valeur": "IP30",
+        "source": "sources-communes-upad-iv-2-6"
+      }
+    },
+    {
+      "id": "unilumin-upad-iv-2-6-pro",
+      "marque": "Unilumin",
+      "modele": "Upad IV",
+      "version": "2.6 Pro",
+      "alias": [
+        "UpadIV 2 Pro"
+      ],
+      "note": "« UpadIV 2 Pro » est le nom LEDwallcentral de cette version Pro en 2,6 mm.",
+      "pitchMm": {
+        "valeur": 2.604,
+        "source": "ledwallcentral-upad-iv-2-6-pro"
+      },
+      "largeurMm": {
+        "valeur": 500,
+        "source": "ledwallcentral-upad-iv-2-6-pro"
+      },
+      "hauteurMm": {
+        "valeur": 500,
+        "source": "ledwallcentral-upad-iv-2-6-pro"
+      },
+      "profondeurMm": {
+        "valeur": 72,
+        "source": "ledwallcentral-upad-iv-2-6-pro"
+      },
+      "pxH": {
+        "valeur": 192,
+        "source": "ledwallcentral-upad-iv-2-6-pro"
+      },
+      "pxV": {
+        "valeur": 192,
+        "source": "ledwallcentral-upad-iv-2-6-pro"
+      },
+      "poidsKg": {
+        "valeur": 6.4,
+        "source": "ledwallcentral-upad-iv-2-6-pro"
+      },
+      "pMaxW": {
+        "valeur": 150,
+        "source": "ledwallcentral-upad-iv-2-6-pro",
+        "type": "max"
+      },
+      "pMoyW": {
+        "valeur": 50,
+        "source": "ledwallcentral-upad-iv-2-6-pro",
+        "type": "moyenne"
+      },
+      "luminositeNits": {
+        "valeur": 1200,
+        "source": "ledwallcentral-upad-iv-2-6-pro"
+      },
+      "rafraichissementHz": {
+        "valeur": 7680,
+        "source": "ledwallcentral-upad-iv-2-6-pro"
+      }
+    },
+    {
+      "id": "infiled-ar3-9",
+      "marque": "INFiLED",
+      "modele": "AR3.9",
+      "usage": "extérieur",
+      "pitchMm": {
+        "valeur": 3.91,
+        "source": "sources-communes-ar3-9"
+      },
+      "largeurMm": {
+        "valeur": 500,
+        "source": "sources-communes-ar3-9"
+      },
+      "hauteurMm": {
+        "valeur": 1000,
+        "source": "sources-communes-ar3-9"
+      },
+      "profondeurMm": {
+        "valeurs": [
+          {
+            "valeur": 66,
+            "source": "sources-communes-ar3-9"
+          },
+          {
+            "valeur": 67,
+            "source": "sources-communes-ar3-9"
+          }
+        ]
+      },
+      "pxH": {
+        "valeur": 128,
+        "source": "sources-communes-ar3-9"
+      },
+      "pxV": {
+        "valeur": 256,
+        "source": "sources-communes-ar3-9"
+      },
+      "poidsKg": {
+        "valeurs": [
+          {
+            "valeur": 12,
+            "source": "plsn-ar3-9-2019-11"
+          },
+          {
+            "valeur": 12.5,
+            "source": "ledwallcentral-ar3-9"
+          }
+        ]
+      },
+      "pMaxW": {
+        "valeurs": [
+          {
+            "valeur": 270,
+            "source": "plsn-ar3-9-2019-11",
+            "type": "max"
+          },
+          {
+            "valeur": 300,
+            "source": "ledwallcentral-ar3-9",
+            "type": "max"
+          }
+        ]
+      },
+      "pMoyW": {
+        "valeurs": [
+          {
+            "valeur": 90,
+            "source": "plsn-ar3-9-2019-11",
+            "type": "moyenne"
+          },
+          {
+            "valeur": 100,
+            "source": "ledwallcentral-ar3-9",
+            "type": "moyenne"
+          }
+        ]
+      },
+      "maxAccroche": {
+        "valeur": 11,
+        "source": "plsn-ar3-9-2019-11"
+      },
+      "indiceIP": {
+        "valeur": "IP65",
+        "source": "sources-communes-ar3-9"
+      },
+      "luminositeNits": {
+        "valeur": 5000,
+        "source": "sources-communes-ar3-9"
+      },
+      "carteReceptionMarque": {
+        "valeur": "Novastar",
+        "source": "sources-communes-ar3-9"
+      }
+    },
+    {
+      "id": "infiled-ez2-6-mk2",
+      "marque": "INFiLED",
+      "modele": "EZ2.6",
+      "version": "mk2",
+      "pitchMm": {
+        "valeur": 2.604,
+        "source": "ledwallcentral-ez2-6-mk2"
+      },
+      "largeurMm": {
+        "valeur": 500,
+        "source": "ledwallcentral-ez2-6-mk2"
+      },
+      "hauteurMm": {
+        "valeur": 500,
+        "source": "ledwallcentral-ez2-6-mk2"
+      },
+      "profondeurMm": {
+        "valeur": 75.5,
+        "source": "ledwallcentral-ez2-6-mk2"
+      },
+      "pxH": {
+        "valeur": 192,
+        "source": "ledwallcentral-ez2-6-mk2"
+      },
+      "pxV": {
+        "valeur": 192,
+        "source": "ledwallcentral-ez2-6-mk2"
+      },
+      "poidsKg": {
+        "valeur": 5.9,
+        "source": "ledwallcentral-ez2-6-mk2"
+      },
+      "pMaxW": {
+        "valeur": 150,
+        "source": "ledwallcentral-ez2-6-mk2",
+        "type": "max"
+      },
+      "pMoyW": {
+        "valeur": 50,
+        "source": "ledwallcentral-ez2-6-mk2",
+        "type": "moyenne"
+      },
+      "maxAccroche": {
+        "valeur": 18,
+        "source": "ledwallcentral-ez2-6-mk2"
+      },
+      "maxStack": {
+        "valeur": 18,
+        "source": "ledwallcentral-ez2-6-mk2"
+      },
+      "rafraichissementHz": {
+        "valeur": 7680,
+        "source": "ledwallcentral-ez2-6-mk2"
+      }
+    },
+    {
+      "id": "absen-m2-9",
+      "marque": "Absen",
+      "modele": "M2.9",
+      "pitchMm": {
+        "valeur": 2.97,
+        "source": "4wall-page-absen-m2-9"
+      },
+      "largeurMm": {
+        "valeur": 500,
+        "source": "4wall-page-absen-m2-9"
+      },
+      "hauteurMm": {
+        "valeur": 500,
+        "source": "4wall-page-absen-m2-9"
+      },
+      "pxH": {
+        "valeur": 168,
+        "source": "4wall-page-absen-m2-9"
+      },
+      "pxV": {
+        "valeur": 168,
+        "source": "4wall-page-absen-m2-9"
+      },
+      "poidsKg": {
+        "valeurs": [
+          {
+            "valeur": 7.6,
+            "source": "4wall-page-absen-m2-9"
+          },
+          {
+            "valeur": 9.99,
+            "source": "4wall-calculateur-absen-m2-9"
+          }
+        ]
+      },
+      "pMaxW": {
+        "valeur": 140,
+        "source": "4wall-page-absen-m2-9",
+        "type": "max"
+      },
+      "luminositeNits": {
+        "valeur": 1000,
+        "source": "4wall-page-absen-m2-9"
+      },
+      "rafraichissementHz": {
+        "valeur": 3840,
+        "source": "4wall-page-absen-m2-9"
+      },
+      "bitsParCouleur": {
+        "valeur": 14,
+        "source": "4wall-page-absen-m2-9"
+      },
+      "carteReceptionMarque": {
+        "valeur": "Novastar",
+        "source": "4wall-page-absen-m2-9"
+      }
+    },
+    {
+      "id": "absen-jp5-pro",
+      "marque": "Absen",
+      "modele": "JP5 Pro",
+      "usage": "extérieur",
+      "pitchMm": {
+        "valeur": 5.2,
+        "source": "ledwallcentral-jp5-pro"
+      },
+      "largeurMm": {
+        "valeur": 500,
+        "source": "ledwallcentral-jp5-pro"
+      },
+      "hauteurMm": {
+        "valeur": 500,
+        "source": "ledwallcentral-jp5-pro"
+      },
+      "profondeurMm": {
+        "valeur": 98,
+        "source": "ledwallcentral-jp5-pro"
+      },
+      "pxH": {
+        "valeur": 96,
+        "source": "ledwallcentral-jp5-pro"
+      },
+      "pxV": {
+        "valeur": 96,
+        "source": "ledwallcentral-jp5-pro"
+      },
+      "poidsKg": {
+        "valeur": 9.5,
+        "source": "ledwallcentral-jp5-pro"
+      },
+      "pMaxW": {
+        "valeur": 188,
+        "source": "ledwallcentral-jp5-pro",
+        "type": "max"
+      },
+      "pMoyW": {
+        "valeur": 63,
+        "source": "ledwallcentral-jp5-pro",
+        "type": "moyenne"
+      },
+      "luminositeNits": {
+        "valeur": 4500,
+        "source": "ledwallcentral-jp5-pro"
+      },
+      "rafraichissementHz": {
+        "valeur": 7680,
+        "source": "ledwallcentral-jp5-pro"
+      }
+    }
+  ],
+  "gabarits": [
+    {
+      "id": "gabarit-p1-2-interieur",
+      "gabarit": true,
+      "nom": "P1.2 intérieur",
+      "largeurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "hauteurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pxH": {
+        "valeur": 416,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pxV": {
+        "valeur": 416,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pMaxW": {
+        "valeur": 150,
+        "source": "cahier-des-charges-gabarits",
+        "type": "estimée"
+      }
+    },
+    {
+      "id": "gabarit-p1-9-interieur",
+      "gabarit": true,
+      "nom": "P1.9 intérieur",
+      "note": "260 px pour 500 mm donnent un pitch de 1,92 mm. Une P1.9 de 500 mm fait souvent 256 × 256 px (Absen PL1.9 Pro).",
+      "largeurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "hauteurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pxH": {
+        "valeur": 260,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pxV": {
+        "valeur": 260,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pMaxW": {
+        "valeur": 140,
+        "source": "cahier-des-charges-gabarits",
+        "type": "estimée"
+      }
+    },
+    {
+      "id": "gabarit-p2-6-interieur",
+      "gabarit": true,
+      "nom": "P2.6 intérieur",
+      "largeurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "hauteurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pxH": {
+        "valeur": 192,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pxV": {
+        "valeur": 192,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pMaxW": {
+        "valeur": 130,
+        "source": "cahier-des-charges-gabarits",
+        "type": "estimée"
+      }
+    },
+    {
+      "id": "gabarit-p3-9-exterieur",
+      "gabarit": true,
+      "nom": "P3.9 extérieur",
+      "largeurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "hauteurMm": {
+        "valeur": 1000,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pxH": {
+        "valeur": 128,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pxV": {
+        "valeur": 256,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pMaxW": {
+        "valeur": 300,
+        "source": "cahier-des-charges-gabarits",
+        "type": "estimée"
+      }
+    },
+    {
+      "id": "gabarit-p4-8-exterieur",
+      "gabarit": true,
+      "nom": "P4.8 extérieur",
+      "largeurMm": {
+        "valeur": 500,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "hauteurMm": {
+        "valeur": 1000,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pxH": {
+        "valeur": 104,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pxV": {
+        "valeur": 208,
+        "source": "cahier-des-charges-gabarits"
+      },
+      "pMaxW": {
+        "valeur": 350,
+        "source": "cahier-des-charges-gabarits",
+        "type": "estimée"
+      }
+    }
+  ],
+  "bumpers": [
+    {
+      "id": "roe-carbon-barre-1-colonne",
+      "marque": "ROE",
+      "modele": "Barre Carbon 1 colonne",
+      "forme": "barre",
+      "colonnes": 1,
+      "compatibles": [
+        "roe-cb5-mkii",
+        "roe-cb3-mkii"
+      ],
+      "poidsKg": {
+        "valeur": 4.44,
+        "source": "roe-manuel-carbon-ancien"
+      },
+      "note": "Avec clamp et manille. CMU non donnée par la fiche."
+    },
+    {
+      "id": "roe-carbon-barre-2-colonnes",
+      "marque": "ROE",
+      "modele": "Barre Carbon 2 colonnes",
+      "forme": "barre",
+      "colonnes": 2,
+      "compatibles": [
+        "roe-cb5-mkii",
+        "roe-cb3-mkii"
+      ],
+      "poidsKg": {
+        "valeur": 8.95,
+        "source": "roe-manuel-carbon-ancien"
+      },
+      "note": "Avec clamp et manille. CMU non donnée par la fiche."
+    }
+  ]
+}

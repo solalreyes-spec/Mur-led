@@ -1,0 +1,1399 @@
+{
+  "format": "appli-mur-led/processeurs",
+  "version": 1,
+  "note": "Processeurs du MVP, repris du cahier des charges du projet. Pour les fourchettes Novastar, la borne haute sert de maximum ; la fourchette reste affichée.",
+  "sources": {
+    "novastar-oliverdy": {
+      "titre": "Tableaux officiels Novastar reproduits dans le support Oliverdy (p. 32 et 33)",
+      "court": "Novastar (support Oliverdy p. 32-33)",
+      "date": null,
+      "confiance": "constructeur, via le support de formation"
+    },
+    "coex-mx40-pro-v1-5": {
+      "titre": "Fiche COEX MX40 Pro V1.5.0",
+      "court": "Fiche MX40 Pro V1.5.0",
+      "date": null,
+      "confiance": "constructeur"
+    },
+    "tessera-manuel-v3-5": {
+      "titre": "Manuel Tessera v3.5 (canvas, capacités §13.1.4), repris dans le cahier des charges du projet",
+      "court": "Manuel Tessera v3.5",
+      "date": "2024-06",
+      "confiance": "constructeur"
+    },
+    "cahier-des-charges-brompton": {
+      "titre": "Cahier des charges du projet, tableau « Processeurs Brompton » (manuel Tessera v3.5, formation Brompton 2026)",
+      "court": "Cahier des charges du projet (Brompton)",
+      "date": null,
+      "confiance": "à confirmer avec la fiche exacte (fiches S4, M2 et T1 à récupérer)"
+    },
+    "cahier-des-charges-formules": {
+      "titre": "Cahier des charges du projet : formules de capacité du module 4 et fiche processeur (débit utile par port)",
+      "court": "Cahier des charges du projet, module 4",
+      "date": "2026-09-24",
+      "confiance": "formule vérifiée par les cas tests 11 et 12"
+    },
+    "cahier-des-charges-mx40-deduit": {
+      "titre": "Cahier des charges du projet, fiche processeur : débit déduit des 659 722 px à 60 Hz de la fiche MX40 Pro",
+      "court": "Cahier des charges du projet (déduit)",
+      "date": "2026-09-24",
+      "confiance": "déduit"
+    },
+    "tessera-manuel-v3-5-s6-3": {
+      "titre": "Manuel Tessera v3.5, §6.3 : préréglages de canvas (4K DCI 4096 × 2160) ; 4094 px est la limite des canvas personnalisés",
+      "court": "Manuel Tessera v3.5 §6.3",
+      "date": "2024-06",
+      "confiance": "constructeur"
+    },
+    "choix-conception-redondance-sx40": {
+      "titre": "Choix de conception du projet : en redondance, un SX40 garde 2 trunks principaux (A et C), chacun avec son XD, doublés par 2 XD miroirs (B et D) : 20 ports principaux et 4 XD",
+      "court": "Choix de conception du projet",
+      "date": "2026-09-24",
+      "confiance": "formation (trunks A+B et C+D) ; à confirmer sur le manuel"
+    },
+    "clearled-mx40-pro": {
+      "titre": "clearled.com, fiche revendeur COEX MX40 Pro : 4 ports optiques 10G, mode 20 ou 40 ports avec convertisseurs",
+      "court": "clearled.com (revendeur)",
+      "date": null,
+      "confiance": "revendeur"
+    },
+    "cahier-des-charges-module-4": {
+      "titre": "Cahier des charges du projet, module 4 : redondance (50 dalles par boucle), charges cachées (64 px SX40), distributeurs",
+      "court": "Cahier des charges du projet, module 4",
+      "date": "2026-09-24",
+      "confiance": "formation"
+    },
+    "avlgear-mx20": {
+      "titre": "avlgear.com, fiche revendeur COEX MX20",
+      "court": "avlgear.com",
+      "date": null,
+      "confiance": "revendeur"
+    },
+    "choix-conception-mx20": {
+      "titre": "Choix de conception du projet : capacité par port du MX20 reprise du MX40 Pro (950 000 000 bit/s), en attendant sa fiche",
+      "court": "Choix de conception du projet",
+      "date": "2026-09-24",
+      "confiance": "à confirmer : repris du MX40 Pro"
+    },
+    "ledwallcentral-coex-mx30": {
+      "titre": "ledwallcentral.com, COEX MX30",
+      "court": "LEDwallcentral",
+      "date": null,
+      "confiance": "base tierce"
+    },
+    "luxwave-cx40-pro": {
+      "titre": "luxwave.vn, fiche revendeur COEX CX40 Pro",
+      "court": "luxwave.vn",
+      "date": null,
+      "confiance": "revendeur"
+    },
+    "stagelightingstore-cx40-pro": {
+      "titre": "stagelightingstore.com : CX40 Pro compatible uniquement avec les cartes 5G (CA50E, CA50C, XA50)",
+      "court": "stagelightingstore.com",
+      "date": null,
+      "confiance": "revendeur"
+    },
+    "ledwallcentral-colorlight-q7": {
+      "titre": "ledwallcentral.com, fiche Colorlight Q7 : 655 360 px par port 1G (60 Hz en 8 bits, hypothèse à confirmer)",
+      "court": "LEDwallcentral (Q7)",
+      "date": null,
+      "confiance": "base tierce ; 60 Hz et 8 bits à confirmer"
+    },
+    "choix-conception-colorlight": {
+      "titre": "Choix de conception du projet : en 10 ou 12 bits, un port Colorlight porte la moitié de sa capacité 8 bits (327 680 px), comme chez Novastar",
+      "court": "Choix de conception du projet",
+      "date": "2026-09-24",
+      "confiance": "déduit, à confirmer"
+    },
+    "pssl-colorlight-s6f": {
+      "titre": "pssl.com, fiche revendeur Colorlight S6F",
+      "court": "pssl.com",
+      "date": null,
+      "confiance": "revendeur"
+    },
+    "ledwallcentral-colorlight": {
+      "titre": "ledwallcentral.com, contrôleurs Colorlight X8E, X16E et VX20",
+      "court": "LEDwallcentral",
+      "date": null,
+      "confiance": "base tierce"
+    },
+    "novelty-colorlight-z6-v1-6": {
+      "titre": "Fiche Colorlight Z6 V1.6, hébergée par le loueur Novelty (azur.novelty.fr)",
+      "court": "Fiche Colorlight Z6 V1.6",
+      "date": null,
+      "confiance": "constructeur, via un loueur"
+    },
+    "aimsalliance-colorlight-z8t": {
+      "titre": "solutions.aimsalliance.org, Colorlight Z8t",
+      "court": "aimsalliance.org",
+      "date": null,
+      "confiance": "base tierce"
+    },
+    "choix-conception-m2-s4": {
+      "titre": "Choix de conception du projet : M2 et S4 à 2 073 600 px, soit leur canvas natif 1920 × 1080 ; les 2 M px du manuel sont une valeur nominale arrondie",
+      "court": "Choix de conception du projet",
+      "date": "2026-09-24",
+      "confiance": "à confirmer sur les fiches Brompton M2 et S4"
+    },
+    "tessera-manuel-v3-5-s6-5-1": {
+      "titre": "Manuel Tessera v3.5, §6.5.1 et §13.1.4 : mapping interpolé sur M2 et T1 (chaque dalle compte sa taille physique divisée par le pitch le plus fin)",
+      "court": "Manuel Tessera v3.5 §6.5.1",
+      "date": "2024-06",
+      "confiance": "constructeur"
+    },
+    "novastar-logiciels": {
+      "titre": "Logiciel de réglage : NovaLCT pour les MCTRL, VX et NovaPro ; VMP pour les COEX (choix de conception du projet)",
+      "court": "Choix de conception du projet",
+      "date": "2026-09-24",
+      "confiance": "formation"
+    }
+  },
+  "distributeurs": [
+    {
+      "id": "brompton-xd",
+      "marque": "Brompton",
+      "modele": "XD",
+      "sorties": {
+        "valeur": 10,
+        "source": "cahier-des-charges-brompton"
+      },
+      "note": "Relié au SX40 par un trunk 10G. Jusqu'à 5 XD en chaîne, avec bande passante partagée."
+    },
+    {
+      "id": "novastar-cvt10",
+      "marque": "Novastar",
+      "modele": "CVT10",
+      "sorties": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "note": "Convertisseur fibre, seulement pour les liaisons au-delà de 100 m en cuivre."
+    }
+  ],
+  "processeurs": [
+    {
+      "id": "brompton-t1",
+      "marque": "Brompton",
+      "modele": "T1",
+      "famille": "brompton",
+      "debitUtileBps": {
+        "valeur": 756000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsMax": {
+        "valeur": 500000,
+        "source": "cahier-des-charges-brompton"
+      },
+      "ports": {
+        "valeur": 1,
+        "source": "cahier-des-charges-brompton"
+      },
+      "largeurMaxPx": {
+        "valeur": 1920,
+        "source": "cahier-des-charges-brompton"
+      },
+      "hauteurMaxPx": {
+        "valeur": 1080,
+        "source": "cahier-des-charges-brompton"
+      },
+      "canvasFixe": true,
+      "nomCanvasNatif": "1920 × 1080 (natif)",
+      "formatsCanvas": [
+        {
+          "nom": "1080 × 1920 (Low Latency Mode)",
+          "largeurPx": 1080,
+          "hauteurPx": 1920,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        },
+        {
+          "nom": "1600 × 1200 (Low Latency Mode)",
+          "largeurPx": 1600,
+          "hauteurPx": 1200,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        },
+        {
+          "nom": "2880 × 720 (Low Latency Mode)",
+          "largeurPx": 2880,
+          "hauteurPx": 720,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        },
+        {
+          "nom": "720 × 2880 (Low Latency Mode)",
+          "largeurPx": 720,
+          "hauteurPx": 2880,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        }
+      ],
+      "mappingInterpole": {
+        "valeur": true,
+        "source": "tessera-manuel-v3-5-s6-5-1"
+      },
+      "dallesMax": {
+        "valeur": 500,
+        "source": "cahier-des-charges-brompton"
+      },
+      "maxDallesParBoucleRedondance": {
+        "valeur": 50,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "DVI-D",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single"
+        ],
+        "source": "cahier-des-charges-brompton",
+        "note": "DVI-D compté en single link (plus prudent)."
+      },
+      "latence": "3 trames, 2 en Low Latency",
+      "note": "Canvas fixe : 1920 × 1080 natif ; 1080 × 1920, 1600 × 1200, 2880 × 720 et 720 × 2880 forcent le Low Latency Mode."
+    },
+    {
+      "id": "brompton-s4",
+      "marque": "Brompton",
+      "modele": "S4",
+      "famille": "brompton",
+      "debitUtileBps": {
+        "valeur": 756000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsMax": {
+        "valeur": 2073600,
+        "source": "choix-conception-m2-s4"
+      },
+      "ports": {
+        "valeur": 4,
+        "source": "cahier-des-charges-brompton"
+      },
+      "largeurMaxPx": {
+        "valeur": 1920,
+        "source": "cahier-des-charges-brompton"
+      },
+      "hauteurMaxPx": {
+        "valeur": 1080,
+        "source": "cahier-des-charges-brompton"
+      },
+      "canvasFixe": true,
+      "nomCanvasNatif": "1920 × 1080 (natif)",
+      "formatsCanvas": [
+        {
+          "nom": "1080 × 1920 (Low Latency Mode)",
+          "largeurPx": 1080,
+          "hauteurPx": 1920,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        },
+        {
+          "nom": "1600 × 1200 (Low Latency Mode)",
+          "largeurPx": 1600,
+          "hauteurPx": 1200,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        },
+        {
+          "nom": "2880 × 720 (Low Latency Mode)",
+          "largeurPx": 2880,
+          "hauteurPx": 720,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        },
+        {
+          "nom": "720 × 2880 (Low Latency Mode)",
+          "largeurPx": 720,
+          "hauteurPx": 2880,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        }
+      ],
+      "maxDallesParBoucleRedondance": {
+        "valeur": 50,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "DVI-D",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single"
+        ],
+        "source": "cahier-des-charges-brompton",
+        "note": "DVI-D compté en single link (plus prudent)."
+      },
+      "latence": "2 trames",
+      "note": "Canvas fixe : 1920 × 1080 natif ; 1080 × 1920, 1600 × 1200, 2880 × 720 et 720 × 2880 forcent le Low Latency Mode."
+    },
+    {
+      "id": "brompton-m2",
+      "marque": "Brompton",
+      "modele": "M2",
+      "famille": "brompton",
+      "debitUtileBps": {
+        "valeur": 756000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsMax": {
+        "valeur": 2073600,
+        "source": "choix-conception-m2-s4"
+      },
+      "ports": {
+        "valeur": 4,
+        "source": "cahier-des-charges-brompton"
+      },
+      "largeurMaxPx": {
+        "valeur": 1920,
+        "source": "cahier-des-charges-brompton"
+      },
+      "hauteurMaxPx": {
+        "valeur": 1080,
+        "source": "cahier-des-charges-brompton"
+      },
+      "canvasFixe": true,
+      "nomCanvasNatif": "1920 × 1080 (natif)",
+      "formatsCanvas": [
+        {
+          "nom": "1080 × 1920 (Low Latency Mode)",
+          "largeurPx": 1080,
+          "hauteurPx": 1920,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        },
+        {
+          "nom": "1600 × 1200 (Low Latency Mode)",
+          "largeurPx": 1600,
+          "hauteurPx": 1200,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        },
+        {
+          "nom": "2880 × 720 (Low Latency Mode)",
+          "largeurPx": 2880,
+          "hauteurPx": 720,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        },
+        {
+          "nom": "720 × 2880 (Low Latency Mode)",
+          "largeurPx": 720,
+          "hauteurPx": 2880,
+          "lowLatency": true,
+          "source": "tessera-manuel-v3-5"
+        }
+      ],
+      "mappingInterpole": {
+        "valeur": true,
+        "source": "tessera-manuel-v3-5-s6-5-1"
+      },
+      "dallesMax": {
+        "valeur": 2000,
+        "source": "cahier-des-charges-brompton"
+      },
+      "maxDallesParBoucleRedondance": {
+        "valeur": 50,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "DVI-I, 2 × 3G-SDI",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "3g-sdi"
+        ],
+        "source": "cahier-des-charges-brompton",
+        "note": "DVI-I compté en single link (plus prudent)."
+      },
+      "latence": "3 trames, 2 en Low Latency",
+      "note": "Canvas fixe : 1920 × 1080 natif ; 1080 × 1920, 1600 × 1200, 2880 × 720 et 720 × 2880 forcent le Low Latency Mode."
+    },
+    {
+      "id": "brompton-s8",
+      "marque": "Brompton",
+      "modele": "S8",
+      "famille": "brompton",
+      "debitUtileBps": {
+        "valeur": 756000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsMax": {
+        "valeur": 4500000,
+        "source": "cahier-des-charges-brompton"
+      },
+      "ports": {
+        "valeur": 8,
+        "source": "cahier-des-charges-brompton"
+      },
+      "largeurMaxPx": {
+        "valeur": 4094,
+        "source": "tessera-manuel-v3-5"
+      },
+      "hauteurMaxPx": {
+        "valeur": 4095,
+        "source": "tessera-manuel-v3-5"
+      },
+      "canvasLibre": {
+        "largeurMinPx": 720,
+        "hauteurMinPx": 720,
+        "largeurPaire": true,
+        "source": "tessera-manuel-v3-5"
+      },
+      "formatsCanvas": [
+        {
+          "nom": "4K DCI (préréglage)",
+          "largeurPx": 4096,
+          "hauteurPx": 2160,
+          "source": "tessera-manuel-v3-5-s6-3"
+        }
+      ],
+      "maxDallesParBoucleRedondance": {
+        "valeur": 50,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "HDMI 2.0, 12G-SDI",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "12g-sdi"
+        ],
+        "source": "cahier-des-charges-brompton"
+      },
+      "latence": "2 trames, 1 en ULL",
+      "note": "Canvas libre de 720 à 4094 px de large (valeur paire) et de 720 à 4095 px de haut."
+    },
+    {
+      "id": "brompton-sx40",
+      "marque": "Brompton",
+      "modele": "SX40",
+      "famille": "brompton",
+      "debitUtileBps": {
+        "valeur": 756000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsMax": {
+        "valeur": 9000000,
+        "source": "tessera-manuel-v3-5"
+      },
+      "ports": {
+        "valeur": 40,
+        "source": "cahier-des-charges-brompton"
+      },
+      "portsRedondance": {
+        "valeur": 20,
+        "source": "choix-conception-redondance-sx40"
+      },
+      "largeurMaxPx": {
+        "valeur": 4094,
+        "source": "tessera-manuel-v3-5"
+      },
+      "hauteurMaxPx": {
+        "valeur": 4095,
+        "source": "tessera-manuel-v3-5"
+      },
+      "canvasLibre": {
+        "largeurMinPx": 720,
+        "hauteurMinPx": 720,
+        "largeurPaire": true,
+        "source": "tessera-manuel-v3-5"
+      },
+      "formatsCanvas": [
+        {
+          "nom": "4K DCI (préréglage)",
+          "largeurPx": 4096,
+          "hauteurPx": 2160,
+          "source": "tessera-manuel-v3-5-s6-3"
+        }
+      ],
+      "dallesMax": {
+        "valeur": 2000,
+        "source": "cahier-des-charges-brompton"
+      },
+      "maxDallesParBoucleRedondance": {
+        "valeur": 50,
+        "source": "cahier-des-charges-module-4"
+      },
+      "pxMinParDimension": {
+        "valeur": 64,
+        "source": "cahier-des-charges-module-4"
+      },
+      "distributeur": "brompton-xd",
+      "distributeurObligatoire": true,
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-brompton"
+      },
+      "entrees": "HDMI 2.0, 12G-SDI",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "12g-sdi"
+        ],
+        "source": "cahier-des-charges-brompton"
+      },
+      "latence": "2 trames, 1 en ULL",
+      "note": "4 trunks 10G vers des XD de 10 sorties 1G : 40 ports 1G avec un XD par trunk. En redondance : 20 ports principaux sur les trunks A et C, doublés par 2 XD miroirs sur B et D, soit 4 XD par SX40. Canvas libre de 720 à 4094 px de large (valeur paire) et de 720 à 4095 px de haut."
+    },
+    {
+      "id": "novastar-mctrl300",
+      "marque": "Novastar",
+      "modele": "MCTRL300",
+      "famille": "novastar",
+      "logiciel": "NovaLCT",
+      "debitUtileBps": {
+        "valeur": 936000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsGamme": "jusqu'à 1,3 M",
+      "pixelsMax": {
+        "valeur": 1300000,
+        "source": "novastar-oliverdy"
+      },
+      "ports": {
+        "valeur": 2,
+        "source": "novastar-oliverdy"
+      },
+      "largeurMaxPx": {
+        "valeur": 3840,
+        "source": "novastar-oliverdy"
+      },
+      "hauteurMaxPx": {
+        "valeur": 2560,
+        "source": "novastar-oliverdy"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "DVI single link",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single"
+        ],
+        "source": "novastar-oliverdy"
+      },
+      "note": "Sans scaler."
+    },
+    {
+      "id": "novastar-mctrl660",
+      "marque": "Novastar",
+      "modele": "MCTRL660",
+      "famille": "novastar",
+      "logiciel": "NovaLCT",
+      "debitUtileBps": {
+        "valeur": 936000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsGamme": "1,3 à 2,3 M",
+      "pixelsMax": {
+        "valeur": 2300000,
+        "source": "novastar-oliverdy"
+      },
+      "ports": {
+        "valeur": 4,
+        "source": "novastar-oliverdy"
+      },
+      "largeurMaxPx": {
+        "valeur": 3840,
+        "source": "novastar-oliverdy"
+      },
+      "hauteurMaxPx": {
+        "valeur": 2560,
+        "source": "novastar-oliverdy"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "DVI, HDMI 1.3, boucles",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "hdmi-1.3"
+        ],
+        "source": "novastar-oliverdy",
+        "note": "« DVI » sans précision compté en single link (plus prudent)."
+      },
+      "note": "Sans scaler."
+    },
+    {
+      "id": "novastar-mctrl660-pro",
+      "marque": "Novastar",
+      "modele": "MCTRL660 Pro",
+      "famille": "novastar",
+      "logiciel": "NovaLCT",
+      "debitUtileBps": {
+        "valeur": 936000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsGamme": "1,3 à 2,3 M",
+      "pixelsMax": {
+        "valeur": 2300000,
+        "source": "novastar-oliverdy"
+      },
+      "ports": {
+        "valeur": 6,
+        "source": "novastar-oliverdy"
+      },
+      "largeurMaxPx": {
+        "valeur": 3840,
+        "source": "novastar-oliverdy"
+      },
+      "hauteurMaxPx": {
+        "valeur": 3840,
+        "source": "novastar-oliverdy"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "DVI, HDMI 1.4a, 3G-SDI, boucles",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "hdmi-1.4",
+          "3g-sdi"
+        ],
+        "source": "novastar-oliverdy",
+        "note": "« DVI » sans précision compté en single link (plus prudent)."
+      },
+      "note": "Faible latence, Neutrik, contrôle web."
+    },
+    {
+      "id": "novastar-mctrl-r5",
+      "marque": "Novastar",
+      "modele": "MCTRL R5",
+      "famille": "novastar",
+      "logiciel": "NovaLCT",
+      "debitUtileBps": {
+        "valeur": 936000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsGamme": "2,3 à 4,1 M",
+      "pixelsMax": {
+        "valeur": 4100000,
+        "source": "novastar-oliverdy"
+      },
+      "ports": {
+        "valeur": 8,
+        "source": "novastar-oliverdy"
+      },
+      "largeurMaxPx": {
+        "valeur": 3840,
+        "source": "novastar-oliverdy"
+      },
+      "hauteurMaxPx": {
+        "valeur": 3840,
+        "source": "novastar-oliverdy"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "6G-SDI, DVI dual link, HDMI 1.4a",
+      "entreesTypes": {
+        "valeur": [
+          "6g-sdi",
+          "dvi-dual",
+          "hdmi-1.4"
+        ],
+        "source": "novastar-oliverdy"
+      },
+      "note": "Rotation libre, Neutrik."
+    },
+    {
+      "id": "novastar-mctrl4k",
+      "marque": "Novastar",
+      "modele": "MCTRL4K",
+      "famille": "novastar",
+      "logiciel": "NovaLCT",
+      "debitUtileBps": {
+        "valeur": 936000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsGamme": "4,1 à 8,8 M",
+      "pixelsMax": {
+        "valeur": 8800000,
+        "source": "novastar-oliverdy"
+      },
+      "ports": {
+        "valeur": 16,
+        "source": "novastar-oliverdy"
+      },
+      "largeurMaxPx": {
+        "valeur": 7680,
+        "source": "novastar-oliverdy"
+      },
+      "hauteurMaxPx": {
+        "valeur": 7680,
+        "source": "novastar-oliverdy"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "DP 1.2, HDMI 2.0, 2 × DVI dual link",
+      "entreesTypes": {
+        "valeur": [
+          "dp-1.2",
+          "hdmi-2.0",
+          "dvi-dual"
+        ],
+        "source": "novastar-oliverdy"
+      },
+      "note": "HDR, 3D, faible latence, contrôle web. Le support Oliverdy p. 31 donne 8,2 M et 3840 px, contredit par le tableau officiel p. 32."
+    },
+    {
+      "id": "novastar-vx2u",
+      "marque": "Novastar",
+      "modele": "VX2U",
+      "famille": "novastar",
+      "logiciel": "NovaLCT",
+      "debitUtileBps": {
+        "valeur": 936000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsGamme": "jusqu'à 1,3 M",
+      "pixelsMax": {
+        "valeur": 1300000,
+        "source": "novastar-oliverdy"
+      },
+      "ports": {
+        "valeur": 2,
+        "source": "novastar-oliverdy"
+      },
+      "largeurMaxPx": {
+        "valeur": 3840,
+        "source": "novastar-oliverdy"
+      },
+      "hauteurMaxPx": {
+        "valeur": 1920,
+        "source": "novastar-oliverdy"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "CVBS, VGA, DVI, USB, HDMI 1.3, DP 1.0",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "hdmi-1.3"
+        ],
+        "source": "novastar-oliverdy",
+        "note": "« DVI » sans précision compté en single link (plus prudent). CVBS, VGA, USB et DP 1.0 non contrôlés."
+      },
+      "note": "Scaler, 2 couches."
+    },
+    {
+      "id": "novastar-novapro-hd",
+      "marque": "Novastar",
+      "modele": "NovaPro HD",
+      "famille": "novastar",
+      "logiciel": "NovaLCT",
+      "debitUtileBps": {
+        "valeur": 936000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsGamme": "1,3 à 2,3 M",
+      "pixelsMax": {
+        "valeur": 2300000,
+        "source": "novastar-oliverdy"
+      },
+      "ports": {
+        "valeur": 4,
+        "source": "novastar-oliverdy"
+      },
+      "largeurMaxPx": {
+        "valeur": 3840,
+        "source": "novastar-oliverdy"
+      },
+      "hauteurMaxPx": {
+        "valeur": 1920,
+        "source": "novastar-oliverdy"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "CVBS, VGA, DVI, HDMI 1.3, DP 1.0, 3G-SDI",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "hdmi-1.3",
+          "3g-sdi"
+        ],
+        "source": "novastar-oliverdy",
+        "note": "« DVI » sans précision compté en single link (plus prudent). CVBS, VGA et DP 1.0 non contrôlés."
+      },
+      "note": "Scaler, 2 couches, genlock, DMX."
+    },
+    {
+      "id": "novastar-vx4s",
+      "marque": "Novastar",
+      "modele": "VX4S",
+      "famille": "novastar",
+      "logiciel": "NovaLCT",
+      "debitUtileBps": {
+        "valeur": 936000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsGamme": "1,3 à 2,3 M",
+      "pixelsMax": {
+        "valeur": 2300000,
+        "source": "novastar-oliverdy"
+      },
+      "ports": {
+        "valeur": 4,
+        "source": "novastar-oliverdy"
+      },
+      "largeurMaxPx": {
+        "valeur": 3840,
+        "source": "novastar-oliverdy"
+      },
+      "hauteurMaxPx": {
+        "valeur": 1920,
+        "source": "novastar-oliverdy"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "CVBS, VGA, DVI, HDMI 1.3, DP 1.0, 3G-SDI",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "hdmi-1.3",
+          "3g-sdi"
+        ],
+        "source": "novastar-oliverdy",
+        "note": "« DVI » sans précision compté en single link (plus prudent). CVBS, VGA et DP 1.0 non contrôlés."
+      },
+      "note": "Scaler, 2 couches."
+    },
+    {
+      "id": "novastar-vx4u",
+      "marque": "Novastar",
+      "modele": "VX4U",
+      "famille": "novastar",
+      "logiciel": "NovaLCT",
+      "debitUtileBps": {
+        "valeur": 936000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsGamme": "1,3 à 2,3 M",
+      "pixelsMax": {
+        "valeur": 2300000,
+        "source": "novastar-oliverdy"
+      },
+      "ports": {
+        "valeur": 4,
+        "source": "novastar-oliverdy"
+      },
+      "largeurMaxPx": {
+        "valeur": 3840,
+        "source": "novastar-oliverdy"
+      },
+      "hauteurMaxPx": {
+        "valeur": 1920,
+        "source": "novastar-oliverdy"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "CVBS, VGA, DVI, HDMI 1.3, DP 1.0, USB",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "hdmi-1.3"
+        ],
+        "source": "novastar-oliverdy",
+        "note": "« DVI » sans précision compté en single link (plus prudent). CVBS, VGA, DP 1.0 et USB non contrôlés."
+      },
+      "note": "Scaler, 2 couches."
+    },
+    {
+      "id": "novastar-vx6s",
+      "marque": "Novastar",
+      "modele": "VX6s",
+      "famille": "novastar",
+      "logiciel": "NovaLCT",
+      "debitUtileBps": {
+        "valeur": 936000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsGamme": "2,3 à 3,9 M",
+      "pixelsMax": {
+        "valeur": 3900000,
+        "source": "novastar-oliverdy"
+      },
+      "ports": {
+        "valeur": 6,
+        "source": "novastar-oliverdy"
+      },
+      "largeurMaxPx": {
+        "valeur": 4096,
+        "source": "novastar-oliverdy"
+      },
+      "hauteurMaxPx": {
+        "valeur": 4096,
+        "source": "novastar-oliverdy"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "3G-SDI, DVI, HDMI 1.3, USB",
+      "entreesTypes": {
+        "valeur": [
+          "3g-sdi",
+          "dvi-single",
+          "hdmi-1.3"
+        ],
+        "source": "novastar-oliverdy",
+        "note": "« DVI » sans précision compté en single link (plus prudent). USB non contrôlé."
+      },
+      "note": "Scaler, 3 couches et OSD."
+    },
+    {
+      "id": "novastar-novapro-uhd-jr",
+      "marque": "Novastar",
+      "modele": "NovaPro UHD Jr",
+      "famille": "novastar",
+      "logiciel": "NovaLCT",
+      "debitUtileBps": {
+        "valeur": 936000000,
+        "source": "cahier-des-charges-formules"
+      },
+      "pixelsGamme": "3,9 à 10,4 M",
+      "pixelsMax": {
+        "valeur": 10400000,
+        "source": "novastar-oliverdy"
+      },
+      "ports": {
+        "valeur": 16,
+        "source": "novastar-oliverdy"
+      },
+      "largeurMaxPx": {
+        "valeur": 16384,
+        "source": "novastar-oliverdy"
+      },
+      "hauteurMaxPx": {
+        "valeur": 8192,
+        "source": "novastar-oliverdy"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "DVI dual link, 12G-SDI, DP 1.2, HDMI 2.0",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-dual",
+          "12g-sdi",
+          "dp-1.2",
+          "hdmi-2.0"
+        ],
+        "source": "novastar-oliverdy"
+      },
+      "note": "Scaler, 2 couches et fond, genlock."
+    },
+    {
+      "id": "coex-mx40-pro",
+      "marque": "COEX",
+      "modele": "MX40 Pro",
+      "famille": "novastar",
+      "logiciel": "VMP",
+      "debitUtileBps": {
+        "valeur": 950000000,
+        "source": "cahier-des-charges-mx40-deduit"
+      },
+      "cartesPro": true,
+      "pixelsMax": {
+        "valeur": 9000000,
+        "source": "coex-mx40-pro-v1-5"
+      },
+      "ports": {
+        "valeur": 20,
+        "source": "coex-mx40-pro-v1-5"
+      },
+      "portsOptionOptique": {
+        "valeur": 40,
+        "source": "clearled-mx40-pro"
+      },
+      "largeurMaxPx": {
+        "valeur": 16384,
+        "source": "coex-mx40-pro-v1-5"
+      },
+      "hauteurMaxPx": {
+        "valeur": 16384,
+        "source": "coex-mx40-pro-v1-5"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "3 × HDMI 2.0, DP 1.2, 12G-SDI",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2",
+          "12g-sdi"
+        ],
+        "source": "coex-mx40-pro-v1-5"
+      },
+      "latence": "0 ou 1 trame",
+      "note": "20 sorties 1G en cuivre. Les 4 sorties optiques 10G permettent un mode 40 ports avec des convertisseurs ; capacité totale inchangée. 16384 px de large ou de haut. En 10 bits, les cartes A8s Pro ou A10s Pro portent 494 791 px par port à 60 Hz."
+    },
+    {
+      "id": "coex-mx20",
+      "marque": "COEX",
+      "modele": "MX20",
+      "famille": "novastar",
+      "debitUtileBps": {
+        "valeur": 950000000,
+        "source": "choix-conception-mx20"
+      },
+      "pixelsMax": {
+        "valeur": 3900000,
+        "source": "avlgear-mx20"
+      },
+      "ports": {
+        "valeur": 6,
+        "source": "avlgear-mx20"
+      },
+      "largeurMaxPx": {
+        "valeur": 4096,
+        "source": "avlgear-mx20"
+      },
+      "hauteurMaxPx": {
+        "valeur": 4096,
+        "source": "avlgear-mx20"
+      },
+      "distributeur": "novastar-cvt10",
+      "sortiesParDistributeur": {
+        "valeur": 10,
+        "source": "cahier-des-charges-module-4"
+      },
+      "entrees": "2 × HDMI 1.3, 1 × 3G-SDI",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-1.3",
+          "3g-sdi"
+        ],
+        "source": "avlgear-mx20"
+      },
+      "logiciel": "VMP",
+      "note": "6 sorties 1G ; 2 sorties optiques 10G qui recopient les 6 ports. Capacité par port reprise du MX40 Pro, à confirmer sur la fiche."
+    },
+    {
+      "id": "coex-mx30",
+      "marque": "COEX",
+      "modele": "MX30",
+      "famille": "novastar",
+      "statut": "à compléter",
+      "ports": {
+        "valeur": 10,
+        "source": "ledwallcentral-coex-mx30"
+      },
+      "logiciel": "VMP",
+      "note": "10 sorties 1G et 2 sorties optiques 10G. Capacité, canvas et entrées à compléter."
+    },
+    {
+      "id": "coex-cx40-pro",
+      "marque": "COEX",
+      "modele": "CX40 Pro",
+      "famille": "novastar",
+      "capacitePort60Hz8bits": {
+        "valeur": 2951200,
+        "source": "luxwave-cx40-pro"
+      },
+      "capacitePort60Hz10bits": {
+        "valeur": 2213200,
+        "source": "luxwave-cx40-pro"
+      },
+      "capacitePort60Hz12bits": {
+        "valeur": 1475600,
+        "source": "luxwave-cx40-pro"
+      },
+      "pixelsMax": {
+        "valeur": 9000000,
+        "source": "luxwave-cx40-pro"
+      },
+      "ports": {
+        "valeur": 6,
+        "source": "luxwave-cx40-pro"
+      },
+      "typePorts": "5G",
+      "largeurMaxPx": {
+        "valeur": 16384,
+        "source": "luxwave-cx40-pro"
+      },
+      "hauteurMaxPx": {
+        "valeur": 16384,
+        "source": "luxwave-cx40-pro"
+      },
+      "cartesCompatibles": {
+        "valeur": [
+          "CA50E",
+          "CA50C",
+          "XA50"
+        ],
+        "source": "stagelightingstore-cx40-pro"
+      },
+      "entrees": "2 × HDMI 2.0, 1 × DP 1.2, 2 × 12G-SDI",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2",
+          "12g-sdi"
+        ],
+        "source": "luxwave-cx40-pro"
+      },
+      "latence": "1 trame en mode tout-en-un",
+      "logiciel": "VMP",
+      "note": "6 sorties 5G et fibre 40G. 16 384 px de large ou de haut, dans la limite de 9 M px. Cartes de réception 5G seulement."
+    },
+    {
+      "id": "colorlight-s6f",
+      "marque": "Colorlight",
+      "modele": "S6F",
+      "famille": "colorlight",
+      "capacitePort60Hz8bits": {
+        "valeur": 655360,
+        "source": "ledwallcentral-colorlight-q7"
+      },
+      "capacitePort60Hz10bits": {
+        "valeur": 327680,
+        "source": "choix-conception-colorlight"
+      },
+      "capacitePort60Hz12bits": {
+        "valeur": 327680,
+        "source": "choix-conception-colorlight"
+      },
+      "pixelsMax": {
+        "valeur": 2300000,
+        "source": "pssl-colorlight-s6f"
+      },
+      "ports": {
+        "valeur": 6,
+        "source": "pssl-colorlight-s6f"
+      },
+      "largeurMaxPx": {
+        "valeur": 4096,
+        "source": "pssl-colorlight-s6f"
+      },
+      "hauteurMaxPx": {
+        "valeur": 2560,
+        "source": "pssl-colorlight-s6f"
+      },
+      "entrees": "HDMI et DVI, 1920 × 1200 maxi",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi",
+          "dvi-single"
+        ],
+        "source": "pssl-colorlight-s6f",
+        "note": "Version HDMI non précisée sur la fiche ; entrée limitée à 1920 × 1200."
+      },
+      "entreeMaxLargeurPx": {
+        "valeur": 1920,
+        "source": "pssl-colorlight-s6f"
+      },
+      "entreeMaxHauteurPx": {
+        "valeur": 1200,
+        "source": "pssl-colorlight-s6f"
+      },
+      "note": "6 sorties 1G et 3 sorties fibre."
+    },
+    {
+      "id": "colorlight-x8e",
+      "marque": "Colorlight",
+      "modele": "X8E",
+      "famille": "colorlight",
+      "capacitePort60Hz8bits": {
+        "valeur": 655360,
+        "source": "ledwallcentral-colorlight-q7"
+      },
+      "capacitePort60Hz10bits": {
+        "valeur": 327680,
+        "source": "choix-conception-colorlight"
+      },
+      "capacitePort60Hz12bits": {
+        "valeur": 327680,
+        "source": "choix-conception-colorlight"
+      },
+      "pixelsMax": {
+        "valeur": 5240000,
+        "source": "ledwallcentral-colorlight"
+      },
+      "ports": {
+        "valeur": 8,
+        "source": "ledwallcentral-colorlight"
+      },
+      "largeurMaxPx": {
+        "valeur": 16384,
+        "source": "ledwallcentral-colorlight"
+      },
+      "hauteurMaxPx": {
+        "valeur": 8192,
+        "source": "ledwallcentral-colorlight"
+      },
+      "entrees": "DP 1.2, HDMI 2.0, HDMI 1.4, DVI",
+      "entreesTypes": {
+        "valeur": [
+          "dp-1.2",
+          "hdmi-2.0",
+          "hdmi-1.4",
+          "dvi-single"
+        ],
+        "source": "ledwallcentral-colorlight",
+        "note": "« DVI » sans précision compté en single link (plus prudent)."
+      }
+    },
+    {
+      "id": "colorlight-x16e",
+      "marque": "Colorlight",
+      "modele": "X16E",
+      "famille": "colorlight",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 655360,
+        "source": "ledwallcentral-colorlight-q7"
+      },
+      "capacitePort60Hz10bits": {
+        "valeur": 327680,
+        "source": "choix-conception-colorlight"
+      },
+      "capacitePort60Hz12bits": {
+        "valeur": 327680,
+        "source": "choix-conception-colorlight"
+      },
+      "ports": {
+        "valeur": 16,
+        "source": "ledwallcentral-colorlight"
+      },
+      "entrees": "DP 1.2, HDMI 2.0, HDMI 1.4, DVI ; 4096 × 2160 maxi",
+      "entreesTypes": {
+        "valeur": [
+          "dp-1.2",
+          "hdmi-2.0",
+          "hdmi-1.4",
+          "dvi-single"
+        ],
+        "source": "ledwallcentral-colorlight",
+        "note": "« DVI » sans précision compté en single link (plus prudent)."
+      },
+      "entreeMaxLargeurPx": {
+        "valeur": 4096,
+        "source": "ledwallcentral-colorlight"
+      },
+      "entreeMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "ledwallcentral-colorlight"
+      },
+      "note": "Capacité totale et canvas à compléter."
+    },
+    {
+      "id": "colorlight-vx20",
+      "marque": "Colorlight",
+      "modele": "VX20",
+      "famille": "colorlight",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 655360,
+        "source": "ledwallcentral-colorlight-q7"
+      },
+      "capacitePort60Hz10bits": {
+        "valeur": 327680,
+        "source": "choix-conception-colorlight"
+      },
+      "capacitePort60Hz12bits": {
+        "valeur": 327680,
+        "source": "choix-conception-colorlight"
+      },
+      "pixelsMax": {
+        "valeur": 13100000,
+        "source": "ledwallcentral-colorlight"
+      },
+      "ports": {
+        "valeur": 20,
+        "source": "ledwallcentral-colorlight"
+      },
+      "entrees": "DP 1.2, HDMI 2.0, 12G-SDI, HDMI 1.4",
+      "entreesTypes": {
+        "valeur": [
+          "dp-1.2",
+          "hdmi-2.0",
+          "12g-sdi",
+          "hdmi-1.4"
+        ],
+        "source": "ledwallcentral-colorlight"
+      },
+      "note": "20 sorties 1G et fibre 10G. Canvas à compléter."
+    },
+    {
+      "id": "colorlight-z6",
+      "marque": "Colorlight",
+      "modele": "Z6 (Super Controller)",
+      "famille": "colorlight",
+      "statut": "à compléter",
+      "pixelsMax": {
+        "valeur": 8300000,
+        "source": "novelty-colorlight-z6-v1-6"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "novelty-colorlight-z6-v1-6"
+      },
+      "hauteurMaxPx": {
+        "valeur": 8192,
+        "source": "novelty-colorlight-z6-v1-6"
+      },
+      "entrees": "2 × SDI, 1 × HDMI 2.0, 4 × DVI ; 3840 × 2160 maxi",
+      "entreesTypes": {
+        "valeur": [
+          "sdi",
+          "hdmi-2.0",
+          "dvi-single"
+        ],
+        "source": "novelty-colorlight-z6-v1-6",
+        "note": "Version SDI non précisée ; « DVI » sans précision compté en single link (plus prudent)."
+      },
+      "entreeMaxLargeurPx": {
+        "valeur": 3840,
+        "source": "novelty-colorlight-z6-v1-6"
+      },
+      "entreeMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "novelty-colorlight-z6-v1-6"
+      },
+      "note": "Sorties à compléter."
+    },
+    {
+      "id": "colorlight-z8t",
+      "marque": "Colorlight",
+      "modele": "Z8t",
+      "famille": "colorlight",
+      "statut": "à compléter",
+      "pixelsMax": {
+        "valeur": 17690000,
+        "source": "aimsalliance-colorlight-z8t"
+      },
+      "largeurMaxPx": {
+        "valeur": 16384,
+        "source": "aimsalliance-colorlight-z8t"
+      },
+      "note": "Ports 5G et fibre 10G : nombre de ports, capacité par port, hauteur maxi et entrées à compléter."
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "appli-mur-led",
+  "private": true,
+  "description": "Sert seulement à Node.js pour lire les fichiers .js comme modules ES avec node --test. Aucune dépendance, aucune installation npm.",
+  "type": "module"
+}

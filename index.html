@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0e1014">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Mur LED">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>Mur LED</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icones/icone.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icones/icone-180.png">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // Mode rouge appliqué avant l'affichage, pour éviter un éclair bleu dans une salle sombre.
+    try {
+      if (localStorage.getItem('mur-led-mode') === 'rouge') document.documentElement.dataset.mode = 'rouge';
+    } catch (e) { /* stockage bloqué : mode sombre */ }
+  </script>
+</head>
+<body>
+  <header class="entete entete-app">
+    <h1>Mur LED</h1>
+    <div class="outils-entete">
+      <button id="tout-copier" class="bouton bouton-petit" type="button">Tout copier</button>
+      <button id="mode-rouge" class="bouton bouton-petit" type="button" aria-pressed="false">Mode rouge</button>
+    </div>
+  </header>
+  <p id="etat-copie-global" class="etat-copie entete" aria-live="polite"></p>
+  <div id="bandeau-maj" class="bandeau-maj" role="status" hidden>
+    <span>Une nouvelle version de l'appli est prête.</span>
+    <button id="recharger" class="bouton bouton-petit" type="button">Recharger</button>
+  </div>
+
+  <nav class="onglets" aria-label="Modules">
+    <a class="onglet" href="#mur" aria-current="page">Mur</a>
+    <a class="onglet" href="#data">Data</a>
+    <a class="onglet" href="#canvas">Canvas</a>
+    <a class="onglet" href="#elec">Élec</a>
+    <a class="onglet" href="#poids">Poids</a>
+    <a class="onglet" href="#base">Base</a>
+  </nav>
+
+  <main>
+    <section id="mur" aria-labelledby="titre-mur">
+      <h2 id="titre-mur" class="cache-visuel">Dimensionnement du mur</h2>
+      <p class="alerte alerte-info bandeau-donnees">Données de départ relevées sur des fiches constructeur, des loueurs ou des bases tierces, chacune avec sa source. Vérifie la fiche officielle de ta dalle avant une presta.</p>
+
+      <form id="form-mur" class="carte formulaire" novalidate>
+        <div class="champ">
+          <label for="parc-mur">Parc actif</label>
+          <select id="parc-mur" name="parc" class="selecteur-parc"></select>
+        </div>
+        <div class="champ">
+          <label for="dalle">Dalle</label>
+          <select id="dalle" name="dalle" disabled>
+            <option>Chargement de la base…</option>
+          </select>
+        </div>
+        <div id="alerte-dalle"></div>
+        <details id="fiche" class="fiche">
+          <summary>Fiche et sources de la dalle</summary>
+          <div id="fiche-contenu"></div>
+        </details>
+
+        <fieldset class="segmente">
+          <legend>Calculer à partir de</legend>
+          <div class="segments">
+            <label><input type="radio" name="mode" value="taille" checked><span>Taille</span></label>
+            <label><input type="radio" name="mode" value="resolution"><span>Résolution</span></label>
+            <label><input type="radio" name="mode" value="dalles"><span>Dalles</span></label>
+          </div>
+        </fieldset>
+
+        <div class="groupe-mode paire" data-modes="taille">
+          <div class="champ">
+            <label for="largeur-m">Largeur cible (m)</label>
+            <input id="largeur-m" name="largeurM" inputmode="decimal" autocomplete="off" value="6">
+          </div>
+          <div class="champ">
+            <label for="hauteur-m">Hauteur cible (m)</label>
+            <input id="hauteur-m" name="hauteurM" inputmode="decimal" autocomplete="off" value="3">
+          </div>
+        </div>
+
+        <div class="groupe-mode paire" data-modes="resolution" hidden>
+          <div class="champ">
+            <label for="largeur-px">Largeur cible (px)</label>
+            <input id="largeur-px" name="largeurPx" inputmode="numeric" autocomplete="off" value="1920">
+          </div>
+          <div class="champ">
+            <label for="hauteur-px">Hauteur cible (px)</label>
+            <input id="hauteur-px" name="hauteurPx" inputmode="numeric" autocomplete="off" value="1080">
+          </div>
+        </div>
+
+        <div class="groupe-mode paire" data-modes="taille resolution">
+          <label class="case"><input type="checkbox" name="neDepassePasLargeur"><span>Largeur : ne pas dépasser</span></label>
+          <label class="case"><input type="checkbox" name="neDepassePasHauteur"><span>Hauteur : ne pas dépasser</span></label>
+        </div>
+
+        <div class="groupe-mode paire" data-modes="dalles" hidden>
+          <div class="champ">
+            <label for="colonnes">Colonnes</label>
+            <input id="colonnes" name="colonnes" inputmode="numeric" autocomplete="off" value="12">
+          </div>
+          <div class="champ">
+            <label for="lignes">Lignes</label>
+            <input id="lignes" name="lignes" inputmode="numeric" autocomplete="off" value="6">
+          </div>
+        </div>
+
+        <div id="bloc-demi" class="bloc-demi" hidden>
+          <label class="case"><input type="checkbox" name="demi"><span id="libelle-demi">Demi-dalles disponibles</span></label>
+          <fieldset id="position-demi" class="segmente" hidden>
+            <legend>Rangée de demi-dalles</legend>
+            <div class="segments">
+              <label><input type="radio" name="positionDemi" value="haut"><span>En haut</span></label>
+              <label><input type="radio" name="positionDemi" value="bas" checked><span>En bas</span></label>
+            </div>
+          </fieldset>
+        </div>
+      </form>
+
+      <div class="barre-copie">
+        <button class="bouton bouton-petit" type="button" data-copier="mur">Copier les résultats</button>
+        <span class="etat-copie" aria-live="polite"></span>
+      </div>
+      <div id="resultats" class="resultats" aria-live="polite"></div>
+    </section>
+
+    <section id="data" aria-labelledby="titre-data" hidden>
+      <h2 id="titre-data" class="cache-visuel">Data et processeur</h2>
+
+      <form id="form-data" class="carte formulaire" novalidate>
+        <fieldset class="segmente">
+          <legend>Marque</legend>
+          <div class="segments">
+            <label><input type="radio" name="famille" value="novastar" checked><span>Novastar</span></label>
+            <label><input type="radio" name="famille" value="brompton"><span>Brompton</span></label>
+            <label><input type="radio" name="famille" value="colorlight"><span>Colorlight</span></label>
+          </div>
+        </fieldset>
+
+        <div class="champ">
+          <label for="parc-data">Parc actif</label>
+          <select id="parc-data" name="parc" class="selecteur-parc"></select>
+        </div>
+
+        <div class="champ">
+          <label for="processeur">Processeur</label>
+          <select id="processeur" name="processeur"></select>
+        </div>
+
+        <div class="paire">
+          <div class="champ">
+            <label for="frequence">Fréquence (Hz)</label>
+            <input id="frequence" name="frequence" inputmode="decimal" autocomplete="off" value="60">
+          </div>
+          <fieldset class="segmente">
+            <legend>Bit depth réseau</legend>
+            <div class="segments">
+              <label><input type="radio" name="bits" value="8" checked><span>8</span></label>
+              <label><input type="radio" name="bits" value="10"><span>10</span></label>
+              <label><input type="radio" name="bits" value="12"><span>12</span></label>
+            </div>
+          </fieldset>
+        </div>
+
+        <label class="case"><input type="checkbox" name="redondance"><span>Redondance (ports doublés)</span></label>
+        <label class="case" data-famille="brompton" hidden><input type="checkbox" name="ull"><span>ULL, Ultra Low Latency (capacité divisée par 2)</span></label>
+        <label class="case" data-famille="novastar"><input type="checkbox" name="cartesPro"><span>Cartes A8s Pro ou A10s Pro (MX40 Pro, 10 bits)</span></label>
+        <label class="case" data-famille="novastar"><input type="checkbox" name="modeOptique"><span>MX40 Pro : mode 40 ports (sorties optiques et convertisseurs)</span></label>
+      </form>
+
+      <div class="barre-copie">
+        <button class="bouton bouton-petit" type="button" data-copier="data">Copier les résultats</button>
+        <span class="etat-copie" aria-live="polite"></span>
+      </div>
+      <div id="resultats-data" class="resultats" aria-live="polite"></div>
+    </section>
+
+    <section id="canvas" aria-labelledby="titre-canvas" hidden>
+      <h2 id="titre-canvas" class="cache-visuel">Canvas et source</h2>
+
+      <form id="form-source" class="carte formulaire" novalidate>
+        <p class="note">Source envoyée à chaque processeur : un bloc par processeur, placé en haut à gauche de son image.</p>
+        <div id="etat-source" class="etat-source">
+          <p id="texte-source" class="note"></p>
+          <button id="bouton-conseil" class="bouton" type="button" hidden>Revenir à la source conseillée</button>
+        </div>
+        <div class="paire">
+          <div class="champ">
+            <label for="source-largeur">Largeur source (px)</label>
+            <input id="source-largeur" name="largeurPx" inputmode="numeric" autocomplete="off" value="3840">
+          </div>
+          <div class="champ">
+            <label for="source-hauteur">Hauteur source (px)</label>
+            <input id="source-hauteur" name="hauteurPx" inputmode="numeric" autocomplete="off" value="2160">
+          </div>
+        </div>
+        <div class="paire">
+          <div class="champ">
+            <label for="source-frequence">Fréquence (Hz)</label>
+            <input id="source-frequence" name="frequenceHz" inputmode="decimal" autocomplete="off" value="60">
+          </div>
+          <fieldset class="segmente">
+            <legend>Bit depth source</legend>
+            <div class="segments">
+              <label><input type="radio" name="bits" value="8" checked><span>8</span></label>
+              <label><input type="radio" name="bits" value="10"><span>10</span></label>
+              <label><input type="radio" name="bits" value="12"><span>12</span></label>
+            </div>
+          </fieldset>
+        </div>
+        <div class="champ">
+          <label for="source-liaison">Liaison vers le processeur</label>
+          <select id="source-liaison" name="liaison"></select>
+        </div>
+        <div class="paire">
+          <fieldset class="segmente">
+            <legend>Espace</legend>
+            <div class="segments">
+              <label><input type="radio" name="espace" value="RGB" checked><span>RGB</span></label>
+              <label><input type="radio" name="espace" value="YUV"><span>YUV</span></label>
+            </div>
+          </fieldset>
+          <fieldset class="segmente">
+            <legend>Plage</legend>
+            <div class="segments">
+              <label><input type="radio" name="plage" value="Full" checked><span>Full</span></label>
+              <label><input type="radio" name="plage" value="Limited"><span>Limited</span></label>
+            </div>
+          </fieldset>
+        </div>
+        <div class="champ">
+          <label for="regie">Régie ou scaler en amont</label>
+          <select id="regie" name="regie"></select>
+        </div>
+        <label id="bloc-multiviewer" class="case" hidden><input type="checkbox" name="multiviewer"><span>Multiviewer utilisé (moins de sorties)</span></label>
+      </form>
+
+      <div class="barre-copie">
+        <button class="bouton bouton-petit" type="button" data-copier="canvas">Copier les résultats</button>
+        <span class="etat-copie" aria-live="polite"></span>
+      </div>
+      <div id="resultats-canvas" class="resultats" aria-live="polite"></div>
+    </section>
+
+    <section id="elec" aria-labelledby="titre-elec" hidden>
+      <h2 id="titre-elec" class="cache-visuel">Électricité</h2>
+
+      <form id="form-elec" class="carte formulaire" novalidate>
+        <fieldset class="segmente">
+          <legend>Arrivée</legend>
+          <div class="segments">
+            <label><input type="radio" name="typeArrivee" value="mono"><span>Mono</span></label>
+            <label><input type="radio" name="typeArrivee" value="tri" checked><span>Tri</span></label>
+          </div>
+        </fieldset>
+        <div class="paire">
+          <div class="champ">
+            <label for="arrivee-a">Intensité de l'arrivée</label>
+            <select id="arrivee-a" name="arriveeA"></select>
+          </div>
+          <div class="champ" id="bloc-arrivee-libre" hidden>
+            <label for="arrivee-libre">Autre valeur (A)</label>
+            <input id="arrivee-libre" name="arriveeLibre" inputmode="decimal" autocomplete="off" placeholder="Powerlock, groupe…">
+          </div>
+        </div>
+        <div class="paire">
+          <div class="champ">
+            <label for="depart-a">Départs (A)</label>
+            <input id="depart-a" name="departA" inputmode="decimal" autocomplete="off" value="16">
+          </div>
+          <div class="champ">
+            <label for="tension-v">Tension de calcul (V)</label>
+            <input id="tension-v" name="tensionV" inputmode="decimal" autocomplete="off" value="220">
+          </div>
+        </div>
+        <fieldset class="segmente">
+          <legend>Marge : 80 % par défaut, 70 % sur groupe, en plein soleil ou sans fiche, 60 % en cas de doute</legend>
+          <div class="segments">
+            <label><input type="radio" name="marge" value="0.8" checked><span>80 %</span></label>
+            <label><input type="radio" name="marge" value="0.7"><span>70 %</span></label>
+            <label><input type="radio" name="marge" value="0.6"><span>60 %</span></label>
+          </div>
+        </fieldset>
+        <div class="champ">
+          <label for="puissance-utile">Puissance utile par ligne (W), facultatif : remplace tension × départ × marge</label>
+          <input id="puissance-utile" name="puissanceUtileW" inputmode="decimal" autocomplete="off" placeholder="par exemple 3000">
+        </div>
+        <fieldset class="segmente">
+          <legend>Courbe des disjoncteurs</legend>
+          <div class="segments">
+            <label><input type="radio" name="courbe" value="" checked><span>Inconnue</span></label>
+            <label><input type="radio" name="courbe" value="B"><span>B</span></label>
+            <label><input type="radio" name="courbe" value="C"><span>C</span></label>
+            <label><input type="radio" name="courbe" value="D"><span>D</span></label>
+          </div>
+        </fieldset>
+      </form>
+
+      <div class="barre-copie">
+        <button class="bouton bouton-petit" type="button" data-copier="elec">Copier les résultats</button>
+        <span class="etat-copie" aria-live="polite"></span>
+      </div>
+      <div id="resultats-elec" class="resultats" aria-live="polite"></div>
+    </section>
+
+    <section id="poids" aria-labelledby="titre-poids" hidden>
+      <h2 id="titre-poids" class="cache-visuel">Poids et accroche</h2>
+
+      <form id="form-poids" class="carte formulaire" novalidate>
+        <fieldset class="segmente">
+          <legend>Montage</legend>
+          <div class="segments">
+            <label><input type="radio" name="mode" value="accroche" checked><span>Accroche</span></label>
+            <label><input type="radio" name="mode" value="stack"><span>Stack</span></label>
+          </div>
+        </fieldset>
+        <div class="paire">
+          <div class="champ">
+            <label for="cables-kg">Câbles entre dalles (kg par dalle)</label>
+            <input id="cables-kg" name="cablesKgParDalle" inputmode="decimal" autocomplete="off" value="0">
+          </div>
+          <div class="champ">
+            <label for="autres-kg">Autres charges suspendues (kg)</label>
+            <input id="autres-kg" name="autresKg" inputmode="decimal" autocomplete="off" value="0" placeholder="câbles de tête, multipaires, XD">
+          </div>
+        </div>
+
+        <div class="groupe-accroche formulaire">
+          <div class="champ">
+            <label for="bumper">Bumper ou barre</label>
+            <select id="bumper" name="bumper"></select>
+          </div>
+          <div id="bloc-bumper" class="formulaire" hidden>
+            <div class="paire">
+              <div class="champ">
+                <label for="bumper-kg">Poids d'un bumper (kg)</label>
+                <input id="bumper-kg" name="bumperKg" inputmode="decimal" autocomplete="off">
+              </div>
+              <fieldset class="segmente">
+                <legend>Colonnes par bumper</legend>
+                <div class="segments">
+                  <label><input type="radio" name="bumperColonnes" value="1" checked><span>1</span></label>
+                  <label><input type="radio" name="bumperColonnes" value="2"><span>2</span></label>
+                </div>
+              </fieldset>
+            </div>
+            <div class="champ">
+              <label for="bumper-cmu">CMU du bumper (kg), si la fiche la donne</label>
+              <input id="bumper-cmu" name="bumperCmu" inputmode="decimal" autocomplete="off">
+            </div>
+          </div>
+
+          <fieldset class="segmente">
+            <legend>Points d'accroche</legend>
+            <div class="segments">
+              <label><input type="radio" name="typeAccroche" value="bumpers" checked><span>Un point par bumper</span></label>
+              <label><input type="radio" name="typeAccroche" value="pont"><span>Pont (truss)</span></label>
+            </div>
+          </fieldset>
+          <div id="bloc-pont" class="formulaire" hidden>
+            <div class="paire">
+              <div class="champ">
+                <label for="points-pont">Nombre de points</label>
+                <input id="points-pont" name="pointsPont" inputmode="numeric" autocomplete="off" value="2">
+              </div>
+              <div class="champ">
+                <label for="poids-pont">Poids propre du pont (kg)</label>
+                <input id="poids-pont" name="poidsPontKg" inputmode="decimal" autocomplete="off" value="0">
+              </div>
+            </div>
+            <label class="case"><input type="checkbox" name="porteesEgales" checked><span>Portées égales, sans porte-à-faux</span></label>
+          </div>
+          <div class="paire">
+            <div class="champ">
+              <label for="cmu-moteur">CMU du moteur (kg), dans sa configuration réelle</label>
+              <input id="cmu-moteur" name="cmuMoteurKg" inputmode="decimal" autocomplete="off">
+            </div>
+            <div class="champ">
+              <label for="config-moteur">Configuration du moteur</label>
+              <select id="config-moteur" name="configurationMoteur">
+                <option value="">Non précisée</option>
+                <option value="D8">D8</option>
+                <option value="D8+">D8+</option>
+                <option value="C1">C1</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <div class="barre-copie">
+        <button class="bouton bouton-petit" type="button" data-copier="poids">Copier les résultats</button>
+        <span class="etat-copie" aria-live="polite"></span>
+      </div>
+      <div id="resultats-poids" class="resultats" aria-live="polite"></div>
+    </section>
+
+    <section id="base" aria-labelledby="titre-base" hidden>
+      <h2 id="titre-base" class="cache-visuel">Base locale</h2>
+      <p class="alerte alerte-info bandeau-donnees">Données de départ relevées sur des fiches constructeur, des loueurs ou des bases tierces, chacune avec sa source. Vérifie la fiche officielle de ta dalle avant une presta.</p>
+      <div id="etat-stockage"></div>
+
+      <section class="carte formulaire">
+        <h3>Configuration en cours</h3>
+        <p class="note">Les saisies de chaque onglet sont gardées automatiquement et reviennent à la prochaine ouverture.</p>
+        <button id="reglages-defaut" class="bouton" type="button">Repartir des réglages par défaut</button>
+      </section>
+
+      <section class="carte formulaire">
+        <h3>Parcs</h3>
+        <p class="note">Un parc par prestataire. Une fiche peut appartenir à plusieurs parcs. Le parc actif se choisit dans les onglets Mur et Data.</p>
+        <ul id="liste-parcs" class="liste-parcs"></ul>
+        <form id="form-parc" class="ligne-saisie" novalidate>
+          <input name="nom" type="text" autocomplete="off" placeholder="Nom du prestataire" aria-label="Nom du nouveau parc">
+          <button class="bouton" type="submit">Créer le parc</button>
+        </form>
+      </section>
+
+      <section class="carte formulaire">
+        <h3>Fiches</h3>
+        <div class="paire">
+          <div class="champ">
+            <label for="filtre-type">Type</label>
+            <select id="filtre-type">
+              <option value="dalle">Dalles</option>
+              <option value="processeur">Processeurs</option>
+              <option value="regie">Régies et scalers</option>
+              <option value="bumper">Bumpers et barres</option>
+            </select>
+          </div>
+          <div class="champ">
+            <label for="filtre-texte">Rechercher</label>
+            <input id="filtre-texte" type="text" autocomplete="off" placeholder="marque, modèle">
+          </div>
+        </div>
+        <ul id="liste-fiches" class="liste-cas"></ul>
+      </section>
+
+      <section id="bloc-saisie" class="carte formulaire">
+        <h3>Ajouter ou modifier une fiche</h3>
+        <fieldset class="segmente">
+          <legend>Saisie</legend>
+          <div class="segments">
+            <label><input type="radio" name="modeSaisie" value="guidee" checked><span>Guidée</span></label>
+            <label><input type="radio" name="modeSaisie" value="json"><span>JSON</span></label>
+          </div>
+        </fieldset>
+        <div id="saisie-guidee" class="formulaire">
+          <div class="champ">
+            <label for="guidee-type">Type de fiche</label>
+            <select id="guidee-type">
+              <option value="dalle">Dalle</option>
+              <option value="processeur">Processeur</option>
+              <option value="regie">Régie ou scaler</option>
+              <option value="bumper">Bumper ou barre</option>
+            </select>
+          </div>
+          <div id="guidee-champs" class="formulaire"></div>
+          <button id="preparer-json" class="bouton" type="button">Préparer la fiche</button>
+        </div>
+        <div id="saisie-json" class="formulaire" hidden>
+          <div class="champ">
+            <label for="json-fiche">JSON de la fiche (généré par Claude à partir du PDF constructeur, ou préparé par la saisie guidée)</label>
+            <textarea id="json-fiche" rows="12" spellcheck="false"></textarea>
+          </div>
+          <div id="rapport-json"></div>
+          <button id="enregistrer-json" class="bouton" type="button" disabled>Enregistrer</button>
+        </div>
+        <details class="fiche">
+          <summary>Consigne pour Claude et modèle de JSON</summary>
+          <div class="formulaire">
+            <p class="note">Donne à Claude le PDF constructeur, la consigne et le modèle, puis colle sa réponse dans la saisie JSON.</p>
+            <div class="champ">
+              <label for="modele-type">Modèle pour</label>
+              <select id="modele-type">
+                <option value="dalle">une dalle</option>
+                <option value="processeur">un processeur</option>
+                <option value="regie">une régie ou un scaler</option>
+                <option value="bumper">un bumper ou une barre</option>
+              </select>
+            </div>
+            <textarea id="consigne-texte" rows="10" readonly></textarea>
+            <button id="copier-consigne" class="bouton" type="button">Copier la consigne et le modèle</button>
+          </div>
+        </details>
+      </section>
+
+      <section class="carte formulaire">
+        <h3>Sauvegarde et partage</h3>
+        <label class="case"><input id="exporter-tout" type="checkbox"><span>Tout exporter, base de départ comprise</span></label>
+        <button id="exporter" class="bouton" type="button">Exporter en JSON</button>
+        <div class="champ">
+          <label for="fichier-import">Importer un fichier JSON</label>
+          <input id="fichier-import" type="file" accept="application/json,.json">
+        </div>
+        <fieldset class="segmente">
+          <legend>À l'import</legend>
+          <div class="segments">
+            <label><input type="radio" name="modeImport" value="fusionner" checked><span>Fusionner</span></label>
+            <label><input type="radio" name="modeImport" value="remplacer"><span>Remplacer ma base</span></label>
+          </div>
+        </fieldset>
+        <div id="rapport-import"></div>
+        <p class="note">iPhone : Safari efface les données d'un site après 7 jours sans visite, sauf pour une appli ajoutée à l'écran d'accueil. Exporte ta base régulièrement.</p>
+      </section>
+
+      <p class="note verifier"><a href="tests.html">Vérifier les calculs</a> : relance les cas tests et toutes les règles sur cette version de l'appli (connexion nécessaire).</p>
+    </section>
+  </main>
+
+  <footer class="pied">
+    <p>Calculs indicatifs : la structure est validée par le rigger, l'électricité par l'électricien. Les données constructeur priment.</p>
+  </footer>
+
+  <script>
+    // Script classique, hors module : prévient si l'appli est ouverte sans lancer.command.
+    function signalerChargement(message) {
+      var zone = document.getElementById('resultats');
+      zone.innerHTML = '';
+      var alerte = document.createElement('div');
+      alerte.className = 'alerte alerte-erreur';
+      alerte.setAttribute('role', 'alert');
+      alerte.textContent = message;
+      zone.appendChild(alerte);
+    }
+    if (location.protocol === 'file:') {
+      signalerChargement('Ouvre l\'appli avec lancer.command (double-clic dans le Finder) : le navigateur bloque les modules JavaScript quand on ouvre le fichier directement.');
+    }
+    window.addEventListener('error', function (e) {
+      var ou = e.filename ? ' (' + e.filename.split('/').pop() + ', ligne ' + e.lineno + ')' : '';
+      signalerChargement('Erreur dans l\'appli : ' + e.message + ou);
+    });
+  </script>
+  <script type="module" src="src/app.js" onerror="signalerChargement('Impossible de charger l\'appli : un fichier manque ou la page n\'est pas servie par lancer.command.')"></script>
+</body>
+</html>

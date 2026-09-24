@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0e1014">
+  <title>Tests — Mur LED</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="entete">
+    <a class="lien-retour" href="index.html#base">← Retour à l'appli</a>
+    <h1>Tests</h1>
+    <p class="sous-titre">Les 13 cas tests du cahier des charges, recalculés à chaque ouverture de la page.</p>
+  </header>
+
+  <main>
+    <div id="bilan" class="bilan" role="status">Chargement des tests…</div>
+
+    <h2>Cas tests du cahier des charges</h2>
+    <p class="note">Le cas 13 couvre quatre modules : il est découpé en quatre parties. Un cas « à venir » n'est ni réussi ni en échec : son module n'est pas encore écrit.</p>
+    <ol id="liste-cas" class="liste-cas"></ol>
+
+    <h2>Règles complémentaires</h2>
+    <p class="note">Tes décisions prises en cours de projet, notées dans le cahier des charges du projet.</p>
+    <ol id="liste-regles" class="liste-cas"></ol>
+
+    <h2>Contrôle des données</h2>
+    <p class="note">Vérifie la base de départ (data/dalles.json et data/processeurs.json) : sources, pitch, valeurs contradictoires, limites des processeurs.</p>
+    <ol id="liste-donnees" class="liste-cas"></ol>
+
+    <h2>Contrôle du banc de test</h2>
+    <p class="note">Vérifie l'outil de test lui-même. S'il échoue, les résultats ci-dessus ne sont pas fiables.</p>
+    <ol id="liste-banc" class="liste-cas"></ol>
+  </main>
+
+  <footer class="pied">
+    <p>Relance les tests en rechargeant la page.</p>
+  </footer>
+
+  <script>
+    // Script classique, hors module : prévient si la page est ouverte sans lancer.command
+    // ou si un fichier de test ne se charge pas.
+    function signalerChargement(message) {
+      var bilan = document.getElementById('bilan');
+      bilan.className = 'bilan bilan-echec';
+      bilan.textContent = message;
+    }
+    if (location.protocol === 'file:') {
+      signalerChargement('Ouvre cette page avec lancer.command (double-clic dans le Finder) : le navigateur bloque les modules JavaScript quand on ouvre le fichier directement.');
+    }
+    window.addEventListener('error', function (e) {
+      var ou = e.filename ? ' (' + e.filename.split('/').pop() + ', ligne ' + e.lineno + ')' : '';
+      signalerChargement('Erreur dans les tests : ' + e.message + ou);
+    });
+  </script>
+  <script type="module" src="tests/page.js" onerror="signalerChargement('Impossible de charger les tests : un fichier manque ou la page n\'est pas servie par lancer.command.')"></script>
+</body>
+</html>

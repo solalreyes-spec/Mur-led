@@ -1,0 +1,503 @@
+/* Styles communs de l'appli mur LED : mode sombre par défaut, mobile d'abord, cibles de 48 px. */
+
+:root {
+  color-scheme: dark;
+  --fond: #0e1014;
+  --surface: #171a20;
+  --surface-2: #1f232b;
+  --bordure: #2b303a;
+  --texte: #e9ebef;
+  --texte-doux: #9aa2af;
+  --accent: #5aa9ff;
+  --ok: #45d17a;
+  --ok-fond: #12301e;
+  --echec: #ff6b6b;
+  --echec-fond: #3a1618;
+  --attente: #9aa2af;
+  --attente-fond: #242831;
+  --alerte: #f3b845;
+  --alerte-fond: #33280f;
+  --info-fond: #10233a;
+  --rayon: 10px;
+  --cible: 48px;
+  --police: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --police-chiffres: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sur-accent: #06121f;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+/* L'attribut hidden l'emporte toujours sur les display des composants. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--texte);
+  font: 16px/1.5 var(--police);
+}
+
+.entete, main, .pied {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.entete { padding-top: 20px; }
+.pied { padding-top: 24px; padding-bottom: 32px; color: var(--texte-doux); font-size: 0.875rem; }
+
+h1 { font-size: 1.6rem; line-height: 1.2; margin: 0; }
+h2 { font-size: 1.1rem; margin: 28px 0 12px; }
+h3 { font-size: 1rem; margin: 0; }
+.sous-titre { color: var(--texte-doux); margin: 6px 0 0; }
+.note { color: var(--texte-doux); font-size: 0.875rem; margin: -4px 0 12px; }
+
+a { color: var(--accent); }
+
+.bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cible);
+  padding: 0 18px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface-2);
+  color: var(--texte);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.bouton:hover { border-color: var(--accent); }
+
+.lien-retour {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cible);
+  margin-bottom: 4px;
+  text-decoration: none;
+}
+
+a:focus-visible, .bouton:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Badges de statut */
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-reussi { background: var(--ok-fond); color: var(--ok); }
+.badge-echec, .badge-erreur { background: var(--echec-fond); color: var(--echec); }
+.badge-a-venir { background: var(--attente-fond); color: var(--attente); }
+
+.cache-visuel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Mode rouge : toute l'appli en rouge sur noir, pour garder la vision de nuit en salle. */
+:root[data-mode="rouge"] {
+  --fond: #000000;
+  --surface: #0c0000;
+  --surface-2: #150000;
+  --bordure: #3d0b0b;
+  --texte: #e0403a;
+  --texte-doux: #a3302b;
+  --accent: #ff3b30;
+  --ok: #ff6a5c;
+  --ok-fond: #1c0402;
+  --echec: #ff2a1f;
+  --echec-fond: #2b0200;
+  --attente: #a3302b;
+  --attente-fond: #120000;
+  --alerte: #ff7a4d;
+  --alerte-fond: #230800;
+  --info-fond: #140000;
+  --sur-accent: #000000;
+}
+/* Cases à cocher dessinées en rouge : le dessin natif du navigateur reste gris. */
+:root[data-mode="rouge"] input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-grid;
+  place-content: center;
+  border: 2px solid var(--texte-doux);
+  border-radius: 5px;
+  background: var(--surface-2);
+}
+:root[data-mode="rouge"] input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+:root[data-mode="rouge"] input[type="checkbox"]:checked::after {
+  content: "";
+  width: 10px;
+  height: 5px;
+  border: solid var(--sur-accent);
+  border-width: 0 0 3px 3px;
+  transform: translateY(-1px) rotate(-45deg);
+}
+
+/* En-tête et onglets de l'appli */
+
+.entete-app {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.outils-entete { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.bouton-petit { min-height: 40px; padding: 0 12px; font-size: 0.9rem; }
+.bouton[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
+.barre-copie { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+.etat-copie { color: var(--texte-doux); font-size: 0.875rem; }
+.etat-copie:empty { display: none; }
+p.etat-copie { margin: 6px auto 0; }
+.bandeau-maj {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  max-width: 760px;
+  margin: 10px auto 0;
+  padding: 10px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--rayon);
+  background: var(--info-fond);
+}
+details.manques { padding: 0; }
+details.manques summary { padding: 12px 14px; cursor: pointer; }
+details.manques p { margin: 0 14px 10px; }
+.reglage-parc { margin: 4px 0 10px 32px; }
+.note.verifier { margin: 20px 0 0; }
+.bandeau-donnees { margin: 16px 0 0; }
+.lien-discret {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cible);
+  padding: 0 4px;
+  color: var(--texte-doux);
+}
+
+.onglets {
+  display: flex;
+  gap: 6px;
+  max-width: 760px;
+  margin: 8px auto 0;
+  padding: 0 16px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.onglet {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cible);
+  min-width: 64px;
+  padding: 4px 12px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  color: var(--texte);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.onglet[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
+.onglet-inactif { color: var(--texte-doux); font-weight: 400; opacity: 0.7; }
+.onglet small { font-size: 0.7rem; }
+
+/* Formulaire */
+
+.carte {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+.formulaire { display: grid; gap: 14px; }
+#alerte-dalle:empty { display: none; }
+#alerte-dalle .alerte:first-child { margin-top: 0; }
+.champ { display: grid; gap: 6px; min-width: 0; }
+.champ label, .segmente legend { color: var(--texte-doux); font-size: 0.9rem; }
+
+input:not([type]), input[type="text"], select {
+  width: 100%;
+  min-height: var(--cible);
+  padding: 0 12px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface-2);
+  color: var(--texte);
+  font: inherit;
+  font-size: 1rem;
+}
+input:not([type]) { font-family: var(--police-chiffres); font-size: 1.1rem; }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.paire { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.case {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--cible);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.case input { width: 22px; height: 22px; margin: 0; flex: none; accent-color: var(--accent); }
+
+.segmente { margin: 0; padding: 0; border: 0; min-width: 0; }
+.segmente legend { padding: 0; margin-bottom: 6px; }
+.segments {
+  display: flex;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface-2);
+}
+.segments label { flex: 1; position: relative; }
+.segments input { position: absolute; opacity: 0; pointer-events: none; }
+.segments span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--texte-doux);
+  font-weight: 600;
+  cursor: pointer;
+}
+.segments input:checked + span { background: var(--accent); color: var(--sur-accent); }
+.segments input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.bloc-demi { display: grid; gap: 8px; }
+
+.fiche summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--cible);
+  color: var(--accent);
+  cursor: pointer;
+}
+.table-fiche { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.table-fiche th, .table-fiche td {
+  padding: 6px 8px;
+  border-top: 1px solid var(--bordure);
+  text-align: left;
+  vertical-align: top;
+}
+.table-fiche thead th { color: var(--texte-doux); font-weight: 600; }
+.table-fiche tbody th { font-weight: 400; color: var(--texte-doux); }
+.table-fiche .source { color: var(--texte-doux); }
+.table-fiche .source span { display: block; white-space: nowrap; }
+.conflit { margin-top: 2px; color: var(--alerte); font-size: 0.8rem; }
+
+/* Alertes */
+
+.alerte {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--alerte);
+  border-radius: var(--rayon);
+  background: var(--alerte-fond);
+  color: var(--alerte);
+  font-size: 0.92rem;
+}
+.alerte-erreur { border-color: var(--echec); background: var(--echec-fond); color: var(--echec); }
+.alerte-info { border-color: var(--accent); background: var(--info-fond); color: var(--texte); }
+.alerte-ok { border-color: var(--ok); background: var(--ok-fond); color: var(--ok); }
+.etat-source { display: grid; gap: 8px; justify-items: start; }
+.rappels { margin: 0; padding-left: 20px; color: var(--texte-doux); font-size: 0.9rem; }
+.groupe-accroche { margin-top: 0; }
+
+/* Onglet Base */
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface-2);
+  color: var(--texte);
+  font-family: var(--police-chiffres);
+  font-size: 0.85rem;
+  resize: vertical;
+}
+.ligne-saisie { display: flex; gap: 8px; flex-wrap: wrap; }
+.ligne-saisie input { flex: 1 1 12em; }
+.liste-parcs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.liste-parcs li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.liste-parcs input { flex: 1 1 10em; }
+.bouton-discret { background: transparent; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.puces { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge-info { background: var(--info-fond); color: var(--accent); }
+.badge-alerte { background: var(--alerte-fond); color: var(--alerte); }
+input[type="file"] { color: var(--texte); min-height: var(--cible); }
+.compte { color: var(--texte-doux); font-size: 0.85rem; }
+.groupe { margin: 0; padding: 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); min-width: 0; }
+.groupe legend { padding: 0 6px; color: var(--texte-doux); font-size: 0.9rem; }
+.rapport-fiche h4, .cas-corps h4, #rapport-import h4 { margin: 12px 0 6px; font-size: 0.95rem; }
+.cas-corps .case { min-height: 40px; }
+.rappels li { margin-bottom: 6px; }
+.bloc-resultats h4 .badge { margin-left: 8px; }
+.etat-source .note { margin: 0; }
+.table-donnees td.ok { color: var(--ok); font-weight: 700; }
+.table-donnees td.ko { color: var(--echec); font-weight: 700; }
+
+/* Onglet Data */
+
+.recap-mur { margin: 0 0 8px; color: var(--texte-doux); font-size: 0.9rem; }
+.bloc-resultats h3 { display: flex; align-items: center; gap: 10px; margin: 24px 0 8px; }
+.bloc-resultats h4 { margin: 18px 0 8px; font-size: 0.95rem; }
+.bloc-resultats .resultat-principal { margin-bottom: 10px; }
+
+.table-donnees { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.table-donnees th, .table-donnees td {
+  padding: 8px;
+  border-top: 1px solid var(--bordure);
+  text-align: left;
+  vertical-align: top;
+}
+.table-donnees thead th { color: var(--texte-doux); font-weight: 600; }
+.table-donnees td, .table-donnees th { overflow-wrap: anywhere; }
+.table-donnees tbody th { font-weight: 600; }
+.table-donnees .nombre { font-family: var(--police-chiffres); font-weight: 700; text-align: right; }
+.table-donnees .source-ligne { display: block; color: var(--texte-doux); font-size: 0.78rem; }
+.table-donnees tr.limite .nombre { color: var(--alerte); }
+.table-donnees tr.total th, .table-donnees tr.total td { border-top-width: 2px; font-weight: 700; }
+.table-donnees tr.choisi th, .table-donnees tr.choisi td { background: var(--surface-2); }
+.table-donnees tr.a-completer th, .table-donnees tr.a-completer td { color: var(--texte-doux); }
+
+/* Résultats */
+
+.resultats { margin-top: 16px; }
+.resultat-principal { margin-top: 0; }
+.chiffre-cle {
+  margin: 0;
+  font-family: var(--police-chiffres);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.chiffre-cle span { font-size: 1.1rem; font-weight: 400; color: var(--texte-doux); }
+.resultat-principal .demi { margin: 8px 0 0; color: var(--alerte); }
+
+.tuiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.tuile {
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  min-width: 0;
+}
+.tuile dt { color: var(--texte-doux); font-size: 0.8rem; }
+.tuile dd { margin: 2px 0 0; }
+.tuile-valeur { display: block; font-family: var(--police-chiffres); font-size: 1.05rem; font-weight: 700; }
+.tuile-detail { display: block; margin-top: 2px; color: var(--texte-doux); font-size: 0.78rem; }
+
+.source { color: var(--texte-doux); font-size: 0.8rem; margin: 10px 0 0; }
+
+.variantes h3 { margin: 24px 0 8px; }
+.table-variantes { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.table-variantes th, .table-variantes td {
+  padding: 8px;
+  border-top: 1px solid var(--bordure);
+  text-align: left;
+  vertical-align: top;
+}
+.table-variantes th { font-weight: 600; white-space: nowrap; padding-left: 0; }
+.variante-valeur { display: block; font-family: var(--police-chiffres); font-weight: 700; }
+.variante-detail { display: block; color: var(--texte-doux); font-size: 0.8rem; }
+.table-variantes .badge { margin-left: 8px; font-family: var(--police); }
+.hors-contrainte th, .hors-contrainte .variante-valeur { color: var(--texte-doux); }
+
+/* Page de tests */
+
+.bilan {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.bilan small { display: block; margin-top: 4px; font-size: 0.875rem; font-weight: 400; color: var(--texte); }
+.bilan-ok { background: var(--ok-fond); border-color: var(--ok); color: var(--ok); }
+.bilan-echec { background: var(--echec-fond); border-color: var(--echec); color: var(--echec); }
+
+.liste-cas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.cas {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+.cas-echec, .cas-erreur { border-color: var(--echec); }
+.cas summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-height: var(--cible);
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.cas summary::-webkit-details-marker { display: none; }
+.cas-id { font-family: var(--police-chiffres); font-size: 0.875rem; color: var(--texte-doux); }
+.cas-titre { flex: 1 1 12em; }
+.cas-etape { font-size: 0.8rem; color: var(--texte-doux); }
+
+.cas-corps { padding: 0 14px 14px; font-size: 0.92rem; }
+.cas-corps dl { margin: 0 0 10px; }
+.cas-corps dt { color: var(--texte-doux); }
+.cas-corps dd { margin: 0 0 6px; }
+.cas-erreur-message { color: var(--echec); font-family: var(--police-chiffres); font-size: 0.85rem; }
+
+@media (min-width: 560px) {
+  .cas-corps dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; }
+  .cas-corps dd { margin: 0; }
+}
+
+.tableau-defilant { overflow-x: auto; }
+.controles { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.controles th, .controles td {
+  padding: 6px 8px;
+  border-top: 1px solid var(--bordure);
+  text-align: left;
+  vertical-align: top;
+}
+.controles th { color: var(--texte-doux); font-weight: 600; }
+.controles .valeur { font-family: var(--police-chiffres); font-variant-numeric: tabular-nums; }
+.controles .ok { color: var(--ok); }
+.controles .ko { color: var(--echec); font-weight: 700; }

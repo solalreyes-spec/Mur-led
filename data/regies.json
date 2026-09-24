@@ -1,0 +1,115 @@
+{
+  "format": "appli-mur-led/regies",
+  "version": 1,
+  "note": "Régies et scalers : ils ne pilotent pas de dalles, ils fournissent le signal aux processeurs LED. Contrôle : une sortie par entrée de processeur, résolution maxi par sortie, connectique de sortie. Liste reprise du cahier des charges du projet.",
+  "sources": {
+    "nationwide-e2-gen2": {
+      "titre": "Fiche Barco E2 Gen 2 reprise par Nationwide Video : 8 sorties jusqu'à 4096 × 2400 à 60 Hz, 6 avec le multiviewer",
+      "court": "Fiche E2 Gen 2 (Nationwide Video)",
+      "date": null,
+      "confiance": "constructeur, via un loueur"
+    },
+    "nationwide-rentex-e2": {
+      "titre": "nationwidevideo.com et rentex.com : Barco E2 Gen 2, 18 sorties 2048 × 1200 à 60 Hz ; sorties HDMI 2.0, 12G-SDI et DP 1.2",
+      "court": "Nationwide Video, Rentex",
+      "date": null,
+      "confiance": "loueurs"
+    }
+  },
+  "regies": [
+    {
+      "id": "barco-e2-gen2",
+      "marque": "Barco",
+      "modele": "E2 Gen 2",
+      "gamme": "Event Master",
+      "role": "Mélangeur et gestion d'écrans",
+      "modesSortie": [
+        {
+          "nom": "4K60",
+          "sorties": 8,
+          "sortiesAvecMultiviewer": 6,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2400,
+          "frequenceHz": 60,
+          "source": "nationwide-e2-gen2"
+        },
+        {
+          "nom": "2048 × 1200",
+          "sorties": 18,
+          "sortiesAvecMultiviewer": null,
+          "largeurMaxPx": 2048,
+          "hauteurMaxPx": 1200,
+          "frequenceHz": 60,
+          "source": "nationwide-rentex-e2",
+          "note": "Nombre de sorties avec le multiviewer non précisé : mode non retenu quand le multiviewer est coché."
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "12g-sdi",
+          "dp-1.2"
+        ],
+        "source": "nationwide-rentex-e2"
+      }
+    },
+    {
+      "id": "barco-s3-4k",
+      "marque": "Barco",
+      "modele": "S3-4K",
+      "gamme": "Event Master",
+      "role": "Mélangeur",
+      "statut": "à compléter",
+      "note": "Sorties et résolutions à compléter : aucun contrôle avec ce modèle."
+    },
+    {
+      "id": "barco-ex",
+      "marque": "Barco",
+      "modele": "EX",
+      "gamme": "Event Master",
+      "role": "Mélangeur",
+      "statut": "à compléter",
+      "note": "Sorties et résolutions à compléter : aucun contrôle avec ce modèle."
+    },
+    {
+      "id": "barco-imagepro-4k",
+      "marque": "Barco",
+      "modele": "ImagePRO-4K",
+      "role": "Scaler",
+      "statut": "à compléter",
+      "note": "Sorties et résolutions à compléter : aucun contrôle avec ce modèle."
+    },
+    {
+      "id": "analogway-livepremier-aquilon",
+      "marque": "Analog Way",
+      "modele": "LivePremier Aquilon",
+      "role": "Mélangeur",
+      "statut": "à compléter",
+      "note": "Sorties et résolutions à compléter : aucun contrôle avec ce modèle."
+    },
+    {
+      "id": "analogway-midra-4k",
+      "marque": "Analog Way",
+      "modele": "Midra 4K",
+      "role": "Mélangeur",
+      "statut": "à compléter",
+      "note": "Sorties et résolutions à compléter : aucun contrôle avec ce modèle."
+    },
+    {
+      "id": "analogway-vio-4k",
+      "marque": "Analog Way",
+      "modele": "VIO 4K",
+      "role": "Scaler",
+      "statut": "à compléter",
+      "note": "Sorties et résolutions à compléter : aucun contrôle avec ce modèle."
+    },
+    {
+      "id": "rgblink",
+      "marque": "RGBlink",
+      "modele": "(modèle à préciser)",
+      "role": "Mélangeurs et scalers",
+      "statut": "à compléter",
+      "note": "Sorties et résolutions à compléter : aucun contrôle avec ce modèle."
+    }
+  ]
+}

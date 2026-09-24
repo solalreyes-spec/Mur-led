@@ -1,0 +1,257 @@
+{
+  "format": "appli-mur-led/connectique",
+  "version": 1,
+  "note": "Liaisons vidéo entre la source (ou la régie) et les processeurs LED. Contrôle par le débit de pixels actifs (largeur × hauteur × fréquence) comparé au format maxi de la liaison, en approximation ; les formats de la fiche du processeur restent prioritaires. Le rang compare les versions d'une même famille.",
+  "sources": {
+    "oliverdy-connectique": {
+      "titre": "Support Oliverdy, connectique",
+      "court": "Support Oliverdy",
+      "date": null,
+      "confiance": "formation"
+    },
+    "oliverdy-p27": {
+      "titre": "Support Oliverdy p. 27 : HDMI 1.0 à 1.3",
+      "court": "Support Oliverdy p. 27",
+      "date": null,
+      "confiance": "formation"
+    },
+    "oliverdy-p28-smpte-2081-10": {
+      "titre": "Support Oliverdy p. 28 et SMPTE ST 2081-10 (formats 2160 lignes en simple lien 6G-SDI)",
+      "court": "Support Oliverdy p. 28, SMPTE ST 2081-10",
+      "date": null,
+      "confiance": "formation et norme"
+    },
+    "deduit-6g-sdi": {
+      "titre": "Limite de 30 i/s du 6G-SDI en UHD, déduite du support Oliverdy p. 28 et de SMPTE ST 2081-10 : le 60 i/s demande le 12G-SDI",
+      "court": "Déduit (6G-SDI)",
+      "date": null,
+      "confiance": "déduit"
+    },
+    "wikipedia-dvi": {
+      "titre": "Spécification DVI, reprise par Wikipedia : single link 165 MHz, dual link 330 MHz",
+      "court": "Spécification DVI (Wikipedia)",
+      "date": null,
+      "confiance": "spécification, via une encyclopédie"
+    },
+    "dp-1-2-a-confirmer": {
+      "titre": "DisplayPort 1.2 : 4096 × 2160 à 60 Hz (choix de conception du projet)",
+      "court": "Choix de conception du projet",
+      "date": "2026-09-24",
+      "confiance": "à confirmer sur la fiche de chaque processeur"
+    }
+  },
+  "liaisons": [
+    {
+      "id": "dvi-single",
+      "nom": "DVI single link",
+      "famille": "dvi",
+      "rang": 1,
+      "horlogeMHz": {
+        "valeur": 165,
+        "source": "wikipedia-dvi"
+      },
+      "formatMaxLargeurPx": {
+        "valeur": 1920,
+        "source": "wikipedia-dvi"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 1200,
+        "source": "wikipedia-dvi"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "wikipedia-dvi"
+      }
+    },
+    {
+      "id": "dvi-dual",
+      "nom": "DVI dual link",
+      "famille": "dvi",
+      "rang": 2,
+      "horlogeMHz": {
+        "valeur": 330,
+        "source": "wikipedia-dvi"
+      },
+      "formatMaxLargeurPx": {
+        "valeur": 2560,
+        "source": "wikipedia-dvi"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 1600,
+        "source": "wikipedia-dvi"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "wikipedia-dvi"
+      }
+    },
+    {
+      "id": "hdmi-1.2",
+      "nom": "HDMI 1.0 à 1.2",
+      "famille": "hdmi",
+      "rang": 1,
+      "debitGbps": {
+        "valeur": 4.95,
+        "source": "oliverdy-p27"
+      },
+      "formatMaxLargeurPx": {
+        "valeur": 1600,
+        "source": "oliverdy-p27"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 1200,
+        "source": "oliverdy-p27"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "oliverdy-p27"
+      }
+    },
+    {
+      "id": "hdmi-1.3",
+      "nom": "HDMI 1.3",
+      "famille": "hdmi",
+      "rang": 2,
+      "debitGbps": {
+        "valeur": 10.2,
+        "source": "oliverdy-p27"
+      },
+      "formatMaxLargeurPx": {
+        "valeur": 2048,
+        "source": "oliverdy-p27"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 1536,
+        "source": "oliverdy-p27"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 75,
+        "source": "oliverdy-p27"
+      }
+    },
+    {
+      "id": "hdmi-1.4",
+      "nom": "HDMI 1.4",
+      "famille": "hdmi",
+      "rang": 3,
+      "debitGbps": {
+        "valeur": 10.2,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxLargeurPx": {
+        "valeur": 4096,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 24,
+        "source": "oliverdy-connectique"
+      }
+    },
+    {
+      "id": "hdmi-2.0",
+      "nom": "HDMI 2.0",
+      "famille": "hdmi",
+      "rang": 4,
+      "debitGbps": {
+        "valeur": 18,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxLargeurPx": {
+        "valeur": 4096,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "oliverdy-connectique"
+      }
+    },
+    {
+      "id": "dp-1.2",
+      "nom": "DisplayPort 1.2",
+      "famille": "dp",
+      "rang": 1,
+      "formatMaxLargeurPx": {
+        "valeur": 4096,
+        "source": "dp-1-2-a-confirmer"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "dp-1-2-a-confirmer"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "dp-1-2-a-confirmer"
+      }
+    },
+    {
+      "id": "3g-sdi",
+      "nom": "3G-SDI",
+      "famille": "sdi",
+      "rang": 1,
+      "debitGbps": {
+        "valeur": 2.97,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxLargeurPx": {
+        "valeur": 1920,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 1080,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "oliverdy-connectique"
+      }
+    },
+    {
+      "id": "6g-sdi",
+      "nom": "6G-SDI",
+      "famille": "sdi",
+      "rang": 2,
+      "formatMaxLargeurPx": {
+        "valeur": 3840,
+        "source": "oliverdy-p28-smpte-2081-10"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "oliverdy-p28-smpte-2081-10"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 30,
+        "source": "deduit-6g-sdi"
+      }
+    },
+    {
+      "id": "12g-sdi",
+      "nom": "12G-SDI",
+      "famille": "sdi",
+      "rang": 3,
+      "debitGbps": {
+        "valeur": 12,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxLargeurPx": {
+        "valeur": 3840,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "oliverdy-connectique"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "oliverdy-connectique"
+      }
+    }
+  ]
+}
