@@ -313,10 +313,16 @@ export function dimensionner(dalle, demande, options = {}) {
 
 // Débit utile d'un port 1G (bit/s). Le MX40 Pro porte le sien dans sa fiche (950 000 000).
 export const DEBIT_UTILE_BPS = { brompton: 756e6, novastar: 936e6 };
-export const BIT_DEPTH_PAR_DEFAUT = { brompton: 10, novastar: 8, colorlight: 8 };
-export const RAPPEL_TESSERA = 'Tessera est livré en 12 bits : passe le réglage réseau en 10 bits, '
-  + 'ou calcule en 12 bits si tu ne peux pas le changer';
+// Brompton : 12 bits, le réglage de livraison de Tessera, le plus défavorable ; un parc peut préciser le sien.
+export const BIT_DEPTH_PAR_DEFAUT = { brompton: 12, novastar: 8, colorlight: 8 };
 export const SEUIL_CHARGE_PORT = 0.95;
+
+// Rappel Tessera, avec la capacité d'un port 1G en 10 bits à la fréquence et en ULL comme réglés.
+export function rappelTessera({ frequenceHz = 60, ull = false } = {}) {
+  const debut = 'Défaut 12 bits (livraison Tessera)';
+  if (!(Number.isFinite(frequenceHz) && frequenceHz > 0)) return debut;
+  return `${debut} ; en 10 bits, capacité par port de ${nombreCourt(entierInferieur(capacitePort('brompton', { frequenceHz, bits: 10, ull })))} px`;
+}
 
 // Capacité affichée : un port ne transporte pas de fraction de pixel.
 export function entierInferieur(x) {

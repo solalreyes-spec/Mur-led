@@ -239,10 +239,10 @@ export const REGLES = [
     titre: 'Bit depth par défaut selon la marque, avec le rappel Tessera',
     etape: 2,
     verifier(v) {
-      v.egal('Brompton', calculs.BIT_DEPTH_PAR_DEFAUT.brompton, 10);
+      v.egal('Brompton', calculs.BIT_DEPTH_PAR_DEFAUT.brompton, 12);
       v.egal('Novastar', calculs.BIT_DEPTH_PAR_DEFAUT.novastar, 8);
-      v.egal('rappel Tessera', calculs.RAPPEL_TESSERA,
-        'Tessera est livré en 12 bits : passe le réglage réseau en 10 bits, ou calcule en 12 bits si tu ne peux pas le changer');
+      v.egal('rappel Tessera', calculs.rappelTessera({ frequenceHz: 60 }).replace(/\u202f/g, ' '),
+        'Défaut 12 bits (livraison Tessera) ; en 10 bits, capacité par port de 420 000 px');
     },
   },
   {
@@ -2030,6 +2030,32 @@ export const REGLES = [
           e10.triphase.colonnes.equilibre.ecartPourcent], [[3, 3, 2, 2], [2340, 2340, 3120], 25]);
       const mono = calculs.electricite(calculs.mur(DALLE_CAS_13, 12, 6), DALLE_CAS_13, { arrivee: { type: 'mono', intensiteA: 32 } });
       v.egal('monophasé : rien ne change, le minimum de lignes', [mono.triphase, mono.lignes.retenues], [null, 4]);
+    },
+  },
+  {
+    id: 'R114',
+    titre: 'Brompton : 12 bits par défaut (livraison Tessera), profondeur réseau réglable par parc, rappel avec la capacité en 10 bits',
+    etape: '8b',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const e = calculs.evaluerProcesseur(calculs.mur(bp2, 12, 6), bp2, processeurDeBase(contexte, 'brompton-s8'), { frequenceHz: 60 });
+      v.egal('sans réglage : 12 bits, 350 000 px par port, 11 dalles de BP2 V2 par port', [e.reglages.bits, Math.floor(e.capacite), e.dallesParPort], [12, 350000, 11]);
+      const simple = (texte) => texte.replace(/\u202f/g, ' ');
+      v.egal('rappel à 60 Hz', simple(calculs.rappelTessera({ frequenceHz: 60 })), 'Défaut 12 bits (livraison Tessera) ; en 10 bits, capacité par port de 420 000 px');
+      v.egal('rappel à 50 Hz : capacité recalculée', simple(calculs.rappelTessera({ frequenceHz: 50 })), 'Défaut 12 bits (livraison Tessera) ; en 10 bits, capacité par port de 504 000 px');
+      v.egal('rappel en ULL à 60 Hz : divisée par 2', simple(calculs.rappelTessera({ frequenceHz: 60, ull: true })), 'Défaut 12 bits (livraison Tessera) ; en 10 bits, capacité par port de 210 000 px');
+      let base = fiches.creerParc(fiches.baseVide(), 'Loueur A');
+      const id = base.parcs[0].id;
+      v.egal('parc sans réglage : le défaut', fiches.bitsReseauParc(base, id, 'brompton'), { bits: 12, source: 'défaut (livraison Tessera)' });
+      base = fiches.reglerBitsParc(base, id, 'brompton', '10');
+      v.egal('parc réglé à 10 bits : il remplace le défaut, source « Parc Loueur A »', fiches.bitsReseauParc(base, id, 'brompton'), { bits: 10, source: 'Parc Loueur A' });
+      v.egal('« Tous » : le défaut', fiches.bitsReseauParc(base, null, 'brompton'), { bits: 12, source: 'défaut (livraison Tessera)' });
+      v.egal('Novastar : son défaut, 8 bits', fiches.bitsReseauParc(base, id, 'novastar'), { bits: 8, source: 'défaut Novastar' });
+      v.egal('valeur hors de 8, 10 ou 12 : refusée', fiches.bitsReseauParc(fiches.reglerBitsParc(base, id, 'brompton', '9'), id, 'brompton').bits, 12);
+      v.egal('champ vidé : retour au défaut', fiches.bitsReseauParc(fiches.reglerBitsParc(base, id, 'brompton', ''), id, 'brompton').bits, 12);
+      const depart = { dalles: contexte.dalles, processeurs: contexte.processeurs, regies: contexte.regies };
+      const relu = fiches.importer(fiches.baseVide(), JSON.stringify(fiches.exporter(base, depart)), depart).base;
+      v.egal('réglage du parc gardé à l\'export et à l\'import', fiches.bitsReseauParc(relu, id, 'brompton'), { bits: 10, source: 'Parc Loueur A' });
     },
   },
 ];

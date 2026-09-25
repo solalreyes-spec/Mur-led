@@ -5,6 +5,9 @@ import { lire, ecrire } from './stockage.js';
 import { sourceEstModifiee, definirSourceModifiee } from './ecran-canvas.js';
 
 const CLE = 'configuration';
+// Version 2 : défaut Brompton passé à 12 bits ; la profondeur réseau gardée par une version précédente (souvent
+// l'ancien défaut, 10 bits) n'est pas reprise.
+const VERSION = 2;
 const FORMULAIRES = ['form-mur', 'form-data', 'form-source', 'form-elec', 'form-poids', 'form-schema'];
 const IGNORES = new Set(['parc']);
 // Champs de la source : restaurés seulement si la source a été modifiée à la main.
@@ -43,7 +46,7 @@ let minuterie = null;
 function planifierSauvegarde() {
   clearTimeout(minuterie);
   minuterie = setTimeout(() => {
-    const config = { version: 1, sourceModifiee: sourceEstModifiee(), formulaires: {} };
+    const config = { version: VERSION, sourceModifiee: sourceEstModifiee(), formulaires: {} };
     for (const f of formulaires()) config.formulaires[f.id] = lireFormulaire(f);
     ecrire(CLE, config);
   }, 400);
@@ -59,7 +62,9 @@ export async function restaurerConfiguration() {
     for (const f of formulaires()) {
       const valeurs = config.formulaires[f.id];
       if (!valeurs) continue;
-      const garder = f.id === 'form-source' && !config.sourceModifiee ? (nom) => !CHAMPS_SOURCE.has(nom) : undefined;
+      let garder;
+      if (f.id === 'form-source' && !config.sourceModifiee) garder = (nom) => !CHAMPS_SOURCE.has(nom);
+      if (f.id === 'form-data' && (config.version ?? 1) < 2) garder = (nom) => nom !== 'bits';
       ecrireFormulaire(f, valeurs, garder);
       recalculer(f);
     }

@@ -8,7 +8,7 @@ import { resumeCablage } from './resumes.js';
 import { nombre, nombreCourt, lireNombre } from './format.js';
 import { el, svg, remplacer } from './dom.js';
 import {
-  trajetsSchema, geometrieSchema, blocsSchema, construireSvg, PALETTE_ECRAN, PALETTE_EXPORT,
+  trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT,
 } from './dessin-schema.js';
 import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, telecharger, enregistrer, modeEnregistrement } from './export.js';
 
@@ -84,10 +84,10 @@ function calculer(e) {
 const varianteChoisie = (t, mode) => (t ? t.variantes.find((x) => x.mode === mode) ?? t.variantes.find((x) => x.mode === t.conseil) : null);
 
 // Dessin à l'écran : couleurs du thème, cadrage courant (zoom), gestes branchés.
-function dessin(e, geo, trajets, coin, blocs) {
+function dessin(e, geo, trajets, coin, blocs, repere) {
   const cle = `${e.vue}|${e.canvasVue}|${geo.largeur}x${geo.hauteur}`;
   const { svg: racine, complet } = construireSvg({
-    geo, trajets, coin, blocs, palette: PALETTE_ECRAN, cadrage: cle === cleDessin ? cadrage : null, selection, dalleChoisie,
+    geo, trajets, coin, blocs, palette: PALETTE_ECRAN, cadrage: cle === cleDessin ? cadrage : null, selection, dalleChoisie, repere,
   });
   if (cle !== cleDessin) {
     cadrage = { ...complet };
@@ -365,8 +365,8 @@ function afficherExports(contexte) {
 
 function exporterSchema() {
   if (!contexteExport) return;
-  const { e, geo, trajets, coin, blocs, data, vd, elec, ve } = contexteExport;
-  const { svg: image } = construireSvg({ geo, trajets, coin, blocs, palette: PALETTE_EXPORT, largeurPx: 2000 });
+  const { e, geo, trajets, coin, blocs, repere, data, vd, elec, ve } = contexteExport;
+  const { svg: image } = construireSvg({ geo, trajets, coin, blocs, repere, palette: PALETTE_EXPORT, largeurPx: 2000 });
   const sujet = { data: vd ? `câblage data ${vd.libelle}, départ ${LIBELLES_COIN[data.depart]}` : null, elec: ve ? `câblage élec ${ve.libelle}, départ ${LIBELLES_COIN[elec.depart]}` : null }[e.cablage];
   const texte = e.cablage === 'data' && vd ? resumeCablage({ data, modeData: vd.mode })
     : e.cablage === 'elec' && ve ? resumeCablage({ elec, modeElec: ve.mode }) : '';
@@ -419,7 +419,12 @@ function mettreAJour() {
   const trajets = trajetsSchema(e, vd, ve, vueCanvas);
   const coin = e.cablage === 'elec' ? e.departElec : e.departData;
   const blocs = blocsSchema(geo, pm, { vueCanvas, cablage: e.cablage });
-  afficherExports({ pm, e, geo, trajets, coin, blocs, data, vd, elec, ve });
+  // Repère du processeur ou de l'armoire au coin de départ, sur la vue de tout le mur.
+  const repere = vueCanvas ? null : repereSchema(e.cablage, {
+    evaluation: etatData?.choisie ?? null,
+    distanceM: e.cablage === 'elec' ? e.distanceArmoireM : e.distanceRegieM,
+  });
+  afficherExports({ pm, e, geo, trajets, coin, blocs, repere, data, vd, elec, ve });
 
   const alertes = [...erreurs.map((x) => alerte(x, 'alerte-erreur'))];
   let entete = null;
@@ -453,7 +458,7 @@ function mettreAJour() {
     }
   }
 
-  const racine = dessin(eVue, geo, trajets, coin, blocs);
+  const racine = dessin(eVue, geo, trajets, coin, blocs, repere);
   const outils = el('div', { class: 'schema-outils' },
     ['+', '−', 'Tout voir'].map((texte) => {
       const b = el('button', { type: 'button', class: 'bouton bouton-petit', 'aria-label': { '+': 'Zoomer', '−': 'Dézoomer', 'Tout voir': 'Voir tout le mur' }[texte] }, texte);

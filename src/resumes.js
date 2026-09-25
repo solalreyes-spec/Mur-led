@@ -55,7 +55,7 @@ export function resumeMur({ dalle, mur: m }) {
 }
 
 // `r` : évaluation du processeur retenu ; `distributeur` : nom du distributeur (XD, CVT10) s'il y en a.
-export function resumeData(r, { conseille = false, distributeur = null } = {}) {
+export function resumeData(r, { conseille = false, distributeur = null, origineBits = null } = {}) {
   const proc = r.processeur;
   if (!r.groupes?.length) {
     return texte(['DATA', `Processeur : ${proc.nom}`, `Impossible : ${r.impossible ?? 'ce processeur ne convient pas à ce mur'}`, ...alertes(r.alertes)]);
@@ -69,6 +69,7 @@ export function resumeData(r, { conseille = false, distributeur = null } = {}) {
     `Processeur : ${r.nombre} × ${proc.nom}${conseille ? ', conseillé' : ''}`,
     `Réglages : ${nombreCourt(reg.frequenceHz)} Hz, ${reg.bits} bits réseau${reg.ull ? ', ULL' : ''}, `
       + `${reg.redondance ? 'avec redondance' : 'sans redondance'}${reg.modeOptique ? ', mode optique' : ''}`,
+    origineBits ? `Profondeur réseau : ${reg.bits} bits, ${origineBits}` : null,
     `Capacité par port : ${nombre(entierInferieur(r.capacite))} px`,
     r.formule ? `Calcul de la capacité : ${r.formule}` : null,
     sourceCapacite ? `Source de la capacité : ${sourceCapacite}` : null,

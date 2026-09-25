@@ -5,7 +5,7 @@ import { resoudreFiche } from './calculs.js';
 import {
   TYPES, LIBELLES_TYPE, CHAMPS, CONFIANCES, TYPES_VALEUR, libelleChamp, champsManquantsFiche, validerImport, importer,
   supprimerFiche, exporter, creerParc, renommerParc, supprimerParc, estMembre, basculerMembre,
-  CONSIGNE_CLAUDE, MODELES_JSON, identifiant, CHAMPS_REGLAGE_PARC, reglageDalleParc, reglerDalleParc,
+  CONSIGNE_CLAUDE, MODELES_JSON, identifiant, CHAMPS_REGLAGE_PARC, reglageDalleParc, reglerDalleParc, reglerBitsParc,
 } from './fiches.js';
 import { stockageDisponible } from './stockage.js';
 import { sourceCourte, lireNombre, nombre } from './format.js';
@@ -97,8 +97,15 @@ function afficherParcs() {
       bouton.addEventListener('click', () => {
         if (confirm(`Supprimer le parc « ${parc.nom} » ? Ses fiches restent dans la base.`)) enregistrer(supprimerParc(ctx.base, parc.id));
       });
+      // Profondeur réseau Tessera de ce prestataire : elle remplace le défaut (12 bits, livraison Tessera).
+      const bits = el('select', { 'aria-label': `Profondeur réseau Brompton du parc ${parc.nom}` },
+        el('option', { value: '' }, 'Brompton : défaut 12 bits'),
+        [8, 10, 12].map((n) => el('option', { value: String(n) }, `Brompton : ${n} bits`)));
+      bits.value = parc.bitsReseau?.brompton ? String(parc.bitsReseau.brompton) : '';
+      bits.addEventListener('change', () => enregistrer(reglerBitsParc(ctx.base, parc.id, 'brompton', bits.value)));
       return el('li', {}, champ,
         el('span', { class: 'compte' }, `${compterMembres(parc)}${parc.id === parcActif ? ' · parc actif' : ''}`),
+        bits,
         bouton);
     }));
 }

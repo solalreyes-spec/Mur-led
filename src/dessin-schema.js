@@ -38,8 +38,10 @@ export function trajetsSchema(vue, vd, ve, canvasNumero = null) {
         rang: i,
         orientation: vd.orientation ?? 'colonnes',
         etiquette: plusieurs ? `${p.numero}.${port.numero}` : `${port.numero}`,
+        etiquetteSecours: port.secours ? (plusieurs ? `${p.numero}.${port.secours.numero}` : `${port.secours.numero}`) : null,
         libelle: `${port.libelle} : ${pluriel(port.dalles.length, 'dalle', 'dalles')}, ${pourcent(port.taux)}`
-          + `${port.secours?.retourM ? `, retour de secours ${nombreCourt(port.secours.retourM, 1)} m` : ''}`,
+          + `${port.secours ? `, secours ${plusieurs ? `${p.numero}.${port.secours.numero}` : port.secours.numero}` : ''}`
+          + `${port.secours?.retourM ? `, retour ${nombreCourt(port.secours.retourM, 1)} m` : ''}`,
         dalles: port.dalles,
         secours: port.secours,
       };
@@ -53,6 +55,7 @@ export function trajetsSchema(vue, vd, ve, canvasNumero = null) {
       rang: i,
       orientation: ve.orientation ?? 'colonnes',
       etiquette: mono ? `${l.numero}` : `${l.numero} · L${l.phase}`,
+      etiquetteSecours: null,
       libelle: `ligne ${l.numero}${mono ? '' : `, L${l.phase}`} : ${pluriel(l.dalles.length, 'dalle', 'dalles')}, ${nombreCourt(l.puissanceW)} W`,
       dalles: l.dalles,
       secours: null,
@@ -93,6 +96,20 @@ export function geometrieSchema(vue, mur, dalle, pm) {
   };
 }
 
+// Repère dessiné au coin de départ : processeurs (ou XD au pied du mur, la régie en fibre) pour la data, armoire
+// pour l'élec, avec la distance saisie. `evaluation` : processeur retenu dans l'onglet Data.
+export function repereSchema(cablage, { evaluation = null, distanceM = null } = {}) {
+  const distance = distanceM === null || distanceM === undefined ? null : nombreCourt(distanceM, 1);
+  if (cablage === 'elec') return { lignes: ['Armoire', distance ? `à ${distance} m` : null].filter(Boolean) };
+  if (cablage !== 'data' || !evaluation?.processeur) return null;
+  const proc = evaluation.processeur;
+  if (proc.distributeurObligatoire) {
+    return { lignes: [proc.famille === 'brompton' ? 'XD' : 'Distributeur', distance ? `fibre ${distance} m` : null].filter(Boolean) };
+  }
+  const n = evaluation.nombre ?? 1;
+  return { lignes: [`${n > 1 ? `${n} × ` : ''}${proc.modele}`, distance ? `régie à ${distance} m` : null].filter(Boolean) };
+}
+
 // Contour de chaque bloc de processeur quand le mur entier est dessiné et découpé.
 export function blocsSchema(geo, pm, { vueCanvas = null, cablage = 'data' } = {}) {
   if (vueCanvas || !pm || pm.canvas.length < 2 || cablage === 'elec') return [];
@@ -110,6 +127,7 @@ const centre = (r) => [r.x + r.w / 2, r.y + r.h / 2];
 // Renvoie le SVG et son cadre complet.
 export function construireSvg({
   geo, trajets, coin, blocs = [], palette = PALETTE_ECRAN, cadrage = null, selection = null, dalleChoisie = null, largeurPx = null,
+  repere = null,
 }) {
   const { largeur, hauteur, rects } = geo;
   const marge = 0.12 * Math.max(largeur, hauteur);
@@ -125,22 +143,27 @@ export function construireSvg({
     return r.d?.type === 'demi' ? palette.demi : palette.dalle;
   };
 
+  // Nom de la dalle dans son coin haut gauche (colonne, puis rangée dessous) et, en vue pixels, son premier pixel
+  // dans le coin bas gauche : les traits passent au centre de la dalle, les deux restent lisibles.
+  const bordTexte = cote * 0.09;
+  // Ligne de base placée à la main (y : première ligne) : Safari ignore « dominant-baseline » sur un texte à plusieurs lignes.
+  const ligne = (x, y, taille, lignes) => svg('text', {
+    class: 'etiquette-dalle', x, y, 'font-size': taille, style: `fill: ${palette.texteDoux}`, 'text-anchor': 'start',
+  }, lignes.map((texte, i) => svg('tspan', { x, dy: i === 0 ? 0 : `${1.1}em` }, texte)));
   const tuiles = [...rects.entries()].map(([id, r]) => {
     const choisie = id === dalleChoisie;
+    const tailleNom = cote * 0.16;
+    const tailleCoord = cote * 0.11;
     return svg('g', { 'data-dalle': id },
       svg('rect', {
         class: `dalle${r.d?.type === 'demi' ? ' demi' : ''}${choisie ? ' choisie' : ''}`, x: r.x, y: r.y, width: r.w, height: r.h,
         style: `fill: ${fondDalle(id, r)}; stroke: ${choisie ? palette.accent : palette.bord}`,
         'stroke-width': cote * (choisie ? 0.05 : 0.015),
       }),
-      svg('text', {
-        class: 'etiquette-dalle', x: r.x + r.w / 2, y: r.y + r.h / 2 - (geo.unite === 'px' ? police * 0.6 : 0), 'font-size': police,
-        style: `fill: ${palette.texteDoux}`, 'text-anchor': 'middle', 'dominant-baseline': 'central',
-      }, id),
-      geo.unite === 'px' ? svg('text', {
-        class: 'etiquette-dalle', x: r.x + r.w / 2, y: r.y + r.h / 2 + police * 0.7, 'font-size': police * 0.75,
-        style: `fill: ${palette.texteDoux}`, 'text-anchor': 'middle', 'dominant-baseline': 'central',
-      }, `${r.x}, ${r.y}`) : null);
+      ligne(r.x + bordTexte, r.y + cote * 0.05 + tailleNom * 0.8, tailleNom, id.split(' ')),
+      geo.unite === 'px'
+        ? ligne(r.x + bordTexte, r.y + r.h - bordTexte - tailleCoord * 1.35, tailleCoord, [`x ${r.x}`, `y ${r.y}`])
+        : null);
   });
 
   // Nom du bloc du côté opposé au départ des câbles, pour ne pas croiser leurs numéros.
@@ -156,6 +179,10 @@ export function construireSvg({
   // jamais en diagonale.
   const bordY = coin.startsWith('haut') ? -marge * 0.35 : hauteur + marge * 0.35;
   const bordX = coin.endsWith('gauche') ? -marge * 0.35 : largeur + marge * 0.35;
+  const versExterieurY = coin.startsWith('haut') ? -1 : 1;
+  const versExterieurX = coin.endsWith('gauche') ? -1 : 1;
+  const rayon = (etiquette) => police * (etiquette.length > 3 ? 1.2 : 0.95);
+  const departs = [];
   const lignes = trajets.map((t) => {
     const points = t.dalles.filter((id) => rects.has(id)).map((id) => centre(rects.get(id)));
     if (points.length === 0) return null;
@@ -163,7 +190,24 @@ export function construireSvg({
     const [xn, yn] = points[points.length - 1];
     const parRangees = t.orientation === 'rangees';
     const [xd, yd] = parRangees ? [bordX, y0] : [x0, bordY];
-    const [xs, ys] = parRangees ? [bordX, yn] : [xn, bordY];
+    let [xs, ys] = parRangees ? [bordX, yn] : [xn, bordY];
+    departs.push(parRangees ? yd : xd);
+    // Bout du retour de secours, numéroté comme les départs ; sur le départ de sa chaîne (une colonne par port),
+    // le numéro passe plus loin du mur et le pointillé longe le trait principal sans le cacher.
+    const rDepart = rayon(t.etiquette);
+    const rSecours = t.etiquetteSecours ? rayon(t.etiquetteSecours) : 0;
+    const surDepart = t.secours && Math.hypot(xs - xd, ys - yd) < rDepart + rSecours;
+    const decalage = surDepart ? trait * 1.6 : 0;
+    const [xn2, yn2] = parRangees ? [xn, yn + decalage] : [xn + decalage, yn];
+    if (surDepart) {
+      if (parRangees) {
+        xs += versExterieurX * (rDepart + rSecours + trait);
+        ys += decalage;
+      } else {
+        ys += versExterieurY * (rDepart + rSecours + trait);
+        xs += decalage;
+      }
+    }
     const actif = selection === null || selection === t.cle;
     const largeurTrait = trait * (selection === t.cle ? 1.8 : 1);
     const style = `fill: none; stroke: ${palette.principal}`;
@@ -174,15 +218,61 @@ export function construireSvg({
         'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'marker-mid': 'url(#fleche)', 'marker-end': 'url(#fleche)',
       }),
       t.secours ? svg('line', {
-        class: 'trajet secours', x1: xn, y1: yn, x2: xs, y2: ys, style: `fill: none; stroke: ${palette.secours}`,
+        class: 'trajet secours', x1: xn2, y1: yn2, x2: xs, y2: ys, style: `fill: none; stroke: ${palette.secours}`,
         'stroke-width': largeurTrait * 0.8, 'stroke-dasharray': `${trait * 1.2} ${trait * 1.2}`,
       }) : null,
+      t.etiquetteSecours ? svg('circle', {
+        class: 'bout-secours', cx: xs, cy: ys, r: rSecours,
+        style: `fill: ${palette.fond}; stroke: ${palette.secours}`, 'stroke-width': trait * 0.6, 'stroke-dasharray': `${trait * 0.9} ${trait * 0.6}`,
+      }) : null,
+      t.etiquetteSecours ? svg('text', {
+        class: 'numero-secours', x: xs, y: ys, 'font-size': police * (t.etiquetteSecours.length > 3 ? 0.62 : 0.95), style: `fill: ${palette.secours}`,
+        'font-weight': 700, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+      }, t.etiquetteSecours) : null,
       svg('circle', { class: 'depart', cx: xd, cy: yd, r: police * (t.etiquette.length > 3 ? 1.2 : 0.95), style: `fill: ${palette.fond}; stroke: ${palette.principal}`, 'stroke-width': trait * 0.6 }),
       svg('text', {
         class: 'numero-trajet', x: xd, y: yd, 'font-size': police * (t.etiquette.length > 3 ? 0.62 : 0.95), style: `fill: ${palette.principal}`,
         'font-weight': 700, 'text-anchor': 'middle', 'dominant-baseline': 'central',
       }, t.etiquette));
   });
+
+  // Repère du processeur (ou de l'armoire) au coin de départ, hors du mur, du côté des départs ; les câbles de tête
+  // longent le bord de départ jusqu'au départ le plus loin.
+  let dessinRepere = null;
+  if (repere && departs.length > 0) {
+    const parRangees = trajets[0].orientation === 'rangees';
+    const n = repere.lignes.length;
+    // Lignes suivantes en 0,85 de la première ; largeur d'un caractère prise à 0,6 de la taille.
+    const plusLong = Math.max(...repere.lignes.map((l, i) => l.length * (i === 0 ? 1 : 0.85)));
+    const w = marge * 0.8;
+    const taille = Math.min(police * 1.1, (w * 0.88) / (plusLong * 0.6));
+    const h = taille * (1.25 * n + 0.6);
+    const gauche = coin.endsWith('gauche');
+    const enHaut = coin.startsWith('haut');
+    // Colonnes : à côté du mur, au niveau des départs ; rangées : dessous ou dessus, au droit des départs.
+    const [cx, cy] = parRangees
+      ? [bordX, enHaut ? -marge * 0.55 : hauteur + marge * 0.55]
+      : [gauche ? -marge * 0.55 : largeur + marge * 0.55, bordY];
+    const cadre = { x: cx - w / 2, y: cy - h / 2 };
+    // Câbles de tête : du repère au départ le plus loin, le long du bord de départ.
+    const chemin = parRangees
+      ? { x1: bordX, y1: enHaut ? cadre.y + h : cadre.y, x2: bordX, y2: enHaut ? Math.max(...departs) : Math.min(...departs) }
+      : { x1: gauche ? cadre.x + w : cadre.x, y1: bordY, x2: gauche ? Math.max(...departs) : Math.min(...departs), y2: bordY };
+    dessinRepere = svg('g', { class: 'repere' },
+      svg('line', {
+        class: 'chemin-tete', ...chemin,
+        style: `stroke: ${palette.contour}`, 'stroke-width': trait * 0.5, 'stroke-dasharray': `${trait * 0.3} ${trait * 0.9}`, 'stroke-linecap': 'round',
+      }),
+      svg('rect', {
+        x: cadre.x, y: cadre.y, width: w, height: h, rx: taille * 0.3,
+        style: `fill: ${palette.fond}; stroke: ${palette.contour}`, 'stroke-width': trait * 0.5,
+      }),
+      repere.lignes.map((texte, i) => svg('text', {
+        x: cx, y: cy + (i - (n - 1) / 2) * taille * 1.25, 'font-size': taille * (i === 0 ? 1 : 0.85),
+        style: `fill: ${i === 0 ? palette.texte : palette.texteDoux}`, 'font-weight': i === 0 ? 700 : 400,
+        'text-anchor': 'middle', 'dominant-baseline': 'central',
+      }, texte)));
+  }
 
   const hauteurPx = largeurPx ? Math.round((largeurPx * complet.h) / complet.w) : null;
   const racine = svg('svg', {
@@ -200,6 +290,6 @@ export function construireSvg({
   }, svg('path', { d: 'M1,1 L9,5 L1,9 z', style: `fill: ${palette.principal}` }))),
   svg('rect', { x: complet.x, y: complet.y, width: complet.w, height: complet.h, style: `fill: ${palette.fond}` }),
   svg('rect', { x: 0, y: 0, width: largeur, height: hauteur, style: `fill: none; stroke: ${palette.texteDoux}`, 'stroke-width': cote * 0.02 }),
-  tuiles, contours, lignes);
+  tuiles, contours, dessinRepere, lignes);
   return { svg: racine, complet };
 }

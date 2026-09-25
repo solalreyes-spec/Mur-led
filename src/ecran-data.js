@@ -3,7 +3,7 @@
 
 import {
   evaluerProcesseur, processeurConseille, entierInferieur, champsManquants,
-  BIT_DEPTH_PAR_DEFAUT, RAPPEL_TESSERA, LIBELLES_COIN, ErreurSaisie,
+  BIT_DEPTH_PAR_DEFAUT, rappelTessera, LIBELLES_COIN, ErreurSaisie,
 } from './calculs.js';
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
@@ -20,6 +20,17 @@ let etatMur = null;
 let familleAffichee = null;
 let surChangement = () => {};
 let nomParc = null;
+// Profondeur réseau par défaut de chaque marque dans le parc actif : { bits, source } (réglage du parc ou défaut).
+let bitsParDefaut = {};
+const defautBits = (famille) => bitsParDefaut[famille] ?? { bits: BIT_DEPTH_PAR_DEFAUT[famille], source: 'défaut' };
+// Profondeur choisie et d'où elle vient : défaut de la marque, réglage du parc, ou réglage à la main.
+function origineBits(famille, bits) {
+  const d = defautBits(famille);
+  return bits === d.bits ? d.source : `réglé à la main (défaut : ${d.bits} bits, ${d.source})`;
+}
+function cocherBits(bits) {
+  for (const radio of formulaire.querySelectorAll('input[name="bits"]')) radio.checked = Number(radio.value) === bits;
+}
 // Coin de départ du câblage data, choisi dans l'onglet Schéma : le serpentin au plus juste en dépend.
 let departData = 'haut-gauche';
 
@@ -73,11 +84,7 @@ function preparerFamille(famille, garderReglages = false) {
     }),
   );
   if ([...select.options].some((o) => o.value === avant && !o.disabled)) select.value = avant;
-  if (!garderReglages) {
-    for (const radio of formulaire.querySelectorAll('input[name="bits"]')) {
-      radio.checked = Number(radio.value) === BIT_DEPTH_PAR_DEFAUT[famille];
-    }
-  }
+  if (!garderReglages) cocherBits(defautBits(famille).bits);
   for (const bloc of formulaire.querySelectorAll('[data-famille]')) bloc.hidden = bloc.dataset.famille !== famille;
   familleAffichee = famille;
 }
@@ -145,7 +152,8 @@ function sectionPorts(e, dalle, r) {
     el('h3', {}, `Ports — ${proc.nom}`),
     el('dl', { class: 'tuiles' },
       tuile(`Capacité par port${proc.typePorts ? ` ${proc.typePorts}` : ''}`, `${nombre(entierInferieur(r.capacite))} px`, r.formule,
-        `source : ${sourceLimite(proc, champCapacite)}`, qualite ? `valeur ${qualite}` : null),
+        `source : ${sourceLimite(proc, champCapacite)}`, qualite ? `valeur ${qualite}` : null,
+        `profondeur réseau : ${r.reglages.bits} bits, ${origineBits(proc.famille, r.reglages.bits)}`),
       tuile('Pixels par dalle', `${nombre(r.pxParDalle)} px`, compte, demi),
       tuile('Dalles par port', nombre(r.dallesParPort),
         `partie entière de ${nombre(entierInferieur(r.capacite))} / ${nombre(r.pxParDalle)}`,
@@ -335,7 +343,7 @@ function calculer(e) {
   const choisie = e.processeur === 'conseille' ? conseil : evaluations.find((r) => r.processeur.id === e.processeur);
 
   const alertes = [];
-  if (e.famille === 'brompton') alertes.push(alerte(`${RAPPEL_TESSERA}.`, 'alerte-info'));
+  if (e.famille === 'brompton') alertes.push(alerte(`${rappelTessera({ frequenceHz: e.frequenceHz, ull: e.ull })}.`, 'alerte-info'));
   alertes.push(ligneManques(choisie?.manques));
   for (const texte of alertesSansManques(choisie?.alertes ?? [], choisie?.manques)) alertes.push(alerte(texte));
   if (!choisie) {
@@ -362,7 +370,10 @@ function calculer(e) {
     + (carte ? `Carte de réception : ${carte}${sourceCarte ? ` (${sourceCarte.sources.map(sourceCourte).join(', ')})` : ''}. ` : ''),
     el('a', { href: '#mur' }, 'Modifier le mur'));
 
-  dernier = { choisie, conseille: choisie === conseil, distributeur: nomDistributeur(choisie.processeur) };
+  dernier = {
+    choisie, conseille: choisie === conseil, distributeur: nomDistributeur(choisie.processeur),
+    origineBits: origineBits(choisie.processeur.famille, choisie.reglages.bits),
+  };
   remplacer(zone, recap,
     ...alertes,
     choisie.global ? sectionPorts(e, dalle, choisie) : null,
@@ -404,7 +415,12 @@ export function actualiserData(base, premiereFois = false) {
   distributeurs = new Map(base.distributeurs.map((d) => [d.id, d]));
   sources = base.sources;
   nomParc = base.nomParc ?? null;
-  preparerFamille(lireFormulaire().famille, !premiereFois);
+  // Nouveau parc actif : sa profondeur réseau remplace le défaut de la marque affichée.
+  const famille = lireFormulaire().famille;
+  const avant = defautBits(famille).bits;
+  bitsParDefaut = base.bitsParDefaut ?? {};
+  preparerFamille(famille, !premiereFois);
+  if (!premiereFois && defautBits(famille).bits !== avant) cocherBits(defautBits(famille).bits);
   if (!premiereFois) mettreAJour();
 }
 

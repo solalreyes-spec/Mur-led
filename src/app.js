@@ -2,7 +2,7 @@
 
 import { resoudreFiche } from './calculs.js';
 import { el, remplacer } from './dom.js';
-import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc } from './fiches.js';
+import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc } from './fiches.js';
 import { lire, ecrire } from './stockage.js';
 import { initialiserMur, actualiserMur, signalerErreurMur } from './ecran-mur.js';
 import { initialiserData, actualiserData, murModifie, definirDepartData } from './ecran-data.js';
@@ -154,6 +154,8 @@ const pourData = () => ({
   distributeurs: courant.distributeurs,
   sources: courant.sourcesProcesseurs,
   nomParc: nomParc(),
+  // Profondeur réseau par défaut dans le parc actif, par marque.
+  bitsParDefaut: Object.fromEntries(['brompton', 'novastar', 'colorlight'].map((f) => [f, bitsReseauParc(base, parcActif, f)])),
 });
 
 // Après chaque changement de ma base ou du parc actif : tous les onglets suivent.

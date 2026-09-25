@@ -1,7 +1,7 @@
 // Base locale : fiches de l'utilisateur, validation, fusion avec la base de départ, export et import, parcs.
 // Fonctions pures, sans accès au stockage ni à l'interface. La base de départ (data/) reste en lecture seule.
 
-import { resoudreFiche, champsManquants, champsManquantsRegie } from './calculs.js';
+import { resoudreFiche, champsManquants, champsManquantsRegie, BIT_DEPTH_PAR_DEFAUT } from './calculs.js';
 
 export const TYPES = ['dalle', 'processeur', 'regie', 'bumper'];
 export const LIBELLES_TYPE = { dalle: 'Dalle', processeur: 'Processeur', regie: 'Régie ou scaler', bumper: 'Bumper ou barre' };
@@ -416,6 +416,35 @@ export function reglerDalleParc(base, parcId, dalleId, reglage) {
       return copie;
     }),
   };
+}
+
+// Profondeur réseau d'un parc, par marque de processeur (Brompton réglé dans l'onglet Base) : 8, 10 ou 12 bits ;
+// vide ou autre valeur = défaut de la marque.
+const BITS_RESEAU = [8, 10, 12];
+const SOURCE_DEFAUT_BITS = { brompton: 'défaut (livraison Tessera)', novastar: 'défaut Novastar', colorlight: 'défaut Colorlight' };
+
+export function reglerBitsParc(base, parcId, famille, valeur) {
+  const bits = Number(valeur);
+  return {
+    ...base,
+    parcs: base.parcs.map((p) => {
+      if (p.id !== parcId) return p;
+      const bitsReseau = { ...(p.bitsReseau ?? {}) };
+      if (valeur !== '' && valeur !== null && BITS_RESEAU.includes(bits)) bitsReseau[famille] = bits;
+      else delete bitsReseau[famille];
+      const copie = { ...p, bitsReseau };
+      if (Object.keys(bitsReseau).length === 0) delete copie.bitsReseau;
+      return copie;
+    }),
+  };
+}
+
+// Profondeur réseau à prendre par défaut dans le parc actif (null : « Tous »), avec sa source.
+export function bitsReseauParc(base, parcId, famille) {
+  const parc = parcId ? base.parcs.find((p) => p.id === parcId) : null;
+  const bits = parc?.bitsReseau?.[famille];
+  if (BITS_RESEAU.includes(bits)) return { bits, source: `Parc ${parc.nom}` };
+  return { bits: BIT_DEPTH_PAR_DEFAUT[famille], source: SOURCE_DEFAUT_BITS[famille] ?? 'défaut' };
 }
 
 // Dalle résolue vue dans un parc : les valeurs réglées pour ce parc passent devant, avec le parc pour source ;

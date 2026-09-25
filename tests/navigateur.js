@@ -3,7 +3,7 @@
 
 import * as calculs from '../src/calculs.js';
 import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, enregistrer, TEINTES } from '../src/export.js';
-import { geometrieSchema, trajetsSchema, construireSvg, PALETTE_EXPORT } from '../src/dessin-schema.js';
+import { geometrieSchema, trajetsSchema, construireSvg, repereSchema, PALETTE_EXPORT } from '../src/dessin-schema.js';
 import { processeurDeBase, baseProcesseurs, dalleDeBase } from './base.js';
 import { DALLE_CAS_13 } from './dalles-fictives.js';
 
@@ -145,6 +145,95 @@ export const NAVIGATEUR = [
       const fond = (id) => svg.querySelector(`[data-dalle="${id}"] rect`).style.fill;
       v.vrai('fonds alternés : deux ports voisins en gris différents, un même port en un seul gris', fond('C1 R1') === fond('C2 R1') && fond('C1 R1') !== fond('C3 R1'));
       v.vrai('stack : chaque départ sous le mur', [...svg.querySelectorAll('.depart')].every((c) => Number(c.getAttribute('cy')) > m.hauteurMm));
+    },
+  },
+  {
+    id: 'N7',
+    titre: 'Schéma : noms des dalles dans leur coin haut gauche, hors des traits ; numéro au bout de chaque retour de secours ; repère du processeur ou de l\'armoire au coin de départ',
+    etape: '8b',
+    async verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      const m = calculs.mur(bp2, 12, 6);
+      const evaluer = (bits) => calculs.evaluerProcesseur(m, bp2, s8, { frequenceHz: 60, bits, redondance: true, departCablage: 'bas-gauche' });
+      const e10 = evaluer(10);
+      const dessiner = (e, vue, coin, repere = null) => {
+        const data = calculs.cablageData(m, bp2, e, { depart: coin, distanceRegieM: 20 });
+        const vd = data.variantes.find((x) => x.mode === data.conseil);
+        const { svg } = construireSvg({
+          geo: geometrieSchema(vue, m, bp2, calculs.pixelMap(m, bp2, e)), trajets: trajetsSchema(vue, vd, null, null), coin, blocs: [],
+          palette: PALETTE_EXPORT, largeurPx: 2000, repere,
+        });
+        svg.style.position = 'absolute';
+        svg.style.left = '-5000px';
+        document.body.append(svg);
+        return { svg, vd };
+      };
+      const physique = { vue: 'physique', canvasVue: 'mur', cablage: 'data' };
+
+      // 1. Chaque nom de dalle reste dans sa dalle, hors de la croix où passent les traits (centre de la dalle).
+      for (const [nom, vue] of [['vue physique', physique], ['vue pixels', { ...physique, vue: 'pixels' }]]) {
+        const { svg } = dessiner(e10, vue, 'bas-gauche');
+        const tuiles = [...svg.querySelectorAll('[data-dalle]')];
+        const rects = tuiles.map((g) => g.querySelector('rect'));
+        const cote = Math.min(...rects.map((r) => Math.min(Number(r.getAttribute('width')), Number(r.getAttribute('height')))));
+        const demiTrait = cote * 0.07;
+        const fautes = tuiles.filter((g) => {
+          const r = g.querySelector('rect');
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(r.getAttribute(a)));
+          return [...g.querySelectorAll('.etiquette-dalle')].some((t) => {
+            const b = t.getBBox();
+            const dedans = b.x >= x && b.y >= y && b.x + b.width <= x + w && b.y + b.height <= y + h;
+            const surVerticale = b.x < x + w / 2 + demiTrait && b.x + b.width > x + w / 2 - demiTrait;
+            const surHorizontale = b.y < y + h / 2 + demiTrait && b.y + b.height > y + h / 2 - demiTrait;
+            return !dedans || surVerticale || surHorizontale;
+          });
+        });
+        v.egal(`${nom} : noms des dalles dans leur dalle, jamais sous un trait`, fautes.map((g) => g.dataset.dalle), []);
+        const premier = tuiles[0].querySelector('.etiquette-dalle').getBBox();
+        const r0 = rects[0];
+        v.vrai(`${nom} : nom de C1 R1 dans son coin haut gauche`,
+          premier.x < Number(r0.getAttribute('x')) + Number(r0.getAttribute('width')) / 2 && premier.y < Number(r0.getAttribute('y')) + Number(r0.getAttribute('height')) / 2);
+        svg.remove();
+      }
+
+      // 2. Numéro au bout de chaque retour de secours, comme les départs ; jamais sur un départ.
+      const disques = (svg, classe) => [...svg.querySelectorAll(classe)].map((c) => ['cx', 'cy', 'r'].map((a) => Number(c.getAttribute(a))));
+      const chevauche = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) < a[2] + b[2];
+      for (const [nom, e] of [['2 colonnes par port (10 bits)', e10], ['1 colonne par port (12 bits)', evaluer(12)]]) {
+        const { svg, vd } = dessiner(e, physique, 'bas-gauche');
+        const attendus = vd.processeurs.flatMap((p) => p.ports.map((q) => `${p.numero}.${q.secours.numero}`));
+        v.egal(`${nom} : un numéro par retour de secours, celui du port de secours`, [...svg.querySelectorAll('.numero-secours')].map((t) => t.textContent), attendus);
+        const secours = disques(svg, '.bout-secours');
+        const departs = disques(svg, '.depart');
+        v.vrai(`${nom} : bouts de secours sous le mur en stack`, secours.length === attendus.length && secours.every((c) => c[1] > m.hauteurMm));
+        v.vrai(`${nom} : aucun numéro de secours sur un départ`, secours.every((s) => departs.every((d) => !chevauche(s, d))));
+        svg.remove();
+      }
+      v.egal('BP2 V2 sur S8 en redondance, 10 bits : secours 1.2, 1.4, 1.6 puis 2.2, 2.4, 2.6', dessiner(e10, physique, 'bas-gauche').vd.processeurs
+        .flatMap((p) => p.ports.map((q) => `${p.numero}.${q.secours.numero}`)), ['1.2', '1.4', '1.6', '2.2', '2.4', '2.6']);
+      document.querySelectorAll('body > svg').forEach((s) => s.remove());
+
+      // 3. Repère du processeur (ou de l'armoire) au coin de départ : sous le mur en stack, au-dessus en accroche.
+      v.egal('repère data : processeurs et distance de la régie', repereSchema('data', { evaluation: e10, distanceM: 20 }), { lignes: ['2 × S8', 'régie à 20 m'] });
+      v.egal('repère data sans distance', repereSchema('data', { evaluation: e10, distanceM: null }), { lignes: ['2 × S8'] });
+      v.egal('repère élec : armoire', repereSchema('elec', { distanceM: 15 }), { lignes: ['Armoire', 'à 15 m'] });
+      const sx40 = calculs.evaluerProcesseur(calculs.mur(bp2, 12, 6), bp2, processeurDeBase(contexte, 'brompton-sx40'), { frequenceHz: 60, bits: 10 });
+      v.egal('repère SX40 : le cuivre part du XD au pied du mur, la régie en fibre', repereSchema('data', { evaluation: sx40, distanceM: 150 }), { lignes: ['XD', 'fibre 150 m'] });
+      for (const [coin, dessous, gauche] of [['bas-gauche', true, true], ['haut-droite', false, false]]) {
+        const { svg } = dessiner(e10, physique, coin, repereSchema('data', { evaluation: e10, distanceM: 20 }));
+        const cadre = svg.querySelector('.repere rect');
+        const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(cadre.getAttribute(a)));
+        v.vrai(`${coin} : repère ${dessous ? 'sous' : 'au-dessus du'} mur`, dessous ? y + h / 2 > m.hauteurMm : y + h / 2 < 0);
+        v.vrai(`${coin} : repère du côté ${gauche ? 'gauche' : 'droit'}, hors du mur`, gauche ? x + w <= 0 : x >= m.largeurMm);
+        v.vrai(`${coin} : repère nommé`, svg.querySelector('.repere').textContent.includes('2 × S8'));
+        const chemin = svg.querySelector('.chemin-tete');
+        const xs = disques(svg, '.depart').map((c) => c[0]);
+        const [x1, x2] = [Number(chemin.getAttribute('x1')), Number(chemin.getAttribute('x2'))].sort((a, b) => a - b);
+        v.vrai(`${coin} : câbles de tête le long du bord, du repère au départ le plus loin`,
+          chemin.getAttribute('y1') === chemin.getAttribute('y2') && x1 <= Math.min(...xs) && x2 >= Math.max(...xs));
+        svg.remove();
+      }
     },
   },
 ];

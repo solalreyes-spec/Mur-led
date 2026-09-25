@@ -426,6 +426,7 @@ textarea {
 .liste-parcs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .liste-parcs li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .liste-parcs input { flex: 1 1 10em; }
+.liste-parcs select { flex: 1 1 12em; min-width: 0; }
 .bouton-discret { background: transparent; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .puces { display: flex; gap: 6px; flex-wrap: wrap; }
