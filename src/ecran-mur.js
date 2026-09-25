@@ -99,10 +99,15 @@ function retenirChoix(demande) {
   if (id && [...formulaire.elements.dalle.options].some((o) => o.value === id && !o.disabled)) formulaire.elements.dalle.value = id;
 }
 
+// Un vrai choix dans une liste envoie « input » puis « change ». Le choix est retenu dès « input », avant que
+// l'écouteur du formulaire ne recalcule (il remettrait sinon les listes sur l'ancienne dalle) ; « change » confirme.
 function initialiserChoix() {
-  $choix('dalle-marque').addEventListener('change', (e) => retenirChoix({ id: null, marque: e.target.value }));
-  $choix('dalle-gamme').addEventListener('change', (e) => retenirChoix({ id: null, marque: $choix('dalle-marque').value, gamme: e.target.value }));
-  $choix('dalle-version').addEventListener('change', (e) => retenirChoix({ id: e.target.value }));
+  const ecouter = (id, action) => {
+    for (const type of ['input', 'change']) $choix(id).addEventListener(type, (e) => action(e.target.value));
+  };
+  ecouter('dalle-marque', (marque) => retenirChoix({ id: null, marque }));
+  ecouter('dalle-gamme', (gamme) => retenirChoix({ id: null, marque: $choix('dalle-marque').value, gamme }));
+  ecouter('dalle-version', (id) => retenirChoix({ id }));
   $choix('recherche-dalle').addEventListener('input', () => retenirChoix({}));
 }
 
