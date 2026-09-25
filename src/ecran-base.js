@@ -1,14 +1,20 @@
 // Onglet Base : ma base locale (fiches ajoutées, versions modifiées, parcs), saisie guidée ou JSON vérifié,
 // consigne pour Claude, export et import. Aucune règle de validation ici : tout passe par fiches.js.
 
-import { resoudreFiche } from './calculs.js';
+import { resoudreFiche, ErreurSaisie } from './calculs.js';
 import {
   TYPES, LIBELLES_TYPE, CHAMPS, CONFIANCES, TYPES_VALEUR, libelleChamp, champsManquantsFiche, validerImport, importer,
   supprimerFiche, exporter, creerParc, renommerParc, supprimerParc, estMembre, basculerMembre,
   CONSIGNE_CLAUDE, MODELES_JSON, identifiant, CHAMPS_REGLAGE_PARC, reglageDalleParc, reglerDalleParc, reglerBitsParc,
+  LOGICIELS, EXTENSIONS_CONFIG, CALIBRATIONS_TESSERA, FIRMWARES, ROLES_FICHIER, lotsDalleParc, ajouterLot, modifierLot,
+  supprimerLot, reglerConfigLot, configLot, supprimerConfigLot, verifierFichierJoint, joindreFichier, detacherFichier,
+  fichiersJoints, tailleFichiersJoints, alerteTailleFichier, migrerFichiersConfig, logicielDuProcesseur, reglerLogicielParc,
+  logicielParc, fichesRetirees, retirerFicheRetiree, arbreDalles,
 } from './fiches.js';
-import { stockageDisponible } from './stockage.js';
-import { sourceCourte, lireNombre, nombre } from './format.js';
+import { stockageDisponible, ecrireFichier, lireFichier, supprimerFichier, listerFichiers } from './stockage.js';
+import { choixPartageFichier, partagerFichier, telecharger, NOTE_TELECHARGEMENT_CONFIG } from './export.js';
+import { rappelFirmwarePersonnalise } from './rappels.js';
+import { sourceCourte, lireNombre, nombre, nombreCourt, dateCourte } from './format.js';
 import { el, remplacer } from './dom.js';
 
 const $ = (id) => document.getElementById(id);
@@ -68,7 +74,60 @@ function afficherEtat() {
     el('p', { class: 'recap-mur' }, `Ma base : ${pluriel(base.fiches.length, 'fiche ajoutée ou modifiée', 'fiches ajoutées ou modifiées')}, `
       + `${pluriel(base.parcs.length, 'parc', 'parcs')}. La base de départ reste intacte.`
       + { true: ' Stockage persistant accordé : le navigateur ne videra pas ta base pour faire de la place.',
-        false: ' Stockage persistant non accordé par le navigateur : exporte ta base régulièrement.' }[ctx.persistant] ?? ''));
+        false: ' Stockage persistant non accordé par le navigateur : exporte ta base régulièrement.' }[ctx.persistant] ?? ''),
+    el('div', { id: 'etat-fichiers' }));
+  afficherEtatFichiers();
+}
+
+function afficherEtatFichiers() {
+  const decrits = fichiersJoints(ctx.base);
+  const n = decrits.length;
+  const option = $('exporter-fichiers');
+  option.disabled = n === 0;
+  if (n === 0) option.checked = false;
+  $('libelle-exporter-fichiers').textContent = n
+    ? `Inclure les fichiers joints (${pluriel(n, 'fichier', 'fichiers')}, ${taille(tailleFichiersJoints(ctx.base))})`
+    : 'Inclure les fichiers joints (aucun fichier joint)';
+  const zone = $('etat-fichiers');
+  if (!zone || !surAppareil) return;
+  const idsDecrits = new Set(decrits.map((f) => f.id));
+  const total = surAppareil.reduce((s, f) => s + (f.taille ?? 0), 0);
+  const absents = decrits.filter((f) => !estPresent(f.id));
+  const orphelins = surAppareil.filter((f) => !idsDecrits.has(f.id));
+  let nettoyer = null;
+  if (orphelins.length) {
+    nettoyer = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Les effacer de cet appareil');
+    nettoyer.addEventListener('click', async () => {
+      if (!confirm(`Effacer de cet appareil ${pluriel(orphelins.length, 'fichier', 'fichiers')} rattaché${orphelins.length > 1 ? 's' : ''} à aucun lot (${orphelins.map((f) => f.nom).join(', ')}) ?`)) return;
+      await effacerFichiers(orphelins);
+      afficherEtatFichiers();
+    });
+  }
+  remplacer(zone,
+    el('p', { class: 'recap-mur' }, `Fichiers joints (configs de dalles) : ${surAppareil.length
+      ? `${pluriel(surAppareil.length, 'fichier', 'fichiers')}, ${taille(total)} sur cet appareil` : 'aucun sur cet appareil'}`
+      + `${placeDisponible === null ? '' : ` ; place disponible pour l'appli : ${taille(placeDisponible)} (estimation du navigateur)`}.`
+      + ' Ils restent sur cet appareil : jamais publiés, exportés seulement si tu le demandes.'),
+    absents.length ? alerte(`${absents.length > 1 ? `${nombre(absents.length)} fichiers joints de ta base sont absents` : 'Un fichier joint de ta base est absent'}`
+      + ` de cet appareil (${absents.map((f) => f.nom).join(', ')}) : base importée sans ses fichiers, ou venue d'un autre appareil. Joins-les de nouveau.`) : null,
+    orphelins.length ? el('div', { class: 'alerte alerte-info' },
+      `${orphelins.length > 1 ? `${nombre(orphelins.length)} fichiers sur cet appareil ne sont plus rattachés` : 'Un fichier sur cet appareil n\'est plus rattaché'}`
+      + ` à aucun lot (${taille(orphelins.reduce((s, f) => s + (f.taille ?? 0), 0))}). `, nettoyer) : null);
+}
+
+// Relit la liste des fichiers de l'appareil (sans les contenus) et la place disponible ; la liste des fiches
+// ne se redessine que si des fichiers sont apparus ou ont disparu.
+async function rafraichirFichiers() {
+  const avant = surAppareil ? surAppareil.map((f) => f.id).sort().join() : null;
+  surAppareil = await listerFichiers();
+  try {
+    const estimation = await navigator.storage?.estimate?.();
+    placeDisponible = Number.isFinite(estimation?.quota) && Number.isFinite(estimation?.usage) ? estimation.quota - estimation.usage : null;
+  } catch (erreur) {
+    placeDisponible = null;
+  }
+  afficherEtatFichiers();
+  if (avant !== surAppareil.map((f) => f.id).sort().join()) afficherFiches();
 }
 
 // ---------------------------------------------------------------------------
@@ -83,7 +142,27 @@ function compterMembres(parc) {
   return comptes.length ? comptes.join(', ') : 'vide';
 }
 
+// Fiches retirées de la base de départ (LEDCAST) encore citées par un parc : signalées, retirées sur demande
+// (membre, réglage, lots et leurs fichiers joints). Rien n'est retiré en silence.
+function afficherFichesRetirees() {
+  const liste = fichesRetirees(ctx.base, ctx.depart);
+  remplacer($('fiches-retirees'), liste.length ? el('div', { class: 'alerte' },
+    el('p', {}, `${liste.length > 1 ? `${nombre(liste.length)} fiches retirées` : 'Une fiche retirée'} de la base de départ `
+      + `(par exemple les fiches LEDCAST, une erreur de marque) ${liste.length > 1 ? 'sont encore citées' : 'est encore citée'} par un parc :`),
+    el('ul', { class: 'rappels' }, liste.map((x) => {
+      const bouton = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Retirer du parc');
+      bouton.addEventListener('click', async () => {
+        const joints = fichiersDe(x.parcId, x.id);
+        if (!confirm(`Retirer ${x.id} du parc « ${x.parcNom} »${x.reglage ? ', avec son réglage' : ''}${x.lots ? ` et ${pluriel(x.lots, 'lot', 'lots')}` : ''}${avecFichiers(joints)} ?`)) return;
+        await effacerFichiers(joints);
+        enregistrer(retirerFicheRetiree(ctx.base, x.parcId, x.type, x.id));
+      });
+      return el('li', {}, `${x.id} (${x.type}), parc ${x.parcNom}${x.reglage ? ', réglage' : ''}${x.lots ? `, ${pluriel(x.lots, 'lot', 'lots')}` : ''} `, bouton);
+    }))) : null);
+}
+
 function afficherParcs() {
+  afficherFichesRetirees();
   const { base, parcActif } = ctx;
   remplacer($('liste-parcs'), base.parcs.length === 0
     ? el('li', { class: 'compte' }, 'Aucun parc : les onglets Mur et Data montrent toute la base (« Tous »).')
@@ -95,8 +174,11 @@ function afficherParcs() {
         else champ.value = parc.nom;
       });
       const bouton = el('button', { class: 'bouton bouton-discret', type: 'button' }, 'Supprimer');
-      bouton.addEventListener('click', () => {
-        if (confirm(`Supprimer le parc « ${parc.nom} » ? Ses fiches restent dans la base.`)) enregistrer(supprimerParc(ctx.base, parc.id));
+      bouton.addEventListener('click', async () => {
+        const joints = fichiersDe(parc.id, null);
+        if (!confirm(`Supprimer le parc « ${parc.nom} »${avecFichiers(joints)} ? Ses fiches restent dans la base.`)) return;
+        await effacerFichiers(joints);
+        enregistrer(supprimerParc(ctx.base, parc.id));
       });
       // Profondeur réseau Tessera de ce prestataire : elle remplace le défaut (12 bits, livraison Tessera).
       const bits = el('select', { 'aria-label': `Profondeur réseau Brompton du parc ${parc.nom}` },
@@ -124,11 +206,23 @@ function modifierFiche(type, brute) {
   $('bloc-saisie').scrollIntoView({ block: 'start' });
 }
 
-// Carte de réception et fichier de config de cette dalle chez ce prestataire ; vide = valeur de la fiche.
+// Carte de réception et rotation de cette dalle chez ce prestataire ; vide = valeur de la fiche.
+// Le fichier de config se range désormais dans les lots (ci-dessous) : l'ancien réglage est gardé tel quel.
+const CHAMPS_FORMULAIRE_REGLAGE = CHAMPS_REGLAGE_PARC.filter((nom) => nom !== 'fichierConfig');
 function formulaireReglage(parc, brute, resolue) {
   const actuel = reglageDalleParc(ctx.base, parc.id, brute.id) ?? {};
-  const champs = CHAMPS_REGLAGE_PARC.map((nom) => {
+  const champs = CHAMPS_FORMULAIRE_REGLAGE.map((nom) => {
     const id = `reglage-${parc.id}-${brute.id}-${nom}`;
+    // Dalle en plusieurs versions (URMIII03, Upad IV 2.6) : celle de ce prestataire ; vide = la plus défavorable.
+    if (nom === 'declinaison') {
+      if (!resolue.declinaisons?.length) return null;
+      const defaut = resolue.declinaisons.find((x) => x.id === resolue.declinaisonDefaut)?.nom ?? 'la plus défavorable';
+      return el('div', { class: 'champ' },
+        el('label', { for: id }, 'Version de la dalle dans ce parc'),
+        el('select', { id, name: nom },
+          el('option', { value: '', selected: actuel.declinaison ? null : '' }, `non précisée : la plus défavorable (${defaut})`),
+          resolue.declinaisons.map((x) => el('option', { value: x.id, selected: actuel.declinaison === x.id ? '' : null }, x.nom))));
+    }
     if (nom === 'rotationPossible') {
       const deFiche = resolue.rotationPossible === undefined ? 'non précisé' : (resolue.rotationPossible ? 'oui' : 'non');
       const actuelle = actuel.rotationPossible === undefined ? '' : String(actuel.rotationPossible);
@@ -151,7 +245,345 @@ function formulaireReglage(parc, brute, resolue) {
   formulaire.addEventListener('submit', (evenement) => {
     evenement.preventDefault();
     const donnees = new FormData(formulaire);
-    enregistrer(reglerDalleParc(ctx.base, parc.id, brute.id, Object.fromEntries(CHAMPS_REGLAGE_PARC.map((n) => [n, donnees.get(n)]))));
+    enregistrer(reglerDalleParc(ctx.base, parc.id, brute.id,
+      Object.fromEntries(CHAMPS_REGLAGE_PARC.map((n) => [n, donnees.has(n) ? donnees.get(n) : actuel[n]]))));
+  });
+  return formulaire;
+}
+
+// ---------------------------------------------------------------------------
+// Lots de fabrication d'une dalle dans un parc, configs par logiciel et fichiers joints (restent sur l'appareil)
+// ---------------------------------------------------------------------------
+
+const MO = 1024 * 1024;
+function taille(octets) {
+  if (!Number.isFinite(octets)) return '—';
+  if (octets >= 1024 * MO) return `${nombreCourt(octets / (1024 * MO), 1)} Go`;
+  if (octets >= MO) return `${nombreCourt(octets / MO, 1)} Mo`;
+  return `${nombreCourt(octets > 0 ? Math.max(octets / 1024, 0.1) : 0, 1)} ko`;
+}
+
+const NOMS_LOGICIEL = { NovaLCT: 'NovaLCT (Novastar)', VMP: 'VMP (COEX)', LEDVISION: 'LEDVISION (Colorlight)', Tessera: 'Tessera (Brompton)' };
+// Logiciel proposé d'abord, selon la marque de la carte de réception.
+const LOGICIEL_DE_MARQUE = { brompton: 'Tessera', novastar: 'NovaLCT', coex: 'VMP', colorlight: 'LEDVISION' };
+const CHAMPS_CONFIG_FORMULAIRE = {
+  NovaLCT: ['nomFichier', 'version', 'date', 'provenance', 'firmware', 'multiBatch', 'autreFichier', 'notes'],
+  VMP: ['nomFichier', 'version', 'date', 'provenance', 'firmware', 'autreFichier', 'notes'],
+  LEDVISION: ['nomFichier', 'version', 'date', 'provenance', 'firmware', 'autreFichier', 'notes'],
+  Tessera: ['typeFixture', 'firmwareDalle', 'fixturePack', 'version', 'date', 'provenance', 'calibration', 'firmware', 'autreFichier', 'notes'],
+};
+// Fichiers qu'on peut joindre à une config, et le champ texte qui garde leur nom.
+const ROLES_JOINTS = { NovaLCT: ['fichier', 'multiBatch', 'autre'], VMP: ['fichier', 'autre'], LEDVISION: ['fichier', 'autre'], Tessera: ['fixturePack', 'autre'] };
+const CHAMP_DU_ROLE = { fichier: 'nomFichier', multiBatch: 'multiBatch', fixturePack: 'fixturePack', autre: 'autreFichier' };
+const NOMS_ROLE = { fichier: 'Fichier de config', multiBatch: 'Multi-batch adjustment', fixturePack: 'Fixture pack', autre: 'Autre fichier' };
+const TEXTES_OPTION = { standard: 'standard', personnalisé: 'personnalisé par le fabricant' };
+
+function libelleConfig(logiciel, champ) {
+  return {
+    nomFichier: `Fichier de config (${(EXTENSIONS_CONFIG[logiciel] ?? []).join(' ou ')})`,
+    version: 'Version de la config',
+    date: 'Date de la config',
+    provenance: 'Provenance (fabricant, loueur…)',
+    firmware: 'Firmware de la dalle',
+    multiBatch: 'Multi-batch adjustment (.lxy, facultatif)',
+    typeFixture: 'Type de fixture dans Tessera',
+    firmwareDalle: 'Version du firmware de la dalle',
+    fixturePack: 'Fixture pack (.tfp, facultatif)',
+    calibration: 'Calibration utilisée',
+    autreFichier: 'Autre fichier (facultatif : .scr d\'écran, projet exporté…)',
+    notes: 'Notes',
+  }[champ];
+}
+
+function champTexte(id, nom, libelle, valeur, attributs = {}) {
+  return el('div', { class: 'champ' },
+    el('label', { for: id }, libelle),
+    el('input', { id, name: nom, type: 'text', autocomplete: 'off', value: valeur ?? null, ...attributs }));
+}
+
+function champConfig(prefixe, logiciel, nom, valeur) {
+  const id = `${prefixe}-${nom}`;
+  if (nom === 'firmware' || nom === 'calibration') {
+    return el('div', { class: 'champ' },
+      el('label', { for: id }, libelleConfig(logiciel, nom)),
+      el('select', { id, name: nom },
+        el('option', { value: '' }, 'non précisé'),
+        (nom === 'firmware' ? FIRMWARES : CALIBRATIONS_TESSERA)
+          .map((o) => el('option', { value: o, selected: valeur === o ? '' : null }, TEXTES_OPTION[o] ?? o))));
+  }
+  return champTexte(id, nom, libelleConfig(logiciel, nom), valeur, nom === 'date' ? { type: 'date' } : {});
+}
+
+// Applique un changement de ma base ; une saisie refusée s'affiche dans la zone, sans rien enregistrer.
+function essayer(zone, changer) {
+  try {
+    return changer();
+  } catch (erreur) {
+    if (!(erreur instanceof ErreurSaisie)) throw erreur;
+    remplacer(zone, alerte(erreur.message, 'alerte-erreur'));
+    return null;
+  }
+}
+
+// Fichiers joints sur cet appareil (sans leur contenu) et place laissée par le navigateur ; null tant que non lus.
+let surAppareil = null;
+let placeDisponible = null;
+const estPresent = (id) => !surAppareil || surAppareil.some((f) => f.id === id);
+
+async function effacerFichiers(liste) {
+  for (const f of liste) await supprimerFichier(f.id);
+  const ids = new Set(liste.map((f) => f.id));
+  if (surAppareil) surAppareil = surAppareil.filter((f) => !ids.has(f.id));
+}
+
+const fichiersDe = (parcId, dalleId, lotId = null, logiciel = undefined) => fichiersJoints(ctx.base).filter((f) => f.parcId === parcId
+  && (dalleId === null || f.dalleId === dalleId) && (lotId === null || f.lotId === lotId) && (logiciel === undefined || f.logiciel === logiciel));
+const avecFichiers = (liste) => (liste.length
+  ? ` et ${liste.length > 1 ? `ses ${liste.length} fichiers joints` : 'son fichier joint'} (${taille(liste.reduce((s, f) => s + (f.taille ?? 0), 0))}) de cet appareil`
+  : '');
+
+// Le sélecteur laisse tout choisir (Safari iOS grise les types qu'il ne connaît pas) : l'extension est vérifiée ici.
+async function joindre(parc, brute, lot, logiciel, role, champ, zone, ancien) {
+  const fichier = champ.files?.[0];
+  if (!fichier) return;
+  champ.value = '';
+  if (!essayer(zone, () => verifierFichierJoint(logiciel, role, fichier.name))) return;
+  zone.textContent = `Lecture de ${fichier.name}…`;
+  const contenu = await fichier.arrayBuffer();
+  const config = configLot(ctx.base, parc.id, brute.id, lot.id, logiciel) ?? { logiciel };
+  // Le champ texte du rôle prend le nom du fichier joint.
+  let nouvelle = essayer(zone, () => reglerConfigLot(ctx.base, parc.id, brute.id, lot.id, { ...config, [CHAMP_DU_ROLE[role]]: fichier.name }));
+  if (!nouvelle) return;
+  const id = `fichier-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const infos = { id, nom: fichier.name, taille: contenu.byteLength, date: new Date().toISOString() };
+  await ecrireFichier(id, { nom: fichier.name, type: fichier.type || 'application/octet-stream', contenu });
+  surAppareil?.push(infos);
+  nouvelle = joindreFichier(nouvelle, parc.id, brute.id, lot.id, logiciel, role, infos);
+  if (ancien) await effacerFichiers([ancien]);
+  await enregistrer(nouvelle);
+}
+
+// Partage d'un fichier joint : lu sur l'appareil au premier appui, feuille de partage au second (Safari ne l'ouvre
+// que sur un appui direct) ; téléchargement vers Fichiers si l'appareil ne sait pas partager ce fichier.
+async function preparerPartage(joint, zone) {
+  const f = await lireFichier(joint.id);
+  if (!f) {
+    remplacer(zone, alerte('Fichier absent de cet appareil : joins-le de nouveau, ou importe un export qui le contient.', 'alerte-erreur'));
+    return;
+  }
+  const type = f.type || 'application/octet-stream';
+  const blob = new Blob([f.contenu], { type });
+  if (choixPartageFichier(navigator, [new File([blob], f.nom, { type })]).mode !== 'partage') {
+    telecharger(blob, f.nom);
+    remplacer(zone, el('p', { class: 'note' }, NOTE_TELECHARGEMENT_CONFIG));
+    return;
+  }
+  const partager = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Partager maintenant');
+  partager.addEventListener('click', async () => {
+    const { mode, note } = await partagerFichier(f.contenu, f.nom, type);
+    remplacer(zone, el('p', { class: 'note' }, { partage: `${f.nom} partagé.`, annule: 'Partage annulé.', telechargement: note }[mode]));
+  });
+  const secours = el('button', { type: 'button', class: 'bouton bouton-petit bouton-discret' }, 'Télécharger');
+  secours.addEventListener('click', () => {
+    telecharger(blob, f.nom);
+    remplacer(zone, el('p', { class: 'note' }, NOTE_TELECHARGEMENT_CONFIG));
+  });
+  remplacer(zone, el('span', {}, `${f.nom} prêt (${taille(f.taille)}). `), el('span', { class: 'actions' }, partager, secours));
+}
+
+function elementFichierJoint(parc, brute, lot, config, role) {
+  const { logiciel } = config;
+  const joint = config[ROLES_FICHIER[role]];
+  const zone = el('div', { class: 'etat-copie', 'aria-live': 'polite' });
+  const id = `joindre-${parc.id}-${brute.id}-${lot.id}-${logiciel}-${role}`;
+  // Aucun filtre « accept » : voir joindre().
+  const choix = el('input', { id, type: 'file' });
+  choix.addEventListener('change', () => joindre(parc, brute, lot, logiciel, role, choix, zone, joint));
+  const extensions = { fichier: ` (${EXTENSIONS_CONFIG[logiciel]?.join(' ou ')})`, fixturePack: ' (.tfp)', multiBatch: ' (.lxy)' }[role] ?? '';
+  if (!joint) {
+    return el('li', {},
+      el('div', { class: 'champ' }, el('label', { for: id }, `${NOMS_ROLE[role]}${extensions} : joindre un fichier`), choix),
+      zone);
+  }
+  const partager = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Partager le fichier');
+  partager.addEventListener('click', () => preparerPartage(joint, zone));
+  const retirer = el('button', { type: 'button', class: 'bouton bouton-petit bouton-discret' }, 'Retirer');
+  retirer.addEventListener('click', async () => {
+    if (!confirm(`Retirer ${joint.nom} et l'effacer de cet appareil ?`)) return;
+    await effacerFichiers([joint]);
+    enregistrer(detacherFichier(ctx.base, parc.id, brute.id, lot.id, logiciel, role));
+  });
+  const trop = alerteTailleFichier(joint.taille);
+  return el('li', {},
+    el('p', { class: 'fichier-joint' }, el('strong', {}, `${NOMS_ROLE[role]} : `), `${joint.nom}, ${taille(joint.taille)}`,
+      joint.date ? `, joint le ${dateCourte(String(joint.date).slice(0, 10))}` : '',
+      estPresent(joint.id) ? null : [' ', badge('absent de cet appareil', 'badge-alerte')]),
+    trop ? alerte(trop) : null,
+    el('div', { class: 'actions' }, partager, retirer),
+    el('div', { class: 'champ' }, el('label', { for: id }, 'Remplacer par un autre fichier'), choix),
+    zone);
+}
+
+// Config reprise de l'ancien champ « fichier de config » : son logiciel reste à choisir. Le nom va dans le champ du
+// fichier s'il en a l'extension, dans les notes sinon (sans deviner).
+function elementConfigReprise(parc, brute, lot, config) {
+  const zone = el('div', { 'aria-live': 'polite' });
+  const choix = el('select', { 'aria-label': 'Logiciel de cette config' },
+    LOGICIELS.map((l) => el('option', { value: l }, NOMS_LOGICIEL[l])));
+  const ranger = el('button', { type: 'button', class: 'bouton' }, 'Ranger dans cette config');
+  ranger.addEventListener('click', () => {
+    const logiciel = choix.value;
+    const nom = config.nomFichier;
+    const extensions = EXTENSIONS_CONFIG[logiciel];
+    const rangement = extensions && extensions.some((e) => nom.toLowerCase().endsWith(e)) ? { nomFichier: nom }
+      : logiciel === 'Tessera' && nom.toLowerCase().endsWith('.tfp') ? { fixturePack: nom }
+        : { notes: `Ancien réglage « fichier de config » : ${nom}` };
+    const existante = configLot(ctx.base, parc.id, brute.id, lot.id, logiciel) ?? {};
+    const notes = [existante.notes, rangement.notes].filter(Boolean).join(' ; ');
+    const nouvelle = essayer(zone, () => reglerConfigLot(supprimerConfigLot(ctx.base, parc.id, brute.id, lot.id, null), parc.id, brute.id, lot.id,
+      { ...existante, ...rangement, logiciel, notes }));
+    if (nouvelle) enregistrer(nouvelle);
+  });
+  return el('div', { class: 'config-lot' },
+    alerte(`Repris de l'ancien réglage « fichier de config » : ${config.nomFichier}. Choisis le logiciel de cette config.`, 'alerte-info'),
+    el('div', { class: 'actions' }, choix, ranger),
+    zone);
+}
+
+function elementConfig(parc, brute, lot, config) {
+  if (!config.logiciel) return elementConfigReprise(parc, brute, lot, config);
+  const { logiciel } = config;
+  const zone = el('div', { 'aria-live': 'polite' });
+  const champs = CHAMPS_CONFIG_FORMULAIRE[logiciel];
+  const formulaire = el('form', { class: 'formulaire', novalidate: '' },
+    champs.map((nom) => champConfig(`config-${parc.id}-${brute.id}-${lot.id}-${logiciel}`, logiciel, nom, config[nom])),
+    el('button', { class: 'bouton', type: 'submit' }, 'Enregistrer la config'));
+  formulaire.addEventListener('submit', (evenement) => {
+    evenement.preventDefault();
+    const donnees = new FormData(formulaire);
+    const nouvelle = essayer(zone, () => reglerConfigLot(ctx.base, parc.id, brute.id, lot.id,
+      { logiciel, ...Object.fromEntries(champs.map((n) => [n, donnees.get(n)])) }));
+    if (nouvelle) enregistrer(nouvelle);
+  });
+  const retirer = el('button', { type: 'button', class: 'bouton bouton-discret' }, `Retirer la config ${logiciel}`);
+  retirer.addEventListener('click', async () => {
+    const joints = fichiersDe(parc.id, brute.id, lot.id, logiciel);
+    if (!confirm(`Retirer la config ${logiciel} du lot « ${lot.identifiant} »${avecFichiers(joints)} ?`)) return;
+    await effacerFichiers(joints);
+    enregistrer(supprimerConfigLot(ctx.base, parc.id, brute.id, lot.id, logiciel));
+  });
+  // Firmware personnalisé (NovaLCT) : le rappel N6, sous le formulaire.
+  const n6 = logiciel === 'NovaLCT' && config.firmware === 'personnalisé' ? rappelFirmwarePersonnalise() : null;
+  return el('div', { class: 'config-lot' },
+    el('h5', {}, NOMS_LOGICIEL[logiciel]),
+    formulaire,
+    n6 ? el('div', { class: 'alerte alerte-info' }, el('strong', {}, `${n6.titre} : `),
+      n6.textes.map((t) => el('p', { class: 'rappel-texte' }, t.texte.replace(/« /g, '«\u00a0').replace(/ »/g, '\u00a0»'),
+        el('span', { class: 'source' }, ` (${sourceCourte(t.source)}${t.section ? `, ${t.section}` : ''}${t.source.confiance === 'tiers' ? ', source tierce' : ''})`)))) : null,
+    zone,
+    el('p', { class: 'compte' }, 'Fichiers joints : ils restent sur cet appareil, jamais publiés.'),
+    el('ul', { class: 'fichiers-joints' }, ROLES_JOINTS[logiciel].map((role) => elementFichierJoint(parc, brute, lot, config, role))),
+    el('div', { class: 'actions' }, retirer));
+}
+
+function elementLot(parc, brute, resolue, lot) {
+  const cle = `lot:${parc.id}:${brute.id}:${lot.id}`;
+  const prefixe = `lot-${parc.id}-${brute.id}-${lot.id}`;
+  const zone = el('div', { 'aria-live': 'polite' });
+  const formulaire = el('form', { class: 'formulaire', novalidate: '' },
+    champTexte(`${prefixe}-identifiant`, 'identifiant', 'Identifiant ou date du lot', lot.identifiant),
+    champTexte(`${prefixe}-quantite`, 'quantite', 'Quantité (dalles)', lot.quantite, { inputmode: 'numeric' }),
+    champTexte(`${prefixe}-notes`, 'notes', 'Notes', lot.notes),
+    el('button', { class: 'bouton', type: 'submit' }, 'Enregistrer le lot'));
+  formulaire.addEventListener('submit', (evenement) => {
+    evenement.preventDefault();
+    const donnees = new FormData(formulaire);
+    const nouvelle = essayer(zone, () => modifierLot(ctx.base, parc.id, brute.id, lot.id,
+      { identifiant: donnees.get('identifiant'), quantite: donnees.get('quantite'), notes: donnees.get('notes') }));
+    if (nouvelle) enregistrer(nouvelle);
+  });
+
+  const configs = lot.configs ?? [];
+  const libres = LOGICIELS.filter((l) => !configs.some((c) => c.logiciel === l));
+  const conseille = LOGICIEL_DE_MARQUE[normaliser(reglageDalleParc(ctx.base, parc.id, brute.id)?.carteReceptionMarque ?? resolue.carteReceptionMarque)];
+  const choix = el('select', { 'aria-label': `Logiciel de la nouvelle config du lot ${lot.identifiant}` },
+    [...libres.filter((l) => l === conseille), ...libres.filter((l) => l !== conseille)].map((l) => el('option', { value: l }, NOMS_LOGICIEL[l])));
+  const ajouter = el('button', { type: 'button', class: 'bouton' }, 'Ajouter une config');
+  ajouter.addEventListener('click', () => {
+    const nouvelle = essayer(zone, () => reglerConfigLot(ctx.base, parc.id, brute.id, lot.id, { logiciel: choix.value }));
+    if (nouvelle) enregistrer(nouvelle);
+  });
+  const supprimer = el('button', { type: 'button', class: 'bouton bouton-discret' }, 'Supprimer le lot');
+  supprimer.addEventListener('click', async () => {
+    const joints = fichiersDe(parc.id, brute.id, lot.id);
+    if (!confirm(`Supprimer le lot « ${lot.identifiant} »${avecFichiers(joints)} ?`)) return;
+    await effacerFichiers(joints);
+    enregistrer(supprimerLot(ctx.base, parc.id, brute.id, lot.id));
+  });
+
+  const details = el('details', { class: 'lot', open: ouvertes.has(cle) ? '' : null },
+    el('summary', {},
+      el('span', { class: 'cas-titre' }, `Lot ${lot.identifiant}`),
+      el('span', { class: 'puces' },
+        badge(lot.quantite === null || lot.quantite === undefined ? 'quantité non saisie' : pluriel(lot.quantite, 'dalle', 'dalles'), 'badge-a-venir'),
+        configs.map((c) => badge(c.logiciel ?? 'config à ranger', c.logiciel ? 'badge-info' : 'badge-alerte')))),
+    el('div', { class: 'cas-corps' },
+      formulaire,
+      zone,
+      configs.map((c) => elementConfig(parc, brute, lot, c)),
+      libres.length ? el('div', { class: 'actions' }, choix, ajouter) : null,
+      el('div', { class: 'actions' }, supprimer)));
+  details.addEventListener('toggle', () => (details.open ? ouvertes.add(cle) : ouvertes.delete(cle)));
+  return el('li', {}, details);
+}
+
+// Lots d'une dalle dans un parc : identifiant ou date, quantité, notes, puis une config par logiciel.
+function sectionLots(parc, brute, resolue) {
+  const lots = lotsDalleParc(ctx.base, parc.id, brute.id);
+  const prefixe = `nouveau-lot-${parc.id}-${brute.id}`;
+  const zone = el('div', { 'aria-live': 'polite' });
+  const formulaire = el('form', { class: 'formulaire', novalidate: '' },
+    champTexte(`${prefixe}-identifiant`, 'identifiant', 'Identifiant ou date du lot', null),
+    champTexte(`${prefixe}-quantite`, 'quantite', 'Quantité (dalles, facultatif)', null, { inputmode: 'numeric' }),
+    champTexte(`${prefixe}-notes`, 'notes', 'Notes (facultatif)', null),
+    el('button', { class: 'bouton', type: 'submit' }, 'Ajouter le lot'));
+  formulaire.addEventListener('submit', (evenement) => {
+    evenement.preventDefault();
+    const donnees = new FormData(formulaire);
+    const nouvelle = essayer(zone, () => ajouterLot(ctx.base, parc.id, brute.id,
+      { identifiant: donnees.get('identifiant'), quantite: donnees.get('quantite'), notes: donnees.get('notes') }));
+    if (!nouvelle) return;
+    // Le nouveau lot s'ouvre, prêt pour sa config.
+    const cree = lotsDalleParc(nouvelle, parc.id, brute.id).at(-1);
+    ouvertes.add(`lot:${parc.id}:${brute.id}:${cree.id}`);
+    enregistrer(nouvelle);
+  });
+  const cleAjout = `ajout-lot:${parc.id}:${brute.id}`;
+  const ajout = el('details', { class: 'ajout-lot', open: ouvertes.has(cleAjout) || lots.length === 0 ? '' : null },
+    el('summary', {}, 'Ajouter un lot'),
+    formulaire,
+    zone);
+  ajout.addEventListener('toggle', () => (ajout.open ? ouvertes.add(cleAjout) : ouvertes.delete(cleAjout)));
+  return el('div', { class: 'lots-parc' },
+    el('h5', {}, `Lots et configs, parc ${parc.nom}`),
+    lots.length ? el('ul', { class: 'liste-lots' }, lots.map((lot) => elementLot(parc, brute, resolue, lot))) : null,
+    ajout);
+}
+
+// Version du logiciel ou du firmware d'un processeur du parc, et date du relevé.
+function formulaireLogiciel(parc, brute, resolue) {
+  const logiciel = logicielDuProcesseur(resolue);
+  const actuel = logicielParc(ctx.base, parc.id, brute.id) ?? {};
+  const prefixe = `logiciel-${parc.id}-${brute.id}`;
+  const formulaire = el('form', { class: 'formulaire reglage-parc', novalidate: '' },
+    champTexte(`${prefixe}-version`, 'version', `Version de ${logiciel} ou du firmware, dans ce parc`, actuel.version, { placeholder: 'non relevée' }),
+    champTexte(`${prefixe}-date`, 'dateReleve', 'Date du relevé', actuel.dateReleve, { type: 'date' }),
+    el('p', { class: 'compte' }, 'Laisse la version vide pour retirer le relevé.'),
+    el('button', { class: 'bouton', type: 'submit' }, 'Enregistrer pour ce parc'));
+  formulaire.addEventListener('submit', (evenement) => {
+    evenement.preventDefault();
+    const donnees = new FormData(formulaire);
+    enregistrer(reglerLogicielParc(ctx.base, parc.id, resolue, { version: donnees.get('version'), dateReleve: donnees.get('dateReleve') }));
   });
   return formulaire;
 }
@@ -167,7 +599,8 @@ function elementFiche(type, { brute, resolue }) {
     const caseParc = el('input', { type: 'checkbox', checked: membre ? '' : null });
     caseParc.addEventListener('change', () => enregistrer(basculerMembre(ctx.base, parc.id, type, brute.id)));
     return el('div', {}, el('label', { class: 'case' }, caseParc, el('span', {}, parc.nom)),
-      type === 'dalle' && membre ? formulaireReglage(parc, brute, resolue) : null);
+      type === 'dalle' && membre ? [formulaireReglage(parc, brute, resolue), sectionLots(parc, brute, resolue)] : null,
+      type === 'processeur' && membre ? formulaireLogiciel(parc, brute, resolue) : null);
   });
 
   const actions = [];
@@ -202,9 +635,14 @@ function elementFiche(type, { brute, resolue }) {
         brute.statut === 'information' ? badge('information, à compléter', 'badge-alerte')
           : (manquants.length ? badge(type === 'dalle' ? 'incomplète' : 'à compléter', 'badge-alerte') : null),
         parcs.filter((p) => estMembre(ctx.base, p.id, type, brute.id)).map((p) => {
+          if (type === 'processeur') {
+            const l = logicielParc(ctx.base, p.id, brute.id);
+            return badge(l ? `${p.nom} : ${l.logiciel} ${l.version}` : p.nom, 'badge-a-venir');
+          }
           const r = reglageDalleParc(ctx.base, p.id, brute.id);
           const carte = r ? [r.carteReceptionMarque, r.carteReceptionModele].filter(Boolean).join(' ') : '';
-          return badge(carte ? `${p.nom} : ${carte}` : p.nom, 'badge-a-venir');
+          const lots = type === 'dalle' ? lotsDalleParc(ctx.base, p.id, brute.id).length : 0;
+          return badge(`${p.nom}${carte ? ` : ${carte}` : ''}${lots ? `, ${pluriel(lots, 'lot', 'lots')}` : ''}`, 'badge-a-venir');
         }))),
     el('div', { class: 'cas-corps formulaire' },
       el('p', { class: 'source' }, `Identifiant : ${brute.id}${resolue.alias ? ` ; aussi appelée ${[].concat(resolue.alias).join(', ')}` : ''}`),
@@ -260,16 +698,37 @@ function champGuide(type, c) {
         TYPES_VALEUR.map((t) => el('option', { value: t, selected: t === AVEC_TYPE[c.nom] ? '' : null }, t)))));
 }
 
+// Dalles compatibles d'un bumper : groupées par marque et par gamme, avec la recherche du Mur (nom ou pitch).
+// La recherche masque les cases sans les retirer : les cases cochées restent cochées.
+function choixCompatibles() {
+  const dalles = fichesDuType('dalle').filter(({ brute }) => brute.statut !== 'information').map(({ resolue }) => resolue);
+  const arbre = arbreDalles(dalles);
+  const recherche = el('input', { type: 'search', autocomplete: 'off', placeholder: 'BP2, URMIII03, 2,6…', 'aria-label': 'Rechercher une dalle compatible' });
+  const marques = arbre.map((m) => el('details', { class: 'groupe-marque' },
+    el('summary', {}, m.marque),
+    m.gammes.map((g) => el('div', { class: 'groupe-gamme' },
+      el('p', { class: 'compte' }, g.gamme),
+      g.fiches.map((f) => el('label', { class: 'case', 'data-id': f.id },
+        el('input', { type: 'checkbox', name: 'compatibles', value: f.id }), el('span', {}, f.libelle)))))));
+  recherche.addEventListener('input', () => {
+    const q = recherche.value.trim();
+    const gardees = new Set(arbreDalles(dalles, { recherche: q }).flatMap((m) => m.gammes.flatMap((g) => g.fiches.map((f) => f.id))));
+    for (const label of recherche.closest('fieldset').querySelectorAll('label[data-id]')) label.hidden = !gardees.has(label.dataset.id);
+    for (const groupe of recherche.closest('fieldset').querySelectorAll('.groupe-gamme')) groupe.hidden = !groupe.querySelector('label:not([hidden])');
+    for (const details of marques) {
+      details.hidden = !details.querySelector('label:not([hidden])');
+      if (q) details.open = !details.hidden;
+    }
+  });
+  return el('fieldset', { class: 'groupe formulaire' }, el('legend', {}, 'Dalles compatibles'), recherche, marques);
+}
+
 function construireGuidee() {
   const type = $('guidee-type').value;
   const champs = CHAMPS[type];
   const groupe = (titre, liste) => (liste.length ? el('fieldset', { class: 'groupe formulaire' }, el('legend', {}, titre), liste.map((c) => champGuide(type, c))) : null);
   const facultatifs = champs.filter((c) => !c.niveau);
-  const compatibles = type === 'bumper'
-    ? el('fieldset', { class: 'groupe formulaire' }, el('legend', {}, 'Dalles compatibles'),
-      fichesDuType('dalle').map(({ brute, resolue }) => el('label', { class: 'case' },
-        el('input', { type: 'checkbox', name: 'compatibles', value: brute.id }), el('span', {}, resolue.nom))))
-    : null;
+  const compatibles = type === 'bumper' ? choixCompatibles() : null;
   remplacer($('guidee-champs'),
     el('p', { class: 'note' }, '* obligatoire pour enregistrer. Un champ laissé vide reste vide : l\'appli ne devine jamais une valeur.'),
     groupe('Obligatoires pour enregistrer', champs.filter((c) => c.niveau === 'enregistrer')),
@@ -433,22 +892,37 @@ function dateDuJour() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function exporterBase() {
+async function exporterBase() {
   const tout = $('exporter-tout').checked;
+  const avecJoints = $('exporter-fichiers').checked;
   const { base } = ctx;
   if (!tout && base.fiches.length === 0 && base.parcs.length === 0) {
     remplacer($('rapport-import'), alerte('Ta base est vide : rien à exporter. Coche « Tout exporter » pour la base complète.', 'alerte-info'));
     return;
   }
-  const donnees = exporter(base, ctx.depart, { tout });
+  // Fichiers joints : seulement sur demande, lus sur l'appareil ; ceux qui manquent sont signalés.
+  let fichiers = null;
+  const manquants = [];
+  if (avecJoints) {
+    fichiers = [];
+    for (const f of fichiersJoints(base)) {
+      const lu = await lireFichier(f.id);
+      if (lu) fichiers.push(lu);
+      else manquants.push(f.nom);
+    }
+  }
+  const donnees = exporter(base, ctx.depart, { tout, fichiers });
   const url = URL.createObjectURL(new Blob([JSON.stringify(donnees, null, 2)], { type: 'application/json' }));
   const lien = el('a', { href: url, download: `mur-led-base-${dateDuJour()}.json` });
   document.body.append(lien);
   lien.click();
   lien.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  remplacer($('rapport-import'), alerte(`Export : ${pluriel(donnees.fiches.length, 'fiche', 'fiches')}, ${pluriel(donnees.parcs.length, 'parc', 'parcs')}`
-    + `${tout ? ', base de départ comprise' : ''}.`, 'alerte-ok'));
+  remplacer($('rapport-import'),
+    alerte(`Export : ${pluriel(donnees.fiches.length, 'fiche', 'fiches')}, ${pluriel(donnees.parcs.length, 'parc', 'parcs')}`
+      + `${tout ? ', base de départ comprise' : ''}`
+      + `${fichiers ? `, ${pluriel(fichiers.length, 'fichier joint', 'fichiers joints')} (${taille(fichiers.reduce((s, f) => s + f.contenu.byteLength, 0))})` : ', sans les fichiers joints'}.`, 'alerte-ok'),
+    manquants.length ? alerte(`Absents de cet appareil, donc pas dans l'export : ${manquants.join(', ')}.`) : null);
 }
 
 async function importerFichier() {
@@ -461,10 +935,20 @@ async function importerFichier() {
     return;
   }
   const texte = await fichier.text();
-  const { base, rapport } = importer(ctx.base, texte, ctx.depart, { mode });
+  const { base, rapport, fichiers } = importer(ctx.base, texte, ctx.depart, { mode });
   // Fichier illisible : ma base reste telle quelle, même en mode « remplacer ».
-  const stocke = rapport.erreurs.length ? true : await enregistrer(base);
+  if (!rapport.erreurs.length) {
+    for (const f of fichiers) {
+      await ecrireFichier(f.id, f);
+      surAppareil?.push({ id: f.id, nom: f.nom, taille: f.contenu.byteLength });
+    }
+  }
+  const stocke = rapport.erreurs.length ? true : await enregistrer(migrerFichiersConfig(base));
   afficherRapport($('rapport-import'), rapport, stocke, `Import de ${fichier.name}${mode === 'remplacer' && !rapport.erreurs.length ? ' (base remplacée)' : ''}`);
+  if (!rapport.erreurs.length && fichiers.length) {
+    $('rapport-import').append(alerte(`${pluriel(fichiers.length, 'fichier joint rangé', 'fichiers joints rangés')} sur cet appareil `
+      + `(${taille(fichiers.reduce((s, f) => s + f.contenu.byteLength, 0))}).`, 'alerte-ok'));
+  }
   champ.value = '';
 }
 
@@ -475,6 +959,7 @@ export function actualiserEcranBase(contexte) {
   afficherEtat();
   afficherParcs();
   afficherFiches();
+  rafraichirFichiers();
 }
 
 // `enregistrerBase(nouvelle)` enregistre ma base, met à jour tous les onglets et renvoie false si le stockage a échoué.

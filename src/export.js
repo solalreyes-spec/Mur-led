@@ -145,6 +145,31 @@ export function modeEnregistrement(nav, fichiers) {
   }
 }
 
+// Fichier de config à envoyer : feuille de partage si l'appareil sait partager ce fichier (canShare, testé avec le vrai
+// fichier), sinon téléchargement vers Fichiers, avec la note pour la régie.
+export const NOTE_TELECHARGEMENT_CONFIG = 'Fichier enregistré dans Fichiers (Téléchargements) : depuis Fichiers, AirDrop vers le PC de régie.';
+export function choixPartageFichier(nav, fichiers) {
+  return modeEnregistrement(nav, fichiers) === 'partage' ? { mode: 'partage', note: null } : { mode: 'telechargement', note: NOTE_TELECHARGEMENT_CONFIG };
+}
+
+// Partage (ou télécharge) un fichier joint. Renvoie { mode : 'partage', 'annule' ou 'telechargement', note }.
+// À appeler depuis un appui.
+export async function partagerFichier(contenu, nom, type, { nav = globalThis.navigator, telecharger: secours = telecharger } = {}) {
+  const blob = new Blob([contenu], { type: type || 'application/octet-stream' });
+  const fichier = new File([blob], nom, { type: blob.type });
+  const choix = choixPartageFichier(nav, [fichier]);
+  if (choix.mode === 'partage') {
+    try {
+      await nav.share({ files: [fichier], title: nom });
+      return choix;
+    } catch (erreur) {
+      if (erreur?.name === 'AbortError') return { mode: 'annule', note: null };
+    }
+  }
+  secours(blob, nom);
+  return { mode: 'telechargement', note: NOTE_TELECHARGEMENT_CONFIG };
+}
+
 // Enregistre une image : partage d'abord, téléchargement en secours si le navigateur refuse le partage.
 // Renvoie 'partage', 'annule' (feuille fermée par l'utilisateur) ou 'telechargement'. À appeler depuis un appui.
 export async function enregistrer(blob, nom, { nav = globalThis.navigator, telecharger: secours = telecharger } = {}) {

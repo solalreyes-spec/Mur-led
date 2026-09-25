@@ -54,13 +54,15 @@ export const DONNEES = [
   },
   {
     id: 'D3',
-    titre: 'Pitch de la fiche contrôlé par largeur / pixels (à 0,01 mm près)',
+    titre: 'Pitch de la fiche contrôlé par largeur / pixels : à 0,01 mm près, à 0,1 mm pour un pitch « nominal » (nom commercial) ; fiche sans pitch ignorée (le Mur le calcule)',
     etape: 1,
     verifier(v, contexte) {
       const base = lireBase(contexte);
       for (const f of base.dalles) {
         const d = calculs.resoudreFiche(f, base.sources);
-        v.proche(`${f.id} : ${d.largeurMm} / ${d.pxH}`, calculs.pitchCalculeMm(d), d.pitchMm, 0.01);
+        if (d.pitchMm === undefined) continue;
+        const nominal = d.sources.pitchMm.type === 'nominal';
+        v.proche(`${f.id} : ${d.largeurMm} / ${d.pxH}${nominal ? ' (nominal)' : ''}`, calculs.pitchCalculeMm(d), d.pitchMm, nominal ? 0.1 : 0.01);
       }
     },
   },
@@ -131,7 +133,7 @@ export const DONNEES = [
       const base = lireBase(contexte);
       const ids = (valeur) => valeur.sources.map((s) => s.id);
       const bp2 = calculs.resoudreFiche(fiche(base, 'roe-bp2-v2'), base.sources);
-      v.egal('BP2 V2 : 190 W, sources', ids(bp2.sources.pMaxW), ['roe-manuel-black-onyx-pearl-v1-8', '4wall-bp2-v2']);
+      v.egal('BP2 V2 : 190 W, sources', ids(bp2.sources.pMaxW), ['roe-manuel-black-onyx-pearl-v1-8', '4wall-bp2-v2', 'roe-page-produit-black-pearl']);
       v.egal('BP2 V2 : 160 et 185 W, sources', bp2.sources.pMaxW.autres.map(ids), [['roe-brochure-bp2-v2-2021-03'], ['roe-fiche-bp2-v2-2021-05']]);
       v.egal('BP2 V2 : P moyenne retenue (W)', bp2.pMoyW, 95);
       v.egal('BP2 V2 : autres P moyennes (W)', bp2.sources.pMoyW.autres.map((x) => x.valeur), [80, 92]);
@@ -231,11 +233,26 @@ export const DONNEES = [
     verifier(v, contexte) {
       const base = lireBase(contexte);
       const ids = (valeur) => valeur.sources.map((s) => s.id);
+      // Étape 2b (7 fiches), puis le catalogue ROE, Unilumin et LEDECA du 25/09/2026 (96 fiches), dans l'ordre du fichier.
       v.egal('nouvelles dalles', base.dalles.map((f) => f.id).filter((id) => !IDS_REFERENCE.includes(id)), [
-        'unilumin-upad-iv-2-6', 'unilumin-upad-iv-2-6-pro', 'infiled-ar3-9', 'infiled-ar3-91-mk2-plus', 'infiled-ez2-6-mk2', 'absen-m2-9', 'absen-jp5-pro',
+        'unilumin-upad-iv-2-6', 'unilumin-upad-iv-2-6-pro', 'infiled-ar3-9', 'infiled-ar3-91-mk2-plus', 'infiled-ez2-6-mk2', 'absen-m2-9',
+        'absen-jp5-pro', 'roe-bo2', 'roe-bo3', 'roe-bp2', 'roe-bp3', 'roe-cb3', 'roe-cb3-demi', 'roe-cb5', 'roe-cb5-demi', 'roe-cb8', 'roe-cb8-demi',
+        'roe-cb3-mkii-demi', 'roe-cb8-mkii', 'roe-cb8-mkii-demi', 'roe-bq3-9', 'roe-bq3-9-demi', 'roe-bq4-6', 'roe-bq4-6-demi', 'roe-bq6-2',
+        'roe-bq6-2-demi', 'roe-rb1-2', 'roe-rb1-5', 'roe-rb1-5f', 'roe-rb1-9b-v2', 'roe-rb2-3', 'roe-rb2-6f', 'roe-rb2-6', 'roe-rb-c1-9b-v2',
+        'roe-rb-c1-9f', 'roe-rb-c2-6', 'roe-tp1-5', 'roe-tp-c1-5', 'roe-tp1-9', 'roe-tp-c1-9', 'roe-tp-b1-9', 'roe-tp2-2', 'roe-tp-c2-2',
+        'roe-tp-b2-2', 'roe-tp2-6', 'roe-tp-c2-6', 'roe-tp-b2-6', 'roe-dm2-6', 'roe-dm3-9', 'roe-gp2-6-4en1', 'roe-gp2-6-4en1-demi', 'roe-gp2-6',
+        'roe-gp2-6-demi', 'roe-gp3-1', 'roe-gp3-1-demi', 'roe-gp3-9', 'roe-gp3-9-demi', 'roe-jt1-9', 'roe-jt2-2', 'roe-jt2-2-demi', 'roe-jt2-6',
+        'roe-jt2-6-demi', 'roe-jt3-1', 'roe-jt3-1-demi', 'roe-jt3-9', 'roe-jt3-9-demi', 'roe-v3st', 'roe-v4st', 'roe-v6st', 'roe-ob2-6', 'roe-bm2',
+        'roe-bm4', 'unilumin-urmiii2-500x1000', 'unilumin-urmiii2-500x500', 'unilumin-urmiii3-500x1000', 'unilumin-urmiii3-500x500',
+        'unilumin-urmiii03-500x1000', 'unilumin-urmiii03-500x500', 'unilumin-urmiii04-500x1000', 'unilumin-urmiii04-500x500', 'unilumin-urmiii2-6',
+        'unilumin-upad-iv-1-9-pro-f', 'unilumin-upad-iv-1-9-pro-xr', 'unilumin-upad-iv-1-5-mip', 'unilumin-upad-iv-s', 'unilumin-upad-iv-c',
+        'ledeca-ldaosp03-9st', 'ledeca-ldaosp04-8st', 'ledeca-ldaisp03-9st', 'ledeca-ldaisp02-9st', 'ledeca-ldaisp02-6stq', 'ledeca-ldaisp01-9stq',
+        'ledeca-ldsosp03-9st-500x500', 'ledeca-ldsosp03-9st-500x1000', 'ledeca-ldsisp03-9st-500x500', 'ledeca-ldsisp03-9st-500x1000',
+        'ledeca-ldsisp02-9st-500x500', 'ledeca-ldsisp02-9st-500x1000', 'ledeca-ldsisp02-6st', 'ledeca-ldcosp03-9st', 'ledeca-ldcosp02-9st',
+        'ledeca-ldcisp03-9st', 'ledeca-ldcisp02-9st',
       ]);
       const upad = calculs.resoudreFiche(fiche(base, 'unilumin-upad-iv-2-6'), base.sources);
-      v.egal('Upad IV 2.6 : P max retenue 165 W, LEDwallcentral (8 scan)', [upad.pMaxW, ids(upad.sources.pMaxW)], [165, ['ledwallcentral-upad-iv-2-6']]);
+      v.egal('Upad IV 2.6 : P max retenue 165 W, LEDwallcentral (8 scan) et fiche Unilumin V1.3', [upad.pMaxW, ids(upad.sources.pMaxW)], [165, ['ledwallcentral-upad-iv-2-6', 'unilumin-fiche-upad-iv-2-6-v1-3']]);
       v.egal('Upad IV 2.6 : 120 W (4Wall Europe, fiche Unilumin), 150 W (LMG)',
         upad.sources.pMaxW.autres.map((x) => [x.valeur, ids(x)]), [[120, ['4wall-europe-upad-iv-2-6', 'unilumin-fiche-upad-iv-2-6']], [150, ['lmg-upad-iv-2-6']]]);
       v.egal('Upad IV 2.6 : P moyenne retenue 58 W', upad.pMoyW, 58);
@@ -614,6 +631,10 @@ export const DONNEES = [
           || !['constructeur', 'constructeur, copie hébergée par un tiers'].includes(bd.sources[source]?.confiance);
       }).map(([id, champ]) => `${id}.${champ}`);
       v.egal('dalles : valeurs confirmées, source constructeur (ou sa copie hébergée par un tiers)', fautes, []);
+      const u16 = bd.sources['unilumin-fiche-upad-iv-2-6'];
+      v.egal('Upad IV 2.6, fiche Unilumin scan 1/16 (SMD1515-16) : adresse, constructeur, date non indiquée dans le document',
+        [u16?.url, u16?.confiance, u16?.date, /01\/2022/.test(u16?.dateTexte ?? '')],
+        ['https://www.unilumin-usa.com/wp-content/uploads/2022/01/UpadIV2.6-SMD1515-16-Specifications-Sheet.pdf', 'constructeur', null, true]);
       v.egal('BP2 V2 : carte non donnée par ROE, elle reste au parc', d('roe-bp2-v2').carteReceptionMarque, undefined);
       v.egal('CB5 MKII demi : 6,5 kg du manuel non retenu', d('roe-cb5-mkii-demi').sources.poidsKg.autres.filter((x) => x.nonRetenue).map((x) => [x.valeur, ids(x)]), [[6.5, ['roe-manuel-carbon-mkii-v1-8']]]);
       // Règle 2 : la valeur constructeur plus basse est visible, la valeur retenue ne change pas.
@@ -813,29 +834,172 @@ export const DONNEES = [
   },
   {
     id: 'D35',
-    titre: 'LEDCAST : fiches « information », une par pitch, source page produit ledcast.fr consultée le 25/09/2026, exclues du calcul',
-    etape: 'ledcast',
+    titre: 'Fiches « information » : plus aucune fiche ni source LEDCAST (erreur de marque) ; LEDECA LDSOSP04.8ST (fiche erronée sur le site), exclue du calcul',
+    etape: 'catalogue',
     verifier(v, contexte) {
       const base = lireBase(contexte);
-      const infos = (base.informations ?? []).map((f) => calculs.resoudreFiche(f, base.sources));
-      v.egal('32 fiches LEDCAST, toutes « information »', [infos.length, infos.every((f) => f.marque === 'LEDCAST' && f.statut === 'information')], [32, true]);
-      v.egal('aucune dans les dalles utilisables', base.dalles.some((d) => d.marque === 'LEDCAST'), false);
-      const noms = infos.map((f) => f.nom);
-      v.egal('une ligne par pitch (Titan-MX Miniled, Flex, Floor Indoor)', ['LEDCAST Titan-MX Miniled 1.9', 'LEDCAST Titan-MX Miniled 2.6', 'LEDCAST Flex 1.8', 'LEDCAST Flex 2', 'LEDCAST Flex 2.5', 'LEDCAST Flex 3',
-        'LEDCAST Floor Indoor 1.5', 'LEDCAST Floor Indoor 3.9', 'LEDCAST E.Light-R 1.9 COB', 'LEDCAST Titan Miniled Corner', 'LEDCAST Symphonie', 'LEDCAST Banner XL 10'].every((n) => noms.includes(n)), true);
-      const f = (nom) => infos.find((x) => x.nom === nom);
-      v.egal('Titan-MX Miniled : 7680 Hz, courbe de −6° à +6°', [f('LEDCAST Titan-MX Miniled 1.9').rafraichissementHz, f('LEDCAST Titan-MX Miniled 1.9').courbure], [7680, '−6° à +6°']);
-      v.egal('Hydra : courbe ±5°', f('LEDCAST Hydra 2.6').courbure, '±5°');
-      v.egal('E.Light-R : 5 kg sur les trois pitchs', ['1.9 COB', '2.6', '2.9'].map((x) => f(`LEDCAST E.Light-R ${x}`).poidsKg), [5, 5, 5]);
-      v.vrai('Floor Indoor : charge de 2 t/m² signalée', /2 t\/m²/.test(f('LEDCAST Floor Indoor 2.6').note));
-      v.egal('Goldwin Outdoor : IP65, formats 500 × 500 et 500 × 1000 signalés', [f('LEDCAST Goldwin Outdoor 3.9').indiceIP, /500 × 500 et 500 × 1000/.test(f('LEDCAST Goldwin Outdoor 3.9').note)], ['IP65', true]);
-      v.egal('Starter+ et Starter 2 Outdoor : IP65', [f('LEDCAST Starter+ Outdoor 4.8').indiceIP, f('LEDCAST Starter 2 Outdoor 3.9').indiceIP], ['IP65', 'IP65']);
-      v.vrai('Symphonie : pitch de 5 à 16 mm signalé', /5 à 16/.test(f('LEDCAST Symphonie').note));
-      v.egal('Banner XL : pitch 10, 7000 cd/m²', [f('LEDCAST Banner XL 10').pitchMm, f('LEDCAST Banner XL 10').luminositeNits], [10, 7000]);
-      const sources = new Set(infos.flatMap((x) => Object.values(x.sources).map((s) => s.source.id)));
-      v.vrai('sources : pages produit ledcast.fr, consultées le 25/09/2026, avec leur adresse',
-        [...sources].every((id) => /ledcast\.fr/.test(base.sources[id]?.url ?? '') && base.sources[id]?.date === '2026-09-25'));
-      v.egal('exclues du calcul : pixels et dimensions absents, fiche non enregistrable telle quelle', infos.every((x) => !x.pxH && !x.largeurMm), true);
+      const toutes = [...base.dalles, ...base.gabarits, ...(base.informations ?? [])];
+      v.egal('aucune fiche LEDCAST', toutes.filter((f) => f.marque === 'LEDCAST' || f.id.startsWith('ledcast')).map((f) => f.id), []);
+      v.egal('aucune source ledcast.fr', Object.entries(base.sources).filter(([id, s]) => /ledcast/i.test(`${id} ${s.url ?? ''} ${s.titre}`)).map(([id]) => id), []);
+      const brute = (base.informations ?? []).find((f) => f.id === 'ledeca-ldsosp04-8st');
+      const info = brute && calculs.resoudreFiche(brute, base.sources);
+      v.egal('LDSOSP04.8ST : fiche d\'information, gamme Smart, 4,8 mm, extérieur', [info?.statut, info?.marque, info?.gamme, info?.pitchMm, info?.usage], ['information', 'LEDECA', 'Smart', 4.8, 'extérieur']);
+      v.vrai('LDSOSP04.8ST : fiche erronée signalée (le PDF décrit un modèle intérieur 2,6 mm)', /erronée/.test(info?.note ?? '') && /2,6 mm/.test(info?.note ?? ''));
+      v.vrai('LDSOSP04.8ST : pitch lu sur la page STAGE de ledeca.com, adresse du PDF erroné dans la note', /ledeca\.com\/en\/stage/.test(base.sources[info?.sources.pitchMm.source.id]?.url ?? '')
+        && /ledeca\.com\/pdf\/LDSOSP04\.8ST\.pdf/.test(info?.note ?? ''));
+      v.egal('fiches d\'information : jamais de largeur ni de hauteur, donc hors calcul', (base.informations ?? []).filter((f) => f.largeurMm || f.hauteurMm).map((f) => f.id), []);
+    },
+  },
+  {
+    id: 'D36',
+    titre: 'Catalogue ROE du 25/09/2026 : une fiche par version, source de chaque gamme, demi-dalles reliées, chaînage 20 des BO et BP, gammes non relevées en information',
+    etape: 'catalogue',
+    verifier(v, contexte) {
+      const base = lireBase(contexte);
+      const d = (id) => calculs.resoudreFiche(fiche(base, id), base.sources);
+      const ids = (s) => s.sources.map((x) => x.id);
+      const roe = base.dalles.filter((f) => f.marque === 'ROE');
+      const parGamme = {};
+      for (const f of roe) parGamme[f.gamme] = (parGamme[f.gamme] ?? 0) + 1;
+      const trie = (o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
+      v.egal('fiches par gamme', trie(parGamme), trie({
+        'Black Onyx': 2, 'Black Pearl': 3, Carbon: 6, 'Carbon MKII': 6, 'Black Quartz': 6, Ruby: 7, 'Ruby-C': 3, Topaz: 11,
+        Diamond: 2, Graphite: 8, Jet: 9, 'Vanish ST': 3, Obsidian: 1, 'Black Marble': 2,
+      }));
+      const champs = (f, noms) => noms.map((n) => f[n]);
+      const DIM = ['pitchMm', 'largeurMm', 'hauteurMm', 'profondeurMm', 'pxH', 'pxV', 'poidsKg', 'pMaxW', 'pMoyW', 'maxAccroche', 'maxStack'];
+      v.egal('BO2 (manuel V1.8)', champs(d('roe-bo2'), DIM), [2.84, 500, 500, 90, 176, 176, 9.35, 160, 80, 20, 12]);
+      v.egal('BO2 : source, manuel Black Onyx & Pearl V1.8', ids(d('roe-bo2').sources.pxH), ['roe-manuel-black-onyx-pearl-v1-8']);
+      v.egal('BP3', champs(d('roe-bp3'), ['pitchMm', 'pxH', 'poidsKg', 'pMaxW', 'courbure']), [3.91, 128, 8.7, 170, 'concave 10°']);
+      v.egal('chaînage BO et BP : 20 dalles par câble (manuel V1.8), 10 à 110 V en note',
+        [...['roe-bo2', 'roe-bo3', 'roe-bp2', 'roe-bp2-v2', 'roe-bp3'].map((id) => d(id).chainagePowerMax), /110 V/.test(d('roe-bp2-v2').sources.chainagePowerMax.note ?? '')], [20, 20, 20, 20, 20, true]);
+      const bp2 = d('roe-bp2-v2');
+      v.egal('BP2 V2 : valeurs retenues inchangées (190 W, 95 W, 9,35 kg, 20 / 12)', champs(bp2, ['pMaxW', 'pMoyW', 'poidsKg', 'maxAccroche', 'maxStack']), [190, 95, 9.35, 20, 12]);
+      v.vrai('BP2 V2 : page produit ROE ajoutée aux 190 W', ids(bp2.sources.pMaxW).includes('roe-page-produit-black-pearl'));
+      v.egal('BP2 V2 à 16 A : 14 dalles par ligne (puissance), pas 20 (câble)', (() => {
+        const r = calculs.electricite(calculs.mur(bp2, 10, 4), bp2, {});
+        return [r.dallesParLigne.retenu, r.dallesParLigne.chainage, r.dallesParLigne.limite];
+      })(), [14, 20, 'puissance']);
+      v.egal('CB8 (Carbon)', champs(d('roe-cb8'), [...DIM, 'indiceIP']), [8.33, 600, 1200, 72, 72, 144, 12.68, 430, 220, 12, 5, 'IP65']);
+      v.egal('CB8 demi, reliée', [...champs(d('roe-cb8-demi'), ['hauteurMm', 'pxV', 'poidsKg', 'pMaxW', 'maxAccroche', 'maxStack']), d('roe-cb8').demiDalle, d('roe-cb8-demi').demiDe],
+        [600, 72, 7.05, 220, 24, 10, 'roe-cb8-demi', 'roe-cb8']);
+      v.egal('CB3 (Carbon) : IP40', d('roe-cb3').indiceIP, 'IP40');
+      v.egal('Carbon MKII : CB8 MKII et sa demi', [...champs(d('roe-cb8-mkii'), ['profondeurMm', 'poidsKg', 'pMaxW', 'pMoyW']), ...champs(d('roe-cb8-mkii-demi'), ['poidsKg', 'pMaxW'])], [79, 11, 530, 260, 6, 260]);
+      v.egal('CB3 MKII : demi-dalle reliée, valeurs retenues inchangées, P moyenne ajoutée', [d('roe-cb3-mkii').demiDalle, d('roe-cb3-mkii').poidsKg, d('roe-cb3-mkii').pMaxW, d('roe-cb3-mkii').pMoyW, d('roe-cb3-mkii-demi').poidsKg],
+        ['roe-cb3-mkii-demi', 14.4, 600, 300, 7.8]);
+      v.egal('BQ3.9 et sa demi (accroche non donnée)', [...champs(d('roe-bq3-9'), ['profondeurMm', 'pxV', 'poidsKg', 'pMaxW', 'maxAccroche', 'maxStack', 'indiceIP']), d('roe-bq3-9-demi').poidsKg, d('roe-bq3-9-demi').maxAccroche],
+        [82.62, 256, 22, 360, 13, 6, 'IP65', 9.8, undefined]);
+      const rb = d('roe-rb2-6f');
+      v.egal('RB2.6F (fiche Ruby, copie CPL)', [...champs(rb, ['pitchMm', 'profondeurMm', 'pxH', 'poidsKg', 'pMaxW', 'courbure']), rb.sources.pxH.source.confiance, rb.sources.pxH.source.date],
+        [2.604, 73, 192, 8.02, 210, 'concave 5° à convexe 5°', 'constructeur, copie hébergée par un tiers', '2023-09']);
+      v.egal('RB-C2.6 : 108 mm, IP40, courbe ±30°', champs(d('roe-rb-c2-6'), ['profondeurMm', 'indiceIP', 'courbure']), [108, 'IP40', 'concave 30° à convexe 30°']);
+      v.egal('Topaz : TP-B2.6 (72,19 mm, 16 / 12), TP2.6 sans profondeur', [...champs(d('roe-tp-b2-6'), ['profondeurMm', 'poidsKg', 'maxAccroche']), d('roe-tp2-6').profondeurMm], [72.19, 9.08, 16, undefined]);
+      v.egal('DM3.9', champs(d('roe-dm3-9'), ['pitchMm', 'pxH', 'poidsKg', 'pMaxW', 'pMoyW']), [3.906, 128, 5.76, 150, 80]);
+      v.egal('GP2.6 4 en 1 et sa demi, pitch non relevé', [...champs(d('roe-gp2-6-4en1'), ['hauteurMm', 'pxV', 'poidsKg', 'pMaxW', 'pitchMm']), d('roe-gp2-6-4en1-demi').poidsKg, d('roe-gp2-6-4en1').demiDalle],
+        [1000, 384, 8.6, 250, undefined, 5.1, 'roe-gp2-6-4en1-demi']);
+      v.egal('JT1.9 (GOB) et JT3.9 demi', [...champs(d('roe-jt1-9'), ['pxH', 'poidsKg', 'maxAccroche', 'courbure']), d('roe-jt3-9-demi').pMoyW], [256, 6.1, 24, 'concave 5°', 72.5]);
+      v.egal('V6ST', champs(d('roe-v6st'), ['pitchMm', 'largeurMm', 'pxH', 'poidsKg', 'pMaxW', 'maxAccroche', 'maxStack', 'indiceIP', 'usage']), [6.94, 1000, 144, 34.3, 700, 20, 6, 'IP65', 'extérieur']);
+      v.egal('OB2.6', champs(d('roe-ob2-6'), ['profondeurMm', 'poidsKg', 'pMaxW', 'indiceIP', 'maxStack']), [74.6, 5.4, 220, 'IP63', 20]);
+      const bm4 = d('roe-bm4');
+      v.egal('BM4 : 23,4 kg retenu, 17,5 kg visible selon la finition', [bm4.poidsKg, bm4.sources.poidsKg.autres.map((x) => x.valeur), /finition/.test(bm4.sources.poidsKg.note ?? '')], [23.4, [17.5], true]);
+      v.egal('carte de réception jamais fixée sur une fiche ROE, note Brompton, MVR, Evision', [roe.filter((f) => f.carteReceptionMarque || f.carteReceptionModele).map((f) => f.id),
+        roe.filter((f) => !/Brompton.*MVR.*Evision/.test(f.note ?? '')).map((f) => f.id)], [[], []]);
+      const angles = (base.informations ?? []).filter((f) => f.gamme === 'Graphite').map((f) => calculs.resoudreFiche(f, base.sources));
+      v.egal('Graphite angle droit : deux fiches d\'information (angle, hors calcul d\'un mur plat)', [angles.length, angles.every((f) => /250 × 500 × 250/.test(f.note ?? '') && f.pxH === 192)], [2, true]);
+      const nonReleves = (base.informations ?? []).filter((f) => f.marque === 'ROE' && f.gamme !== 'Graphite').map((f) => calculs.resoudreFiche(f, base.sources));
+      v.egal('gammes non relevées : nom et pitch seulement', nonReleves.map((f) => [f.nom, f.pitchMm]), [
+        ['ROE RB-C2.3', 2.3], ['ROE V8T', 8.94], ['ROE Vanish intérieur 8.94', 8.94], ['ROE Vanish intérieur 5.68', 5.68], ['ROE BM5', 5.7],
+        ['ROE Jasper 2.6', 2.6], ['ROE Jasper 3.9', 3.9], ['ROE Jasper 5.2', 5.2], ['ROE Meru 1.9', 1.9], ['ROE Meru 2.6', 2.6],
+      ]);
+      v.egal('gammes non relevées : aucune autre valeur, source liste des produits ROE', nonReleves.filter((f) => Object.keys(f.sources).join() !== 'pitchMm'
+        || f.sources.pitchMm.source.id !== 'roe-liste-produits').map((f) => f.nom), []);
+      v.vrai('source des gammes non relevées : consultée le 25/09/2026', /liste des produits ROE/i.test(base.sources['roe-liste-produits']?.titre ?? '') && base.sources['roe-liste-produits']?.date === '2026-09-25');
+      const pages = Object.entries(base.sources).filter(([id]) => id.startsWith('roe-page-produit-') && !['roe-page-produit-cb5-mkii', 'roe-page-produit-carbon-mkii'].includes(id));
+      v.egal('pages produit ROE : adresse roevisual.com, consultées le 25/09/2026', pages.filter(([, s]) => !/roevisual\.com/.test(s.url ?? '') || s.date !== '2026-09-25').map(([id]) => id), []);
+    },
+  },
+  {
+    id: 'D37',
+    titre: 'Catalogue Unilumin : URMIII (poids des fiches, 500 × 500 reliées en demi-dalles), URMIII03 et Upad IV 2.6 en deux versions (la plus défavorable par défaut), nouvelles Upad IV',
+    etape: 'catalogue',
+    verifier(v, contexte) {
+      const base = lireBase(contexte);
+      const d = (id) => calculs.resoudreFiche(fiche(base, id), base.sources);
+      const ids = (s) => s.sources.map((x) => x.id);
+      const champs = (f, noms) => noms.map((n) => f[n]);
+      const urm = base.dalles.filter((f) => f.gamme === 'URMIII').map((f) => f.id);
+      v.egal('URMIII : 9 fiches', urm.length, 9);
+      const u2 = d('unilumin-urmiii2-500x1000');
+      v.egal('URMIII2 500 × 1000', champs(u2, ['pitchMm', 'largeurMm', 'hauteurMm', 'profondeurMm', 'pxH', 'pxV', 'poidsKg', 'pMaxW', 'pMoyW', 'indiceIP', 'usage']),
+        [2.9, 500, 1000, 83, 168, 336, 14, 240, 70, 'IP30', 'intérieur']);
+      v.egal('URMIII2 : 12,5 kg de la page produit visible, non retenu (fiche 14 kg)', [u2.sources.poidsKg.autres.map((x) => x.valeur), ids(u2.sources.poidsKg)], [[12.5], ['unilumin-fiche-urmiii2-v2-8']]);
+      v.egal('URMIII2 : fiche V2.8 du 03/2025, constructeur', [base.sources['unilumin-fiche-urmiii2-v2-8']?.date, base.sources['unilumin-fiche-urmiii2-v2-8']?.confiance], ['2025-03', 'constructeur']);
+      v.egal('URMIII2 500 × 500, demi-dalle de la 500 × 1000', [...champs(d('unilumin-urmiii2-500x500'), ['pxH', 'pxV', 'poidsKg', 'pMaxW']), u2.demiDalle, d('unilumin-urmiii2-500x500').demiDe],
+        [168, 168, 8, 120, 'unilumin-urmiii2-500x500', 'unilumin-urmiii2-500x1000']);
+      v.egal('URMIII2.6 : 500 × 500 seule', [d('unilumin-urmiii2-6').demiDe, d('unilumin-urmiii2-6').pMaxW], [null, 140]);
+      v.egal('URMIII04 : fiches V2.7 de 05/2024 (500 × 1000) et 05/2023 (500 × 500)',
+        [ids(d('unilumin-urmiii04-500x1000').sources.pxH), ids(d('unilumin-urmiii04-500x500').sources.pxH), base.sources['unilumin-fiche-urmiii04-500x1000-v2-7']?.date, base.sources['unilumin-fiche-urmiii04-500x500-v2-7']?.date],
+        [['unilumin-fiche-urmiii04-500x1000-v2-7'], ['unilumin-fiche-urmiii04-500x500-v2-7'], '2024-05', '2023-05']);
+      const u03 = d('unilumin-urmiii03-500x1000');
+      v.egal('URMIII03 500 × 1000 : deux versions', u03.declinaisons.map((x) => x.id), ['standard', 'black']);
+      v.egal('URMIII03 500 × 1000 : la plus défavorable par défaut (Black, scan 1/8)', champs(u03, ['pMaxW', 'pMoyW', 'scan', 'poidsKg']), [420, 150, '1/8', 14.6]);
+      v.egal('URMIII03 500 × 1000 : 335 W de la version standard visible', u03.sources.pMaxW.autres.map((x) => x.valeur), [335]);
+      v.egal('URMIII03 500 × 500 : 220 W par défaut, 170 W visible, demi-dalle de la 500 × 1000', [d('unilumin-urmiii03-500x500').pMaxW, d('unilumin-urmiii03-500x500').sources.pMaxW.autres.map((x) => x.valeur), u03.demiDalle],
+        [220, [170], 'unilumin-urmiii03-500x500']);
+      const upad = d('unilumin-upad-iv-2-6');
+      v.egal('Upad IV 2.6 : deux versions, 165 W par défaut (scan 1/8), confirmé par la fiche Unilumin V1.3', [upad.declinaisons.map((x) => x.id), upad.pMaxW, upad.scan, ids(upad.sources.pMaxW).includes('unilumin-fiche-upad-iv-2-6-v1-3'), upad.luminositeNits],
+        [['scan-1-8', 'scan-1-16'], 165, '1/8', true, 1500]);
+      v.egal('Upad IV 1.9 Pro F', champs(d('unilumin-upad-iv-1-9-pro-f'), ['pitchMm', 'profondeurMm', 'pxH', 'poidsKg', 'pMaxW', 'pMoyW', 'luminositeNits', 'scan']), [1.9, 72, 256, 7.6, 150, 50, 1500, '1/8']);
+      v.egal('Upad IV 1.9 Pro XR', champs(d('unilumin-upad-iv-1-9-pro-xr'), ['poidsKg', 'pMaxW', 'luminositeNits', 'scan']), [6.3, 130, 1200, '1/16']);
+      v.egal('Upad IV 1.5 MIP', champs(d('unilumin-upad-iv-1-5-mip'), ['pxH', 'pMaxW', 'pMoyW', 'luminositeNits', 'scan']), [320, 80, 25, 800, '1/27']);
+      v.egal('Upad IV-S (courbe ±40°) et IV-C (angle, 155 W, fiche « 150/155 »)', [d('unilumin-upad-iv-s').courbure, d('unilumin-upad-iv-s').pMaxW, d('unilumin-upad-iv-c').pMaxW, /150\/155/.test(d('unilumin-upad-iv-c').sources.pMaxW.note ?? '')],
+        ['±40°', 160, 155, true]);
+      v.egal('accroche et stack : non donnés par Unilumin', base.dalles.filter((f) => f.marque === 'Unilumin' && (f.maxAccroche || f.maxStack)).map((f) => f.id), []);
+    },
+  },
+  {
+    id: 'D38',
+    titre: 'Catalogue LEDECA : plafonds des fiches ramenés à la dalle (« plafond constructeur »), carte de réception inconnue, 168 px (Armour) et 172 px (Smart, Compact) en 2,9 mm',
+    etape: 'catalogue',
+    verifier(v, contexte) {
+      const base = lireBase(contexte);
+      const d = (id) => calculs.resoudreFiche(fiche(base, id), base.sources);
+      const champs = (f, noms) => noms.map((n) => f[n]);
+      const ledeca = base.dalles.filter((f) => f.marque === 'LEDECA');
+      const parGamme = {};
+      for (const f of ledeca) parGamme[f.gamme] = (parGamme[f.gamme] ?? 0) + 1;
+      v.egal('fiches par gamme', [parGamme.Armour, parGamme.Smart, parGamme.Compact, Object.keys(parGamme).length], [6, 7, 4, 3]);
+      const ldaosp = d('ledeca-ldaosp03-9st');
+      v.egal('LDAOSP03.9ST', champs(ldaosp, ['pitchMm', 'largeurMm', 'hauteurMm', 'pxH', 'pxV', 'poidsKg', 'pMaxW', 'pMoyW', 'luminositeNits', 'indiceIP', 'courbure', 'usage', 'rafraichissementHz']),
+        [3.9, 500, 1000, 128, 256, 15, 300, 60, 4500, 'IP54', '±6°', 'extérieur', 3840]);
+      v.egal('plafonds : type « plafond constructeur » (poids, P max, P moyenne)', ['poidsKg', 'pMaxW', 'pMoyW'].map((n) => ldaosp.sources[n].type), ['plafond constructeur', 'plafond constructeur', 'plafond constructeur']);
+      v.vrai('P max : 600 W/m² de la fiche, ramené à la dalle de 0,5 m²', /600 W\/m²/.test(ldaosp.sources.pMaxW.note ?? '') && /0,5 m²/.test(ldaosp.sources.pMaxW.note ?? ''));
+      v.egal('luminosité : 5000 nits visible', ldaosp.sources.luminositeNits.autres.map((x) => x.valeur), [5000]);
+      v.egal('500 × 500 : 150 W, 30 W, 8 kg', champs(d('ledeca-ldaisp03-9st'), ['pMaxW', 'pMoyW', 'poidsKg']), [150, 30, 8]);
+      v.egal('2,9 mm : 168 px en Armour, 172 px en Smart et Compact',
+        [d('ledeca-ldaisp02-9st').pxH, d('ledeca-ldsisp02-9st-500x500').pxH, d('ledeca-ldsisp02-9st-500x1000').pxV, d('ledeca-ldcosp02-9st').pxV], [168, 172, 344, 172 * 2]);
+      v.egal('Smart en deux formats : 500 × 500 et 500 × 1000', champs(d('ledeca-ldsosp03-9st-500x1000'), ['hauteurMm', 'poidsKg', 'pMaxW', 'indiceIP']), [1000, 13.9, 300, 'IP65 avant, IP54 arrière']);
+      v.vrai('Compact intérieur : 500 × 1000, option 500 × 500 signalée', d('ledeca-ldcisp03-9st').hauteurMm === 1000 && /500 × 500/.test(d('ledeca-ldcisp03-9st').note ?? ''));
+      v.egal('carte de réception inconnue, à demander au loueur', [ledeca.filter((f) => f.carteReceptionMarque || f.carteReceptionModele).map((f) => f.id), ledeca.every((f) => /loueur/.test(f.note ?? ''))], [[], true]);
+      v.vrai('sources : fiche PDF de ledeca.com de chaque modèle', ledeca.every((f) => {
+        const r = d(f.id);
+        return new RegExp(`ledeca\\.com/pdf/${f.modele.replace('.', '\\.')}\\.pdf`).test(base.sources[r.sources.pxH.source.id]?.url ?? '');
+      }));
+    },
+  },
+  {
+    id: 'D39',
+    titre: 'LEDECA, fiches relues le 25/09/2026 : poids « plafond constructeur » pour Armour (« <15kg », « <8kg ») et Compact (« <15kg »), poids constructeur ordinaire pour Smart (« 8,5kg & 13,9kg »…), P max et P moyenne en plafond pour toutes (« <600W », « <120W » par m²)',
+    etape: 'catalogue',
+    verifier(v, contexte) {
+      const base = lireBase(contexte);
+      const ledeca = base.dalles.filter((f) => f.marque === 'LEDECA').map((f) => calculs.resoudreFiche(f, base.sources));
+      const typePoids = (gamme) => [...new Set(ledeca.filter((d) => d.gamme === gamme).map((d) => d.sources.poidsKg.type ?? 'constructeur'))];
+      v.egal('poids : plafond en Armour et Compact, constructeur en Smart', [typePoids('Armour'), typePoids('Compact'), typePoids('Smart')],
+        [['plafond constructeur'], ['plafond constructeur'], ['constructeur']]);
+      v.egal('Smart : poids de la fiche', ['ledeca-ldsosp03-9st-500x500', 'ledeca-ldsosp03-9st-500x1000', 'ledeca-ldsisp03-9st-500x1000', 'ledeca-ldsisp02-9st-500x500', 'ledeca-ldsisp02-6st']
+        .map((id) => ledeca.find((d) => d.id === id).poidsKg), [8.5, 13.9, 13, 7.9, 7.9]);
+      v.egal('P max et P moyenne : plafond pour les 17 dalles LEDECA', [ledeca.length, ledeca.every((d) => d.sources.pMaxW.type === 'plafond constructeur' && d.sources.pMoyW.type === 'plafond constructeur')], [17, true]);
     },
   },
 ];

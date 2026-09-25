@@ -183,6 +183,45 @@ details.manques { padding: 0; }
 details.manques summary { padding: 12px 14px; cursor: pointer; }
 details.manques p { margin: 0 14px 10px; }
 .reglage-parc { margin: 4px 0 10px 32px; }
+/* Choix de la dalle (Mur) : recherche, marque, gamme, version */
+.choix-dalle { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.choix-dalle > legend { padding: 0; margin-bottom: 4px; color: var(--texte-doux); font-size: 0.9rem; }
+.choix-dalle input[type="search"] {
+  width: 100%; min-height: var(--cible); padding: 0 12px; border: 1px solid var(--bordure); border-radius: var(--rayon);
+  background: var(--surface-2); color: var(--texte); font: inherit; font-size: 1rem; -webkit-appearance: none; appearance: none;
+}
+#etat-choix-dalle:empty { display: none; }
+.choix-dalle input[type="search"], .groupe input[type="search"] { width: 100%; }
+.groupe input[type="search"] {
+  min-height: var(--cible); padding: 0 12px; border: 1px solid var(--bordure); border-radius: var(--rayon);
+  background: var(--surface-2); color: var(--texte); font: inherit; font-size: 1rem; -webkit-appearance: none; appearance: none;
+}
+.groupe-marque > summary { cursor: pointer; min-height: var(--cible); display: flex; align-items: center; color: var(--accent); }
+.groupe-gamme { margin: 0 0 8px 12px; }
+.groupe-gamme > .compte { margin: 6px 0 2px; }
+/* Lots et configs du mur (Mur, Data), rappels sourcés */
+.cases-lots { display: grid; gap: 4px; }
+.ligne-config { margin: 6px 0; overflow-wrap: anywhere; }
+.lots-groupe + .lots-groupe { margin-top: 12px; }
+.rappels-config > summary { cursor: pointer; min-height: var(--cible); display: flex; align-items: center; color: var(--accent); }
+.rappel-texte { margin: 4px 0 0; }
+.rappel-texte .citation { font-style: italic; }
+/* Check-list « Avant de partir » (bas de Data) */
+#avant-de-partir { margin-top: 16px; }
+.liste-depart { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.liste-depart li { display: grid; grid-template-columns: 1.5em minmax(0, 1fr); gap: 6px; overflow-wrap: anywhere; }
+.signe-depart { font-weight: 700; text-align: center; }
+.depart-pret .signe-depart { color: var(--ok); }
+.depart-a-faire .signe-depart { color: var(--alerte); }
+/* Lots, configs et fichiers joints d'une dalle dans un parc */
+.lots-parc { margin: 4px 0 14px 32px; }
+.lots-parc h5, .config-lot h5 { margin: 12px 0 6px; font-size: 0.95rem; }
+.liste-lots, .fichiers-joints { list-style: none; margin: 0; padding: 0; }
+.liste-lots > li { margin-bottom: 8px; }
+.config-lot { border-left: 2px solid var(--bordure); padding-left: 10px; margin: 12px 0; }
+.fichiers-joints > li { margin: 8px 0; }
+.fichier-joint { margin: 4px 0; overflow-wrap: anywhere; }
+.ajout-lot > summary { cursor: pointer; min-height: var(--cible); display: flex; align-items: center; color: var(--accent); }
 .note.verifier { margin: 20px 0 0; }
 .bandeau-donnees { margin: 16px 0 0; }
 
@@ -294,7 +333,7 @@ details.manques p { margin: 0 14px 10px; }
 .champ { display: grid; gap: 6px; min-width: 0; }
 .champ label, .segmente legend { color: var(--texte-doux); font-size: 0.9rem; }
 
-input:not([type]), input[type="text"], select {
+input:not([type]), input[type="text"], input[type="date"], select {
   width: 100%;
   min-height: var(--cible);
   padding: 0 12px;
@@ -306,6 +345,9 @@ input:not([type]), input[type="text"], select {
   font-size: 1rem;
 }
 input:not([type]) { font-family: var(--police-chiffres); font-size: 1.1rem; }
+/* Date : Safari iOS centre la valeur et replie le champ vide sans ces réglages. */
+input[type="date"] { -webkit-appearance: none; appearance: none; display: block; line-height: calc(var(--cible) - 2px); }
+input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .paire { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }

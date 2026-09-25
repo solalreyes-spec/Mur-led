@@ -3,7 +3,7 @@
 // elles mettent en forme les résultats de calculs.js, sans rien recalculer.
 
 import { pitchCalculeMm, entierInferieur, LIBELLES_COIN } from './calculs.js';
-import { nombre, nombreCourt, sourceCourte } from './format.js';
+import { nombre, nombreCourt, sourceCourte, mentionType } from './format.js';
 
 // Une ligne propre : espaces simples, tirets longs remplacés par une virgule, pas de puce en début de ligne.
 export function ligneSimple(texte) {
@@ -20,7 +20,8 @@ const texte = (lignes) => lignes.filter((l) => l !== null && l !== undefined && 
 const kg = (valeur) => `${nombreCourt(valeur, 2)} kg`;
 const watts = (w) => `${nombreCourt(w, 1)} W`;
 const pluriel = (n, singulier, plurielForme) => `${nombre(n)} ${n > 1 ? plurielForme : singulier}`;
-const sourcesDe = (fiche, nom) => (fiche?.sources?.[nom]?.sources ?? []).map(sourceCourte).join(', ');
+// Sources d'une valeur, avec « plafond constructeur » quand la fiche ne donne qu'un maximum (LEDECA).
+const sourcesDe = (fiche, nom) => [(fiche?.sources?.[nom]?.sources ?? []).map(sourceCourte).join(', '), mentionType(fiche?.sources?.[nom])].filter(Boolean).join(', ');
 const alertes = (liste) => (liste ?? []).map((a) => `Alerte : ${a}`);
 
 function sourcesDimensions(...fiches) {
@@ -55,7 +56,8 @@ export function resumeMur({ dalle, mur: m }) {
 }
 
 // `r` : évaluation du processeur retenu ; `distributeur` : nom du distributeur (XD, CVT10) s'il y en a.
-export function resumeData(r, { conseille = false, distributeur = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null } = {}) {
+// `configs` : lots et configs du mur pour le logiciel du processeur (fiches.configsDuMur), avec la version relevée.
+export function resumeData(r, { conseille = false, distributeur = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null, configs = null } = {}) {
   const proc = r.processeur;
   if (!r.groupes?.length) {
     return texte(['DATA', `Processeur : ${proc.nom}`, `Impossible : ${r.impossible ?? 'ce processeur ne convient pas à ce mur'}`, ...alertes(r.alertes)]);
@@ -103,7 +105,8 @@ export function resumeData(r, { conseille = false, distributeur = null, puissanc
       + `${r.grille?.rangees > 1 ? `, rangées ${gr.premiereRangee} à ${gr.derniereRangee}` : ''}`
       + ` (${pluriel(gr.dalles, 'dalle', 'dalles')}, ${pluriel(ports, 'port', 'ports')})`);
   });
-  lignes.push(...alertesPorts, ...alertes(r.alertes));
+  if (configs) lignes.push(...configs.lignes, configs.version ?? null);
+  lignes.push(...alertesPorts, ...alertes(r.alertes), ...alertes(configs?.alertes));
   return texte(lignes);
 }
 
@@ -283,6 +286,13 @@ export function resumeCablage({ data = null, modeData = null, elec = null, modeE
     lignes.push(...alertes(ve.alertes));
   }
   return texte(lignes);
+}
+
+// Check-list « Avant de partir » (fiches.avantDePartir) : une ligne par point, OK, À faire ou À vérifier.
+export function resumeAvantDePartir(liste) {
+  if (!liste) return null;
+  const etat = (fait) => (fait === true ? 'OK' : fait === false ? 'À faire' : 'À vérifier');
+  return texte([`AVANT DE PARTIR, parc ${liste.nomParc}`, ...liste.lignes.map((l) => `${etat(l.fait)} : ${l.texte}`)]);
 }
 
 // « Tout copier » : les résumés disponibles, séparés par une ligne vide, sous un en-tête daté.

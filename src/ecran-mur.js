@@ -5,26 +5,105 @@ import { dimensionner, densite, pitchCalculeMm, dalleTournee } from './calculs.j
 import { nombre, nombreCourt, signe, sourceCourte, dateCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
 import { resumeMur } from './resumes.js';
-import { optionsInformations } from './fiches.js';
+import { optionsInformations, configsDuMur, arbreDalles } from './fiches.js';
 
 const formulaire = document.getElementById('form-mur');
 const zoneResultats = document.getElementById('resultats');
 
 const BADGES = { modifiee: ' (version modifiée)', ajoutee: ' (ma fiche)' };
 
-// Liste des dalles : celles du parc actif, puis les gabarits. Garde la dalle choisie si elle y est encore.
-function remplirListe(select, { visibles, gabarits, informations = [], nomParc }) {
+// Sélecteur caché « dalle » : toutes les dalles, puis les gabarits. Il garde la valeur retenue (saisies gardées) ;
+// on choisit la dalle avec la marque, la gamme et la version. Garde la dalle choisie si elle y est encore.
+function remplirListe(select, { dalles, gabarits, informations = [] }) {
   const avant = select.value;
   const option = (d) => el('option', { value: d.id },
     `${d.nom}${d.usage ? ` (${d.usage})` : ''}${BADGES[d.statutBase] ?? ''} — ${nombreCourt(d.largeurMm)} × ${nombreCourt(d.hauteurMm)} mm, ${d.pxH} × ${d.pxV} px`);
-  // Fiches d'information (LEDCAST) : visibles, grisées, jamais choisies tant qu'elles ne sont pas complétées.
+  // Fiches d'information : présentes, grisées, jamais choisies tant qu'elles ne sont pas complétées.
   const infos = optionsInformations(informations);
   remplacer(select,
-    el('optgroup', { label: nomParc ? `Parc ${nomParc}` : 'Dalles' }, visibles.map(option)),
+    el('optgroup', { label: 'Dalles' }, dalles.map(option)),
     el('optgroup', { label: 'Gabarits génériques (non sourcés)' }, gabarits.map(option)),
     infos.length ? el('optgroup', { label: 'Fiches d\'information, à compléter' }, infos.map((o) => el('option', { value: o.id, disabled: '' }, o.libelle))) : null);
-  if ([...visibles, ...gabarits].some((d) => d.id === avant)) select.value = avant;
+  if ([...dalles, ...gabarits].some((d) => d.id === avant)) select.value = avant;
   select.disabled = false;
+}
+
+// ---------------------------------------------------------------------------
+// Choix de la dalle : recherche, marque, gamme, version (dalles du parc actif en premier)
+// ---------------------------------------------------------------------------
+
+const GABARITS = 'Gabarits génériques (non sourcés)';
+let choix = { dalles: [], gabarits: [], informations: [], parc: null, nomParc: null };
+// Gamme ouverte qui n'a que des fiches d'information : elle reste affichée tant qu'on ne choisit pas autre chose.
+let vueInformation = false;
+const $choix = (id) => document.getElementById(id);
+
+function arbreChoix() {
+  const recherche = $choix('recherche-dalle').value;
+  const arbre = arbreDalles(choix.dalles, { informations: choix.informations, parc: choix.parc, recherche });
+  const gabarits = arbreDalles(choix.gabarits.map((g) => ({ ...g, marque: GABARITS, gamme: 'Gabarits', modele: g.nom })), { recherche });
+  return [...arbre, ...gabarits];
+}
+
+// Options groupées « Parc X » puis « Autres » quand un parc est actif.
+function optionsGroupees(elements, valeur, libelle, autres) {
+  const option = (x) => el('option', { value: valeur(x), disabled: x.information ? '' : null }, libelle(x));
+  if (!choix.nomParc || !elements.some((x) => x.parc)) return elements.map(option);
+  return [
+    el('optgroup', { label: `Parc ${choix.nomParc}` }, elements.filter((x) => x.parc).map(option)),
+    elements.some((x) => !x.parc) ? el('optgroup', { label: autres }, elements.filter((x) => !x.parc).map(option)) : null,
+  ];
+}
+
+const selectionnable = (g) => g.fiches.find((f) => !f.information);
+
+// Remplit les trois sélecteurs pour la dalle `id` (ou, à défaut, la marque et la gamme demandées) ;
+// renvoie l'identifiant de la dalle retenue, ou null si la gamme n'a que des fiches d'information.
+function remplirChoix({ id = formulaire.elements.dalle.value, marque = null, gamme = null } = {}) {
+  const arbre = arbreChoix();
+  const etat = $choix('etat-choix-dalle');
+  const [selMarque, selGamme, selVersion] = ['dalle-marque', 'dalle-gamme', 'dalle-version'].map($choix);
+  if (arbre.length === 0) {
+    etat.textContent = `Aucune dalle pour « ${$choix('recherche-dalle').value.trim()} » : la dalle choisie ne change pas.`;
+    return formulaire.elements.dalle.value;
+  }
+  let m = arbre.find((x) => x.marque === marque) ?? null;
+  let g = m ? (m.gammes.find((x) => x.gamme === gamme) ?? m.gammes.find(selectionnable) ?? m.gammes[0]) : null;
+  if (!m) {
+    for (const x of arbre) {
+      const trouvee = x.gammes.find((y) => y.fiches.some((f) => f.id === id));
+      if (trouvee) [m, g] = [x, trouvee];
+    }
+  }
+  if (!m) {
+    m = arbre.find((x) => x.gammes.some(selectionnable)) ?? arbre[0];
+    g = m.gammes.find(selectionnable) ?? m.gammes[0];
+  }
+  const fiche = g.fiches.find((f) => f.id === id && !f.information) ?? selectionnable(g) ?? null;
+  remplacer(selMarque, optionsGroupees(arbre, (x) => x.marque, (x) => x.marque, 'Autres marques'));
+  remplacer(selGamme, optionsGroupees(m.gammes, (x) => x.gamme, (x) => x.gamme, 'Autres gammes'));
+  remplacer(selVersion, optionsGroupees(g.fiches, (x) => x.id, (x) => `${x.libelle}${x.information ? ' (information, à compléter)' : ''}`, 'Autres versions'));
+  selMarque.value = m.marque;
+  selGamme.value = g.gamme;
+  if (fiche) selVersion.value = fiche.id;
+  for (const sel of [selMarque, selGamme, selVersion]) sel.disabled = false;
+  etat.textContent = fiche ? '' : `Gamme ${g.gamme} : fiches d'information seulement, à compléter dans l'onglet Base. La dalle choisie ne change pas.`;
+  return fiche ? fiche.id : formulaire.elements.dalle.value;
+}
+
+// Choix fait dans un des sélecteurs ou par la recherche : la dalle retenue passe dans le sélecteur caché.
+// Le calcul suit, par l'écouteur du formulaire (l'évènement remonte jusqu'à lui).
+function retenirChoix(demande) {
+  const id = remplirChoix(demande);
+  vueInformation = Boolean($choix('etat-choix-dalle').textContent) && Boolean(demande.gamme || demande.marque);
+  if (id && [...formulaire.elements.dalle.options].some((o) => o.value === id && !o.disabled)) formulaire.elements.dalle.value = id;
+}
+
+function initialiserChoix() {
+  $choix('dalle-marque').addEventListener('change', (e) => retenirChoix({ id: null, marque: e.target.value }));
+  $choix('dalle-gamme').addEventListener('change', (e) => retenirChoix({ id: null, marque: $choix('dalle-marque').value, gamme: e.target.value }));
+  $choix('dalle-version').addEventListener('change', (e) => retenirChoix({ id: e.target.value }));
+  $choix('recherche-dalle').addEventListener('input', () => retenirChoix({}));
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +199,7 @@ function afficherFiche(dalle, demi) {
   }
   const legende = [...sourcesCitees.values()].map((s) => el('p', { class: 'note' },
     el('strong', {}, sourceCourte(s)), ` : ${s.titre}. Confiance : ${s.confiance}`
-    + `${s.date ? `, document du ${dateCourte(s.date)}` : ', date du document non précisée'}.`));
+    + `${s.date ? `, document du ${dateCourte(s.date)}` : `, date du document ${s.dateTexte ?? 'non précisée'}`}.`));
 
   remplacer(document.getElementById('fiche-contenu'), el('div', { class: 'tableau-defilant' },
       el('table', { class: 'table-fiche' },
@@ -147,12 +226,25 @@ function afficherAlertesDalle(dalle) {
     const valeurs = [s, ...s.autres].map((x) => `${valeurAvecUnite(x.valeur, unite)} (${x.sources.map(sourceCourte).join(', ')})`).join(' ou ');
     alertes.push(`${libelle} : ${valeurs}, sans règle de choix. Vérifie la version de ta dalle.`);
   }
-  if (dalle.pitchMm && Math.abs(pitchCalculeMm(dalle) - dalle.pitchMm) > 0.01) {
+  // Dalle en plusieurs versions : celle qui est retenue, et où la régler.
+  const info = [];
+  if (dalle.declinaisons?.length) {
+    const noms = dalle.declinaisons.map((x) => x.nom).join(' ou ');
+    const defaut = dalle.declinaisons.find((x) => x.id === dalle.declinaisonDefaut)?.nom;
+    info.push(dalle.declinaisonRetenue
+      ? `Deux versions (${noms}) : version « ${dalle.declinaisonRetenue.nom} » réglée dans le parc ${dalle.declinaisonRetenue.parc}.`
+      : `Deux versions (${noms}) : la plus défavorable est retenue (${defaut}). Règle la version du prestataire dans son parc (onglet Base).`);
+  }
+  // Pitch nominal (nom commercial) : simple information, les calculs prennent le pitch réel (largeur / pixels).
+  if (dalle.pitchMm && dalle.sources?.pitchMm?.type === 'nominal') {
+    info.push(`Pitch nominal ${nombreCourt(dalle.pitchMm, 3)} mm, réel ${nombreCourt(pitchCalculeMm(dalle), 3)} mm (largeur / pixels) : `
+      + 'les calculs prennent le pitch réel.');
+  } else if (dalle.pitchMm && Math.abs(pitchCalculeMm(dalle) - dalle.pitchMm) > 0.01) {
     alertes.push(`Le pitch de la fiche (${nombreCourt(dalle.pitchMm, 3)} mm) ne correspond pas à largeur / pixels `
       + `(${nombreCourt(pitchCalculeMm(dalle), 3)} mm) : vérifie la fiche.`);
   }
   remplacer(document.getElementById('alerte-dalle'), ...alertes.map((texte) => el('div', { class: 'alerte' }, texte)),
-  );
+    ...info.map((texte) => el('div', { class: 'alerte alerte-info' }, texte)));
 }
 
 // Sources des dimensions et pixels utilisés, sans doublon.
@@ -189,6 +281,78 @@ function tuile(titre, valeur, ...details) {
       details.filter(Boolean).map((d) => el('span', { class: 'tuile-detail' }, d))));
 }
 
+// ---------------------------------------------------------------------------
+// Lots et configs du mur, dans le parc actif
+// ---------------------------------------------------------------------------
+
+// { base, parcId } : ma base et le parc actif (null : « Tous »).
+let contexteLots = { base: null, parcId: null };
+
+// Lots cochés à la main : { « parc:dalle » : [identifiants de lots] }, gardés dans un champ du formulaire.
+function cochesManuelles() {
+  try {
+    return JSON.parse(formulaire.elements.lotsCoches.value || '{}') ?? {};
+  } catch (erreur) {
+    return {};
+  }
+}
+function garderCoches(cle, ids) {
+  const toutes = cochesManuelles();
+  if (ids === null) delete toutes[cle];
+  else toutes[cle] = ids;
+  formulaire.elements.lotsCoches.value = Object.keys(toutes).length ? JSON.stringify(toutes) : '';
+  // Recalcul et sauvegarde des saisies, comme après une saisie dans le formulaire.
+  formulaire.dispatchEvent(new Event('change'));
+}
+
+// Groupes du mur qui ont leurs lots : les dalles entières, puis la rangée de demi-dalles (sa propre fiche).
+function groupesLots(fiche, m) {
+  const { parcId } = contexteLots;
+  const toutes = cochesManuelles();
+  const groupe = (dalleId, n, libelle) => ({ dalleId, n, libelle, coches: toutes[`${parcId}:${dalleId}`] ?? null });
+  return [
+    groupe(fiche.id, m.dalles.entieres, null),
+    m.rangeeDemi && m.demi ? groupe(m.demi.id, m.dalles.demi, `Demi-dalles (${m.demi.nom})`) : null,
+  ].filter(Boolean);
+}
+
+function sectionLots(groupes) {
+  const { base, parcId } = contexteLots;
+  if (!base || base.parcs.length === 0) return null;
+  const nomParc = base.parcs.find((p) => p.id === parcId)?.nom;
+  const blocs = groupes.map((g) => {
+    const c = configsDuMur(base, parcId, g.dalleId, g.n, { coches: g.coches });
+    if (c.note) return el('p', { class: 'note' }, c.note);
+    const retenus = new Set(c.retenus.map((l) => l.id));
+    const cases = c.lots.map((lot) => {
+      const caseLot = el('input', { type: 'checkbox', checked: retenus.has(lot.id) ? '' : null });
+      caseLot.addEventListener('change', () => {
+        const ids = c.lots.filter((l) => (l.id === lot.id ? caseLot.checked : retenus.has(l.id))).map((l) => l.id);
+        garderCoches(`${parcId}:${g.dalleId}`, ids);
+      });
+      return el('label', { class: 'case' }, caseLot,
+        el('span', {}, `${lot.identifiant}${Number.isInteger(lot.quantite) ? ` (${pluriel(lot.quantite, 'dalle', 'dalles')})` : ' (quantité non saisie)'}`));
+    });
+    let retour = null;
+    if (!c.parDefaut) {
+      retour = el('button', { type: 'button', class: 'bouton bouton-petit bouton-discret' }, 'Revenir au choix par défaut');
+      retour.addEventListener('click', () => garderCoches(`${parcId}:${g.dalleId}`, null));
+    }
+    return el('div', { class: 'lots-groupe' },
+      g.libelle ? el('h4', {}, g.libelle) : null,
+      cases.length ? el('div', { class: 'cases-lots' }, cases) : null,
+      cases.length ? el('p', { class: 'compte' }, c.parDefaut
+        ? `Cochés par défaut pour ${pluriel(g.n, 'dalle', 'dalles')}.` : 'Cochés à la main.', retour ? [' ', retour] : null) : null,
+      c.lignes.filter((l) => !l.startsWith('Lots utilisés')).map((l) => el('p', { class: 'ligne-config' }, l)),
+      c.alertes.map((a) => el('div', { class: 'alerte' }, a)));
+  });
+  return el('section', { class: 'carte lots-mur', 'aria-labelledby': 'titre-lots-mur' },
+    el('h3', { id: 'titre-lots-mur' }, nomParc ? `Lots et configs, parc ${nomParc}` : 'Lots et configs'),
+    blocs);
+}
+
+const pluriel = (n, singulier, plurielForme) => `${nombre(n)} ${n > 1 ? plurielForme : singulier}`;
+
 let dernier = null;
 
 // Résumé texte du dernier calcul valide, pour « Copier les résultats ».
@@ -196,7 +360,7 @@ export function resumeOngletMur() {
   return dernier ? resumeMur(dernier) : null;
 }
 
-function afficherResultats(dalle, r) {
+function afficherResultats(dalle, r, groupes = []) {
   dernier = r.erreurs.length > 0 ? null : { dalle, mur: r.mur };
   if (r.erreurs.length > 0) {
     remplacer(zoneResultats, el('div', { class: 'alerte alerte-erreur', role: 'alert' }, r.erreurs.join(' ')));
@@ -235,7 +399,7 @@ function afficherResultats(dalle, r) {
       m.ratio.fraction ? `soit ${nombre(m.ratio.valeur, 2)}:1` : null),
     tuile('Pitch', `${nombreCourt(d.pitchMm, 3)} mm`,
       `${nombreCourt(dalle.largeurMm)} mm / ${dalle.pxH} px`
-      + (dalle.pitchMm ? ` · fiche : ${nombreCourt(dalle.pitchMm, 3)} mm` : '')),
+      + (dalle.pitchMm ? ` · ${dalle.sources?.pitchMm?.type === 'nominal' ? 'nominal' : 'fiche'} : ${nombreCourt(dalle.pitchMm, 3)} mm` : '')),
     tuile('Densité', `${nombre(d.pxParM2)} px/m²`, `${nombreCourt(d.pxParM, 1)} px/m, sur les pixels de la fiche`),
     d.ledsParM2 !== null ? tuile('LED', `${nombre(d.ledsParM2)} LED/m²`, `${dalle.ledsParPixel} LED par pixel`) : null,
   );
@@ -243,7 +407,7 @@ function afficherResultats(dalle, r) {
   const source = el('p', { class: 'source' },
     `Dimensions et pixels : ${sourcesDimensions(dalle, m.demi)}.`);
 
-  remplacer(zoneResultats, principal, tuiles, source, tableauVariantes(r));
+  remplacer(zoneResultats, principal, tuiles, source, sectionLots(groupes), tableauVariantes(r));
 }
 
 function tableauVariantes(r) {
@@ -270,6 +434,8 @@ function tableauVariantes(r) {
 // ---------------------------------------------------------------------------
 
 function mettreAJour(fiches, surChangement) {
+  // Dalle retenue (saisie gardée, changement de parc) : les trois sélecteurs la montrent.
+  if (!vueInformation) remplirChoix();
   const e = lireFormulaire();
   const fiche = fiches.get(e.dalleId);
   // Rotation : proposée seulement si la fiche, ou le parc actif, la permet. La dalle tournée n'a pas de demi-dalle.
@@ -307,8 +473,10 @@ function mettreAJour(fiches, surChangement) {
     demande = { mode: 'dalles', colonnes: e.colonnes, lignes: e.lignes, rangeeDemi: avecDemi };
   }
   const resultat = dimensionner(dalle, demande, options);
-  afficherResultats(dalle, resultat);
-  surChangement({ dalle, mur: resultat.mur, erreurs: resultat.erreurs });
+  // Lots : ceux de la fiche d'origine (une dalle tournée garde ses lots).
+  const groupes = resultat.erreurs.length ? [] : groupesLots(fiche, resultat.mur);
+  afficherResultats(dalle, resultat, groupes);
+  surChangement({ dalle, mur: resultat.mur, erreurs: resultat.erreurs, lots: groupes });
 }
 
 // `base` : { dalles, gabarits } déjà résolues. `surChangement({ dalle, mur, erreurs })` est appelé
@@ -320,6 +488,7 @@ let rappelMur = () => {};
 // `surChangement({ dalle, mur, erreurs })` est appelé après chaque calcul, pour que les autres onglets suivent le mur.
 export function initialiserMur(base, surChangement) {
   rappelMur = surChangement;
+  initialiserChoix();
   formulaire.addEventListener('input', (evenement) => {
     if (evenement.target.name !== 'parc') mettreAJour(fichesMur, rappelMur);
   });
@@ -332,7 +501,13 @@ export function initialiserMur(base, surChangement) {
 
 // Nouvelle base (fiche ajoutée ou modifiée, parc changé) : liste des dalles et calcul à jour.
 export function actualiserMur(base) {
+  vueInformation = false;
   fichesMur = new Map([...base.dalles, ...base.gabarits].map((d) => [d.id, d]));
+  contexteLots = base.lots ?? { base: null, parcId: null };
+  choix = {
+    dalles: base.dalles, gabarits: base.gabarits, informations: base.informations ?? [],
+    parc: base.nomParc ? new Set(base.visibles.map((d) => d.id)) : null, nomParc: base.nomParc ?? null,
+  };
   remplirListe(document.getElementById('dalle'), base);
   mettreAJour(fichesMur, rappelMur);
 }

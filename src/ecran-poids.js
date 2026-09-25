@@ -2,7 +2,7 @@
 // Résultats indicatifs, à valider par le rigger. Aucune règle de calcul ici : tout passe par calculs.js.
 
 import { poids, ErreurSaisie } from './calculs.js';
-import { nombre, nombreCourt, lireNombre, sourceCourte } from './format.js';
+import { nombre, nombreCourt, lireNombre, sourceCourte, mentionType } from './format.js';
 import { el, remplacer } from './dom.js';
 import { alertesSansManques, ligneManques } from './manques.js';
 import { resumePoids } from './resumes.js';
@@ -145,7 +145,7 @@ function mettreAJour() {
   }
 
   dernier = { r, dalle, mur };
-  const sourcePoids = dalle.sources?.poidsKg?.sources.map(sourceCourte).join(', ');
+  const sourcePoids = [...(dalle.sources?.poidsKg?.sources ?? []).map(sourceCourte), mentionType(dalle.sources?.poidsKg)].filter(Boolean).join(', ');
   const recap = el('p', { class: 'recap-mur' },
     `Mur : ${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}, ${kg(r.poidsDalleKg)} par dalle`
     + `${sourcePoids ? ` (${sourcePoids})` : ''}${r.poidsDemiKg ? ` ; demi-dalle : ${kg(r.poidsDemiKg)}` : ''}. `,

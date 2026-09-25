@@ -2,7 +2,7 @@
 
 import { toutResumer } from './resumes.js';
 import { resumeOngletMur } from './ecran-mur.js';
-import { resumeOngletData } from './ecran-data.js';
+import { resumeOngletData, resumeOngletDepart } from './ecran-data.js';
 import { resumeOngletCanvas } from './ecran-canvas.js';
 import { resumeOngletElec } from './ecran-elec.js';
 import { resumeOngletPoids } from './ecran-poids.js';
@@ -15,6 +15,8 @@ const RESUMES = {
   elec: resumeOngletElec,
   poids: resumeOngletPoids,
   schema: resumeOngletSchema,
+  // Check-list « Avant de partir » (bas de Data), en dernier dans « Tout copier ».
+  depart: resumeOngletDepart,
 };
 
 async function copier(texte) {

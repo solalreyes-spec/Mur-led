@@ -2,7 +2,7 @@
 
 import { resoudreFiche } from './calculs.js';
 import { el, remplacer } from './dom.js';
-import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc } from './fiches.js';
+import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig } from './fiches.js';
 import { lire, ecrire } from './stockage.js';
 import { initialiserMur, actualiserMur, signalerErreurMur } from './ecran-mur.js';
 import { initialiserData, actualiserData, murModifie, definirDepartData } from './ecran-data.js';
@@ -111,6 +111,12 @@ try {
 
 // Ma base (fiches ajoutées, versions modifiées, parcs, sources) et le parc actif, gardés dans IndexedDB.
 let base = (await lire('base-utilisateur')) ?? baseVide();
+// Ancien champ « fichier de config » d'un parc : repris une fois en premier lot « sans identifiant ».
+const migree = migrerFichiersConfig(base);
+if (JSON.stringify(migree) !== JSON.stringify(base)) {
+  base = migree;
+  await ecrire('base-utilisateur', base);
+}
 let parcActif = (await lire('parc-actif')) ?? null;
 if (!base.parcs.some((p) => p.id === parcActif)) parcActif = null;
 
@@ -149,7 +155,11 @@ const nomParc = () => base.parcs.find((p) => p.id === parcActif)?.nom ?? null;
 // Dalles vues dans le parc actif : carte de réception et fichier de config réglés pour ce parc.
 const pourMur = () => {
   const dalles = courant.dalles.map((d) => appliquerReglagesParc(d, base, parcActif));
-  return { dalles, gabarits: courant.gabarits, informations: courant.informations, visibles: filtrerParParc(dalles, base, parcActif, 'dalle'), nomParc: nomParc() };
+  return {
+    dalles, gabarits: courant.gabarits, informations: courant.informations, visibles: filtrerParParc(dalles, base, parcActif, 'dalle'), nomParc: nomParc(),
+    // Lots et configs des dalles dans le parc actif.
+    lots: { base, parcId: parcActif },
+  };
 };
 const pourData = () => ({
   processeurs: filtrerParParc(courant.processeurs, base, parcActif, 'processeur'),
@@ -160,6 +170,8 @@ const pourData = () => ({
   cartesReception: courant.cartesReception,
   // Profondeur réseau par défaut dans le parc actif, par marque.
   bitsParDefaut: Object.fromEntries(['brompton', 'novastar', 'colorlight'].map((f) => [f, bitsReseauParc(base, parcActif, f)])),
+  // Lots et configs des dalles, version des logiciels relevée dans le parc actif.
+  lots: { base, parcId: parcActif },
 });
 
 // Après chaque changement de ma base ou du parc actif : tous les onglets suivent.

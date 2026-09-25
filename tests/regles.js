@@ -4,7 +4,8 @@
 import * as calculs from '../src/calculs.js';
 import * as fiches from '../src/fiches.js';
 import * as resumes from '../src/resumes.js';
-import { modeEnregistrement } from '../src/export.js';
+import { modeEnregistrement, choixPartageFichier } from '../src/export.js';
+import * as rappels from '../src/rappels.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
@@ -550,9 +551,11 @@ export const REGLES = [
       v.vrai('carte A10s : la raison cite les cartes 5G et l\'A10s', /5G/.test(a10s.impossible ?? '') && /A10s/.test(a10s.impossible ?? ''));
       const inconnue = evaluer(DALLE_CAS_7);
       v.egal('carte inconnue : calculé', inconnue.nombre, 1);
-      v.vrai('carte inconnue : alerte', inconnue.alertes.some((a) => a.includes('5G')));
+      // Alertes de carte seulement : l'alerte câble (Cat6A, fiche CVT8-5G) cite aussi « 5G ».
+      const alerteCarte = (a) => a.startsWith('Carte de réception') && a.includes('5G');
+      v.vrai('carte inconnue : alerte', inconnue.alertes.some(alerteCarte));
       const ca50e = evaluer(DALLE_CARTE_CA50E);
-      v.egal('carte CA50E : calculé, sans alerte de carte', [ca50e.nombre, ca50e.alertes.some((a) => a.includes('5G'))], [1, false]);
+      v.egal('carte CA50E : calculé, sans alerte de carte', [ca50e.nombre, ca50e.alertes.some(alerteCarte)], [1, false]);
     },
   },
   {
@@ -2181,16 +2184,17 @@ export const REGLES = [
   },
   {
     id: 'R121',
-    titre: 'COEX 5G : câble Cat6A obligatoire, longueur maxi non publiée (« à confirmer ») ; CVT8-5G si fibre, 8 ports 5G',
+    titre: 'COEX 5G : câble Cat6A obligatoire (wiki COEX), 100 m au plus (fiche CVT8-5G V1.1.0, copie non officielle) ; CVT8-5G si fibre, 8 ports 5G',
     etape: 'coex',
     verifier(v, contexte) {
       const cx40 = processeurDeBase(contexte, 'coex-cx40-pro');
       const m = calculs.mur(DALLE_CAS_7, 44, 10);
       const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, cx40, NOVASTAR_60_8);
-      v.vrai('Data : Cat6A obligatoire, longueur maxi à confirmer', e.alertes.some((a) => a.includes('Cat6A') && a.includes('à confirmer')));
+      v.vrai('Data : Cat6A obligatoire, 100 m au plus avec sa source', e.alertes.some((a) => a.includes('Cat6A') && a.includes('100 m') && a.includes('fiche CVT8-5G V1.1.0, copie non officielle')));
       v.egal('CVT8-5G, 8 ports 5G, seulement si fibre', [cx40.distributeur, cx40.sortiesParDistributeur, e.distributeurObligatoire], ['coex-cvt8-5g', 8, false]);
       const t = calculs.cablageData(m, DALLE_CAS_7, e, { depart: 'bas-gauche', distanceRegieM: 150 }).variantes.find((x) => x.mode === 'colonnes');
-      v.vrai('Schéma : pas de seuil de 100 m en 5G, longueur à confirmer', !t.alertes.some((a) => a.includes('100 m')) && t.alertes.some((a) => a.includes('Cat6A') && a.includes('à confirmer')));
+      v.vrai('Schéma : seuil de 100 m en 5G, régie à 150 m : passe en fibre avec des CVT8-5G', t.alertes.some((a) => a.includes('au-delà de 100 m') && a.includes('CVT8-5G')));
+      v.vrai('Schéma : Cat6A avec sa source', t.alertes.some((a) => a.includes('Cat6A') && a.includes('fiche CVT8-5G V1.1.0, copie non officielle')));
       const mx40 = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'coex-mx40-pro'), NOVASTAR_60_8);
       v.vrai('1G : pas d\'alerte Cat6A', !mx40.alertes.some((a) => a.includes('Cat6A')));
     },
@@ -2359,24 +2363,501 @@ export const REGLES = [
   },
   {
     id: 'R130',
-    titre: 'Fiches « information » (LEDCAST) : grisées dans la liste des dalles du Mur, jamais choisies ; complétées par l\'utilisateur, elles deviennent des dalles',
-    etape: 'ledcast',
+    titre: 'Fiches « information » (LEDECA LDSOSP04.8ST, angles Graphite, gammes ROE non relevées) : grisées dans la liste des dalles, jamais choisies ; complétées par l\'utilisateur, elles deviennent des dalles',
+    etape: 'catalogue',
     verifier(v, contexte) {
       const base = contexte.dalles;
       const infos = base.informations.map((f) => calculs.resoudreFiche(f, base.sources));
       const options = fiches.optionsInformations(infos);
       v.egal('une option par fiche, grisée, marquée « information, à compléter »',
-        [options.length, options.every((o) => o.disabled && o.libelle.includes('(information, à compléter)'))], [32, true]);
+        [options.length, options.every((o) => o.disabled && o.libelle.includes('(information, à compléter)'))], [13, true]);
       const depart = { dalles: contexte.dalles, processeurs: contexte.processeurs, regies: contexte.regies };
-      const brute = base.informations.find((f) => f.id === 'ledcast-flex-2-5');
-      const complete = { ...brute, largeurMm: { valeur: 500, source: 'test' }, hauteurMm: { valeur: 500, source: 'test' }, pxH: { valeur: 200, source: 'test' }, pxV: { valeur: 200, source: 'test' } };
+      const brute = base.informations.find((f) => f.id === 'ledeca-ldsosp04-8st');
+      const complete = { ...brute, largeurMm: { valeur: 500, source: 'test' }, hauteurMm: { valeur: 1000, source: 'test' }, pxH: { valeur: 104, source: 'test' }, pxV: { valeur: 208, source: 'test' } };
       const maBase = { ...fiches.baseVide(), fiches: [{ type: 'dalle', fiche: complete }], sources: { test: { titre: 'Test', court: 'Test', date: null, confiance: 'constructeur' } } };
       const f = fiches.fusionner(depart, maBase);
       v.egal('complétée : passe dans les dalles (version modifiée) et quitte les fiches d\'information',
-        [f.dalles.dalles.find((d) => d.id === 'ledcast-flex-2-5')?.statutBase, f.dalles.informations.some((d) => d.id === 'ledcast-flex-2-5')], ['modifiee', false]);
+        [f.dalles.dalles.find((d) => d.id === 'ledeca-ldsosp04-8st')?.statutBase, f.dalles.informations.some((d) => d.id === 'ledeca-ldsosp04-8st')], ['modifiee', false]);
+    },
+  },
+  {
+    id: 'R131',
+    titre: 'Lots de fabrication par dalle et par parc : identifiant ou date, quantité, notes',
+    etape: 'configs',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.creerParc(fiches.baseVide(), 'Loueur A'), 'Loueur B');
+      const [a, b] = base.parcs.map((p) => p.id);
+      base = fiches.ajouterLot(base, a, 'roe-bp2-v2', { identifiant: 'Lot 2023-05', quantite: '120', notes: 'Stock Paris' });
+      const lots = fiches.lotsDalleParc(base, a, 'roe-bp2-v2');
+      v.egal('lot ajouté, quantité en nombre entier', [lots.length, lots[0].identifiant, lots[0].quantite, lots[0].notes], [1, 'Lot 2023-05', 120, 'Stock Paris']);
+      v.vrai('chaque lot a son identifiant interne', typeof lots[0].id === 'string' && lots[0].id.length > 0);
+      v.egal('quantité vide : non saisie', fiches.lotsDalleParc(fiches.ajouterLot(base, a, 'roe-bp2-v2', { identifiant: 'Lot B', quantite: '' }), a, 'roe-bp2-v2')[1].quantite, null);
+      v.vrai('identifiant ou date obligatoire', /identifiant ou la date/.test(messageErreur(() => fiches.ajouterLot(base, a, 'roe-bp2-v2', { identifiant: ' ' }))));
+      v.vrai('quantité entière et positive', /quantité/.test(messageErreur(() => fiches.ajouterLot(base, a, 'roe-bp2-v2', { identifiant: 'X', quantite: '-3' })))
+        && /quantité/.test(messageErreur(() => fiches.ajouterLot(base, a, 'roe-bp2-v2', { identifiant: 'X', quantite: '2.5' }))));
+      const modifie = fiches.modifierLot(base, a, 'roe-bp2-v2', lots[0].id, { quantite: '80', notes: 'Après casse' });
+      v.egal('lot modifié', [fiches.lotsDalleParc(modifie, a, 'roe-bp2-v2')[0].quantite, fiches.lotsDalleParc(modifie, a, 'roe-bp2-v2')[0].notes], [80, 'Après casse']);
+      v.egal('lots séparés par dalle et par parc', [fiches.lotsDalleParc(base, a, 'roe-cb5-mkii').length, fiches.lotsDalleParc(base, b, 'roe-bp2-v2').length], [0, 0]);
+      v.egal('lot supprimé', fiches.lotsDalleParc(fiches.supprimerLot(base, a, 'roe-bp2-v2', lots[0].id), a, 'roe-bp2-v2').length, 0);
+    },
+  },
+  {
+    id: 'R132',
+    titre: 'Config d\'un lot, une par logiciel : NovaLCT (.rcfgx, multi-batch éventuel), VMP (.ncp), LEDVISION (.rcvbp), Tessera (type de fixture, firmware de la dalle, fixture pack .tfp, calibration factory ou mémoire 1 à 3) ; firmware standard ou personnalisé',
+    etape: 'configs',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Loueur A');
+      const parc = base.parcs[0].id;
+      base = fiches.ajouterLot(base, parc, 'roe-bp2-v2', { identifiant: 'Lot A' });
+      const lot = fiches.lotsDalleParc(base, parc, 'roe-bp2-v2')[0].id;
+      const regler = (config) => fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lot, config);
+      base = regler({ logiciel: 'NovaLCT', nomFichier: 'BP2V2_A.rcfgx', version: '3', date: '2024-03-01', provenance: 'ROE', firmware: 'personnalisé', multiBatch: 'BP2_lotA.mbd' });
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lot, { logiciel: 'VMP', nomFichier: 'BP2V2.ncp', version: '1', provenance: 'Novastar', firmware: 'standard' });
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lot, { logiciel: 'Tessera', typeFixture: 'ROE BP2V2', firmwareDalle: '3.2.1', fixturePack: 'ROE_BP2V2.tfp', calibration: 'mémoire 2', firmware: 'standard' });
+      const config = (logiciel) => fiches.configLot(base, parc, 'roe-bp2-v2', lot, logiciel);
+      v.egal('NovaLCT', [config('NovaLCT').nomFichier, config('NovaLCT').multiBatch, config('NovaLCT').firmware], ['BP2V2_A.rcfgx', 'BP2_lotA.mbd', 'personnalisé']);
+      v.egal('VMP', [config('VMP').nomFichier, config('VMP').provenance], ['BP2V2.ncp', 'Novastar']);
+      v.egal('Tessera', [config('Tessera').typeFixture, config('Tessera').firmwareDalle, config('Tessera').fixturePack, config('Tessera').calibration], ['ROE BP2V2', '3.2.1', 'ROE_BP2V2.tfp', 'mémoire 2']);
+      v.egal('une config par logiciel : la nouvelle remplace l\'ancienne', fiches.configLot(fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lot, { logiciel: 'VMP', nomFichier: 'BP2V2_v2.ncp' }), parc, 'roe-bp2-v2', lot, 'VMP').nomFichier, 'BP2V2_v2.ncp');
+      v.vrai('extension du fichier selon le logiciel', /\.rcfgx/.test(messageErreur(() => regler({ logiciel: 'NovaLCT', nomFichier: 'BP2V2.ncp' })))
+        && /\.rcvbp/.test(messageErreur(() => regler({ logiciel: 'LEDVISION', nomFichier: 'x.rcfgx' })))
+        && /\.tfp/.test(messageErreur(() => regler({ logiciel: 'Tessera', fixturePack: 'x.zip' }))));
+      v.vrai('calibration Brompton : factory ou mémoire 1 à 3', /factory ou mémoire 1 à 3/.test(messageErreur(() => regler({ logiciel: 'Tessera', calibration: 'mémoire 4' }))));
+      v.vrai('firmware : standard ou personnalisé', /standard ou personnalisé/.test(messageErreur(() => regler({ logiciel: 'VMP', firmware: 'autre' }))));
+      v.vrai('logiciel connu', /NovaLCT, VMP, LEDVISION ou Tessera/.test(messageErreur(() => regler({ logiciel: 'Autre' }))));
+      v.egal('config supprimée', fiches.configLot(fiches.supprimerConfigLot(base, parc, 'roe-bp2-v2', lot, 'VMP'), parc, 'roe-bp2-v2', lot, 'VMP'), null);
+    },
+  },
+  {
+    id: 'R133',
+    titre: 'Fichier de config déjà réglé dans un parc : repris en premier lot « sans identifiant », sans rien perdre',
+    etape: 'configs',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Loueur A');
+      const parc = base.parcs[0].id;
+      base = fiches.reglerDalleParc(base, parc, 'roe-bp2-v2', { fichierConfig: 'BP2V2_Helios_v3' });
+      const migree = fiches.migrerFichiersConfig(base);
+      const lots = fiches.lotsDalleParc(migree, parc, 'roe-bp2-v2');
+      v.egal('un lot « sans identifiant » avec le fichier', [lots.length, lots[0].identifiant, lots[0].quantite, lots[0].configs[0].nomFichier, lots[0].configs[0].logiciel],
+        [1, 'sans identifiant', null, 'BP2V2_Helios_v3', null]);
+      v.egal('le réglage du parc reste', fiches.reglageDalleParc(migree, parc, 'roe-bp2-v2').fichierConfig, 'BP2V2_Helios_v3');
+      v.egal('reprise faite une seule fois', fiches.lotsDalleParc(fiches.migrerFichiersConfig(migree), parc, 'roe-bp2-v2').length, 1);
+      const avecLot = fiches.ajouterLot(base, parc, 'roe-bp2-v2', { identifiant: 'Lot A' });
+      v.egal('dalle qui a déjà des lots : rien ajouté', fiches.lotsDalleParc(fiches.migrerFichiersConfig(avecLot), parc, 'roe-bp2-v2').map((l) => l.identifiant), ['Lot A']);
+    },
+  },
+  {
+    id: 'R134',
+    titre: 'Processeurs du parc : logiciel ou firmware (Tessera, NovaLCT, VMP, LEDVISION), version et date du relevé',
+    etape: 'configs',
+    verifier(v, contexte) {
+      v.egal('logiciel selon le processeur', ['brompton-s8', 'novastar-mctrl660', 'coex-mx40-pro', 'colorlight-s6f'].map((id) => fiches.logicielDuProcesseur(processeurDeBase(contexte, id))),
+        ['Tessera', 'NovaLCT', 'VMP', 'LEDVISION']);
+      let base = fiches.creerParc(fiches.baseVide(), 'Loueur A');
+      const parc = base.parcs[0].id;
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      base = fiches.reglerLogicielParc(base, parc, s8, { version: '4.1.2', dateReleve: '2026-09-20' });
+      v.egal('version et date gardées', fiches.logicielParc(base, parc, 'brompton-s8'), { logiciel: 'Tessera', version: '4.1.2', dateReleve: '2026-09-20' });
+      v.egal('version vidée : relevé retiré', fiches.logicielParc(fiches.reglerLogicielParc(base, parc, s8, { version: '' }), parc, 'brompton-s8'), null);
+      v.egal('« Tous » : rien', fiches.logicielParc(base, null, 'brompton-s8'), null);
+    },
+  },
+  {
+    id: 'R135',
+    titre: 'Fichiers joints : nom, taille et date gardés dans la base (le contenu reste sur l\'appareil), total occupé, alerte au-delà de 20 Mo',
+    etape: 'configs',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Loueur A');
+      const parc = base.parcs[0].id;
+      base = fiches.ajouterLot(base, parc, 'roe-bp2-v2', { identifiant: 'Lot A' });
+      const lot = fiches.lotsDalleParc(base, parc, 'roe-bp2-v2')[0].id;
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lot, { logiciel: 'NovaLCT', nomFichier: 'BP2V2_A.rcfgx' });
+      base = fiches.joindreFichier(base, parc, 'roe-bp2-v2', lot, 'NovaLCT', 'fichier', { id: 'f1', nom: 'BP2V2_A.rcfgx', taille: 48213, date: '2026-09-25' });
+      base = fiches.joindreFichier(base, parc, 'roe-bp2-v2', lot, 'NovaLCT', 'multiBatch', { id: 'f2', nom: 'BP2_lotA.mbd', taille: 1000, date: '2026-09-25' });
+      v.egal('fichier joint décrit dans la config', fiches.configLot(base, parc, 'roe-bp2-v2', lot, 'NovaLCT').fichier, { id: 'f1', nom: 'BP2V2_A.rcfgx', taille: 48213, date: '2026-09-25' });
+      v.egal('total occupé et liste des fichiers', [fiches.tailleFichiersJoints(base), fiches.fichiersJoints(base).map((f) => f.id)], [49213, ['f1', 'f2']]);
+      v.vrai('pas de contenu dans la base : seulement nom, taille, date', !JSON.stringify(base).includes('contenu'));
+      v.vrai('au-delà de 20 Mo : alerte', /20 Mo/.test(fiches.alerteTailleFichier(21 * 1024 * 1024) ?? '') && fiches.alerteTailleFichier(19 * 1024 * 1024) === null);
+      const detache = fiches.detacherFichier(base, parc, 'roe-bp2-v2', lot, 'NovaLCT', 'fichier');
+      v.egal('fichier détaché : le nom reste, plus de fichier joint', [fiches.configLot(detache, parc, 'roe-bp2-v2', lot, 'NovaLCT').nomFichier, fiches.configLot(detache, parc, 'roe-bp2-v2', lot, 'NovaLCT').fichier, fiches.tailleFichiersJoints(detache)],
+        ['BP2V2_A.rcfgx', undefined, 1000]);
+    },
+  },
+  {
+    id: 'R136',
+    titre: 'Export de la base : fichiers joints en option, décochée par défaut, avec leur taille ; l\'import les restitue',
+    etape: 'configs',
+    verifier(v, contexte) {
+      const depart = { dalles: contexte.dalles, processeurs: contexte.processeurs, regies: contexte.regies };
+      let base = fiches.creerParc(fiches.baseVide(), 'Loueur A');
+      const parc = base.parcs[0].id;
+      base = fiches.ajouterLot(base, parc, 'roe-bp2-v2', { identifiant: 'Lot A', quantite: '60' });
+      const lot = fiches.lotsDalleParc(base, parc, 'roe-bp2-v2')[0].id;
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lot, { logiciel: 'NovaLCT', nomFichier: 'BP2V2_A.rcfgx' });
+      base = fiches.joindreFichier(base, parc, 'roe-bp2-v2', lot, 'NovaLCT', 'fichier', { id: 'f1', nom: 'BP2V2_A.rcfgx', taille: 4, date: '2026-09-25' });
+      const sans = fiches.exporter(base, depart);
+      v.egal('par défaut : lots et config exportés, pas les fichiers ; leur taille est donnée', [Boolean(sans.fichiersJoints), sans.tailleFichiersJoints, sans.parcs[0].lots['roe-bp2-v2'][0].identifiant], [false, 4, 'Lot A']);
+      const octets = new Uint8Array([0, 255, 42, 7]);
+      const avec = fiches.exporter(base, depart, { fichiers: [{ id: 'f1', nom: 'BP2V2_A.rcfgx', type: 'application/octet-stream', contenu: octets.buffer }] });
+      v.egal('avec l\'option : les fichiers joints dans le JSON', avec.fichiersJoints.map((f) => [f.id, f.nom, f.taille]), [['f1', 'BP2V2_A.rcfgx', 4]]);
+      const lu = fiches.importer(fiches.baseVide(), JSON.stringify(avec), depart);
+      v.egal('import : fichiers restitués à l\'octet près', [lu.fichiers.length, [...new Uint8Array(lu.fichiers[0].contenu)]], [1, [0, 255, 42, 7]]);
+      v.egal('import : lots et config retrouvés', fiches.configLot(lu.base, parc, 'roe-bp2-v2', lot, 'NovaLCT').fichier.id, 'f1');
+      v.egal('import sans fichiers : rien à écrire', fiches.importer(fiches.baseVide(), JSON.stringify(sans), depart).fichiers, []);
+    },
+  },
+  {
+    id: 'R137',
+    titre: 'Fichiers de config : NovaLCT .rcfgx ou .rcfg, LEDVISION .rcvbp ou .rcvp, VMP .ncp, fixture pack Tessera .tfp ; « autre fichier » de n\'importe quelle extension ; extension vérifiée dans l\'appli',
+    etape: 'configs',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Loueur A');
+      const parc = base.parcs[0].id;
+      base = fiches.ajouterLot(base, parc, 'roe-bp2-v2', { identifiant: 'Lot A' });
+      const lot = fiches.lotsDalleParc(base, parc, 'roe-bp2-v2')[0].id;
+      const regler = (config) => fiches.configLot(fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lot, config), parc, 'roe-bp2-v2', lot, config.logiciel);
+      v.egal('ancien format NovaLCT .rcfg et Colorlight .rcvp acceptés, majuscules comprises',
+        [regler({ logiciel: 'NovaLCT', nomFichier: 'BP2_ancien.rcfg' }).nomFichier, regler({ logiciel: 'LEDVISION', nomFichier: 'BP2.RCVP' }).nomFichier, regler({ logiciel: 'NovaLCT', nomFichier: 'BP2.RCFGX' }).nomFichier],
+        ['BP2_ancien.rcfg', 'BP2.RCVP', 'BP2.RCFGX']);
+      v.vrai('message de refus : les deux extensions', /\.rcfgx ou \.rcfg/.test(messageErreur(() => regler({ logiciel: 'NovaLCT', nomFichier: 'x.ncp' })))
+        && /\.rcvbp ou \.rcvp/.test(messageErreur(() => regler({ logiciel: 'LEDVISION', nomFichier: 'x.rcfgx' }))));
+      v.egal('« autre fichier » : n\'importe quelle extension', regler({ logiciel: 'NovaLCT', autreFichier: 'ecran.scr' }).autreFichier, 'ecran.scr');
+      const accepte = (logiciel, role, nom) => messageErreur(() => fiches.verifierFichierJoint(logiciel, role, nom)) === '';
+      v.egal('fichier joint : extension vérifiée selon le logiciel et le rôle',
+        [accepte('NovaLCT', 'fichier', 'BP2.rcfgx'), accepte('NovaLCT', 'fichier', 'BP2.rcfg'), accepte('NovaLCT', 'fichier', 'ecran.scr'), accepte('VMP', 'fichier', 'BP2.ncp'),
+          accepte('LEDVISION', 'fichier', 'BP2.rcvp'), accepte('Tessera', 'fixturePack', 'ROE.tfp'), accepte('Tessera', 'fixturePack', 'ROE.zip'),
+          accepte('NovaLCT', 'multiBatch', 'lotA.bin'), accepte('NovaLCT', 'autre', 'ecran.scr'), accepte('Tessera', 'autre', 'projet.tessera')],
+        [true, true, false, true, true, true, false, true, true, true]);
+      v.vrai('refus avec la raison de l\'appli', /\.rcfgx ou \.rcfg/.test(messageErreur(() => fiches.verifierFichierJoint('NovaLCT', 'fichier', 'ecran.scr'))));
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lot, { logiciel: 'NovaLCT', nomFichier: 'BP2.rcfgx' });
+      base = fiches.joindreFichier(base, parc, 'roe-bp2-v2', lot, 'NovaLCT', 'autre', { id: 'f9', nom: 'ecran.scr', taille: 10, date: '2026-09-25' });
+      v.egal('autre fichier joint, compté dans les fichiers de l\'appareil', [fiches.configLot(base, parc, 'roe-bp2-v2', lot, 'NovaLCT').fichierAutre.nom, fiches.fichiersJoints(base).map((f) => f.role)], ['ecran.scr', ['autre']]);
+    },
+  },
+  {
+    id: 'R138',
+    titre: 'Partager un fichier de config : feuille de partage si l\'appareil sait partager ce fichier, sinon téléchargement vers Fichiers, avec « depuis Fichiers, AirDrop vers le PC de régie »',
+    etape: 'configs',
+    verifier(v) {
+      const fichiers = [{ name: 'BP2V2_A.rcfgx', type: 'application/octet-stream' }];
+      const partage = { share: () => Promise.resolve(), canShare: () => true };
+      v.egal('partage possible : feuille de partage, pas de note', choixPartageFichier(partage, fichiers), { mode: 'partage', note: null });
+      const secours = choixPartageFichier({}, fichiers);
+      v.egal('navigateur sans partage : téléchargement vers Fichiers', secours.mode, 'telechargement');
+      v.vrai('avec la note pour la régie', /depuis Fichiers, AirDrop vers le PC de régie/.test(secours.note ?? ''));
+      v.egal('canShare refuse ce type de fichier (.ncp) : téléchargement', choixPartageFichier({ ...partage, canShare: () => false }, [{ name: 'BP2.ncp', type: '' }]).mode, 'telechargement');
+      v.egal('canShare en erreur : téléchargement', choixPartageFichier({ ...partage, canShare: () => { throw new Error('non'); } }, fichiers).mode, 'telechargement');
+    },
+  },
+  {
+    id: 'R139',
+    titre: 'Lots du mur cochés par défaut : le premier lot qui suffit, sinon le moins de lots (puis le moins de dalles en trop) ; un seul lot, même sans quantité, coché d\'office ; plusieurs lots sans quantité : « à préciser »',
+    etape: 'configs',
+    verifier(v) {
+      const lot = (id, quantite) => ({ id, identifiant: id, quantite, configs: [] });
+      const retenus = (lots, n, coches) => fiches.lotsDuMur(lots, n, coches).retenus.map((l) => l.id);
+      const AB = [lot('A', 60), lot('B', 40)];
+      v.egal('A 60, B 40, mur de 50 : A seul, sans alerte', [retenus(AB, 50), fiches.lotsDuMur(AB, 50).alertes], [['A'], []]);
+      const r80 = fiches.lotsDuMur(AB, 80);
+      v.egal('mur de 80 : A et B', [r80.retenus.map((l) => l.id), r80.melanges], [['A', 'B'], true]);
+      v.vrai('lots mélangés signalés', r80.alertes.some((a) => a.startsWith('Lots mélangés (A, B), écarts de couleur possibles')));
+      const r120 = fiches.lotsDuMur(AB, 120);
+      v.egal('mur de 120 : A et B, lots trop petits', [r120.retenus.map((l) => l.id), r120.alertes.includes('Lots trop petits : 100 dalles dans les lots pour 120 dans le mur.')], [['A', 'B'], true]);
+      const sansQuantite = fiches.lotsDuMur([lot('A', null), lot('B', null)], 50);
+      v.egal('plusieurs lots sans quantité : rien par défaut, « à préciser »', [sansQuantite.retenus, sansQuantite.aPreciser, sansQuantite.alertes.some((a) => a.startsWith('Lots utilisés : à préciser'))], [[], true, true]);
+      const seul = fiches.lotsDuMur([lot('A', null)], 50);
+      v.egal('un seul lot sans quantité : coché d\'office, sans alerte', [seul.retenus.map((l) => l.id), seul.aPreciser, seul.alertes], [['A'], false, []]);
+      v.egal('A sans quantité, B 30, mur de 20 : B', retenus([lot('A', null), lot('B', 30)], 20), ['B']);
+      v.egal('A sans quantité, B 30, mur de 50 : B ne suffit pas, A complète (un seul lot sans quantité)', retenus([lot('A', null), lot('B', 30)], 50), ['A', 'B']);
+      v.egal('B 30, C 70, D 40, mur de 100 : C et B (juste 100), pas C et D', retenus([lot('B', 30), lot('C', 70), lot('D', 40)], 100), ['B', 'C']);
+      v.egal('A et B sans quantité, C 100, mur de 50 : C suffit', retenus([lot('A', null), lot('B', null), lot('C', 100)], 50), ['C']);
+      const main = fiches.lotsDuMur(AB, 80, ['A']);
+      v.egal('coché à la main : A seul pour un mur de 80, lots trop petits', [main.retenus.map((l) => l.id), main.parDefaut, main.alertes], [['A'], false, ['Lots trop petits : 60 dalles dans les lots pour 80 dans le mur.']]);
+      const aucun = fiches.lotsDuMur(AB, 80, []);
+      v.egal('tout décoché à la main : aucun lot, signalé', [aucun.retenus, aucun.alertes.some((a) => a.startsWith('Aucun lot coché'))], [[], true]);
+      v.egal('pas de lot : rien', [fiches.lotsDuMur([], 50).retenus, fiches.lotsDuMur([], 50).alertes], [[], []]);
+    },
+  },
+  {
+    id: 'R140',
+    titre: 'Mur et Data : « Config NovaLCT : fichier, lot », config absente pour le logiciel, lots mélangés selon le logiciel, parc sans lots, « Tous », version du logiciel relevée dans le parc',
+    etape: 'configs',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Essai');
+      const parc = base.parcs[0].id;
+      base = fiches.ajouterLot(base, parc, 'roe-bp2-v2', { identifiant: '2024-03 A', quantite: '60' });
+      const lotA = fiches.lotsDalleParc(base, parc, 'roe-bp2-v2')[0].id;
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lotA, { logiciel: 'NovaLCT', nomFichier: 'BP2V2_A.rcfgx' });
+      const nova = fiches.configsDuMur(base, parc, 'roe-bp2-v2', 50, { logiciel: 'NovaLCT' });
+      v.egal('NovaLCT : lot et fichier', [nova.lignes, nova.alertes], [['Lots utilisés : 2024-03 A', 'Config NovaLCT : BP2V2_A.rcfgx, lot 2024-03 A'], []]);
+      v.egal('processeur Brompton, pas de config Tessera', fiches.configsDuMur(base, parc, 'roe-bp2-v2', 50, { logiciel: 'Tessera' }).alertes,
+        ['Aucune config Tessera pour cette dalle (lot 2024-03 A).']);
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lotA, { logiciel: 'Tessera', typeFixture: 'ROE BP2V2', firmwareDalle: '3.2.1', fixturePack: 'ROE_BP2V2.tfp', calibration: 'mémoire 2' });
+      v.egal('Tessera : fixture, firmware de la dalle, fixture pack, calibration', fiches.configsDuMur(base, parc, 'roe-bp2-v2', 50, { logiciel: 'Tessera' }).lignes[1],
+        'Config Tessera : fixture ROE BP2V2, firmware de la dalle 3.2.1, fixture pack ROE_BP2V2.tfp, calibration mémoire 2, lot 2024-03 A');
+      v.egal('Mur (sans logiciel) : toutes les configs du lot', fiches.configsDuMur(base, parc, 'roe-bp2-v2', 50).lignes.length, 3);
+      base = fiches.ajouterLot(base, parc, 'roe-bp2-v2', { identifiant: '2024-05 B', quantite: '40' });
+      const lotB = fiches.lotsDalleParc(base, parc, 'roe-bp2-v2')[1].id;
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lotB, { logiciel: 'NovaLCT', nomFichier: 'BP2V2_B.rcfgx' });
+      const deux = fiches.configsDuMur(base, parc, 'roe-bp2-v2', 80, { logiciel: 'NovaLCT' });
+      v.egal('deux lots : les deux fichiers', deux.lignes, ['Lots utilisés : 2024-03 A, 2024-05 B', 'Config NovaLCT : BP2V2_A.rcfgx, lot 2024-03 A', 'Config NovaLCT : BP2V2_B.rcfgx, lot 2024-05 B']);
+      v.egal('lots mélangés, partie NovaLCT', deux.alertes, ['Lots mélangés (2024-03 A, 2024-05 B), écarts de couleur possibles : multi-batch adjustment (NovaLCT).']);
+      v.egal('lots mélangés, partie Brompton', fiches.configsDuMur(base, parc, 'roe-bp2-v2', 80, { logiciel: 'Tessera' }).alertes[0],
+        'Lots mélangés (2024-03 A, 2024-05 B), écarts de couleur possibles : même mémoire de calibration sur toutes les dalles (Brompton).');
+      v.egal('lots mélangés, Mur : les deux', fiches.configsDuMur(base, parc, 'roe-bp2-v2', 80).alertes[0],
+        'Lots mélangés (2024-03 A, 2024-05 B), écarts de couleur possibles : multi-batch adjustment (NovaLCT) ou même mémoire de calibration (Brompton).');
+      v.egal('lots cochés à la main', fiches.configsDuMur(base, parc, 'roe-bp2-v2', 80, { logiciel: 'NovaLCT', coches: [lotB] }).lignes[1], 'Config NovaLCT : BP2V2_B.rcfgx, lot 2024-05 B');
+      v.egal('parc sans lots pour cette dalle', fiches.configsDuMur(base, parc, 'roe-cb5-mkii', 50, { logiciel: 'NovaLCT' }).alertes,
+        ['Aucun fichier de config pour cette dalle dans le parc Essai : ajoute-le dans l\'onglet Base.']);
+      const tous = fiches.configsDuMur(base, null, 'roe-bp2-v2', 50, { logiciel: 'NovaLCT' });
+      v.egal('« Tous » : choisir un parc', [tous.lignes, tous.alertes, tous.note], [[], [], 'Choisis un parc pour voir ses lots et ses configs.']);
+      const proc = { id: 'novastar-mctrl4k', famille: 'novastar', logiciel: 'NovaLCT', nom: 'Novastar MCTRL4K' };
+      v.egal('version non relevée', fiches.texteLogicielParc(base, parc, proc), 'Version de NovaLCT non relevée pour ce processeur dans le parc Essai.');
+      const releve = fiches.reglerLogicielParc(base, parc, proc, { version: 'V5.8.1', dateReleve: '2026-09-25' });
+      v.egal('version relevée', fiches.texteLogicielParc(releve, parc, proc), 'NovaLCT V5.8.1 dans le parc Essai, relevé le 25/09/2026.');
+      v.egal('« Tous » : pas de version', fiches.texteLogicielParc(releve, null, proc), null);
+    },
+  },
+  {
+    id: 'R141',
+    titre: 'Rappels sourcés des configs selon le logiciel du processeur : NovaLCT, VMP (COEX), Tessera ; multi-batch ou calibration si lots mélangés ; firmware personnalisé ; CVT8-5G ; aucun pour Colorlight',
+    etape: 'configs',
+    verifier(v) {
+      const ids = (options) => rappels.rappelsConfig(options).map((r) => r.id);
+      v.egal('NovaLCT', ids({ logiciel: 'NovaLCT' }), ['N1', 'N2', 'N3', 'N4', 'N5']);
+      v.egal('NovaLCT, firmware personnalisé et lots mélangés', ids({ logiciel: 'NovaLCT', firmwarePersonnalise: true, lotsMelanges: true }), ['N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7']);
+      v.egal('COEX (VMP)', ids({ logiciel: 'VMP' }), ['C1', 'C2', 'C3', 'C4']);
+      v.egal('COEX avec CVT8-5G', ids({ logiciel: 'VMP', cvt8: true }), ['C1', 'C2', 'C3', 'C4', 'V1']);
+      v.egal('Brompton', ids({ logiciel: 'Tessera' }), ['B1', 'B2', 'B3']);
+      v.egal('Brompton, lots mélangés : calibration', ids({ logiciel: 'Tessera', lotsMelanges: true }), ['B1', 'B2', 'B3', 'B4']);
+      v.egal('Colorlight : aucune source, aucun rappel', ids({ logiciel: 'LEDVISION', lotsMelanges: true }), []);
+      const tous = rappels.rappelsConfig({ logiciel: 'NovaLCT', firmwarePersonnalise: true, lotsMelanges: true })
+        .concat(rappels.rappelsConfig({ logiciel: 'VMP', cvt8: true }), rappels.rappelsConfig({ logiciel: 'Tessera', lotsMelanges: true }));
+      v.vrai('chaque rappel : un texte et sa source', tous.every((r) => r.textes.length > 0 && r.textes.every((t) => t.texte && t.source?.titre && t.source?.confiance)));
+      const r = Object.fromEntries(tous.map((x) => [x.id, x]));
+      const citations = (id) => r[id].textes.map((t) => t.citation).filter(Boolean);
+      v.egal('N1, citation du guide V5.0.0 §5.1.11', citations('N1')[0], 'There are four types of configuration files at present, the module configuration file, the receiving card configuration file, the LED display configuration file and the system configuration file.');
+      v.egal('N5, citation du chap. 15', citations('N5')[0], 'It not recommended changing the program unless there are problems with the hardware.');
+      v.egal('B3, deux citations du §14.10', citations('B3').length, 2);
+      v.vrai('N6 finit par la mise en garde sur la mise à jour en ligne', r.N6.textes.at(-1).texte.endsWith('Donc ne lance pas la mise à jour en ligne des cartes sur une dalle à firmware personnalisé : elle le remplacerait par un firmware standard.'));
+      v.vrai('N7 : fichier .lxy', r.N7.textes.some((t) => t.texte.includes('.lxy')));
+      v.egal('confiance des sources tierces et des copies', [r.N2.textes[0].source.confiance, r.V1.textes[0].source.confiance, r.B4.textes.at(-1).source.confiance],
+        ['tiers', 'constructeur, copie non officielle', 'formation']);
+    },
+  },
+  {
+    id: 'R142',
+    titre: 'Texte copié de Data : lots utilisés, ligne de config et version du logiciel, sans les rappels',
+    etape: 'configs',
+    verifier(v, contexte) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Essai');
+      const parc = base.parcs[0].id;
+      base = fiches.ajouterLot(base, parc, 'roe-bp2-v2', { identifiant: '2024-03 A', quantite: '60' });
+      const lot = fiches.lotsDalleParc(base, parc, 'roe-bp2-v2')[0].id;
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lot, { logiciel: 'NovaLCT', nomFichier: 'BP2V2_A.rcfgx' });
+      const m = calculs.mur(DALLE_CAS_7, 10, 5);
+      const proc = processeurDeBase(contexte, 'novastar-mctrl4k');
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, proc, NOVASTAR_60_8);
+      const configs = fiches.configsDuMur(base, parc, 'roe-bp2-v2', 50, { logiciel: 'NovaLCT' });
+      const texte = resumes.resumeData(e, { configs: { ...configs, version: 'NovaLCT V5.8.1 dans le parc Essai, relevé le 25/09/2026.' } });
+      v.vrai('lots et config', texte.includes('Lots utilisés : 2024-03 A\nConfig NovaLCT : BP2V2_A.rcfgx, lot 2024-03 A'));
+      v.vrai('version du logiciel', texte.includes('NovaLCT V5.8.1 dans le parc Essai, relevé le 25/09/2026.'));
+      const absent = resumes.resumeData(e, { configs: fiches.configsDuMur(base, parc, 'roe-bp2-v2', 50, { logiciel: 'Tessera' }) });
+      v.vrai('config absente : en alerte', absent.includes('Alerte : Aucune config Tessera pour cette dalle (lot 2024-03 A).'));
+      v.vrai('sans les rappels', !texte.includes('Guide NovaLCT') && !texte.includes('four types'));
+    },
+  },
+  {
+    id: 'R143',
+    titre: 'Check-list « Avant de partir » (bas de Data) : fichiers de config sur l\'appareil ou à prendre, multi-batch ou calibration si lots mélangés, firmware personnalisé, version du logiciel, export de la base',
+    etape: 'configs',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Essai');
+      const parc = base.parcs[0].id;
+      for (const [identifiant, quantite] of [['2024-03 A', '60'], ['2024-05 B', '40']]) base = fiches.ajouterLot(base, parc, 'roe-bp2-v2', { identifiant, quantite });
+      const [lotA, lotB] = fiches.lotsDalleParc(base, parc, 'roe-bp2-v2').map((l) => l.id);
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lotA, { logiciel: 'NovaLCT', nomFichier: 'BP2V2_A.rcfgx', firmware: 'personnalisé' });
+      base = fiches.joindreFichier(base, parc, 'roe-bp2-v2', lotA, 'NovaLCT', 'fichier', { id: 'f1', nom: 'BP2V2_A.rcfgx', taille: 4, date: '2026-09-25' });
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lotB, { logiciel: 'NovaLCT', nomFichier: 'BP2V2_B.rcfgx' });
+      const groupes = [{ dalleId: 'roe-bp2-v2', n: 80, coches: null, libelle: null }];
+      const mctrl = { id: 'novastar-mctrl4k', famille: 'novastar', logiciel: 'NovaLCT', nom: 'Novastar MCTRL4K' };
+      const liste = fiches.avantDePartir(base, parc, groupes, mctrl, { presents: new Set(['f1']) });
+      v.egal('NovaLCT, lots A et B mélangés', liste.lignes, [
+        { texte: 'Fichier de config BP2V2_A.rcfgx (lot 2024-03 A) : sur cet appareil', fait: true },
+        { texte: 'Firmware personnalisé (lot 2024-03 A) : ne lance pas la mise à jour en ligne des cartes', fait: null },
+        { texte: 'Fichier de config BP2V2_B.rcfgx (lot 2024-05 B) : pas joint dans l\'appli, prends-le avec toi', fait: false },
+        { texte: 'Multi-batch adjustment (.lxy) pour les lots 2024-03 A, 2024-05 B : aucun fichier', fait: false },
+        { texte: 'Version de NovaLCT non relevée pour ce processeur : relève-la dans l\'onglet Base', fait: false },
+        { texte: 'Exporte ta base avec les fichiers joints avant de partir (onglet Base)', fait: null },
+      ]);
+      v.egal('fichier joint absent de l\'appareil', fiches.avantDePartir(base, parc, groupes, mctrl, { presents: new Set() }).lignes[0],
+        { texte: 'Fichier de config BP2V2_A.rcfgx (lot 2024-03 A) : absent de cet appareil, joins-le de nouveau dans l\'onglet Base', fait: false });
+      const releve = fiches.reglerLogicielParc(base, parc, mctrl, { version: 'V5.8.1', dateReleve: '2026-09-25' });
+      v.vrai('version relevée : à vérifier sur le PC de régie', fiches.avantDePartir(releve, parc, groupes, mctrl, { presents: new Set(['f1']) }).lignes
+        .some((l) => l.texte === 'NovaLCT V5.8.1 relevé le 25/09/2026 : même version sur le PC de régie' && l.fait === null));
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lotA, { logiciel: 'Tessera', typeFixture: 'ROE BP2V2', firmwareDalle: '3.2.1', fixturePack: 'ROE_BP2V2.tfp', calibration: 'mémoire 2' });
+      base = fiches.reglerConfigLot(base, parc, 'roe-bp2-v2', lotB, { logiciel: 'Tessera', calibration: 'mémoire 1' });
+      const s8 = { id: 'brompton-s8', famille: 'brompton', nom: 'Brompton S8' };
+      const tessera = fiches.avantDePartir(base, parc, groupes, s8, { presents: new Set(['f1']) }).lignes;
+      const a = (texte) => tessera.find((l) => l.texte === texte);
+      v.egal('Tessera : fixture pack à prendre', a('Fixture pack ROE_BP2V2.tfp (lot 2024-03 A) : pas joint dans l\'appli, prends-le avec toi')?.fait, false);
+      v.egal('Tessera : type de fixture et firmware de la dalle à vérifier', a('Type de fixture ROE BP2V2, firmware de la dalle 3.2.1 (lot 2024-03 A) : à vérifier dans Tessera')?.fait, null);
+      v.egal('Tessera : lot sans type de fixture', a('Type de fixture et firmware de la dalle (lot 2024-05 B) : non précisés')?.fait, false);
+      v.egal('Tessera : calibrations différentes selon les lots', a('Calibrations différentes selon les lots (2024-03 A mémoire 2, 2024-05 B mémoire 1) : règle la même mémoire sur toutes les dalles')?.fait, false);
+      v.egal('Tessera : exporter le projet avant une mise à jour', a('Exporte une copie du projet Tessera avant toute mise à jour du firmware (manuel Tessera V3.5, §14.10)')?.fait, null);
+      v.egal('pas de firmware personnalisé côté Tessera (rappel NovaLCT)', tessera.some((l) => l.texte.startsWith('Firmware personnalisé')), false);
+      v.egal('parc sans lots pour cette dalle', fiches.avantDePartir(base, parc, [{ dalleId: 'roe-cb5-mkii', n: 20, coches: null, libelle: null }], mctrl).lignes[0],
+        { texte: 'Aucun fichier de config pour cette dalle dans le parc Essai : ajoute-le dans l\'onglet Base', fait: false });
+      v.egal('« Tous » : pas de check-list', fiches.avantDePartir(base, null, groupes, mctrl), null);
+    },
+  },
+  {
+    id: 'R144',
+    titre: 'Check-list « Avant de partir » en texte simple (OK, À faire, À vérifier), reprise dans « Tout copier »',
+    etape: 'configs',
+    verifier(v) {
+      const liste = { nomParc: 'Essai', lignes: [
+        { texte: 'Fichier de config BP2V2_A.rcfgx (lot 2024-03 A) : sur cet appareil', fait: true },
+        { texte: 'Version de NovaLCT non relevée pour ce processeur : relève-la dans l\'onglet Base', fait: false },
+        { texte: 'Firmware personnalisé (lot 2024-03 A) : ne lance pas la mise à jour en ligne des cartes', fait: null },
+      ] };
+      const texte = resumes.resumeAvantDePartir(liste);
+      v.egal('texte', texte, 'AVANT DE PARTIR, parc Essai\n'
+        + 'OK : Fichier de config BP2V2_A.rcfgx (lot 2024-03 A) : sur cet appareil\n'
+        + 'À faire : Version de NovaLCT non relevée pour ce processeur : relève-la dans l\'onglet Base\n'
+        + 'À vérifier : Firmware personnalisé (lot 2024-03 A) : ne lance pas la mise à jour en ligne des cartes');
+      v.egal('pas de check-list : rien', resumes.resumeAvantDePartir(null), null);
+      v.vrai('« Tout copier » la reprend', resumes.toutResumer(['DATA\nProcesseur : 1 × MCTRL4K', texte], new Date(2026, 8, 25)).endsWith(texte));
+    },
+  },
+  {
+    id: 'R145',
+    titre: 'Dalle en deux versions (URMIII03 standard ou Black, Upad IV 2.6 scan 1/8 ou 1/16) : la plus défavorable par défaut, version réglable par parc (source « Parc X »), demi-dalle de la même version',
+    etape: 'catalogue',
+    verifier(v, contexte) {
+      const u03 = dalleDeBase(contexte, 'unilumin-urmiii03-500x1000');
+      const demi = dalleDeBase(contexte, 'unilumin-urmiii03-500x500');
+      let base = fiches.creerParc(fiches.baseVide(), 'Loueur U');
+      const parc = base.parcs[0].id;
+      v.egal('sans réglage : Black, scan 1/8', [fiches.appliquerReglagesParc(u03, base, parc).pMaxW, fiches.appliquerReglagesParc(u03, base, parc).scan], [420, '1/8']);
+      base = fiches.reglerDalleParc(base, parc, 'unilumin-urmiii03-500x1000', { declinaison: 'standard' });
+      const reglee = fiches.appliquerReglagesParc(u03, base, parc);
+      v.egal('version standard réglée dans le parc : 335 W, 100 W, scan 1/16', [reglee.pMaxW, reglee.pMoyW, reglee.scan], [335, 100, '1/16']);
+      v.vrai('source « Parc Loueur U », la fiche de la version reste citée', reglee.sources.pMaxW.sources.some((x) => x.court === 'Parc Loueur U')
+        && reglee.sources.pMaxW.sources.some((x) => x.id === 'unilumin-fiche-urmiii03-v2-6'));
+      v.egal('420 W de la version Black visible', reglee.sources.pMaxW.autres.map((x) => x.valeur), [420]);
+      v.egal('valeurs communes aux deux versions : inchangées', [reglee.poidsKg, reglee.pxV], [14.6, 256]);
+      v.egal('demi-dalle sans réglage propre : même version que sa dalle (170 W)', fiches.appliquerReglagesParc(demi, base, parc).pMaxW, 170);
+      v.egal('« Tous » : la plus défavorable', fiches.appliquerReglagesParc(u03, base, null).pMaxW, 420);
+      v.egal('version inconnue : ignorée', fiches.appliquerReglagesParc(u03, fiches.reglerDalleParc(base, parc, 'unilumin-urmiii03-500x1000', { declinaison: 'autre' }), parc).pMaxW, 420);
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const b2 = fiches.reglerDalleParc(base, parc, 'unilumin-upad-iv-2-6', { declinaison: 'scan-1-16' });
+      v.egal('Upad IV 2.6 en scan 1/16 : scan réglé, 120 W de la fiche Unilumin visible',
+        [fiches.appliquerReglagesParc(upad, b2, parc).scan, [fiches.appliquerReglagesParc(upad, b2, parc).pMaxW, ...fiches.appliquerReglagesParc(upad, b2, parc).sources.pMaxW.autres.map((x) => x.valeur)].includes(120)], ['1/16', true]);
+      v.vrai('réglage de la version dans le formulaire du parc', fiches.CHAMPS_REGLAGE_PARC.includes('declinaison'));
+    },
+  },
+  {
+    id: 'R146',
+    titre: 'Valeur « plafond constructeur » (LEDECA : « <600 W/m² », « <15 kg ») : type accepté, affiché avec la P max dans Élec et avec le poids dans Poids',
+    etape: 'catalogue',
+    verifier(v, contexte) {
+      v.vrai('type de valeur accepté dans une fiche', fiches.TYPES_VALEUR.includes('plafond constructeur'));
+      const dalle = dalleDeBase(contexte, 'ledeca-ldaosp03-9st');
+      const m = calculs.mur(dalle, 8, 4);
+      const elec = resumes.resumeElec(calculs.electricite(m, dalle, {}), { dalle, mur: m });
+      v.vrai('Élec : P max retenue 300 W, plafond constructeur', /P max retenue[^:]* : 300 W \(.*plafond constructeur.*\)/.test(elec));
+      const poids = resumes.resumePoids(calculs.poids(m, dalle, {}), { dalle, mur: m });
+      v.vrai('Poids : 15 kg, plafond constructeur', /Poids d'une dalle : 15 kg \(.*plafond constructeur.*\)/.test(poids));
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const m2 = calculs.mur(bp2, 4, 3);
+      v.vrai('valeur ordinaire : pas de mention', !resumes.resumeElec(calculs.electricite(m2, bp2, {}), { dalle: bp2, mur: m2 }).includes('plafond'));
+    },
+  },
+  {
+    id: 'R147',
+    titre: 'Choix de la dalle : marque, puis gamme, puis version ; dalles du parc actif en premier ; recherche par nom ou par pitch ; fiches d\'information grisées dans leur gamme',
+    etape: 'catalogue',
+    verifier(v) {
+      const dalle = (id, marque, gamme, modele, version, pitchMm, extra = {}) => ({ id, marque, gamme, modele, version, pitchMm, largeurMm: 500, hauteurMm: 500, pxH: 176, pxV: 176, nom: [marque, modele, version].filter(Boolean).join(' '), ...extra });
+      const dalles = [
+        dalle('unilumin-urmiii3', 'Unilumin', 'URMIII', 'URMIII3', null, 3.9),
+        dalle('roe-bp2-v2', 'ROE', 'Black Pearl', 'BP2', 'V2', 2.84),
+        dalle('absen-pl2-5-pro-v10', 'Absen', undefined, 'PL2.5 Pro', 'V10', 2.5),
+        dalle('roe-cb5-mkii', 'ROE', 'Carbon MKII', 'CB5', 'MKII', 5.77),
+        dalle('roe-dm2-6', 'ROE', 'Diamond', 'DM2.6', null, 2.6),
+        dalle('roe-gp2-6', 'ROE', 'Graphite', 'GP2.6', null, undefined, { largeurMm: 500, pxH: 192 }),
+      ];
+      const informations = [{ id: 'roe-jasper-2-6', marque: 'ROE', gamme: 'Jasper', modele: 'Jasper', version: '2.6', pitchMm: 2.6, nom: 'ROE Jasper 2.6', statut: 'information' }];
+      const arbre = fiches.arbreDalles(dalles, { informations, parc: new Set(['roe-cb5-mkii']) });
+      v.egal('marques : celle du parc actif en premier, puis par ordre alphabétique', arbre.map((m) => m.marque), ['ROE', 'Absen', 'Unilumin']);
+      v.egal('gammes : celle du parc en premier', arbre[0].gammes.map((g) => g.gamme), ['Carbon MKII', 'Black Pearl', 'Diamond', 'Graphite', 'Jasper']);
+      v.egal('sans gamme : le modèle sert de gamme', arbre[1].gammes.map((g) => g.gamme), ['PL2.5 Pro']);
+      v.egal('fiche d\'information grisée dans sa gamme', arbre[0].gammes.find((g) => g.gamme === 'Jasper').fiches.map((f) => [f.id, f.information]), [['roe-jasper-2-6', true]]);
+      v.egal('version : libellé sans la marque ni la gamme', arbre[0].gammes.find((g) => g.gamme === 'Black Pearl').fiches[0].libelle, 'BP2 V2');
+      const ids = (a) => a.flatMap((m) => m.gammes.flatMap((g) => g.fiches.map((f) => f.id)));
+      v.egal('recherche par nom (sans accents ni majuscules)', ids(fiches.arbreDalles(dalles, { informations, recherche: 'bp2' })), ['roe-bp2-v2']);
+      v.egal('recherche par pitch : « 2,6 », « 2.6 » ou « P2.6 » (pitch de la fiche ou largeur / pixels)', ['2,6', '2.6', 'P2.6'].map((q) => ids(fiches.arbreDalles(dalles, { informations, recherche: q }))),
+        [['roe-dm2-6', 'roe-gp2-6', 'roe-jasper-2-6'], ['roe-dm2-6', 'roe-gp2-6', 'roe-jasper-2-6'], ['roe-dm2-6', 'roe-gp2-6', 'roe-jasper-2-6']]);
+      v.egal('recherche sans résultat : liste vide', fiches.arbreDalles(dalles, { recherche: 'zzz' }), []);
+      const parc = fiches.arbreDalles(dalles, { parc: new Set(['roe-dm2-6', 'roe-bp2-v2']) })[0].gammes;
+      v.egal('dans une marque, gammes du parc puis les autres', parc.map((g) => [g.gamme, g.parc]), [['Black Pearl', true], ['Diamond', true], ['Carbon MKII', false], ['Graphite', false]]);
+    },
+  },
+  {
+    id: 'R148',
+    titre: 'Fiches retirées de la base de départ (LEDCAST) encore citées par un parc : signalées dans Base, retirées du parc sur demande avec leurs réglages et leurs lots',
+    etape: 'catalogue',
+    verifier(v, contexte) {
+      const depart = { dalles: contexte.dalles, processeurs: contexte.processeurs, regies: contexte.regies };
+      let base = fiches.creerParc(fiches.baseVide(), 'Ancien parc');
+      const parc = base.parcs[0].id;
+      base = fiches.basculerMembre(base, parc, 'dalle', 'ledcast-flex-2-5');
+      base = fiches.basculerMembre(base, parc, 'dalle', 'roe-bp2-v2');
+      base = fiches.reglerDalleParc(base, parc, 'ledcast-flex-2-5', { carteReceptionMarque: 'Novastar' });
+      base = fiches.ajouterLot(base, parc, 'ledcast-flex-2-5', { identifiant: 'Lot 1' });
+      v.egal('fiche retirée signalée, avec son réglage et ses lots', fiches.fichesRetirees(base, depart),
+        [{ parcId: parc, parcNom: 'Ancien parc', type: 'dalle', id: 'ledcast-flex-2-5', reglage: true, lots: 1 }]);
+      const nettoyee = fiches.retirerFicheRetiree(base, parc, 'dalle', 'ledcast-flex-2-5');
+      v.egal('retirée du parc : membre, réglage et lots', [fiches.estMembre(nettoyee, parc, 'dalle', 'ledcast-flex-2-5'), fiches.reglageDalleParc(nettoyee, parc, 'ledcast-flex-2-5'),
+        fiches.lotsDalleParc(nettoyee, parc, 'ledcast-flex-2-5').length, fiches.estMembre(nettoyee, parc, 'dalle', 'roe-bp2-v2')], [false, null, 0, true]);
+      v.egal('plus rien à signaler', fiches.fichesRetirees(nettoyee, depart), []);
+      const maFiche = { ...fiches.baseVide(), fiches: [{ type: 'dalle', fiche: { id: 'ledcast-flex-2-5', marque: 'LEDCAST', modele: 'Flex', largeurMm: { valeur: 500, source: 't' }, hauteurMm: { valeur: 500, source: 't' }, pxH: { valeur: 200, source: 't' }, pxV: { valeur: 200, source: 't' } } }],
+        parcs: base.parcs };
+      v.egal('fiche gardée dans ma base (version complétée) : rien à signaler', fiches.fichesRetirees(maFiche, depart), []);
+    },
+  },
+  {
+    id: 'R149',
+    titre: 'Pitch nominal (nom commercial) : affiché pour information, jamais utilisé ; les calculs (taille, résolution, canvas, charge des ports, mapping interpolé) prennent le pitch réel (Upad IV 1.5 MIP : 320 px sur 500 mm)',
+    etape: 'catalogue',
+    verifier(v, contexte) {
+      const mip = dalleDeBase(contexte, 'unilumin-upad-iv-1-5-mip');
+      v.egal('fiche : 1,5 mm « nominal », 320 px sur 500 mm', [mip.pitchMm, mip.sources.pitchMm.type, mip.pxH, mip.largeurMm], [1.5, 'nominal', 320, 500]);
+      v.egal('pitch réel : 500 / 320 = 1,5625 mm', [calculs.pitchCalculeMm(mip), calculs.densite(mip).pitchMm], [1.5625, 1.5625]);
+      const r = calculs.dimensionner(mip, { mode: 'taille', largeurMm: 2000, hauteurMm: 1000 });
+      v.egal('mur de 2 × 1 m : 4 × 2 dalles, 1280 × 640 px (pixels de la fiche, pas 2000 / 1,5 = 1333)', [r.mur.colonnes, r.mur.lignes, r.mur.pxLargeur, r.mur.pxHauteur], [4, 2, 1280, 640]);
+      const e = calculs.evaluerProcesseur(r.mur, mip, processeurDeBase(contexte, 'brompton-s8'), BROMPTON_60_10);
+      v.egal('charge d\'un port : 320 × 320 = 102 400 px par dalle', e.pxParDalle, 102400);
+      v.egal('mapping interpolé : pitch de référence réel', calculs.pitchLePlusFin([mip, dalleDeBase(contexte, 'roe-bp2-v2')]), 1.5625);
+      v.vrai('texte copié du Mur : pitch réel', resumes.resumeMur({ dalle: mip, mur: r.mur }).includes('Pitch : 1,563 mm'));
+      const nominaux = contexte.dalles.dalles.map((f) => calculs.resoudreFiche(f, contexte.dalles.sources)).filter((d) => d.sources.pitchMm?.type === 'nominal').map((d) => d.id);
+      v.egal('dalles à pitch nominal', nominaux, ['roe-bq4-6', 'roe-bq4-6-demi', 'roe-v4st', 'unilumin-urmiii2-500x1000', 'unilumin-urmiii2-500x500',
+        'unilumin-upad-iv-1-9-pro-f', 'unilumin-upad-iv-1-9-pro-xr', 'unilumin-upad-iv-1-5-mip', 'ledeca-ldaisp02-9st', 'ledeca-ldaisp01-9stq']);
+      v.vrai('type de valeur accepté dans une fiche', fiches.TYPES_VALEUR.includes('nominal'));
     },
   },
 ];
+
+// Message de l'erreur levée par `f`, ou chaîne vide.
+function messageErreur(f) {
+  try {
+    f();
+  } catch (erreur) {
+    return erreur.message;
+  }
+  return '';
+}
 
 // Colonnes touchées par un trajet.
 function colonnesDe(ids) {

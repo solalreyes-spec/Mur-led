@@ -56,12 +56,30 @@
           <label for="parc-mur">Parc actif</label>
           <select id="parc-mur" name="parc" class="selecteur-parc"></select>
         </div>
-        <div class="champ">
-          <label for="dalle">Dalle</label>
-          <select id="dalle" name="dalle" disabled>
+        <fieldset class="choix-dalle">
+          <legend>Dalle</legend>
+          <div class="champ">
+            <label for="recherche-dalle">Rechercher un nom ou un pitch</label>
+            <input id="recherche-dalle" type="search" autocomplete="off" placeholder="BP2, URMIII03, 2,6…">
+          </div>
+          <div class="champ">
+            <label for="dalle-marque">Marque</label>
+            <select id="dalle-marque" disabled></select>
+          </div>
+          <div class="champ">
+            <label for="dalle-gamme">Gamme</label>
+            <select id="dalle-gamme" disabled></select>
+          </div>
+          <div class="champ">
+            <label for="dalle-version">Version</label>
+            <select id="dalle-version" disabled></select>
+          </div>
+          <p id="etat-choix-dalle" class="note" aria-live="polite"></p>
+          <!-- Valeur retenue (gardée avec les saisies du Mur) : remplie par les trois sélecteurs. -->
+          <select id="dalle" name="dalle" hidden disabled>
             <option>Chargement de la base…</option>
           </select>
-        </div>
+        </fieldset>
         <div id="alerte-dalle"></div>
         <div id="bloc-rotation" hidden>
           <label class="case"><input type="checkbox" name="tourner"><span>Tourner la dalle (portrait ou paysage)</span></label>
@@ -129,6 +147,8 @@
             </div>
           </fieldset>
         </div>
+        <!-- Lots cochés à la main, par parc et par dalle (gardés avec les saisies du Mur). -->
+        <input name="lotsCoches" type="text" hidden value="">
       </form>
 
       <div class="barre-copie">
@@ -195,6 +215,15 @@
         <span class="etat-copie" aria-live="polite"></span>
       </div>
       <div id="resultats-data" class="resultats" aria-live="polite"></div>
+
+      <section id="avant-de-partir" class="carte" aria-labelledby="titre-depart" hidden>
+        <h3 id="titre-depart">Avant de partir</h3>
+        <div id="liste-depart"></div>
+        <div class="barre-copie">
+          <button class="bouton bouton-petit" type="button" data-copier="depart">Copier la check-list</button>
+          <span class="etat-copie" aria-live="polite"></span>
+        </div>
+      </section>
     </section>
 
     <section id="canvas" aria-labelledby="titre-canvas" hidden>
@@ -517,6 +546,7 @@
         <h3>Parcs</h3>
         <p class="note">Un parc par prestataire. Une fiche peut appartenir à plusieurs parcs. Le parc actif se choisit dans les onglets Mur et Data.</p>
         <ul id="liste-parcs" class="liste-parcs"></ul>
+        <div id="fiches-retirees"></div>
         <form id="form-parc" class="ligne-saisie" novalidate>
           <input name="nom" type="text" autocomplete="off" placeholder="Nom du prestataire" aria-label="Nom du nouveau parc">
           <button class="bouton" type="submit">Créer le parc</button>
@@ -595,6 +625,7 @@
       <section class="carte formulaire">
         <h3>Sauvegarde et partage</h3>
         <label class="case"><input id="exporter-tout" type="checkbox"><span>Tout exporter, base de départ comprise</span></label>
+        <label class="case"><input id="exporter-fichiers" type="checkbox"><span id="libelle-exporter-fichiers">Inclure les fichiers joints</span></label>
         <button id="exporter" class="bouton" type="button">Exporter en JSON</button>
         <div class="champ">
           <label for="fichier-import">Importer un fichier JSON</label>

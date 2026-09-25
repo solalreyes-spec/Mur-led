@@ -8,7 +8,10 @@ import {
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
 import { alertesSansManques, ligneManques } from './manques.js';
-import { resumeData, consommationProcesseur } from './resumes.js';
+import { resumeData, consommationProcesseur, resumeAvantDePartir } from './resumes.js';
+import { configsDuMur, logicielDuProcesseur, texteLogicielParc, avantDePartir } from './fiches.js';
+import { listerFichiers } from './stockage.js';
+import { rappelsConfig } from './rappels.js';
 
 const formulaire = document.getElementById('form-data');
 const zone = document.getElementById('resultats-data');
@@ -35,6 +38,11 @@ function cocherBits(bits) {
 }
 // Coin de départ du câblage data, choisi dans l'onglet Schéma : le serpentin au plus juste en dépend.
 let departData = 'haut-gauche';
+// { base, parcId } : ma base et le parc actif, pour les lots, les configs et la version des logiciels.
+let contexteLots = { base: null, parcId: null };
+// Fichiers joints présents sur l'appareil (identifiants), pour la check-list ; null tant que non lus.
+let presents = null;
+let derniereListe = null;
 
 const NOMS_FAMILLE = { brompton: 'Brompton', novastar: 'Novastar et COEX', colorlight: 'Colorlight' };
 const LIBELLES_MANQUANTS = {
@@ -299,6 +307,81 @@ function consoLigne(r) {
   return texte ? el('p', { class: 'source' }, `Consommation et poids : ${texte}.`) : null;
 }
 
+// Lots et configs du mur pour le logiciel du processeur retenu, version relevée dans le parc, rappels sourcés.
+function configsData(choisie) {
+  const { base, parcId } = contexteLots;
+  if (!base || base.parcs.length === 0) return null;
+  const logiciel = logicielDuProcesseur(choisie.processeur);
+  const groupes = (etatMur?.lots ?? []).map((g) => ({ g, c: configsDuMur(base, parcId, g.dalleId, g.n, { coches: g.coches, logiciel }) }));
+  const prefixe = (g, texte) => (g.libelle ? `${g.libelle} : ${texte.charAt(0).toLowerCase()}${texte.slice(1)}` : texte);
+  return {
+    logiciel,
+    note: groupes.find(({ c }) => c.note)?.c.note ?? null,
+    lignes: groupes.flatMap(({ g, c }) => c.lignes.map((l) => prefixe(g, l))),
+    alertes: groupes.flatMap(({ g, c }) => c.alertes.map((a) => prefixe(g, a))),
+    version: texteLogicielParc(base, parcId, choisie.processeur),
+    rappels: rappelsConfig({
+      logiciel,
+      lotsMelanges: groupes.some(({ c }) => c.melanges),
+      firmwarePersonnalise: groupes.some(({ c }) => c.firmwarePersonnalise),
+      cvt8: choisie.processeur.distributeur === 'coex-cvt8-5g',
+    }),
+  };
+}
+
+const CONFIANCES_AFFICHEES = { tiers: 'source tierce' };
+// Guillemets français collés à leur texte : jamais un « » seul en début de ligne.
+const insecables = (t) => t.replace(/« /g, '«\u00a0').replace(/ »/g, '\u00a0»');
+function elementRappel(r) {
+  return el('li', {},
+    el('strong', {}, r.titre),
+    r.textes.map((t) => el('p', { class: 'rappel-texte' },
+      t.citation ? [el('span', { class: 'citation', lang: 'en' }, insecables(`« ${t.citation} »`)), el('br')] : null,
+      insecables(t.texte),
+      el('span', { class: 'source' }, ` (${sourceCourte(t.source)}${t.section ? `, ${t.section}` : ''}`
+        + `${t.source.confiance === 'constructeur' ? '' : `, ${CONFIANCES_AFFICHEES[t.source.confiance] ?? t.source.confiance}`})`))));
+}
+
+function sectionConfigs(c) {
+  if (!c) return null;
+  return el('section', { class: 'bloc-resultats' },
+    el('h3', {}, `Configs des dalles (${c.logiciel})`),
+    c.note ? el('p', { class: 'note' }, c.note) : null,
+    c.lignes.map((l) => el('p', { class: 'ligne-config' }, l)),
+    c.version ? el('p', { class: 'source' }, c.version) : null,
+    c.alertes.map((a) => alerte(a)),
+    c.rappels.length ? el('details', { class: 'rappels-config' },
+      el('summary', {}, `Rappels ${c.logiciel === 'VMP' ? 'VMP (COEX)' : c.logiciel} (${c.rappels.length})`),
+      el('ul', { class: 'rappels' }, c.rappels.map(elementRappel))) : null);
+}
+
+// Carte « Avant de partir » : prête (✓), à faire (☐) ou à vérifier sur place (?).
+const SIGNES_DEPART = { true: '✓', false: '☐', null: '?' };
+const LIBELLES_DEPART = { true: 'prêt', false: 'à faire', null: 'à vérifier' };
+const CLASSES_DEPART = { true: 'depart-pret', false: 'depart-a-faire', null: 'depart-a-verifier' };
+function afficherDepart(liste, avecParcs) {
+  derniereListe = liste;
+  const carte = document.getElementById('avant-de-partir');
+  carte.hidden = !avecParcs;
+  if (!avecParcs) return;
+  document.getElementById('titre-depart').textContent = liste ? `Avant de partir, parc ${liste.nomParc}` : 'Avant de partir';
+  remplacer(document.getElementById('liste-depart'), liste
+    ? el('ul', { class: 'liste-depart' }, liste.lignes.map((l) => el('li', { class: CLASSES_DEPART[l.fait] },
+      el('span', { class: 'signe-depart', 'aria-label': LIBELLES_DEPART[l.fait] }, SIGNES_DEPART[l.fait]), el('span', {}, l.texte))))
+    : el('p', { class: 'note' }, 'Choisis un parc pour préparer la check-list de ce mur.'));
+}
+
+async function rafraichirPresents() {
+  const avant = presents ? [...presents].sort().join() : null;
+  presents = new Set((await listerFichiers()).map((f) => f.id));
+  if (avant !== [...presents].sort().join() && etatMur) mettreAJour();
+}
+
+// Résumé texte de la check-list, pour « Copier la check-list » et « Tout copier ».
+export function resumeOngletDepart() {
+  return resumeAvantDePartir(derniereListe);
+}
+
 function sectionAutres(e, evaluations, choisie) {
   const lignes = evaluations.map((r) => {
     const p = r.processeur;
@@ -335,6 +418,7 @@ export function resumeOngletData() {
 // Calcule et affiche ; renvoie le processeur retenu (ou null) pour l'onglet Canvas.
 function calculer(e) {
   dernier = null;
+  afficherDepart(null, false);
   if (!etatMur) return null;
   if (!etatMur.mur) {
     remplacer(zone, alerte('Le mur n\'est pas valide : corrige-le dans l\'onglet Mur.', 'alerte-erreur'));
@@ -398,16 +482,22 @@ function calculer(e) {
     + (carte ? `Carte de réception : ${carte}${sourceCarte ? ` (${sourceCarte.sources.map(sourceCourte).join(', ')})` : ''}. ` : ''),
     el('a', { href: '#mur' }, 'Modifier le mur'));
 
+  const configs = configsData(choisie);
+  const { base, parcId } = contexteLots;
+  const avecParcs = Boolean(base?.parcs.length);
+  afficherDepart(avecParcs ? avantDePartir(base, parcId, etatMur.lots ?? [], choisie.processeur, { presents }) : null, avecParcs);
   dernier = {
     choisie, conseille: choisie === conseil, distributeur: nomDistributeur(choisie),
     puissanceDistributeurW: distributeurs.get(choisie.processeur.distributeur)?.puissanceW ?? null,
     origineBits: origineBits(choisie.processeur.famille, choisie.reglages.bits),
     gainDixBits: gain,
+    configs,
   };
   remplacer(zone, recap,
     ...alertes,
     choisie.global ? sectionPorts(e, dalle, choisie) : null,
     sectionProcesseur(choisie, conseil),
+    sectionConfigs(configs),
     sectionAutres(e, evaluations, choisie),
   );
   return choisie;
@@ -446,6 +536,8 @@ export function actualiserData(base, premiereFois = false) {
   sources = base.sources;
   nomParc = base.nomParc ?? null;
   cartesReception = base.cartesReception ?? [];
+  contexteLots = base.lots ?? { base: null, parcId: null };
+  rafraichirPresents();
   // Nouveau parc actif : sa profondeur réseau remplace le défaut de la marque affichée.
   const famille = lireFormulaire().famille;
   const avant = defautBits(famille).bits;

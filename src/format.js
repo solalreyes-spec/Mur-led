@@ -44,3 +44,8 @@ export function lireNombre(texte) {
   const propre = String(texte ?? '').replace(/[\s  ]/g, '').replace(',', '.');
   return propre === '' ? NaN : Number(propre);
 }
+
+// Type de valeur à rappeler à côté de sa source : « plafond constructeur » (la fiche ne donne qu'un maximum).
+export function mentionType(valeurSourcee) {
+  return valeurSourcee?.type === 'plafond constructeur' ? 'plafond constructeur' : null;
+}

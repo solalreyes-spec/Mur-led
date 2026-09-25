@@ -8,6 +8,7 @@ import { processeurDeBase, baseProcesseurs, dalleDeBase } from './base.js';
 import { DALLE_CAS_13 } from './dalles-fictives.js';
 import { versionCache, empreinteDeclaree, empreinteCache } from './fichiers.js';
 import { VERSIONS_CACHE } from './versions-cache.js';
+import { creerStockage } from '../src/stockage.js';
 
 const DALLE_192 = { id: 'fictive-192', nom: 'Dalle 500 mm, 192 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
 
@@ -268,6 +269,23 @@ export const NAVIGATEUR = [
       v.egal('la version de sw.js est la dernière enregistrée', version, VERSIONS_CACHE[VERSIONS_CACHE.length - 1].version);
       v.vrai('versions croissantes, une empreinte différente à chaque version',
         VERSIONS_CACHE.every((x, i, t) => i === 0 || (x.version > t[i - 1].version && x.empreinte !== t[i - 1].empreinte)));
+    },
+  },
+  {
+    id: 'N9',
+    titre: 'Fichiers joints stockés sur l\'appareil (IndexedDB), dans une base de test séparée : écrire, lire à l\'octet près, taille, liste, supprimer',
+    etape: 'configs',
+    async verifier(v) {
+      const nom = 'appli-mur-led-tests';
+      const st = creerStockage(nom);
+      await st.ecrireFichier('t1', { nom: 'essai.rcfgx', type: 'application/octet-stream', contenu: new Uint8Array([1, 2, 3, 250]).buffer });
+      const f = await st.lireFichier('t1');
+      v.egal('relu à l\'octet près, avec son nom et sa taille', [f?.nom, f?.taille, [...new Uint8Array(f?.contenu ?? new ArrayBuffer(0))]], ['essai.rcfgx', 4, [1, 2, 3, 250]]);
+      v.egal('liste des fichiers : nom et taille, sans le contenu', (await st.listerFichiers()).map((x) => [x.id, x.nom, x.taille, 'contenu' in x]), [['t1', 'essai.rcfgx', 4, false]]);
+      await st.supprimerFichier('t1');
+      v.egal('supprimé', await st.lireFichier('t1'), null);
+      await new Promise((r) => { const q = indexedDB.deleteDatabase(nom); q.onsuccess = r; q.onerror = r; q.onblocked = r; });
+      v.vrai('base de test séparée de celle de l\'appli', nom !== 'appli-mur-led');
     },
   },
 ];

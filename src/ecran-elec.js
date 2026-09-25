@@ -2,7 +2,7 @@
 // Aucune règle de calcul ici : tout passe par calculs.js.
 
 import { electricite, ARRIVEES, LIBELLES_COIN, ErreurSaisie } from './calculs.js';
-import { nombre, nombreCourt, lireNombre, sourceCourte } from './format.js';
+import { nombre, nombreCourt, lireNombre, sourceCourte, mentionType } from './format.js';
 import { el, remplacer } from './dom.js';
 import { alertesSansManques, ligneManques } from './manques.js';
 import { resumeElec } from './resumes.js';
@@ -61,7 +61,7 @@ function textePMax(fiche, p) {
   if (p.origine === 'surface') return `${watts(p.valeurW)} estimés (1 kVA/m²)`;
   if (p.origine === 'gabarit') return `${watts(p.valeurW)} estimés (gabarit non sourcé)`;
   const s = fiche.sources?.pMaxW;
-  return `${watts(p.valeurW)}${s ? ` (${s.sources.map(sourceCourte).join(', ')})` : ''}`;
+  return `${watts(p.valeurW)}${s ? ` (${[...s.sources.map(sourceCourte), mentionType(s)].filter(Boolean).join(', ')})` : ''}`;
 }
 
 // Colonnes de chaque ligne d'une répartition, pour comparer deux répartitions.

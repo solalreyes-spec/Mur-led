@@ -81,14 +81,20 @@ function estSourcee(champ) {
 // Les entrées de même valeur sont regroupées : une valeur, toutes les fiches qui la donnent (`sources`).
 // Une entrée `nonRetenue` (valeur corrigée par le constructeur) reste visible mais ne sert jamais au calcul,
 // même plus défavorable.
-export function valeurRetenue(champ, sens, sources = {}) {
+// Dalle en plusieurs versions (URMIII03 standard ou Black) : chaque entrée propre à une version porte `declinaison` ;
+// sans règle de choix, la version par défaut de la fiche (la plus défavorable) est retenue.
+export function valeurRetenue(champ, sens, sources = {}, declinaisonDefaut = null) {
   const groupes = [];
   for (const x of champ.valeurs ?? [champ]) {
     const source = decrireSource(x.source, sources);
     const nonRetenue = x.nonRetenue === true;
     const groupe = groupes.find((g) => g.valeur === x.valeur && Boolean(g.nonRetenue) === nonRetenue);
-    if (groupe) groupe.sources.push(source);
-    else groupes.push({ valeur: x.valeur, type: x.type ?? null, sources: [source], ...(nonRetenue ? { nonRetenue } : {}) });
+    if (groupe) {
+      groupe.sources.push(source);
+      if (x.declinaison && !groupe.declinaisons.includes(x.declinaison)) groupe.declinaisons.push(x.declinaison);
+    } else {
+      groupes.push({ valeur: x.valeur, type: x.type ?? null, sources: [source], declinaisons: x.declinaison ? [x.declinaison] : [], ...(nonRetenue ? { nonRetenue } : {}) });
+    }
   }
   for (const g of groupes) g.source = g.sources[0];
 
@@ -96,15 +102,18 @@ export function valeurRetenue(champ, sens, sources = {}) {
   let retenue = candidats[0];
   if (sens === 'max') retenue = candidats.reduce((a, b) => (b.valeur > a.valeur ? b : a));
   if (sens === 'min') retenue = candidats.reduce((a, b) => (b.valeur < a.valeur ? b : a));
+  const selonVersion = candidats.length > 1 && candidats.every((g) => g.declinaisons.length > 0);
+  if (!sens && selonVersion && declinaisonDefaut) retenue = candidats.find((g) => g.declinaisons.includes(declinaisonDefaut)) ?? retenue;
   const conflit = candidats.length > 1;
   return {
     valeur: retenue.valeur,
     source: retenue.source,
     sources: retenue.sources,
     type: retenue.type,
+    declinaisons: retenue.declinaisons,
     autres: groupes.filter((g) => g !== retenue),
     conflit,
-    conflitSansRegle: conflit && !sens,
+    conflitSansRegle: conflit && !sens && !selonVersion,
     note: champ.note ?? null,
   };
 }
@@ -115,7 +124,7 @@ export function resoudreFiche(fiche, sources = {}) {
   const resolue = { sources: {} };
   for (const [nom, champ] of Object.entries(fiche)) {
     if (estSourcee(champ)) {
-      const retenue = valeurRetenue(champ, PLUS_DEFAVORABLE[nom], sources);
+      const retenue = valeurRetenue(champ, PLUS_DEFAVORABLE[nom], sources, fiche.declinaisonDefaut ?? null);
       resolue[nom] = retenue.valeur;
       resolue.sources[nom] = retenue;
     } else {
@@ -127,6 +136,7 @@ export function resoudreFiche(fiche, sources = {}) {
   resolue.demiDalle = fiche.demiDalle ?? null;
   resolue.demiDe = fiche.demiDe ?? null;
   resolue.note = fiche.note ?? null;
+  resolue.declinaisons = fiche.declinaisons ?? null;
   return resolue;
 }
 
@@ -1004,7 +1014,7 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   const parPort = dallesParPort(capacite, pxParDalle, { plafond });
   const optique = modeOptique && Boolean(proc.portsOptionOptique);
   if (proc.typePorts === '5G') {
-    alertes.push(`Câbles de tête du ${proc.nom} (ports à 5 Gbit/s) : Cat6A obligatoire ; longueur maxi du cuivre non publiée par COEX, à confirmer (wiki COEX).`);
+    alertes.push(`Câbles de tête du ${proc.nom} (ports à 5 Gbit/s) : ${TEXTE_CABLE_5G}.`);
   }
   const base = {
     ...vide,
@@ -1931,6 +1941,8 @@ export const LIBELLES_COIN = {
 export const SURFACE_MAX_IMAGE = 16777216;
 const COTE_MAX_IMAGE = 32767;
 const LIMITE_CUIVRE_M = 100;
+// Câble des ports 5G (CX40 Pro, CVT8-5G) : le Cat6A du wiki COEX, le plus exigeant ; 100 m de la fiche CVT8-5G.
+const TEXTE_CABLE_5G = 'Cat6A obligatoire (wiki COEX) ; 100 m au plus (fiche CVT8-5G V1.1.0, copie non officielle, qui accepte le Cat6 jusqu\'à 100 m)';
 export const MARGE_MOU_DEFAUT = 0.1;
 // Distributeur fibre proposé quand le cuivre dépasse 100 m, si la fiche du processeur n'en nomme pas.
 const FIBRE_PAR_FAMILLE = { brompton: 'XD', novastar: 'CVT10', colorlight: 'convertisseurs fibre' };
@@ -2272,13 +2284,9 @@ export function cablageData(m, dalle, evaluation, {
 
     const tous = processeurs.flatMap((p) => p.ports);
     const alertes = [];
-    // 5G : Cat6A obligatoire, longueur maxi non publiée ; pas de seuil de 100 m.
-    const longs = cinqG ? [] : tous.filter((p) => p.longueurCuivreM > LIMITE_CUIVRE_M);
-    if (cinqG) {
-      const plusLong = Math.max(...tous.map((p) => p.longueurCuivreM ?? 0));
-      alertes.push(`Ports 5G : câble Cat6A obligatoire ; longueur maxi du cuivre non publiée par COEX, à confirmer`
-        + `${plusLong > 0 ? ` (câbles de tête jusqu'à ${nombreCourt(plusLong, 1)} m)` : ''}.`);
-    }
+    // 5G : Cat6A obligatoire, 100 m au plus comme en 1G (fiche CVT8-5G).
+    const longs = tous.filter((p) => p.longueurCuivreM > LIMITE_CUIVRE_M);
+    if (cinqG) alertes.push(`Ports 5G : câble ${TEXTE_CABLE_5G}.`);
     if (longs.length > 0) {
       alertes.push(`${longs.length} câble${longs.length > 1 ? 's' : ''} de tête en cuivre au-delà de ${LIMITE_CUIVRE_M} m `
         + `(jusqu'à ${nombreCourt(Math.max(...longs.map((p) => p.longueurCuivreM)), 1)} m) : l'Ethernet en cuivre s'arrête à ${LIMITE_CUIVRE_M} m, `
