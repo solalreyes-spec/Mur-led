@@ -478,12 +478,12 @@ export const REGLES = [
   },
   {
     id: 'R33',
-    titre: 'CX40 Pro : capacité de la fiche à 60 Hz, proportionnelle à la fréquence (déduit)',
+    titre: 'CX40 Pro : capacité de la fiche à 60 Hz (carte XA50 Pro), proportionnelle à la fréquence (déduit)',
     etape: '2b',
     verifier(v, contexte) {
       const cx40 = processeurDeBase(contexte, 'coex-cx40-pro');
-      const c = (frequenceHz, bits) => calculs.capacitePortProcesseur(cx40, { frequenceHz, bits });
-      v.egal('60 Hz : 8, 10 et 12 bits', [8, 10, 12].map((b) => calculs.entierInferieur(c(60, b).capacite)), [2951200, 2213200, 1475600]);
+      const c = (frequenceHz, bits) => calculs.capacitePortProcesseur(cx40, { frequenceHz, bits, carte: 'XA50 Pro' });
+      v.egal('60 Hz : 8, 10 et 12 bits', [8, 10, 12].map((b) => calculs.entierInferieur(c(60, b).capacite)), [2951200, 2291312, 1475600]);
       v.egal('60 Hz : valeur de la fiche, pas déduite', c(60, 8).deduit, false);
       v.egal('50 Hz, 8 bits : 2 951 200 × 60 / 50', calculs.entierInferieur(c(50, 8).capacite), 3541440);
       v.egal('50 Hz : marqué déduit', c(50, 8).deduit, true);
@@ -506,15 +506,15 @@ export const REGLES = [
   },
   {
     id: 'R35',
-    titre: 'MX20 : formule du MX40 Pro, à confirmer',
+    titre: 'MX20 : formule du MX40 Pro, débit constructeur (wiki COEX)',
     etape: '2b',
     verifier(v, contexte) {
       const mx20 = processeurDeBase(contexte, 'coex-mx20');
       const c = calculs.capacitePortProcesseur(mx20, { frequenceHz: 60, bits: 8 });
       v.egal('60 Hz, 8 bits : comme le MX40 Pro', calculs.entierInferieur(c.capacite), 659722);
-      v.egal('marqué à confirmer', c.aConfirmer, true);
+      v.egal('plus marqué à confirmer', c.aConfirmer, false);
       const e = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 12, 6), DALLE_CAS_7, mx20, NOVASTAR_60_8);
-      v.vrai('alerte « à confirmer » dans le résultat', e.alertes.some((a) => a.includes('confirmer')));
+      v.vrai('plus d\'alerte « à confirmer » dans le résultat', !e.alertes.some((a) => a.includes('confirmer')));
       v.egal('calculé quand même', e.nombre, 1);
     },
   },
@@ -524,7 +524,7 @@ export const REGLES = [
     etape: '2b',
     verifier(v, contexte) {
       const manquants = (id) => calculs.champsManquants(processeurDeBase(contexte, id));
-      v.egal('MX30', manquants('coex-mx30'), ['capacite', 'pixelsMax', 'largeurMaxPx', 'hauteurMaxPx']);
+      v.egal('MX30 : complet', manquants('coex-mx30'), []);
       v.egal('X16E', manquants('colorlight-x16e'), ['pixelsMax', 'largeurMaxPx', 'hauteurMaxPx']);
       v.egal('VX20', manquants('colorlight-vx20'), ['largeurMaxPx', 'hauteurMaxPx']);
       v.egal('Z6', manquants('colorlight-z6'), ['capacite', 'ports']);
@@ -576,11 +576,11 @@ export const REGLES = [
     titre: 'CX40 Pro : 6 ports 5G et 9 M px',
     etape: '2b',
     verifier(v, contexte) {
-      // Cas 7 : 44 × 10 dalles de 192 px, 16,2 M px ; 80 dalles par port 5G en 8 bits.
+      // Cas 7 : 44 × 10 dalles de 192 px, 16,2 M px ; carte inconnue : 70 dalles par port 5G en 8 bits (2 592 000 px).
       const m = calculs.mur(DALLE_CAS_7, 44, 10);
       const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'coex-cx40-pro'), NOVASTAR_60_8);
-      v.egal('dalles par port', e.dallesParPort, 80);
-      v.egal('contrôles pixels, largeur, hauteur, ports', ['pixels', 'largeur', 'hauteur', 'ports'].map((c) => e.controles[c].nombre), [2, 1, 1, 1]);
+      v.egal('dalles par port', e.dallesParPort, 70);
+      v.egal('contrôles pixels, largeur, hauteur, ports', ['pixels', 'largeur', 'hauteur', 'ports'].map((c) => e.controles[c].nombre), [2, 1, 1, 2]);
       v.egal('CX40 Pro : 2, de 22 colonnes', [e.nombre, e.groupes.map((g) => g.colonnes)], [2, [22, 22]]);
     },
   },
@@ -1045,8 +1045,8 @@ export const REGLES = [
       const m = calculs.mur(CB5, 10, 2);
       const p = calculs.poids(m, CB5, { bumper: { poidsKg: barre2.poidsKg, colonnes: barre2.colonnes } });
       v.egal('5 barres de 2 colonnes', p.bumpers.length, 5);
-      v.proche('poids des barres (kg)', p.bumpersKg, 44.75, 1e-9);
-      v.proche('charge d\'une barre : 2 colonnes de 2 CB5 + 8,95 kg', p.bumpers[0].kg, 63.35, 1e-9);
+      v.proche('poids des barres (kg)', p.bumpersKg, 53.6, 1e-9);
+      v.proche('charge d\'une barre : 2 colonnes de 2 CB5 + 10,72 kg', p.bumpers[0].kg, 65.12, 1e-9);
       const cmu = calculs.poids(m, CB5, { bumper: { poidsKg: 8.95, colonnes: 2, cmuKg: 50 } });
       v.egal('CMU de 50 kg dépassée', cmu.bumpers[0].ok, false);
       v.vrai('alerte CMU du bumper', cmu.alertes.some((a) => a.includes('CMU')));
@@ -1173,8 +1173,8 @@ export const REGLES = [
       const gabarit = calculs.resoudreFiche(contexte.dalles.gabarits[0], contexte.dalles.sources);
       v.egal('gabarit : pas de liste (déjà signalé non sourcé)', fiches.champsManquantsFiche('dalle', gabarit), []);
       const mx30 = contexte.processeurs.processeurs.find((p) => p.id === 'coex-mx30');
-      v.egal('processeur MX30 : incomplet, capacité et canvas manquants',
-        fiches.validerFiche('processeur', mx30, contexte.processeurs.sources).manquants, ['capacite', 'pixelsMax', 'largeurMaxPx', 'hauteurMaxPx']);
+      v.egal('processeur MX30 : complet',
+        fiches.validerFiche('processeur', mx30, contexte.processeurs.sources).manquants, []);
     },
   },
   {
@@ -2056,6 +2056,81 @@ export const REGLES = [
       const depart = { dalles: contexte.dalles, processeurs: contexte.processeurs, regies: contexte.regies };
       const relu = fiches.importer(fiches.baseVide(), JSON.stringify(fiches.exporter(base, depart)), depart).base;
       v.egal('réglage du parc gardé à l\'export et à l\'import', fiches.bitsReseauParc(relu, id, 'brompton'), { bits: 10, source: 'Parc Loueur A' });
+    },
+  },
+  {
+    id: 'R115',
+    titre: 'Rappel Brompton : le même processeur en 10 bits, quand cela économise des processeurs',
+    etape: '8b',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      const m = calculs.mur(bp2, 12, 6);
+      const gain = (reglages, mur = m) => calculs.gainDixBits(mur, bp2, calculs.evaluerProcesseur(mur, bp2, s8, { frequenceHz: 60, ...reglages }));
+      const douze = gain({ bits: 12 });
+      v.egal('BP2 V2 12 × 6 en 12 bits : 6 ports et 1 S8 en 10 bits, au lieu de 2', [douze?.ports, douze?.nombre, douze?.avant], [6, 1, 2]);
+      v.egal('ligne du rappel', douze?.texte, 'en 10 bits : 6 ports, 1 × S8 au lieu de 2');
+      v.egal('en redondance : 2 S8 au lieu de 3', gain({ bits: 12, redondance: true })?.texte, 'en 10 bits : 6 ports + 6 de secours, 2 × S8 au lieu de 3');
+      v.egal('déjà en 10 bits : pas de ligne', gain({ bits: 10 }), null);
+      v.egal('8 bits : pas de ligne (10 bits ne ferait pas mieux)', gain({ bits: 8 }), null);
+      v.egal('même nombre de processeurs en 10 bits (4 × 6) : pas de ligne', gain({ bits: 12 }, calculs.mur(bp2, 4, 6)), null);
+      const mctrl = calculs.evaluerProcesseur(m, bp2, processeurDeBase(contexte, 'novastar-mctrl660'), { frequenceHz: 60, bits: 10 });
+      v.egal('Novastar : jamais de ligne', calculs.gainDixBits(m, bp2, mctrl), null);
+    },
+  },
+  {
+    id: 'R116',
+    titre: 'Règle 3 : une valeur corrigée par le constructeur est retenue ; l\'ancienne reste visible, « non retenue », même plus défavorable',
+    etape: 'sources',
+    verifier(v) {
+      const champ = { valeurs: [{ valeur: 4147200, source: 'fiche' }, { valeur: 4100000, source: 'ancienne', nonRetenue: true }] };
+      const r = calculs.valeurRetenue(champ, 'min', {});
+      v.egal('valeur constructeur retenue, même plus haute', [r.valeur, r.source.id], [4147200, 'fiche']);
+      v.egal('ancienne visible, marquée non retenue', r.autres.map((x) => [x.valeur, x.nonRetenue]), [[4100000, true]]);
+      v.egal('pas de conflit à trancher : la correction décide', r.conflit, false);
+      const deux = calculs.valeurRetenue({ valeurs: [{ valeur: 10, source: 'a' }, { valeur: 12, source: 'b' }, { valeur: 9, source: 'c', nonRetenue: true }] }, 'max', {});
+      v.egal('parmi les autres, la plus défavorable reste retenue', [deux.valeur, deux.conflit, deux.autres.map((x) => [x.valeur, Boolean(x.nonRetenue)])], [12, true, [[10, false], [9, true]]]);
+    },
+  },
+  {
+    id: 'R117',
+    titre: 'Manuel ROE Carbon MKII V1.8 : 7 CB5 MKII par ligne à 220 et 240 V, 3 à 110 V (16 A, sans marge) ; processing Brompton, Megapixel VR ou Evision ; structure pour 5 fois le poids',
+    etape: 'sources',
+    verifier(v, contexte) {
+      const cb5 = dalleDeBase(contexte, 'roe-cb5-mkii');
+      const m = calculs.mur(cb5, 4, 3);
+      const parLigne = (tensionV) => calculs.electricite(m, cb5, { tensionV, marge: 1, departA: 16 }).dallesParLigne;
+      v.egal('220 V : 7 dalles par ligne', parLigne(220).retenu, 7);
+      v.egal('240 V : 7, limité par le chaînage (8 en puissance)', [parLigne(240).retenu, parLigne(240).limite, parLigne(240).puissance], [7, 'chaînage', 8]);
+      v.egal('110 V : 3 dalles par ligne', parLigne(110).retenu, 3);
+      v.egal('chaînage : manuel Carbon MKII V1.8, constructeur', [cb5.sources.chainagePowerMax.source.id, cb5.sources.chainagePowerMax.source.confiance], ['roe-manuel-carbon-mkii-v1-8', 'constructeur']);
+      v.vrai('processing Brompton, Megapixel VR ou Evision : la carte dépend du parc', cb5.carteReceptionMarque === undefined && ['Brompton', 'Megapixel VR', 'Evision'].every((x) => (cb5.note ?? '').includes(x)));
+      v.vrai('rappel poids : structure pour 5 fois le poids, selon ROE', calculs.poids(m, cb5, {}).rappels.some((x) => /5 fois le poids/.test(x)));
+      v.egal('source du rappel : manuel Carbon MKII V1.8, constructeur', contexte.dalles.sources['roe-structure-5-fois'].confiance, 'constructeur');
+    },
+  },
+  {
+    id: 'R118',
+    titre: 'Entrées de la fiche du processeur prioritaires sur la norme : MX30 (HDMI 2.0, HDMI 1.4, DP 1.1, 2 × 3G-SDI)',
+    etape: 'sources',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      const mx30 = processeurDeBase(contexte, 'coex-mx30');
+      v.egal('entrées structurées, source fiche MX30 V1.0.1', [mx30.entreesTypes, mx30.sources.entreesTypes.source.id], [['hdmi-2.0', 'hdmi-1.4', 'dp', '3g-sdi'], 'coex-mx30-v1-0-1']);
+      const entree = (largeurPx, hauteurPx, frequenceHz, liaison) => calculs.controleEntree(mx30, { largeurPx, hauteurPx, frequenceHz, liaison }, liaisons);
+      const hdmi14 = liaisons.find((l) => l.id === 'hdmi-1.4');
+      v.egal('HDMI 1.4 : 4096 × 1080 à 60 Hz refusé par la norme de la base, accepté par la fiche du MX30',
+        [calculs.controleLiaison(hdmi14, { largeurPx: 4096, hauteurPx: 1080, frequenceHz: 60 }).ok, entree(4096, 1080, 60, 'hdmi-1.4').ok], [false, true]);
+      v.egal('HDMI 1.4 : 4096 px de large au plus', entree(4608, 960, 60, 'hdmi-1.4').ok, false);
+      const dp = entree(4096, 1080, 60, 'dp-1.2');
+      v.egal('DisplayPort : contrôle sur l\'entrée DP 1.1 de la fiche, 4096 × 1080 à 60 Hz', [dp.ok, dp.alertes.some((a) => a.includes('DP 1.1'))], [true, true]);
+      v.egal('DisplayPort : 4096 × 2160 à 60 Hz dépasse l\'entrée DP 1.1', entree(4096, 2160, 60, 'dp-1.2').ok, false);
+      v.egal('HDMI 2.0 : 8192 × 1080 à 60 Hz passe (même débit), 8192 px de large au plus', [entree(8192, 1080, 60, 'hdmi-2.0').ok, entree(8704, 1016, 60, 'hdmi-2.0').ok], [true, false]);
+      v.egal('HDMI 2.0 : 7680 px de haut au plus', [entree(1080, 7680, 60, 'hdmi-2.0').ok, entree(1024, 8192, 60, 'hdmi-2.0').ok], [true, false]);
+      v.egal('3G-SDI : 1920 × 1080 à 60 Hz, pas 3840 × 2160', [entree(1920, 1080, 60, '3g-sdi').ok, entree(3840, 2160, 30, '3g-sdi').ok], [true, false]);
+      v.vrai('fiche : sorties 10 ports 1G, OPT 1 porte les ports 1 à 10, OPT 2 en est la copie', /OPT 2/.test(mx30.note ?? '') && /copie/.test(mx30.note ?? ''));
+      const mctrl = calculs.controleEntree(processeurDeBase(contexte, 'novastar-mctrl660'), { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60, liaison: 'hdmi-2.0' }, liaisons);
+      v.egal('processeur sans formats de fiche : contrôle par la norme, comme avant (MCTRL660, HDMI 1.3)', [mctrl.ok, mctrl.liaison.id], [false, 'hdmi-1.3']);
     },
   },
 ];

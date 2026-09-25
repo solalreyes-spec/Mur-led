@@ -55,14 +55,14 @@ export function resumeMur({ dalle, mur: m }) {
 }
 
 // `r` : évaluation du processeur retenu ; `distributeur` : nom du distributeur (XD, CVT10) s'il y en a.
-export function resumeData(r, { conseille = false, distributeur = null, origineBits = null } = {}) {
+export function resumeData(r, { conseille = false, distributeur = null, origineBits = null, gainDixBits = null } = {}) {
   const proc = r.processeur;
   if (!r.groupes?.length) {
     return texte(['DATA', `Processeur : ${proc.nom}`, `Impossible : ${r.impossible ?? 'ce processeur ne convient pas à ce mur'}`, ...alertes(r.alertes)]);
   }
   const reg = r.reglages;
   const g = r.global;
-  const champCapacite = proc[`capacitePort60Hz${reg.bits}bits`] !== undefined ? `capacitePort60Hz${reg.bits}bits` : 'debitUtileBps';
+  const champCapacite = r.champCapacite ?? 'debitUtileBps';
   const sourceCapacite = sourcesDe(proc, champCapacite);
   const lignes = [
     'DATA',
@@ -70,6 +70,7 @@ export function resumeData(r, { conseille = false, distributeur = null, origineB
     `Réglages : ${nombreCourt(reg.frequenceHz)} Hz, ${reg.bits} bits réseau${reg.ull ? ', ULL' : ''}, `
       + `${reg.redondance ? 'avec redondance' : 'sans redondance'}${reg.modeOptique ? ', mode optique' : ''}`,
     origineBits ? `Profondeur réseau : ${reg.bits} bits, ${origineBits}` : null,
+    gainDixBits ? `${gainDixBits.texte.charAt(0).toUpperCase()}${gainDixBits.texte.slice(1)}` : null,
     `Capacité par port : ${nombre(entierInferieur(r.capacite))} px`,
     r.formule ? `Calcul de la capacité : ${r.formule}` : null,
     sourceCapacite ? `Source de la capacité : ${sourceCapacite}` : null,

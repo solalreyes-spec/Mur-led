@@ -98,8 +98,9 @@ function afficherFiche(dalle, demi) {
         : null;
       const autres = s.autres.length > 0 && !s.reglageParc
         ? el('div', { class: 'conflit' },
-          `Autres valeurs : ${s.autres.map((x) => `${valeurAvecUnite(x.valeur, unite)} (${x.sources.map(sourceCourte).join(', ')})`).join(' ; ')}. `,
-          s.conflitSansRegle ? 'Pas de règle pour choisir : à vérifier.' : 'La plus défavorable est retenue.',
+          `Autres valeurs : ${s.autres.map((x) => `${valeurAvecUnite(x.valeur, unite)} (${x.sources.map(sourceCourte).join(', ')}`
+            + `${x.nonRetenue ? ', non retenue : corrigée par le constructeur' : ''})`).join(' ; ')}. `,
+          s.conflitSansRegle ? 'Pas de règle pour choisir : à vérifier.' : (s.conflit ? 'La plus défavorable est retenue.' : 'Valeur du constructeur retenue.'),
           s.note ? ` ${s.note}.` : '')
         : null;
       return el('tr', {},

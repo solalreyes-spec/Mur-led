@@ -3,7 +3,7 @@
 
 import {
   evaluerProcesseur, processeurConseille, entierInferieur, champsManquants,
-  BIT_DEPTH_PAR_DEFAUT, rappelTessera, LIBELLES_COIN, ErreurSaisie,
+  BIT_DEPTH_PAR_DEFAUT, rappelTessera, gainDixBits, LIBELLES_COIN, ErreurSaisie,
 } from './calculs.js';
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
@@ -145,7 +145,7 @@ function sectionPorts(e, dalle, r) {
     : `chaque colonne en ${g.colonnes.segments.length} segments égaux : ${g.colonnes.segments.join(' + ')}`;
   const redondance = (n) => (e.redondance ? `redondance : ${n} ports` : `${n} ports en redondance`);
 
-  const champCapacite = proc[`capacitePort60Hz${r.reglages.bits}bits`] !== undefined ? `capacitePort60Hz${r.reglages.bits}bits` : 'debitUtileBps';
+  const champCapacite = r.champCapacite;
   const qualite = [r.capaciteDeduite ? 'déduit' : null, r.capaciteAConfirmer ? 'à confirmer' : null].filter(Boolean).join(', ');
 
   return el('section', { class: 'bloc-resultats' },
@@ -343,7 +343,12 @@ function calculer(e) {
   const choisie = e.processeur === 'conseille' ? conseil : evaluations.find((r) => r.processeur.id === e.processeur);
 
   const alertes = [];
-  if (e.famille === 'brompton') alertes.push(alerte(`${rappelTessera({ frequenceHz: e.frequenceHz, ull: e.ull })}.`, 'alerte-info'));
+  // Rappel Tessera ; en 12 bits, le même processeur en 10 bits quand cela en économise.
+  const gain = choisie ? gainDixBits(mur, dalle, choisie) : null;
+  if (e.famille === 'brompton') {
+    alertes.push(alerte([`${rappelTessera({ frequenceHz: e.frequenceHz, ull: e.ull })}.`,
+      ...(gain ? [el('br'), `${gain.texte.charAt(0).toUpperCase()}${gain.texte.slice(1)}.`] : [])], 'alerte-info'));
+  }
   alertes.push(ligneManques(choisie?.manques));
   for (const texte of alertesSansManques(choisie?.alertes ?? [], choisie?.manques)) alertes.push(alerte(texte));
   if (!choisie) {
@@ -373,6 +378,7 @@ function calculer(e) {
   dernier = {
     choisie, conseille: choisie === conseil, distributeur: nomDistributeur(choisie.processeur),
     origineBits: origineBits(choisie.processeur.famille, choisie.reglages.bits),
+    gainDixBits: gain,
   };
   remplacer(zone, recap,
     ...alertes,

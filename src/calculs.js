@@ -45,6 +45,9 @@ export const PLUS_DEFAVORABLE = {
   capacitePort60Hz8bits: 'min',
   capacitePort60Hz10bits: 'min',
   capacitePort60Hz12bits: 'min',
+  capaciteHaute60Hz8bits: 'min',
+  capaciteHaute60Hz10bits: 'min',
+  capaciteHaute60Hz12bits: 'min',
   entreeMaxLargeurPx: 'min',
   entreeMaxHauteurPx: 'min',
   // Liaisons vidéo : le format maxi le plus petit
@@ -66,20 +69,24 @@ function estSourcee(champ) {
 
 // Champ { valeur, source } ou { valeurs: [{ valeur, source }, …] } → valeur retenue et autres valeurs.
 // Les entrées de même valeur sont regroupées : une valeur, toutes les fiches qui la donnent (`sources`).
+// Une entrée `nonRetenue` (valeur corrigée par le constructeur) reste visible mais ne sert jamais au calcul,
+// même plus défavorable.
 export function valeurRetenue(champ, sens, sources = {}) {
   const groupes = [];
   for (const x of champ.valeurs ?? [champ]) {
     const source = decrireSource(x.source, sources);
-    const groupe = groupes.find((g) => g.valeur === x.valeur);
+    const nonRetenue = x.nonRetenue === true;
+    const groupe = groupes.find((g) => g.valeur === x.valeur && Boolean(g.nonRetenue) === nonRetenue);
     if (groupe) groupe.sources.push(source);
-    else groupes.push({ valeur: x.valeur, type: x.type ?? null, sources: [source] });
+    else groupes.push({ valeur: x.valeur, type: x.type ?? null, sources: [source], ...(nonRetenue ? { nonRetenue } : {}) });
   }
   for (const g of groupes) g.source = g.sources[0];
 
-  let retenue = groupes[0];
-  if (sens === 'max') retenue = groupes.reduce((a, b) => (b.valeur > a.valeur ? b : a));
-  if (sens === 'min') retenue = groupes.reduce((a, b) => (b.valeur < a.valeur ? b : a));
-  const conflit = groupes.length > 1;
+  const candidats = groupes.some((g) => !g.nonRetenue) ? groupes.filter((g) => !g.nonRetenue) : groupes;
+  let retenue = candidats[0];
+  if (sens === 'max') retenue = candidats.reduce((a, b) => (b.valeur > a.valeur ? b : a));
+  if (sens === 'min') retenue = candidats.reduce((a, b) => (b.valeur < a.valeur ? b : a));
+  const conflit = candidats.length > 1;
   return {
     valeur: retenue.valeur,
     source: retenue.source,
@@ -360,11 +367,18 @@ export function formuleCapacite(famille, { frequenceHz = 60, bits, ull = false, 
 //   - sinon formule de sa marque avec son débit utile (Brompton, Novastar, MX40 Pro, MX20).
 // Les valeurs dont la source est « déduit » ou « à confirmer » le restent dans le résultat.
 export function capacitePortProcesseur(proc, reglages = {}) {
-  const { frequenceHz = 60, bits = BIT_DEPTH_PAR_DEFAUT[proc.famille], ull = false, cartesPro = false } = reglages;
+  const { frequenceHz = 60, bits = BIT_DEPTH_PAR_DEFAUT[proc.famille], ull = false, cartesPro = false, carte = null } = reglages;
   if (![8, 10, 12].includes(bits)) throw new ErreurSaisie('Le bit depth réseau vaut 8, 10 ou 12 bits.');
   if (!(Number.isFinite(frequenceHz) && frequenceHz > 0)) throw new ErreurSaisie('Indique une fréquence supérieure à zéro.');
-  const champ = `capacitePort60Hz${bits}bits`;
+  // CX40 Pro : capacité haute de la fiche avec les cartes qu'elle nomme (XA50 Pro, CA50E) ; avec une autre carte
+  // ou une carte inconnue, la plus basse des fiches.
+  const cartesHautes = proc.cartesCapaciteHaute ?? [];
+  const haute = Boolean(carte) && cartesHautes.includes(carte) && proc[`capaciteHaute60Hz${bits}bits`] !== undefined;
+  const champ = haute ? `capaciteHaute60Hz${bits}bits` : `capacitePort60Hz${bits}bits`;
   const notes = [];
+  if (cartesHautes.length > 0 && !haute) {
+    notes.push(`carte ${carte ?? 'non précisée'} : capacité la plus basse des fiches (capacité plus haute avec une carte ${cartesHautes.join(' ou ')})`);
+  }
   if (proc[champ] !== undefined) {
     const reference = proc[champ];
     const confiance = proc.sources?.[champ]?.source.confiance ?? '';
@@ -373,9 +387,10 @@ export function capacitePortProcesseur(proc, reglages = {}) {
     }
     if (/déduit|à confirmer/.test(confiance)) notes.push(`${bits} bits : ${confiance}`);
     return {
+      champ,
       capacite: (reference * 60) / frequenceHz,
       formule: frequenceHz === 60
-        ? `${nombreCourt(reference)} px (fiche, 60 Hz, ${bits} bits)`
+        ? `${nombreCourt(reference)} px (fiche, 60 Hz, ${bits} bits${haute ? `, carte ${carte}` : ''})`
         : `${nombreCourt(reference)} × 60 / ${nombreCourt(frequenceHz)}`,
       deduit: frequenceHz !== 60 || /déduit/.test(confiance),
       aConfirmer: /à confirmer/.test(confiance),
@@ -388,6 +403,7 @@ export function capacitePortProcesseur(proc, reglages = {}) {
   const confiance = proc.sources?.debitUtileBps?.source.confiance ?? '';
   if (/déduit|à confirmer/.test(confiance)) notes.push(`débit utile : ${confiance}`);
   return {
+    champ: 'debitUtileBps',
     capacite: capacitePort(proc.famille, reglagesFormule),
     formule: formuleCapacite(proc.famille, reglagesFormule),
     deduit: /déduit/.test(confiance),
@@ -816,7 +832,7 @@ export function evaluerProcesseur(m, dalle, proc, reglages = {}) {
   const carte = verifierCarte(dalle, proc);
   if (carte.refus) return { ...vide, impossible: carte.refus };
 
-  const qualite = capacitePortProcesseur(proc, reglagesCapacite);
+  const qualite = capacitePortProcesseur(proc, { ...reglagesCapacite, carte: dalle.carteReceptionModele ?? null });
   const capacite = qualite.capacite;
   const alertes = qualite.notes.map((note) => `Capacité par port du ${proc.nom} : ${note}.`);
   // Manques de la fiche qui touchent ce calcul : leur texte est aussi une alerte.
@@ -846,6 +862,7 @@ export function evaluerProcesseur(m, dalle, proc, reglages = {}) {
     reglages: { ...reglagesCapacite, redondance, modeOptique: optique },
     capacite,
     formule: qualite.formule,
+    champCapacite: qualite.champ,
     capaciteDeduite: qualite.deduit,
     capaciteAConfirmer: qualite.aConfirmer,
     alertes,
@@ -995,6 +1012,23 @@ export function processeurConseille(evaluations) {
   return possibles[0] ?? null;
 }
 
+// Brompton réglé au-delà de 10 bits : le même processeur en 10 bits, quand cela économise des processeurs
+// (ligne ajoutée au rappel Tessera). Sinon null.
+export function gainDixBits(m, dalle, evaluation) {
+  const proc = evaluation?.processeur;
+  if (proc?.famille !== 'brompton' || !(evaluation.reglages?.bits > 10) || evaluation.nombre === null) return null;
+  const dix = evaluerProcesseur(m, dalle, proc, { ...evaluation.reglages, bits: 10 });
+  if (dix.nombre === null || dix.nombre >= evaluation.nombre) return null;
+  const ports = dix.totaux.ports.colonnes;
+  const redondance = Boolean(evaluation.reglages.redondance);
+  return {
+    ports,
+    nombre: dix.nombre,
+    avant: evaluation.nombre,
+    texte: `en 10 bits : ${ports} ports${redondance ? ` + ${ports} de secours` : ''}, ${dix.nombre} × ${proc.modele} au lieu de ${evaluation.nombre}`,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Module 2 : canvas et source
 // ---------------------------------------------------------------------------
@@ -1027,6 +1061,24 @@ export function controleLiaison(liaison, { largeurPx, hauteurPx, frequenceHz }) 
 
 const mpx = (debit) => nombreCourt(debit / 1e6, 1);
 
+// Format d'une entrée donné par la fiche du processeur (`entreesFormats`) : par version (hdmi-1.4) ou par famille
+// quand la fiche nomme une version absente de la connectique (DP 1.1 rangé en « dp »).
+function formatDeFiche(proc, liaison) {
+  const formats = proc.entreesFormats ?? [];
+  return formats.find((f) => f.type === liaison.id) ?? formats.find((f) => f.type === liaison.famille) ?? null;
+}
+
+// Contrôle sur le format de la fiche : débit de pixels actifs (approximation) et dimensions maxi de l'entrée.
+function controleFormatFiche(format, liaison, { largeurPx, hauteurPx, frequenceHz }) {
+  const debitDemande = largeurPx * hauteurPx * frequenceHz;
+  const debitMax = format.largeurPx * format.hauteurPx * format.frequenceHz;
+  const dimensionsOk = largeurPx <= (format.largeurMaxPx ?? Infinity) && hauteurPx <= (format.hauteurMaxPx ?? Infinity);
+  return {
+    liaison, debitDemande, debitMax, taux: debitDemande / debitMax, dimensionsOk,
+    ok: dimensionsOk && debitDemande <= debitMax + EPS, approximation: true, deduit: false, aConfirmer: false, fiche: true,
+  };
+}
+
 // Entrée du processeur pour la liaison choisie. Une entrée de version plus ancienne (HDMI 1.3 au lieu de 2.0)
 // limite le débit ; une version non précisée sur la fiche donne une alerte. Les limites d'entrée de la fiche
 // du processeur passent avant l'approximation par débit.
@@ -1045,8 +1097,10 @@ export function controleEntree(proc, source, liaisons) {
     }
   } else if (types.includes(choisie.famille)) {
     liaison = choisie;
-    alertes.push(`Le ${proc.nom} a une entrée ${NOMS_FAMILLE_LIAISON[choisie.famille]} dont la version n'est pas précisée sur sa fiche : `
-      + `vérifie qu'elle accepte le ${choisie.nom}.`);
+    if (!formatDeFiche(proc, choisie)) {
+      alertes.push(`Le ${proc.nom} a une entrée ${NOMS_FAMILLE_LIAISON[choisie.famille]} dont la version n'est pas précisée sur sa fiche : `
+        + `vérifie qu'elle accepte le ${choisie.nom}.`);
+    }
   } else {
     return {
       ok: false, liaison: null, controle: null, alertes,
@@ -1054,11 +1108,23 @@ export function controleEntree(proc, source, liaisons) {
     };
   }
 
-  const controle = controleLiaison(liaison, source);
+  // Format de l'entrée donné par la fiche du processeur : il passe avant la norme de la liaison.
+  const format = formatDeFiche(proc, liaison);
+  const controle = format ? controleFormatFiche(format, liaison, source) : controleLiaison(liaison, source);
+  if (format) {
+    alertes.push(`Entrée ${format.nom} du ${proc.nom} : contrôle sur le format de sa fiche, ${format.largeurPx} × ${format.hauteurPx} `
+      + `à ${format.frequenceHz} Hz${format.largeurMaxPx ? `, ${format.largeurMaxPx} px de large et ${format.hauteurMaxPx} px de haut au plus` : ''}.`);
+  }
   if (controle.deduit) alertes.push(`${liaison.nom} : format maxi en partie déduit.`);
   if (controle.aConfirmer) alertes.push(`${liaison.nom} : format maxi à confirmer sur la fiche du ${proc.nom}.`);
   let refus = null;
-  if (proc.entreeMaxLargeurPx && (source.largeurPx > proc.entreeMaxLargeurPx || source.hauteurPx > proc.entreeMaxHauteurPx)) {
+  if (format && !controle.dimensionsOk) {
+    refus = `Entrée ${format.nom} du ${proc.nom} : ${format.largeurMaxPx} × ${format.hauteurMaxPx} px au plus sur sa fiche ; `
+      + `la source fait ${source.largeurPx} × ${source.hauteurPx} px.`;
+  } else if (format && !controle.ok) {
+    refus = `Entrée ${format.nom} du ${proc.nom} : ${mpx(controle.debitDemande)} Mpx/s demandés pour ${mpx(controle.debitMax)} au plus `
+      + `(${format.largeurPx} × ${format.hauteurPx} à ${format.frequenceHz} Hz, fiche du processeur), en approximation.`;
+  } else if (proc.entreeMaxLargeurPx && (source.largeurPx > proc.entreeMaxLargeurPx || source.hauteurPx > proc.entreeMaxHauteurPx)) {
     refus = `Sa fiche limite l'entrée du ${proc.nom} à ${proc.entreeMaxLargeurPx} × ${proc.entreeMaxHauteurPx} px ; `
       + `la source fait ${source.largeurPx} × ${source.hauteurPx} px.`;
   } else if (!controle.ok) {

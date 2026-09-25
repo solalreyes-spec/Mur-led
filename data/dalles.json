@@ -159,12 +159,6 @@
       "date": null,
       "confiance": "base tierce"
     },
-    "roe-chainage-cb5-mkii": {
-      "titre": "Chaînage power ROE CB5 MKII : 7 dalles par ligne 16 A",
-      "court": "ROE (chaînage)",
-      "date": "2026-09-24",
-      "confiance": "à confirmer sur la fiche ROE"
-    },
     "roe-manuel-carbon-ancien": {
       "titre": "Ancien manuel ROE Carbon : barre d'accroche avec clamp et manille, 4,44 kg pour 1 colonne, 8,95 kg pour 2 colonnes",
       "court": "Ancien manuel ROE Carbon",
@@ -172,10 +166,65 @@
       "confiance": "ancien manuel Carbon, à confirmer pour la MKII"
     },
     "roe-structure-5-fois": {
-      "titre": "ROE : structure dimensionnée pour 5 fois le poids suspendu",
-      "court": "ROE",
+      "titre": "ROE : structure dimensionnée pour 5 fois le poids suspendu (manuel Carbon MKII V1.8)",
+      "court": "Manuel ROE Carbon MKII V1.8",
+      "date": "2023-12-08",
+      "confiance": "constructeur"
+    },
+    "roe-page-produit-carbon-mkii": {
+      "titre": "Page produit ROE Carbon MKII (CB5 MKII, demi-dalle CB5 MKII, CB3 MKII), consultée le 25/09/2026",
+      "court": "Page produit ROE Carbon MKII",
+      "date": "2026-09-25",
+      "confiance": "constructeur"
+    },
+    "roe-manuel-carbon-mkii-v1-8": {
+      "titre": "Manuel ROE Carbon MKII V1.8, copie LEDwallcentral",
+      "court": "Manuel ROE Carbon MKII V1.8",
+      "date": "2023-12-08",
+      "confiance": "constructeur"
+    },
+    "absen-fiche-pl-v20221215": {
+      "titre": "Fiche Absen série PL Pro V10, version V20221215 (PL2.5 Pro)",
+      "court": "Fiche Absen PL V20221215",
+      "date": "2022-12-15",
+      "confiance": "constructeur"
+    },
+    "absen-fiche-pl-v20221201": {
+      "titre": "Fiche Absen série PL Pro V10, version V20221201 (PL1.9 Pro)",
+      "court": "Fiche Absen PL V20221201",
+      "date": "2022-12-01",
+      "confiance": "constructeur"
+    },
+    "unilumin-fiche-upad-iv-2-6": {
+      "titre": "Fiche Unilumin Upad IV 2.6, version scan 1/16",
+      "court": "Fiche Unilumin (scan 1/16)",
       "date": null,
-      "confiance": "constructeur, à confirmer sur le manuel"
+      "confiance": "constructeur"
+    },
+    "infiled-page-ez2-6-mk2": {
+      "titre": "Page produit INFiLED EZ2.6 mk2 (consultée le 25/09/2026)",
+      "court": "Page produit INFiLED",
+      "date": "2026-09-25",
+      "confiance": "constructeur"
+    },
+    "absen-fiche-m2-9": {
+      "titre": "Fiche technique Absen M2.9 (document marqué Absen, sans version ni date imprimées), copie hébergée par le loueur Rentex, déposée en février 2018",
+      "court": "Fiche Absen M2.9 (copie Rentex)",
+      "date": null,
+      "confiance": "constructeur, copie hébergée par un tiers",
+      "url": "https://www.rentex.com/wp-content/uploads/2018/02/Absen-M2.9-LED-Spec-Sheet-from-Rentex.pdf"
+    },
+    "absen-fiche-jp-pro-v20250624": {
+      "titre": "Fiche Absen série JP Pro, version V20250624 (JP5 Pro 500 × 500)",
+      "court": "Fiche Absen JP Pro V20250624",
+      "date": "2025-06-24",
+      "confiance": "constructeur"
+    },
+    "infiled-page-ar3-91-mk2-plus": {
+      "titre": "Page produit INFiLED IL-RSS-ORAR3.91mk2 Plus (consultée le 25/09/2026)",
+      "court": "Page produit INFiLED",
+      "date": "2026-09-25",
+      "confiance": "constructeur"
     }
   },
   "dalles": [
@@ -198,15 +247,15 @@
       },
       "pxH": {
         "valeur": 176,
-        "source": "cahier-des-charges-dalles"
+        "source": "roe-fiche-bp2-v2-2021-05"
       },
       "pxV": {
         "valeur": 176,
-        "source": "cahier-des-charges-dalles"
+        "source": "roe-fiche-bp2-v2-2021-05"
       },
       "poidsKg": {
         "valeur": 9.35,
-        "source": "cahier-des-charges-dalles"
+        "source": "roe-fiche-bp2-v2-2021-05"
       },
       "pMaxW": {
         "valeurs": [
@@ -255,7 +304,17 @@
             "type": "moyenne"
           }
         ]
-      }
+      },
+      "maxAccroche": {
+        "valeur": 20,
+        "source": "roe-fiche-bp2-v2-2021-05"
+      },
+      "maxAccrocheConditions": "avec barre, accessoires et lest ROE, coefficient 8",
+      "maxStack": {
+        "valeur": 12,
+        "source": "roe-fiche-bp2-v2-2021-05"
+      },
+      "maxStackConditions": "avec barre, accessoires et lest ROE, coefficient 8"
     },
     {
       "id": "roe-cb5-mkii",
@@ -277,11 +336,11 @@
       },
       "pxH": {
         "valeur": 104,
-        "source": "cahier-des-charges-dalles"
+        "source": "roe-page-produit-cb5-mkii"
       },
       "pxV": {
         "valeur": 208,
-        "source": "cahier-des-charges-dalles"
+        "source": "roe-page-produit-cb5-mkii"
       },
       "poidsKg": {
         "valeurs": [
@@ -301,13 +360,38 @@
       },
       "pMaxW": {
         "valeur": 480,
-        "source": "cahier-des-charges-dalles",
+        "source": "roe-page-produit-cb5-mkii",
         "type": "max"
       },
       "chainagePowerMax": {
         "valeur": 7,
-        "source": "roe-chainage-cb5-mkii"
-      }
+        "source": "roe-manuel-carbon-mkii-v1-8"
+      },
+      "maxAccroche": {
+        "valeurs": [
+          {
+            "valeur": 12,
+            "source": "roe-page-produit-carbon-mkii"
+          },
+          {
+            "valeur": 12,
+            "source": "roe-manuel-carbon-mkii-v1-8"
+          }
+        ]
+      },
+      "maxStack": {
+        "valeurs": [
+          {
+            "valeur": 5,
+            "source": "roe-page-produit-carbon-mkii"
+          },
+          {
+            "valeur": 5,
+            "source": "roe-manuel-carbon-mkii-v1-8"
+          }
+        ]
+      },
+      "note": "Processing Brompton, Megapixel VR (MVR) ou Evision selon la carte montée (manuel Carbon MKII V1.8) : la carte de réception se règle dans le parc."
     },
     {
       "id": "roe-cb5-mkii-demi",
@@ -330,20 +414,53 @@
       },
       "pxH": {
         "valeur": 104,
-        "source": "cahier-des-charges-dalles"
+        "source": "roe-page-produit-carbon-mkii"
       },
       "pxV": {
         "valeur": 104,
-        "source": "cahier-des-charges-dalles"
+        "source": "roe-page-produit-carbon-mkii"
       },
       "poidsKg": {
-        "valeur": 7.2,
-        "source": "cahier-des-charges-dalles"
+        "valeurs": [
+          {
+            "valeur": 7.2,
+            "source": "roe-page-produit-carbon-mkii"
+          },
+          {
+            "valeur": 6.5,
+            "source": "roe-manuel-carbon-mkii-v1-8",
+            "nonRetenue": true
+          }
+        ]
       },
       "pMaxW": {
         "valeur": 250,
-        "source": "cahier-des-charges-dalles",
+        "source": "roe-page-produit-carbon-mkii",
         "type": "max"
+      },
+      "maxAccroche": {
+        "valeurs": [
+          {
+            "valeur": 24,
+            "source": "roe-page-produit-carbon-mkii"
+          },
+          {
+            "valeur": 24,
+            "source": "roe-manuel-carbon-mkii-v1-8"
+          }
+        ]
+      },
+      "maxStack": {
+        "valeurs": [
+          {
+            "valeur": 10,
+            "source": "roe-page-produit-carbon-mkii"
+          },
+          {
+            "valeur": 10,
+            "source": "roe-manuel-carbon-mkii-v1-8"
+          }
+        ]
       }
     },
     {
@@ -365,20 +482,53 @@
       },
       "pxH": {
         "valeur": 160,
-        "source": "cahier-des-charges-dalles"
+        "source": "roe-page-produit-carbon-mkii"
       },
       "pxV": {
         "valeur": 320,
-        "source": "cahier-des-charges-dalles"
+        "source": "roe-page-produit-carbon-mkii"
       },
       "poidsKg": {
-        "valeur": 14,
-        "source": "cahier-des-charges-dalles"
+        "valeurs": [
+          {
+            "valeur": 14.4,
+            "source": "roe-page-produit-carbon-mkii"
+          },
+          {
+            "valeur": 14,
+            "source": "roe-manuel-carbon-mkii-v1-8",
+            "nonRetenue": true
+          }
+        ]
       },
       "pMaxW": {
         "valeur": 600,
-        "source": "cahier-des-charges-dalles",
+        "source": "roe-page-produit-carbon-mkii",
         "type": "max"
+      },
+      "maxAccroche": {
+        "valeurs": [
+          {
+            "valeur": 12,
+            "source": "roe-page-produit-carbon-mkii"
+          },
+          {
+            "valeur": 12,
+            "source": "roe-manuel-carbon-mkii-v1-8"
+          }
+        ]
+      },
+      "maxStack": {
+        "valeurs": [
+          {
+            "valeur": 5,
+            "source": "roe-page-produit-carbon-mkii"
+          },
+          {
+            "valeur": 5,
+            "source": "roe-manuel-carbon-mkii-v1-8"
+          }
+        ]
       }
     },
     {
@@ -400,11 +550,11 @@
       },
       "pxH": {
         "valeur": 200,
-        "source": "cahier-des-charges-dalles"
+        "source": "absen-fiche-pl-v20221215"
       },
       "pxV": {
         "valeur": 200,
-        "source": "cahier-des-charges-dalles"
+        "source": "absen-fiche-pl-v20221215"
       },
       "poidsKg": {
         "valeurs": [
@@ -415,6 +565,10 @@
           {
             "valeur": 8.8,
             "source": "ledwallcentral-pl-pro-v10"
+          },
+          {
+            "valeur": 8.8,
+            "source": "absen-fiche-pl-v20221215"
           }
         ]
       },
@@ -428,6 +582,11 @@
           {
             "valeur": 192.5,
             "source": "rentex-pl-pro-v10",
+            "type": "max"
+          },
+          {
+            "valeur": 170,
+            "source": "absen-fiche-pl-v20221215",
             "type": "max"
           }
         ]
@@ -443,6 +602,10 @@
             "source": "absen-usa-pl-pro-v10-2025"
           }
         ]
+      },
+      "maxAccroche": {
+        "valeur": 20,
+        "source": "absen-fiche-pl-v20221215"
       }
     },
     {
@@ -464,20 +627,24 @@
       },
       "pxH": {
         "valeur": 256,
-        "source": "cahier-des-charges-dalles"
+        "source": "absen-fiche-pl-v20221201"
       },
       "pxV": {
         "valeur": 256,
-        "source": "cahier-des-charges-dalles"
+        "source": "absen-fiche-pl-v20221201"
       },
       "poidsKg": {
         "valeur": 9,
-        "source": "cahier-des-charges-dalles"
+        "source": "absen-fiche-pl-v20221201"
       },
       "pMaxW": {
         "valeur": 180,
-        "source": "cahier-des-charges-dalles",
+        "source": "absen-fiche-pl-v20221201",
         "type": "max"
+      },
+      "maxAccroche": {
+        "valeur": 20,
+        "source": "absen-fiche-pl-v20221201"
       }
     },
     {
@@ -504,15 +671,15 @@
       },
       "pxH": {
         "valeur": 192,
-        "source": "sources-communes-upad-iv-2-6"
+        "source": "unilumin-fiche-upad-iv-2-6"
       },
       "pxV": {
         "valeur": 192,
-        "source": "sources-communes-upad-iv-2-6"
+        "source": "unilumin-fiche-upad-iv-2-6"
       },
       "poidsKg": {
         "valeur": 6.3,
-        "source": "sources-communes-upad-iv-2-6"
+        "source": "unilumin-fiche-upad-iv-2-6"
       },
       "pMaxW": {
         "valeurs": [
@@ -529,6 +696,11 @@
           {
             "valeur": 165,
             "source": "ledwallcentral-upad-iv-2-6",
+            "type": "max"
+          },
+          {
+            "valeur": 120,
+            "source": "unilumin-fiche-upad-iv-2-6",
             "type": "max"
           }
         ]
@@ -656,7 +828,7 @@
     {
       "id": "infiled-ar3-9",
       "marque": "INFiLED",
-      "modele": "AR3.9",
+      "modele": "AR3.9 (2019)",
       "usage": "extérieur",
       "pitchMm": {
         "valeur": 3.91,
@@ -748,6 +920,51 @@
       }
     },
     {
+      "id": "infiled-ar3-91-mk2-plus",
+      "marque": "INFiLED",
+      "modele": "AR3.91",
+      "version": "mk2 Plus",
+      "usage": "extérieur",
+      "pitchMm": {
+        "valeur": 3.91,
+        "source": "infiled-page-ar3-91-mk2-plus"
+      },
+      "largeurMm": {
+        "valeur": 500,
+        "source": "infiled-page-ar3-91-mk2-plus"
+      },
+      "hauteurMm": {
+        "valeur": 1000,
+        "source": "infiled-page-ar3-91-mk2-plus"
+      },
+      "pxH": {
+        "valeur": 128,
+        "source": "infiled-page-ar3-91-mk2-plus"
+      },
+      "pxV": {
+        "valeur": 256,
+        "source": "infiled-page-ar3-91-mk2-plus"
+      },
+      "poidsKg": {
+        "valeur": 12.5,
+        "source": "infiled-page-ar3-91-mk2-plus"
+      },
+      "pMaxW": {
+        "valeur": 360,
+        "source": "infiled-page-ar3-91-mk2-plus",
+        "type": "max"
+      },
+      "pMoyW": {
+        "valeur": 120,
+        "source": "infiled-page-ar3-91-mk2-plus",
+        "type": "moyenne"
+      },
+      "indiceIP": {
+        "valeur": "IP65",
+        "source": "infiled-page-ar3-91-mk2-plus"
+      }
+    },
+    {
       "id": "infiled-ez2-6-mk2",
       "marque": "INFiLED",
       "modele": "EZ2.6",
@@ -770,19 +987,19 @@
       },
       "pxH": {
         "valeur": 192,
-        "source": "ledwallcentral-ez2-6-mk2"
+        "source": "infiled-page-ez2-6-mk2"
       },
       "pxV": {
         "valeur": 192,
-        "source": "ledwallcentral-ez2-6-mk2"
+        "source": "infiled-page-ez2-6-mk2"
       },
       "poidsKg": {
         "valeur": 5.9,
-        "source": "ledwallcentral-ez2-6-mk2"
+        "source": "infiled-page-ez2-6-mk2"
       },
       "pMaxW": {
         "valeur": 150,
-        "source": "ledwallcentral-ez2-6-mk2",
+        "source": "infiled-page-ez2-6-mk2",
         "type": "max"
       },
       "pMoyW": {
@@ -821,11 +1038,11 @@
       },
       "pxH": {
         "valeur": 168,
-        "source": "4wall-page-absen-m2-9"
+        "source": "absen-fiche-m2-9"
       },
       "pxV": {
         "valeur": 168,
-        "source": "4wall-page-absen-m2-9"
+        "source": "absen-fiche-m2-9"
       },
       "poidsKg": {
         "valeurs": [
@@ -836,13 +1053,26 @@
           {
             "valeur": 9.99,
             "source": "4wall-calculateur-absen-m2-9"
+          },
+          {
+            "valeur": 7.6,
+            "source": "absen-fiche-m2-9"
           }
         ]
       },
       "pMaxW": {
-        "valeur": 140,
-        "source": "4wall-page-absen-m2-9",
-        "type": "max"
+        "valeurs": [
+          {
+            "valeur": 140,
+            "source": "4wall-page-absen-m2-9",
+            "type": "max"
+          },
+          {
+            "valeur": 110,
+            "source": "absen-fiche-m2-9",
+            "type": "max"
+          }
+        ]
       },
       "luminositeNits": {
         "valeur": 1000,
@@ -884,26 +1114,40 @@
       },
       "pxH": {
         "valeur": 96,
-        "source": "ledwallcentral-jp5-pro"
+        "source": "absen-fiche-jp-pro-v20250624"
       },
       "pxV": {
         "valeur": 96,
-        "source": "ledwallcentral-jp5-pro"
+        "source": "absen-fiche-jp-pro-v20250624"
       },
       "poidsKg": {
         "valeur": 9.5,
-        "source": "ledwallcentral-jp5-pro"
+        "source": "absen-fiche-jp-pro-v20250624"
       },
       "pMaxW": {
-        "valeur": 188,
-        "source": "ledwallcentral-jp5-pro",
-        "type": "max"
+        "valeurs": [
+          {
+            "valeur": 188,
+            "source": "ledwallcentral-jp5-pro",
+            "type": "max"
+          },
+          {
+            "valeur": 172.5,
+            "source": "absen-fiche-jp-pro-v20250624",
+            "type": "max"
+          }
+        ]
       },
       "pMoyW": {
         "valeur": 63,
         "source": "ledwallcentral-jp5-pro",
         "type": "moyenne"
       },
+      "maxAccroche": {
+        "valeur": 30,
+        "source": "absen-fiche-jp-pro-v20250624"
+      },
+      "maxAccrocheConditions": "version 500 × 500 ; la version 1000 × 1000 est à 24",
       "luminositeNits": {
         "valeur": 4500,
         "source": "ledwallcentral-jp5-pro"
@@ -1059,10 +1303,19 @@
         "roe-cb3-mkii"
       ],
       "poidsKg": {
-        "valeur": 4.44,
-        "source": "roe-manuel-carbon-ancien"
+        "valeurs": [
+          {
+            "valeur": 5.16,
+            "source": "roe-manuel-carbon-mkii-v1-8"
+          },
+          {
+            "valeur": 4.44,
+            "source": "roe-manuel-carbon-ancien",
+            "nonRetenue": true
+          }
+        ]
       },
-      "note": "Avec clamp et manille. CMU non donnée par la fiche."
+      "note": "Réf. SAP 207002S0515 (manuel Carbon MKII V1.8). CMU non donnée par la fiche."
     },
     {
       "id": "roe-carbon-barre-2-colonnes",
@@ -1075,10 +1328,19 @@
         "roe-cb3-mkii"
       ],
       "poidsKg": {
-        "valeur": 8.95,
-        "source": "roe-manuel-carbon-ancien"
+        "valeurs": [
+          {
+            "valeur": 10.72,
+            "source": "roe-manuel-carbon-mkii-v1-8"
+          },
+          {
+            "valeur": 8.95,
+            "source": "roe-manuel-carbon-ancien",
+            "nonRetenue": true
+          }
+        ]
       },
-      "note": "Avec clamp et manille. CMU non donnée par la fiche."
+      "note": "Réf. SAP 207002S0516 (manuel Carbon MKII V1.8). CMU non donnée par la fiche."
     }
   ]
 }

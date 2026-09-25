@@ -139,7 +139,7 @@ export const DONNEES = [
       v.egal('CB5 MKII : 13,6 kg, source', ids(cb5.sources.poidsKg), ['roe-page-produit-cb5-mkii']);
       v.egal('CB5 MKII : 12,2 kg, sources', cb5.sources.poidsKg.autres.map(ids), [['roe-fiche-cb5-mkii-2023-01', 'roe-brochure-cb5-mkii-2024-02']]);
       const pl25 = calculs.resoudreFiche(fiche(base, 'absen-pl2-5-pro-v10'), base.sources);
-      v.egal('PL2.5 Pro V10 : 8,8 kg, source', ids(pl25.sources.poidsKg), ['ledwallcentral-pl-pro-v10']);
+      v.egal('PL2.5 Pro V10 : 8,8 kg, sources', ids(pl25.sources.poidsKg), ['ledwallcentral-pl-pro-v10', 'absen-fiche-pl-v20221215']);
       v.egal('PL2.5 Pro V10 : 192,5 W, source', ids(pl25.sources.pMaxW), ['rentex-pl-pro-v10']);
       v.egal('PL2.5 Pro V10 : 3840 Hz, source', ids(pl25.sources.rafraichissementHz), ['absen-fiche-rentex-pl-pro-v10']);
       v.egal('PL2.5 Pro V10 : 7680 Hz, source', pl25.sources.rafraichissementHz.autres.map(ids), [['absen-usa-pl-pro-v10-2025']]);
@@ -232,12 +232,12 @@ export const DONNEES = [
       const base = lireBase(contexte);
       const ids = (valeur) => valeur.sources.map((s) => s.id);
       v.egal('nouvelles dalles', base.dalles.map((f) => f.id).filter((id) => !IDS_REFERENCE.includes(id)), [
-        'unilumin-upad-iv-2-6', 'unilumin-upad-iv-2-6-pro', 'infiled-ar3-9', 'infiled-ez2-6-mk2', 'absen-m2-9', 'absen-jp5-pro',
+        'unilumin-upad-iv-2-6', 'unilumin-upad-iv-2-6-pro', 'infiled-ar3-9', 'infiled-ar3-91-mk2-plus', 'infiled-ez2-6-mk2', 'absen-m2-9', 'absen-jp5-pro',
       ]);
       const upad = calculs.resoudreFiche(fiche(base, 'unilumin-upad-iv-2-6'), base.sources);
       v.egal('Upad IV 2.6 : P max retenue 165 W, LEDwallcentral (8 scan)', [upad.pMaxW, ids(upad.sources.pMaxW)], [165, ['ledwallcentral-upad-iv-2-6']]);
-      v.egal('Upad IV 2.6 : 120 W (4Wall Europe), 150 W (LMG)',
-        upad.sources.pMaxW.autres.map((x) => [x.valeur, ids(x)]), [[120, ['4wall-europe-upad-iv-2-6']], [150, ['lmg-upad-iv-2-6']]]);
+      v.egal('Upad IV 2.6 : 120 W (4Wall Europe, fiche Unilumin), 150 W (LMG)',
+        upad.sources.pMaxW.autres.map((x) => [x.valeur, ids(x)]), [[120, ['4wall-europe-upad-iv-2-6', 'unilumin-fiche-upad-iv-2-6']], [150, ['lmg-upad-iv-2-6']]]);
       v.egal('Upad IV 2.6 : P moyenne retenue 58 W', upad.pMoyW, 58);
       v.egal('Upad IV 2.6 : 3840 Hz retenus (4Wall Europe)', [upad.rafraichissementHz, ids(upad.sources.rafraichissementHz)], [3840, ['4wall-europe-upad-iv-2-6']]);
       v.egal('Upad IV 2.6 : 7680 Hz (LMG, LEDwallcentral)', upad.sources.rafraichissementHz.autres.map(ids), [['lmg-upad-iv-2-6', 'ledwallcentral-upad-iv-2-6']]);
@@ -253,9 +253,9 @@ export const DONNEES = [
         [[12, ['plsn-ar3-9-2019-11']], [270, ['plsn-ar3-9-2019-11']], [90, ['plsn-ar3-9-2019-11']]]);
       v.egal('AR3.9 : 11 dalles maxi en accroche (PLSN)', [ar.maxAccroche, ids(ar.sources.maxAccroche)], [11, ['plsn-ar3-9-2019-11']]);
       const m29 = calculs.resoudreFiche(fiche(base, 'absen-m2-9'), base.sources);
-      v.egal('M2.9 : 9,99 kg retenus (calculateur 4Wall), 7,6 kg (page produit)',
+      v.egal('M2.9 : 9,99 kg retenus (calculateur 4Wall), 7,6 kg (page produit 4Wall, fiche Absen)',
         [m29.poidsKg, ids(m29.sources.poidsKg), m29.sources.poidsKg.autres.map((x) => [x.valeur, ids(x)])],
-        [9.99, ['4wall-calculateur-absen-m2-9'], [[7.6, ['4wall-page-absen-m2-9']]]]);
+        [9.99, ['4wall-calculateur-absen-m2-9'], [[7.6, ['4wall-page-absen-m2-9', 'absen-fiche-m2-9']]]]);
     },
   },
   {
@@ -267,9 +267,9 @@ export const DONNEES = [
       const p = (id) => calculs.resoudreFiche(base.processeurs.find((x) => x.id === id), base.sources);
       const cx40 = p('coex-cx40-pro');
       v.egal('CX40 Pro : 9 M px, 6 ports 5G, 16 384 px', [cx40.pixelsMax, cx40.ports, cx40.typePorts, cx40.largeurMaxPx, cx40.hauteurMaxPx], [9000000, 6, '5G', 16384, 16384]);
-      v.egal('CX40 Pro : cartes 5G', cx40.cartesCompatibles, ['CA50E', 'CA50C', 'XA50']);
-      v.egal('MX20 : 3,9 M px, 6 ports, 4096 × 4096', [p('coex-mx20').pixelsMax, p('coex-mx20').ports, p('coex-mx20').largeurMaxPx, p('coex-mx20').hauteurMaxPx], [3900000, 6, 4096, 4096]);
-      v.vrai('MX20 : débit « à confirmer »', /à confirmer/.test(p('coex-mx20').sources.debitUtileBps.source.confiance));
+      v.egal('CX40 Pro : cartes 5G', cx40.cartesCompatibles, ['CA50E', 'CA50C', 'XA50', 'XA50 Pro']);
+      v.egal('MX20 : 3,9 M px, 6 ports, 3840 × 2560', [p('coex-mx20').pixelsMax, p('coex-mx20').ports, p('coex-mx20').largeurMaxPx, p('coex-mx20').hauteurMaxPx], [3900000, 6, 3840, 2560]);
+      v.egal('MX20 : débit constructeur (wiki COEX)', [p('coex-mx20').sources.debitUtileBps.source.id, p('coex-mx20').sources.debitUtileBps.source.confiance], ['coex-wiki-capacite', 'constructeur']);
       v.egal('S6F : 2,3 M px, 6 ports, 4096 × 2560', [p('colorlight-s6f').pixelsMax, p('colorlight-s6f').ports, p('colorlight-s6f').largeurMaxPx, p('colorlight-s6f').hauteurMaxPx], [2300000, 6, 4096, 2560]);
       v.egal('X8E : 5,24 M px, 8 ports, 16 384 × 8192', [p('colorlight-x8e').pixelsMax, p('colorlight-x8e').ports, p('colorlight-x8e').largeurMaxPx, p('colorlight-x8e').hauteurMaxPx], [5240000, 8, 16384, 8192]);
       v.egal('Colorlight : 10 bits « déduit, à confirmer »', p('colorlight-x8e').sources.capacitePort60Hz10bits.source.confiance, 'déduit, à confirmer');
@@ -337,14 +337,14 @@ export const DONNEES = [
   },
   {
     id: 'D18',
-    titre: 'M2 et S4 : 2 073 600 px (canvas natif 1920 × 1080), à confirmer',
+    titre: 'M2 et S4 : 2 073 600 px, entrée maxi 1920 × 1080 (fiches S4 de septembre 2024 et M2 de janvier 2021)',
     etape: '3b',
     verifier(v, contexte) {
       const base = baseProcesseurs(contexte);
       for (const id of ['brompton-m2', 'brompton-s4']) {
         const p = calculs.resoudreFiche(base.processeurs.find((x) => x.id === id), base.sources);
         v.egal(`${id} : pixels maxi`, p.pixelsMax, 2073600);
-        v.vrai(`${id} : marqué à confirmer`, /à confirmer/.test(p.sources.pixelsMax.source.confiance));
+        v.egal(`${id} : source constructeur`, p.sources.pixelsMax.source.confiance, 'constructeur');
       }
     },
   },
@@ -389,27 +389,27 @@ export const DONNEES = [
   },
   {
     id: 'D21',
-    titre: 'Chaînage power CB5 MKII : 7 dalles par ligne (ROE), à confirmer',
+    titre: 'Chaînage power CB5 MKII : 7 dalles par ligne (manuel ROE Carbon MKII V1.8)',
     etape: 4,
     verifier(v, contexte) {
       const base = lireBase(contexte);
       const cb5 = calculs.resoudreFiche(fiche(base, 'roe-cb5-mkii'), base.sources);
       v.egal('chaînage power maxi', cb5.chainagePowerMax, 7);
-      v.vrai('source à confirmer', /à confirmer/.test(cb5.sources.chainagePowerMax.source.confiance));
+      v.egal('source constructeur', cb5.sources.chainagePowerMax.source.confiance, 'constructeur');
     },
   },
   {
     id: 'D22',
-    titre: 'Barres ROE Carbon : 4,44 kg (1 colonne), 8,95 kg (2 colonnes), ancien manuel, à confirmer pour la MKII',
+    titre: 'Barres ROE Carbon : 5,16 kg (1 colonne), 10,72 kg (2 colonnes), manuel Carbon MKII V1.8 ; anciennes valeurs non retenues',
     etape: 5,
     verifier(v, contexte) {
       const base = lireBase(contexte);
       const barres = (base.bumpers ?? []).map((b) => calculs.resoudreFiche(b, base.sources));
       v.egal('barres', barres.map((b) => [b.id, b.colonnes, b.poidsKg]), [
-        ['roe-carbon-barre-1-colonne', 1, 4.44],
-        ['roe-carbon-barre-2-colonnes', 2, 8.95],
+        ['roe-carbon-barre-1-colonne', 1, 5.16],
+        ['roe-carbon-barre-2-colonnes', 2, 10.72],
       ]);
-      v.vrai('source : ancien manuel Carbon, à confirmer pour la MKII', barres.every((b) => /à confirmer pour la MKII/.test(b.sources.poidsKg.source.confiance)));
+      v.vrai('source : manuel Carbon MKII V1.8, constructeur', barres.every((b) => b.sources.poidsKg.source.id === 'roe-manuel-carbon-mkii-v1-8' && b.sources.poidsKg.source.confiance === 'constructeur'));
       v.egal('compatibles avec les CB5 et CB3 MKII', barres[0].compatibles, ['roe-cb5-mkii', 'roe-cb3-mkii']);
     },
   },
@@ -481,7 +481,228 @@ export const DONNEES = [
         sources.every((s) => s.confiance === 'constructeur' && /Output Capacity/.test(s.titre) && /13\.1\.4/.test(s.titre)));
       v.vrai('adresse de la page donnée', sources.every((s) => /^https:\/\/www\.bromptontech\.com\/online-help\//.test(s.url ?? '')));
       v.egal('date de consultation', sources[0].date, '2026-09-25');
-      v.egal('Novastar : source inchangée', resolus.find((p) => p.id === 'novastar-mctrl660').sources.debitUtileBps.source.id, 'cahier-des-charges-formules');
+      v.egal('Novastar : source de sa propre fiche', resolus.find((p) => p.id === 'novastar-mctrl660').sources.debitUtileBps.source.id, 'novastar-mctrl660-v1-4-4');
+    },
+  },
+  {
+    id: 'D27',
+    titre: 'Vérification du 25/09/2026, corrections C1 à C10 : la valeur constructeur est retenue, l\'ancienne reste visible « non retenue »',
+    etape: 'sources',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const bd = lireBase(contexte);
+      const p = (id) => calculs.resoudreFiche(bp.processeurs.find((x) => x.id === id), bp.sources);
+      const d = (id) => calculs.resoudreFiche(fiche(bd, id), bd.sources);
+      const b = (id) => calculs.resoudreFiche((bd.bumpers ?? []).find((x) => x.id === id), bd.sources);
+      const ids = (s) => s.sources.map((x) => x.id);
+      const nonRetenues = (s) => s.autres.filter((x) => x.nonRetenue).map((x) => x.valeur);
+      const port = (proc, bits, reglages = {}) => calculs.entierInferieur(calculs.capacitePortProcesseur(proc, { frequenceHz: 60, bits, ...reglages }).capacite);
+      // C1, C2 : capacité par port de la fiche en 10 et 12 bits, prioritaire sur la formule ; 8 bits par la formule.
+      for (const [id, source] of [['novastar-mctrl4k', 'novastar-mctrl4k-v1-2-1'], ['novastar-novapro-uhd-jr', 'novastar-novapro-uhd-jr-v1-2-0']]) {
+        const x = p(id);
+        v.egal(`${id} : 320 000 px par port en 10 et 12 bits, 650 000 en 8 bits`, [port(x, 10), port(x, 12), port(x, 8)], [320000, 320000, 650000]);
+        v.egal(`${id} : source constructeur, 325 000 (formule) non retenu`, [ids(x.sources.capacitePort60Hz10bits), nonRetenues(x.sources.capacitePort60Hz10bits)], [[source], [325000]]);
+      }
+      v.egal('C1, C2 : la formule reste pour le MCTRL660 Pro et le MCTRL R5 (325 000 annoncés)', [port(p('novastar-mctrl660-pro'), 10), port(p('novastar-mctrl-r5'), 10)], [325000, 325000]);
+      // C3, C4 : CX40 Pro, capacité selon la carte de réception de la dalle.
+      const cx = p('coex-cx40-pro');
+      for (const carte of ['XA50 Pro', 'CA50E']) {
+        v.egal(`C3 : CX40 Pro avec ${carte}, 8, 10 et 12 bits`, [8, 10, 12].map((bits) => port(cx, bits, { carte })), [2951200, 2291312, 1475600]);
+      }
+      for (const carte of ['CA50C', 'XA50', null]) {
+        v.egal(`C4 : CX40 Pro avec ${carte ?? 'carte inconnue'}, 8, 10 et 12 bits (le plus bas des fiches V1.0.1 et V1.5.0)`,
+          [8, 10, 12].map((bits) => port(cx, bits, { carte })), [2592000, 2073000, 1475600]);
+      }
+      v.egal('C3 : 2 213 200 non retenu', nonRetenues(cx.sources.capaciteHaute60Hz10bits), [2213200]);
+      v.egal('CX40 Pro : cartes XA50 Pro et CA50E pour la capacité haute (fiche V1.5.0)', [cx.cartesCapaciteHaute, ids(cx.sources.cartesCapaciteHaute)], [['XA50 Pro', 'CA50E'], ['coex-cx40-pro-v1-5-0']]);
+      // C5 : MX20 et MX30 en 10 bits, carte Armor autre que A10s Pro ou A8s Pro.
+      const mx20 = p('coex-mx20');
+      const mx30 = p('coex-mx30');
+      v.egal('C5 : MX20 et MX30, 10 bits sans carte Pro : 329 861 px', [port(mx20, 10), port(mx30, 10)], [329861, 329861]);
+      v.egal('C5 : MX20, capacité plus « à confirmer »', calculs.capacitePortProcesseur(mx20, { frequenceHz: 60, bits: 8 }).aConfirmer, false);
+      // C6 à C8 : poids.
+      const cb3 = d('roe-cb3-mkii');
+      v.egal('C6 : CB3 MKII 14,4 kg (page produit), 14 kg du manuel non retenu', [cb3.poidsKg, ids(cb3.sources.poidsKg), nonRetenues(cb3.sources.poidsKg)], [14.4, ['roe-page-produit-carbon-mkii'], [14]]);
+      for (const [id, kg, ancien] of [['roe-carbon-barre-1-colonne', 5.16, 4.44], ['roe-carbon-barre-2-colonnes', 10.72, 8.95]]) {
+        const barre = b(id);
+        v.egal(`C7, C8 : ${id}, ${kg} kg (manuel Carbon MKII V1.8), ${ancien} kg non retenu`,
+          [barre.poidsKg, ids(barre.sources.poidsKg), nonRetenues(barre.sources.poidsKg)], [kg, ['roe-manuel-carbon-mkii-v1-8'], [ancien]]);
+      }
+      // C9, C10 : pixels maxi.
+      const vx20 = p('colorlight-vx20');
+      v.egal('C9 : VX20, 13 000 000 px (page Colorlight), 13 100 000 non retenu', [vx20.pixelsMax, ids(vx20.sources.pixelsMax), nonRetenues(vx20.sources.pixelsMax)], [13000000, ['colorlight-page-vx20'], [13100000]]);
+      const r5 = p('novastar-mctrl-r5');
+      v.egal('C10 : MCTRL R5, 4 147 200 px (3840 × 1080, fiche V1.0.5), 4 100 000 non retenu même s\'il est plus bas',
+        [r5.pixelsMax, ids(r5.sources.pixelsMax), nonRetenues(r5.sources.pixelsMax)], [4147200, ['novastar-mctrl-r5-v1-0-5'], [4100000]]);
+      const constructeur = ['novastar-mctrl4k-v1-2-1', 'novastar-novapro-uhd-jr-v1-2-0', 'coex-cx40-pro-v1-5-0', 'coex-cx40-pro-fiches', 'coex-mx20-v1-0-1', 'coex-mx30-v1-0-1', 'colorlight-page-vx20', 'novastar-mctrl-r5-v1-0-5']
+        .filter((id) => bp.sources[id]?.confiance !== 'constructeur');
+      v.egal('sources des corrections : confiance « constructeur »', [constructeur, ['roe-page-produit-carbon-mkii', 'roe-manuel-carbon-mkii-v1-8'].filter((id) => bd.sources[id]?.confiance !== 'constructeur')], [[], []]);
+    },
+  },
+  {
+    id: 'D28',
+    titre: 'Vérification du 25/09/2026, nouvelles valeurs : accroche et stack, MX30, AR3.91 mk2 Plus',
+    etape: 'sources',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const bd = lireBase(contexte);
+      const d = (id) => calculs.resoudreFiche(fiche(bd, id), bd.sources);
+      const ids = (s) => s.sources.map((x) => x.id);
+      const maxi = [
+        ['roe-bp2-v2', 20, 12, 'roe-fiche-bp2-v2-2021-05'],
+        ['roe-cb5-mkii', 12, 5, 'roe-page-produit-carbon-mkii'],
+        ['roe-cb5-mkii-demi', 24, 10, 'roe-page-produit-carbon-mkii'],
+        ['roe-cb3-mkii', 12, 5, 'roe-page-produit-carbon-mkii'],
+      ];
+      for (const [id, accroche, stack, source] of maxi) {
+        const x = d(id);
+        v.egal(`${id} : ${accroche} en accroche, ${stack} en stack`, [x.maxAccroche, x.maxStack, ids(x.sources.maxAccroche)[0], ids(x.sources.maxStack)[0]], [accroche, stack, source, source]);
+      }
+      v.vrai('BP2 V2 : conditions de la fiche (barre, accessoires et lest ROE, coefficient 8)', /coefficient 8/.test(d('roe-bp2-v2').maxAccrocheConditions ?? '') && /lest/.test(d('roe-bp2-v2').maxStackConditions ?? ''));
+      v.egal('Carbon MKII : aussi dans le manuel V1.8', ids(d('roe-cb5-mkii').sources.maxAccroche), ['roe-page-produit-carbon-mkii', 'roe-manuel-carbon-mkii-v1-8']);
+      for (const [id, accroche, source] of [['absen-pl2-5-pro-v10', 20, 'absen-fiche-pl-v20221215'], ['absen-pl1-9-pro-v10', 20, 'absen-fiche-pl-v20221201'], ['absen-jp5-pro', 30, 'absen-fiche-jp-pro-v20250624']]) {
+        const x = d(id);
+        v.egal(`${id} : ${accroche} en accroche, stack non donné`, [x.maxAccroche, ids(x.sources.maxAccroche), x.maxStack], [accroche, [source], undefined]);
+      }
+      v.vrai('JP5 Pro : version 500 × 500 ; 24 pour la 1000 × 1000', /1000 × 1000/.test(d('absen-jp5-pro').maxAccrocheConditions ?? '') && /24/.test(d('absen-jp5-pro').maxAccrocheConditions ?? ''));
+      const mx30 = calculs.resoudreFiche(bp.processeurs.find((x) => x.id === 'coex-mx30'), bp.sources);
+      v.egal('MX30 : 6,5 M px, 10 ports 1G, débit et cartes Pro comme le MX40 Pro (fiche V1.0.1)',
+        [mx30.pixelsMax, mx30.ports, mx30.debitUtileBps, mx30.cartesPro, ids(mx30.sources.pixelsMax), ids(mx30.sources.ports)],
+        [6500000, 10, 950000000, true, ['coex-mx30-v1-0-1'], ['coex-mx30-v1-0-1']]);
+      v.egal('MX30 : 10 bits avec cartes A10s Pro ou A8s Pro, comme le MX40 Pro', calculs.entierInferieur(calculs.capacitePortProcesseur(mx30, { frequenceHz: 60, bits: 10, cartesPro: true }).capacite), 494791);
+      v.egal('MX30 : complet', calculs.champsManquants(mx30), []);
+      const ancienne = d('infiled-ar3-9');
+      v.egal('AR3.9 renommée « AR3.9 (2019) », sources gardées', [ancienne.nom, ancienne.maxAccroche, ids(ancienne.sources.maxAccroche)], ['INFiLED AR3.9 (2019)', 11, ['plsn-ar3-9-2019-11']]);
+      const ar = d('infiled-ar3-91-mk2-plus');
+      v.egal('AR3.91 mk2 Plus : extérieur IP65, 500 × 1000 mm, 128 × 256 px, 12,5 kg, 360 W max, 120 W moyens',
+        [ar.nom, ar.usage, ar.indiceIP, ar.largeurMm, ar.hauteurMm, ar.pxH, ar.pxV, ar.poidsKg, ar.pMaxW, ar.sources.pMaxW.type, ar.pMoyW, ar.sources.pMoyW.type],
+        ['INFiLED AR3.91 mk2 Plus', 'extérieur', 'IP65', 500, 1000, 128, 256, 12.5, 360, 'max', 120, 'moyenne']);
+      v.vrai('AR3.91 mk2 Plus : chaque valeur de la page produit INFiLED', ['largeurMm', 'hauteurMm', 'pxH', 'pxV', 'poidsKg', 'pMaxW', 'pMoyW', 'indiceIP'].every((c) => ids(ar.sources[c])[0] === 'infiled-page-ar3-91-mk2-plus'));
+      v.egal('AR3.91 mk2 Plus : carte, accroche et stack non donnés (aucune valeur inventée)', [ar.carteReceptionMarque, ar.maxAccroche, ar.maxStack], [undefined, undefined, undefined]);
+    },
+  },
+  {
+    id: 'D29',
+    titre: 'Vérification du 25/09/2026, valeurs confirmées : source constructeur (règle 1) ; valeur constructeur plus basse visible, la retenue gardée (règle 2)',
+    etape: 'sources',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const bd = lireBase(contexte);
+      const d = (id) => calculs.resoudreFiche(fiche(bd, id), bd.sources);
+      const p = (id) => calculs.resoudreFiche(bp.processeurs.find((x) => x.id === id), bp.sources);
+      const ids = (s) => s.sources.map((x) => x.id);
+      // Règle 1 : [fiche, champ, valeur retenue, source constructeur attendue parmi celles de la valeur retenue].
+      const dalles = [
+        ['roe-bp2-v2', 'poidsKg', 9.35, 'roe-fiche-bp2-v2-2021-05'], ['roe-bp2-v2', 'pxH', 176, 'roe-fiche-bp2-v2-2021-05'], ['roe-bp2-v2', 'pxV', 176, 'roe-fiche-bp2-v2-2021-05'],
+        ['roe-cb5-mkii', 'pMaxW', 480, 'roe-page-produit-cb5-mkii'], ['roe-cb5-mkii', 'pxH', 104, 'roe-page-produit-cb5-mkii'], ['roe-cb5-mkii', 'pxV', 208, 'roe-page-produit-cb5-mkii'],
+        ['roe-cb5-mkii', 'poidsKg', 13.6, 'roe-page-produit-cb5-mkii'],
+        ['roe-cb5-mkii-demi', 'pMaxW', 250, 'roe-page-produit-carbon-mkii'], ['roe-cb5-mkii-demi', 'poidsKg', 7.2, 'roe-page-produit-carbon-mkii'],
+        ['roe-cb5-mkii-demi', 'pxH', 104, 'roe-page-produit-carbon-mkii'], ['roe-cb5-mkii-demi', 'pxV', 104, 'roe-page-produit-carbon-mkii'],
+        ['roe-cb3-mkii', 'pMaxW', 600, 'roe-page-produit-carbon-mkii'], ['roe-cb3-mkii', 'pxH', 160, 'roe-page-produit-carbon-mkii'], ['roe-cb3-mkii', 'pxV', 320, 'roe-page-produit-carbon-mkii'],
+        ['absen-pl2-5-pro-v10', 'pxH', 200, 'absen-fiche-pl-v20221215'], ['absen-pl2-5-pro-v10', 'pxV', 200, 'absen-fiche-pl-v20221215'], ['absen-pl2-5-pro-v10', 'poidsKg', 8.8, 'absen-fiche-pl-v20221215'],
+        ['absen-pl1-9-pro-v10', 'pMaxW', 180, 'absen-fiche-pl-v20221201'], ['absen-pl1-9-pro-v10', 'poidsKg', 9, 'absen-fiche-pl-v20221201'],
+        ['absen-pl1-9-pro-v10', 'pxH', 256, 'absen-fiche-pl-v20221201'], ['absen-pl1-9-pro-v10', 'pxV', 256, 'absen-fiche-pl-v20221201'],
+        ['unilumin-upad-iv-2-6', 'poidsKg', 6.3, 'unilumin-fiche-upad-iv-2-6'], ['unilumin-upad-iv-2-6', 'pxH', 192, 'unilumin-fiche-upad-iv-2-6'], ['unilumin-upad-iv-2-6', 'pxV', 192, 'unilumin-fiche-upad-iv-2-6'],
+        ['infiled-ez2-6-mk2', 'pMaxW', 150, 'infiled-page-ez2-6-mk2'], ['infiled-ez2-6-mk2', 'poidsKg', 5.9, 'infiled-page-ez2-6-mk2'],
+        ['infiled-ez2-6-mk2', 'pxH', 192, 'infiled-page-ez2-6-mk2'], ['infiled-ez2-6-mk2', 'pxV', 192, 'infiled-page-ez2-6-mk2'],
+        ['absen-m2-9', 'pxH', 168, 'absen-fiche-m2-9'], ['absen-m2-9', 'pxV', 168, 'absen-fiche-m2-9'],
+        ['absen-jp5-pro', 'poidsKg', 9.5, 'absen-fiche-jp-pro-v20250624'], ['absen-jp5-pro', 'pxH', 96, 'absen-fiche-jp-pro-v20250624'], ['absen-jp5-pro', 'pxV', 96, 'absen-fiche-jp-pro-v20250624'],
+      ];
+      const fautes = dalles.filter(([id, champ, valeur, source]) => {
+        const x = d(id);
+        return x[champ] !== valeur || !ids(x.sources[champ]).includes(source)
+          || !['constructeur', 'constructeur, copie hébergée par un tiers'].includes(bd.sources[source]?.confiance);
+      }).map(([id, champ]) => `${id}.${champ}`);
+      v.egal('dalles : valeurs confirmées, source constructeur (ou sa copie hébergée par un tiers)', fautes, []);
+      v.egal('BP2 V2 : carte non donnée par ROE, elle reste au parc', d('roe-bp2-v2').carteReceptionMarque, undefined);
+      v.egal('CB5 MKII demi : 6,5 kg du manuel non retenu', d('roe-cb5-mkii-demi').sources.poidsKg.autres.filter((x) => x.nonRetenue).map((x) => [x.valeur, ids(x)]), [[6.5, ['roe-manuel-carbon-mkii-v1-8']]]);
+      // Règle 2 : la valeur constructeur plus basse est visible, la valeur retenue ne change pas.
+      const regle2 = [
+        ['absen-pl2-5-pro-v10', 'pMaxW', 192.5, 170, 'absen-fiche-pl-v20221215'],
+        ['unilumin-upad-iv-2-6', 'pMaxW', 165, 120, 'unilumin-fiche-upad-iv-2-6'],
+        ['absen-m2-9', 'pMaxW', 140, 110, 'absen-fiche-m2-9'],
+        ['absen-m2-9', 'poidsKg', 9.99, 7.6, 'absen-fiche-m2-9'],
+        ['absen-jp5-pro', 'pMaxW', 188, 172.5, 'absen-fiche-jp-pro-v20250624'],
+      ];
+      for (const [id, champ, retenue, constructeur, source] of regle2) {
+        const s = d(id).sources[champ];
+        const autre = s.autres.find((x) => x.valeur === constructeur);
+        v.egal(`${id}.${champ} : ${retenue} retenu, ${constructeur} du constructeur visible`, [s.valeur, Boolean(autre && ids(autre).includes(source) && !autre.nonRetenue)], [retenue, true]);
+      }
+      // Processeurs.
+      const procs = [
+        ['brompton-t1', 'pixelsMax', 500000, 'brompton-aide-tessera-general-overview'],
+        ['brompton-s4', 'pixelsMax', 2073600, 'brompton-fiche-s4-2024-09'], ['brompton-m2', 'pixelsMax', 2073600, 'brompton-fiche-m2-2021-01'],
+        ['brompton-s8', 'pixelsMax', 4500000, 'brompton-fiche-s8-2025-03'],
+        ['novastar-mctrl300', 'pixelsMax', 1300000, 'novastar-mctrl300-v2-4-1'], ['novastar-mctrl660', 'pixelsMax', 2300000, 'novastar-mctrl660-v1-4-4'],
+        ['novastar-mctrl660-pro', 'pixelsMax', 2300000, 'novastar-mctrl660-pro-v1-4-0'], ['novastar-mctrl660-pro', 'ports', 6, 'novastar-mctrl660-pro-v1-4-0'],
+        ['novastar-mctrl4k', 'pixelsMax', 8800000, 'novastar-mctrl4k-v1-2-1'], ['novastar-vx2u', 'pixelsMax', 1300000, 'novastar-vx2u-rev-1-0-3'],
+        ['novastar-vx4s', 'pixelsMax', 2300000, 'novastar-manuel-vx4-v1-1-2'], ['novastar-vx6s', 'pixelsMax', 3900000, 'novastar-vx6s-v1-3-1'],
+        ['novastar-novapro-uhd-jr', 'pixelsMax', 10400000, 'novastar-novapro-uhd-jr-v1-2-0'],
+        ['coex-mx40-pro', 'debitUtileBps', 950000000, 'coex-wiki-capacite'], ['coex-mx20', 'debitUtileBps', 950000000, 'coex-wiki-capacite'],
+        ['coex-mx20', 'pixelsMax', 3900000, 'coex-mx20-v1-0-1'], ['coex-mx20', 'ports', 6, 'coex-mx20-v1-0-1'],
+        ['coex-cx40-pro', 'pixelsMax', 9000000, 'coex-cx40-pro-v1-5-0'],
+      ];
+      for (const id of ['novastar-mctrl300', 'novastar-mctrl660', 'novastar-mctrl660-pro', 'novastar-mctrl4k', 'novastar-vx2u', 'novastar-vx4s', 'novastar-vx6s', 'novastar-novapro-uhd-jr']) {
+        procs.push([id, 'debitUtileBps', 936000000, procs.find((x) => x[0] === id && x[1] === 'pixelsMax')[3]]);
+      }
+      const fautesP = procs.filter(([id, champ, valeur, source]) => {
+        const x = p(id);
+        return x[champ] !== valeur || !ids(x.sources[champ]).includes(source) || bp.sources[source]?.confiance !== 'constructeur';
+      }).map(([id, champ]) => `${id}.${champ}`);
+      v.egal('processeurs : valeurs confirmées, source constructeur', fautesP, []);
+      v.egal('T1 : 525 000 de la fiche de septembre 2024 visible, 500 000 retenu', p('brompton-t1').sources.pixelsMax.autres.map((x) => [x.valeur, ids(x)]), [[525000, ['brompton-fiche-t1-2024-09']]]);
+      v.egal('MX40 Pro : 659 722, 494 791 (fiche 494 792 arrondi) et 329 861 px en 8, 10 (cartes Pro) et 12 bits',
+        [[8, false], [10, true], [12, false]].map(([bits, cartesPro]) => calculs.entierInferieur(calculs.capacitePortProcesseur(p('coex-mx40-pro'), { frequenceHz: 60, bits, cartesPro }).capacite)),
+        [659722, 494791, 329861]);
+      v.vrai('MCTRL4K : 8,3 M px en DVI signalé', /8,3 M/.test(p('novastar-mctrl4k').note ?? ''));
+      v.egal('MCTRL660 : entrées confirmées par la fiche V1.4.4, entrée personnalisée 3840 × 600 ou 548 × 3840 signalée',
+        [p('novastar-mctrl660').sources.entreesTypes.source.id, /3840 × 600/.test(p('novastar-mctrl660').note ?? '') && /548 × 3840/.test(p('novastar-mctrl660').note ?? '')], ['novastar-mctrl660-v1-4-4', true]);
+    },
+  },
+  {
+    id: 'D30',
+    titre: 'Largeur et hauteur maxi des processeurs Novastar et COEX, de leurs fiches ; un mur plus large ou plus haut dépasse un seul processeur, avec la raison',
+    etape: 'sources',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const p = (id) => calculs.resoudreFiche(bp.processeurs.find((x) => x.id === id), bp.sources);
+      const ids = (s) => s.sources.map((x) => x.id);
+      const limites = [
+        ['novastar-mctrl300', 3840, 3840, 'novastar-mctrl300-v2-4-1'], ['novastar-mctrl660', 3840, 3840, 'novastar-mctrl660-v1-4-4'],
+        ['novastar-mctrl660-pro', 3840, 3840, 'novastar-mctrl660-pro-v1-4-0'], ['novastar-mctrl-r5', 3840, 3840, 'novastar-mctrl-r5-v1-0-5'],
+        ['novastar-mctrl4k', 7680, 7680, 'novastar-mctrl4k-v1-2-1'], ['novastar-vx6s', 4096, 4096, 'novastar-vx6s-v1-3-1'],
+        ['novastar-novapro-uhd-jr', 16384, 8192, 'novastar-novapro-uhd-jr-v1-2-0'], ['coex-mx20', 3840, 2560, 'coex-mx20-v1-0-1'],
+        ['coex-mx30', 8192, 7680, 'coex-mx30-v1-0-1'], ['coex-mx40-pro', 16384, 16384, 'coex-mx40-pro-v1-5'], ['coex-cx40-pro', 16384, 16384, 'coex-cx40-pro-v1-5-0'],
+      ];
+      const fautes = limites.filter(([id, l, h, source]) => {
+        const x = p(id);
+        return x.largeurMaxPx !== l || x.hauteurMaxPx !== h || !ids(x.sources.largeurMaxPx).includes(source) || !ids(x.sources.hauteurMaxPx).includes(source);
+      }).map(([id]) => id);
+      v.egal('largeur et hauteur maxi de la fiche de chaque processeur', fautes, []);
+      v.egal('MCTRL300 et MCTRL660 : 2560 px de haut non retenus', ['novastar-mctrl300', 'novastar-mctrl660'].map((id) => p(id).sources.hauteurMaxPx.autres.filter((x) => x.nonRetenue).map((x) => x.valeur)), [[2560], [2560]]);
+      v.egal('MX20 : 4096 × 4096 non retenus', [p('coex-mx20').sources.largeurMaxPx, p('coex-mx20').sources.hauteurMaxPx].map((s) => s.autres.filter((x) => x.nonRetenue).map((x) => x.valeur)), [[4096], [4096]]);
+      const mx30 = p('coex-mx30');
+      v.egal('MX30 complet : utilisable dans le calcul', [calculs.champsManquants(mx30), mx30.statut], [[], undefined]);
+      v.vrai('MCTRL660 : entrée personnalisée jusqu\'à 3840 × 600 et 548 × 3840, limite réelle 2,3 M px', /3840 × 600/.test(p('novastar-mctrl660').note) && /548 × 3840/.test(p('novastar-mctrl660').note) && !/1920 × 1200/.test(p('novastar-mctrl660').note));
+      v.vrai('MCTRL660 Pro : 800 × 3840 à 30 Hz signalé', /800 × 3840 à 30 Hz/.test(p('novastar-mctrl660-pro').note ?? ''));
+      // Un mur plus large (ou plus haut) que la limite ne tient pas dans un seul processeur : alerte avec la limite, blocs dans la limite.
+      const dalle = { id: 'fictive-128-32', nom: 'Dalle 128 × 32 px', fictive: true, largeurMm: 500, hauteurMm: 125, pxH: 128, pxV: 32 };
+      const reglages = { frequenceHz: 60, bits: 8 };
+      for (const [id, l, h] of limites) {
+        const proc = p(id);
+        const large = calculs.evaluerProcesseur(calculs.mur(dalle, Math.floor(l / 128) + 1, 1), dalle, proc, reglages);
+        v.vrai(`${id} : mur de plus de ${l} px de large, raison donnée, blocs dans la limite`,
+          large.controles.largeur.depasse && large.controles.largeur.limite === l && large.alertes.some((a) => a.includes('de large') && a.includes('au-delà'))
+          && large.nombre >= 2 && large.groupes.every((g) => g.largeurPx <= l));
+        const haut = calculs.evaluerProcesseur(calculs.mur(dalle, 1, Math.floor(h / 32) + 1), dalle, proc, reglages);
+        v.vrai(`${id} : mur de plus de ${h} px de haut, raison donnée, blocs dans la limite`,
+          haut.controles.hauteur.depasse && haut.controles.hauteur.limite === h && haut.alertes.some((a) => a.includes('de haut') && a.includes('au-delà'))
+          && haut.nombre >= 2 && haut.groupes.every((g) => g.hauteurPx <= h));
+      }
+      const m660 = p('novastar-mctrl660');
+      v.egal('MCTRL660 : 3840 × 576 et 512 × 3840 px tiennent dans un seul (sous 2,3 M px)',
+        [calculs.evaluerProcesseur(calculs.mur(dalle, 30, 18), dalle, m660, reglages).nombre, calculs.evaluerProcesseur(calculs.mur(dalle, 4, 120), dalle, m660, reglages).nombre], [1, 1]);
     },
   },
 ];

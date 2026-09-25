@@ -12,7 +12,7 @@
     "coex-mx40-pro-v1-5": {
       "titre": "Fiche COEX MX40 Pro V1.5.0",
       "court": "Fiche MX40 Pro V1.5.0",
-      "date": null,
+      "date": "2025-09-30",
       "confiance": "constructeur"
     },
     "tessera-manuel-v3-5": {
@@ -39,12 +39,6 @@
       "court": "Cahier des charges du projet, module 4",
       "date": "2026-09-24",
       "confiance": "formule vérifiée par les cas tests 11 et 12"
-    },
-    "cahier-des-charges-mx40-deduit": {
-      "titre": "Cahier des charges du projet, fiche processeur : débit déduit des 659 722 px à 60 Hz de la fiche MX40 Pro",
-      "court": "Cahier des charges du projet (déduit)",
-      "date": "2026-09-24",
-      "confiance": "déduit"
     },
     "tessera-manuel-v3-5-s6-3": {
       "titre": "Manuel Tessera v3.5, §6.3 : préréglages de canvas (4K DCI 4096 × 2160) ; 4094 px est la limite des canvas personnalisés",
@@ -75,18 +69,6 @@
       "court": "avlgear.com",
       "date": null,
       "confiance": "revendeur"
-    },
-    "choix-conception-mx20": {
-      "titre": "Choix de conception du projet : capacité par port du MX20 reprise du MX40 Pro (950 000 000 bit/s), en attendant sa fiche",
-      "court": "Choix de conception du projet",
-      "date": "2026-09-24",
-      "confiance": "à confirmer : repris du MX40 Pro"
-    },
-    "ledwallcentral-coex-mx30": {
-      "titre": "ledwallcentral.com, COEX MX30",
-      "court": "LEDwallcentral",
-      "date": null,
-      "confiance": "base tierce"
     },
     "luxwave-cx40-pro": {
       "titre": "luxwave.vn, fiche revendeur COEX CX40 Pro",
@@ -136,12 +118,6 @@
       "date": null,
       "confiance": "base tierce"
     },
-    "choix-conception-m2-s4": {
-      "titre": "Choix de conception du projet : M2 et S4 à 2 073 600 px, soit leur canvas natif 1920 × 1080 ; les 2 M px du manuel sont une valeur nominale arrondie",
-      "court": "Choix de conception du projet",
-      "date": "2026-09-24",
-      "confiance": "à confirmer sur les fiches Brompton M2 et S4"
-    },
     "tessera-manuel-v3-5-s6-5-1": {
       "titre": "Manuel Tessera v3.5, §6.5.1 et §13.1.4 : mapping interpolé sur M2 et T1 (chaque dalle compte sa taille physique divisée par le pitch le plus fin)",
       "court": "Manuel Tessera v3.5 §6.5.1",
@@ -153,6 +129,126 @@
       "court": "Choix de conception du projet",
       "date": "2026-09-24",
       "confiance": "formation"
+    },
+    "brompton-aide-tessera-general-overview": {
+      "titre": "Aide en ligne Tessera, General Overview (consultée le 25/09/2026)",
+      "court": "Aide en ligne Tessera",
+      "date": "2026-09-25",
+      "confiance": "constructeur"
+    },
+    "brompton-fiche-t1-2024-09": {
+      "titre": "Fiche Brompton Tessera T1, septembre 2024",
+      "court": "Fiche T1",
+      "date": "2024-09",
+      "confiance": "constructeur"
+    },
+    "brompton-fiche-s4-2024-09": {
+      "titre": "Fiche Brompton Tessera S4, septembre 2024 : entrée maxi 1920 × 1080, soit 2 073 600 px",
+      "court": "Fiche S4",
+      "date": "2024-09",
+      "confiance": "constructeur"
+    },
+    "brompton-fiche-m2-2021-01": {
+      "titre": "Fiche Brompton Tessera M2, janvier 2021 : entrée maxi 1920 × 1080, soit 2 073 600 px",
+      "court": "Fiche M2",
+      "date": "2021-01",
+      "confiance": "constructeur"
+    },
+    "brompton-fiche-s8-2025-03": {
+      "titre": "Fiche Brompton Tessera S8, mars 2025",
+      "court": "Fiche S8",
+      "date": "2025-03",
+      "confiance": "constructeur"
+    },
+    "novastar-mctrl300-v2-4-1": {
+      "titre": "Fiche Novastar MCTRL300 V2.4.1",
+      "court": "Fiche MCTRL300 V2.4.1",
+      "date": null,
+      "confiance": "constructeur"
+    },
+    "novastar-mctrl660-v1-4-4": {
+      "titre": "Fiche Novastar MCTRL660 V1.4.4",
+      "court": "Fiche MCTRL660 V1.4.4",
+      "date": null,
+      "confiance": "constructeur"
+    },
+    "novastar-mctrl660-pro-v1-4-0": {
+      "titre": "Fiche Novastar MCTRL660 Pro V1.4.0",
+      "court": "Fiche MCTRL660 Pro V1.4.0",
+      "date": null,
+      "confiance": "constructeur"
+    },
+    "novastar-mctrl-r5-v1-0-5": {
+      "titre": "Fiche Novastar MCTRL R5 V1.0.5 (3840 × 1080 ; 325 000 px par port annoncés en 10 bits)",
+      "court": "Fiche MCTRL R5 V1.0.5",
+      "date": "2024-08-27",
+      "confiance": "constructeur"
+    },
+    "novastar-mctrl4k-v1-2-1": {
+      "titre": "Fiche Novastar MCTRL4K Specifications V1.2.1",
+      "court": "Fiche MCTRL4K V1.2.1",
+      "date": "2024-08-22",
+      "confiance": "constructeur"
+    },
+    "novastar-vx2u-rev-1-0-3": {
+      "titre": "Fiche Novastar VX2U Rev 1.0.3",
+      "court": "Fiche VX2U Rev 1.0.3",
+      "date": null,
+      "confiance": "constructeur"
+    },
+    "novastar-manuel-vx4-v1-1-2": {
+      "titre": "Manuel Novastar VX4 V1.1.2 (VX4S)",
+      "court": "Manuel VX4 V1.1.2",
+      "date": null,
+      "confiance": "constructeur"
+    },
+    "novastar-vx6s-v1-3-1": {
+      "titre": "Fiche Novastar VX6s V1.3.1",
+      "court": "Fiche VX6s V1.3.1",
+      "date": null,
+      "confiance": "constructeur"
+    },
+    "novastar-novapro-uhd-jr-v1-2-0": {
+      "titre": "Fiche Novastar NovaPro UHD Jr V1.2.0",
+      "court": "Fiche NovaPro UHD Jr V1.2.0",
+      "date": "2021-06-01",
+      "confiance": "constructeur"
+    },
+    "coex-wiki-capacite": {
+      "titre": "Wiki COEX Novastar, Loading Capacity Instructions : capacité × 24 × fréquence < 10⁹ × 0,95 (consulté le 25/09/2026)",
+      "court": "Wiki COEX Novastar",
+      "date": "2026-09-25",
+      "confiance": "constructeur"
+    },
+    "coex-mx20-v1-0-1": {
+      "titre": "Fiche COEX MX20 V1.0.1",
+      "court": "Fiche MX20 V1.0.1",
+      "date": "2023-07-04",
+      "confiance": "constructeur"
+    },
+    "coex-mx30-v1-0-1": {
+      "titre": "Fiche COEX MX30 V1.0.1",
+      "court": "Fiche MX30 V1.0.1",
+      "date": "2023-07-04",
+      "confiance": "constructeur"
+    },
+    "coex-cx40-pro-v1-5-0": {
+      "titre": "Fiche COEX CX40 Pro V1.5.0",
+      "court": "Fiche CX40 Pro V1.5.0",
+      "date": "2025-09-30",
+      "confiance": "constructeur"
+    },
+    "coex-cx40-pro-fiches": {
+      "titre": "Fiches COEX CX40 Pro V1.0.1 (04/07/2023) et V1.5.0 (30/09/2025) : la plus basse des deux, cartes CA50C, XA50 ou inconnue",
+      "court": "Fiches CX40 Pro V1.0.1 et V1.5.0",
+      "date": "2025-09-30",
+      "confiance": "constructeur"
+    },
+    "colorlight-page-vx20": {
+      "titre": "Page produit Colorlight VX20, « up to 13 million » (consultée le 25/09/2026)",
+      "court": "Page produit Colorlight VX20",
+      "date": "2026-09-25",
+      "confiance": "constructeur"
     }
   },
   "distributeurs": [
@@ -188,8 +284,16 @@
         "source": "brompton-aide-tessera-13-1-4"
       },
       "pixelsMax": {
-        "valeur": 500000,
-        "source": "cahier-des-charges-brompton"
+        "valeurs": [
+          {
+            "valeur": 500000,
+            "source": "brompton-aide-tessera-general-overview"
+          },
+          {
+            "valeur": 525000,
+            "source": "brompton-fiche-t1-2024-09"
+          }
+        ]
       },
       "ports": {
         "valeur": 1,
@@ -269,7 +373,7 @@
       },
       "pixelsMax": {
         "valeur": 2073600,
-        "source": "choix-conception-m2-s4"
+        "source": "brompton-fiche-s4-2024-09"
       },
       "ports": {
         "valeur": 4,
@@ -341,7 +445,7 @@
       },
       "pixelsMax": {
         "valeur": 2073600,
-        "source": "choix-conception-m2-s4"
+        "source": "brompton-fiche-m2-2021-01"
       },
       "ports": {
         "valeur": 4,
@@ -422,7 +526,7 @@
       },
       "pixelsMax": {
         "valeur": 4500000,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-s8-2025-03"
       },
       "ports": {
         "valeur": 8,
@@ -545,12 +649,12 @@
       "logiciel": "NovaLCT",
       "debitUtileBps": {
         "valeur": 936000000,
-        "source": "cahier-des-charges-formules"
+        "source": "novastar-mctrl300-v2-4-1"
       },
       "pixelsGamme": "jusqu'à 1,3 M",
       "pixelsMax": {
         "valeur": 1300000,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl300-v2-4-1"
       },
       "ports": {
         "valeur": 2,
@@ -558,11 +662,20 @@
       },
       "largeurMaxPx": {
         "valeur": 3840,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl300-v2-4-1"
       },
       "hauteurMaxPx": {
-        "valeur": 2560,
-        "source": "novastar-oliverdy"
+        "valeurs": [
+          {
+            "valeur": 3840,
+            "source": "novastar-mctrl300-v2-4-1"
+          },
+          {
+            "valeur": 2560,
+            "source": "novastar-oliverdy",
+            "nonRetenue": true
+          }
+        ]
       },
       "distributeur": "novastar-cvt10",
       "sortiesParDistributeur": {
@@ -586,12 +699,12 @@
       "logiciel": "NovaLCT",
       "debitUtileBps": {
         "valeur": 936000000,
-        "source": "cahier-des-charges-formules"
+        "source": "novastar-mctrl660-v1-4-4"
       },
       "pixelsGamme": "1,3 à 2,3 M",
       "pixelsMax": {
         "valeur": 2300000,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl660-v1-4-4"
       },
       "ports": {
         "valeur": 4,
@@ -599,11 +712,20 @@
       },
       "largeurMaxPx": {
         "valeur": 3840,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl660-v1-4-4"
       },
       "hauteurMaxPx": {
-        "valeur": 2560,
-        "source": "novastar-oliverdy"
+        "valeurs": [
+          {
+            "valeur": 3840,
+            "source": "novastar-mctrl660-v1-4-4"
+          },
+          {
+            "valeur": 2560,
+            "source": "novastar-oliverdy",
+            "nonRetenue": true
+          }
+        ]
       },
       "distributeur": "novastar-cvt10",
       "sortiesParDistributeur": {
@@ -616,10 +738,10 @@
           "dvi-single",
           "hdmi-1.3"
         ],
-        "source": "novastar-oliverdy",
+        "source": "novastar-mctrl660-v1-4-4",
         "note": "« DVI » sans précision compté en single link (plus prudent)."
       },
-      "note": "Sans scaler."
+      "note": "Sans scaler. Entrée personnalisée jusqu'à 3840 px de large (3840 × 600 à 60 Hz) ou de haut (548 × 3840), fiche V1.4.4 : la limite réelle est le total de 2,3 M px."
     },
     {
       "id": "novastar-mctrl660-pro",
@@ -629,24 +751,24 @@
       "logiciel": "NovaLCT",
       "debitUtileBps": {
         "valeur": 936000000,
-        "source": "cahier-des-charges-formules"
+        "source": "novastar-mctrl660-pro-v1-4-0"
       },
       "pixelsGamme": "1,3 à 2,3 M",
       "pixelsMax": {
         "valeur": 2300000,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl660-pro-v1-4-0"
       },
       "ports": {
         "valeur": 6,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl660-pro-v1-4-0"
       },
       "largeurMaxPx": {
         "valeur": 3840,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl660-pro-v1-4-0"
       },
       "hauteurMaxPx": {
         "valeur": 3840,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl660-pro-v1-4-0"
       },
       "distributeur": "novastar-cvt10",
       "sortiesParDistributeur": {
@@ -663,7 +785,7 @@
         "source": "novastar-oliverdy",
         "note": "« DVI » sans précision compté en single link (plus prudent)."
       },
-      "note": "Faible latence, Neutrik, contrôle web."
+      "note": "Faible latence, Neutrik, contrôle web. 3840 px de haut au plus : 800 × 3840 à 30 Hz (fiche V1.4.0)."
     },
     {
       "id": "novastar-mctrl-r5",
@@ -673,12 +795,21 @@
       "logiciel": "NovaLCT",
       "debitUtileBps": {
         "valeur": 936000000,
-        "source": "cahier-des-charges-formules"
+        "source": "novastar-mctrl-r5-v1-0-5"
       },
       "pixelsGamme": "2,3 à 4,1 M",
       "pixelsMax": {
-        "valeur": 4100000,
-        "source": "novastar-oliverdy"
+        "valeurs": [
+          {
+            "valeur": 4147200,
+            "source": "novastar-mctrl-r5-v1-0-5"
+          },
+          {
+            "valeur": 4100000,
+            "source": "novastar-oliverdy",
+            "nonRetenue": true
+          }
+        ]
       },
       "ports": {
         "valeur": 8,
@@ -686,11 +817,11 @@
       },
       "largeurMaxPx": {
         "valeur": 3840,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl-r5-v1-0-5"
       },
       "hauteurMaxPx": {
         "valeur": 3840,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl-r5-v1-0-5"
       },
       "distributeur": "novastar-cvt10",
       "sortiesParDistributeur": {
@@ -716,12 +847,38 @@
       "logiciel": "NovaLCT",
       "debitUtileBps": {
         "valeur": 936000000,
-        "source": "cahier-des-charges-formules"
+        "source": "novastar-mctrl4k-v1-2-1"
+      },
+      "capacitePort60Hz10bits": {
+        "valeurs": [
+          {
+            "valeur": 320000,
+            "source": "novastar-mctrl4k-v1-2-1"
+          },
+          {
+            "valeur": 325000,
+            "source": "cahier-des-charges-formules",
+            "nonRetenue": true
+          }
+        ]
+      },
+      "capacitePort60Hz12bits": {
+        "valeurs": [
+          {
+            "valeur": 320000,
+            "source": "novastar-mctrl4k-v1-2-1"
+          },
+          {
+            "valeur": 325000,
+            "source": "cahier-des-charges-formules",
+            "nonRetenue": true
+          }
+        ]
       },
       "pixelsGamme": "4,1 à 8,8 M",
       "pixelsMax": {
         "valeur": 8800000,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl4k-v1-2-1"
       },
       "ports": {
         "valeur": 16,
@@ -729,11 +886,11 @@
       },
       "largeurMaxPx": {
         "valeur": 7680,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl4k-v1-2-1"
       },
       "hauteurMaxPx": {
         "valeur": 7680,
-        "source": "novastar-oliverdy"
+        "source": "novastar-mctrl4k-v1-2-1"
       },
       "distributeur": "novastar-cvt10",
       "sortiesParDistributeur": {
@@ -749,7 +906,7 @@
         ],
         "source": "novastar-oliverdy"
       },
-      "note": "HDR, 3D, faible latence, contrôle web. Le support Oliverdy p. 31 donne 8,2 M et 3840 px, contredit par le tableau officiel p. 32."
+      "note": "HDR, 3D, faible latence, contrôle web. Le support Oliverdy p. 31 donne 8,2 M et 3840 px, contredit par le tableau officiel p. 32. La fiche V1.2.1 donne 8,3 M px en DVI."
     },
     {
       "id": "novastar-vx2u",
@@ -759,12 +916,12 @@
       "logiciel": "NovaLCT",
       "debitUtileBps": {
         "valeur": 936000000,
-        "source": "cahier-des-charges-formules"
+        "source": "novastar-vx2u-rev-1-0-3"
       },
       "pixelsGamme": "jusqu'à 1,3 M",
       "pixelsMax": {
         "valeur": 1300000,
-        "source": "novastar-oliverdy"
+        "source": "novastar-vx2u-rev-1-0-3"
       },
       "ports": {
         "valeur": 2,
@@ -846,12 +1003,12 @@
       "logiciel": "NovaLCT",
       "debitUtileBps": {
         "valeur": 936000000,
-        "source": "cahier-des-charges-formules"
+        "source": "novastar-manuel-vx4-v1-1-2"
       },
       "pixelsGamme": "1,3 à 2,3 M",
       "pixelsMax": {
         "valeur": 2300000,
-        "source": "novastar-oliverdy"
+        "source": "novastar-manuel-vx4-v1-1-2"
       },
       "ports": {
         "valeur": 4,
@@ -933,12 +1090,12 @@
       "logiciel": "NovaLCT",
       "debitUtileBps": {
         "valeur": 936000000,
-        "source": "cahier-des-charges-formules"
+        "source": "novastar-vx6s-v1-3-1"
       },
       "pixelsGamme": "2,3 à 3,9 M",
       "pixelsMax": {
         "valeur": 3900000,
-        "source": "novastar-oliverdy"
+        "source": "novastar-vx6s-v1-3-1"
       },
       "ports": {
         "valeur": 6,
@@ -946,11 +1103,11 @@
       },
       "largeurMaxPx": {
         "valeur": 4096,
-        "source": "novastar-oliverdy"
+        "source": "novastar-vx6s-v1-3-1"
       },
       "hauteurMaxPx": {
         "valeur": 4096,
-        "source": "novastar-oliverdy"
+        "source": "novastar-vx6s-v1-3-1"
       },
       "distributeur": "novastar-cvt10",
       "sortiesParDistributeur": {
@@ -977,12 +1134,38 @@
       "logiciel": "NovaLCT",
       "debitUtileBps": {
         "valeur": 936000000,
-        "source": "cahier-des-charges-formules"
+        "source": "novastar-novapro-uhd-jr-v1-2-0"
+      },
+      "capacitePort60Hz10bits": {
+        "valeurs": [
+          {
+            "valeur": 320000,
+            "source": "novastar-novapro-uhd-jr-v1-2-0"
+          },
+          {
+            "valeur": 325000,
+            "source": "cahier-des-charges-formules",
+            "nonRetenue": true
+          }
+        ]
+      },
+      "capacitePort60Hz12bits": {
+        "valeurs": [
+          {
+            "valeur": 320000,
+            "source": "novastar-novapro-uhd-jr-v1-2-0"
+          },
+          {
+            "valeur": 325000,
+            "source": "cahier-des-charges-formules",
+            "nonRetenue": true
+          }
+        ]
       },
       "pixelsGamme": "3,9 à 10,4 M",
       "pixelsMax": {
         "valeur": 10400000,
-        "source": "novastar-oliverdy"
+        "source": "novastar-novapro-uhd-jr-v1-2-0"
       },
       "ports": {
         "valeur": 16,
@@ -990,11 +1173,11 @@
       },
       "largeurMaxPx": {
         "valeur": 16384,
-        "source": "novastar-oliverdy"
+        "source": "novastar-novapro-uhd-jr-v1-2-0"
       },
       "hauteurMaxPx": {
         "valeur": 8192,
-        "source": "novastar-oliverdy"
+        "source": "novastar-novapro-uhd-jr-v1-2-0"
       },
       "distributeur": "novastar-cvt10",
       "sortiesParDistributeur": {
@@ -1021,7 +1204,7 @@
       "logiciel": "VMP",
       "debitUtileBps": {
         "valeur": 950000000,
-        "source": "cahier-des-charges-mx40-deduit"
+        "source": "coex-wiki-capacite"
       },
       "cartesPro": true,
       "pixelsMax": {
@@ -1068,23 +1251,41 @@
       "famille": "novastar",
       "debitUtileBps": {
         "valeur": 950000000,
-        "source": "choix-conception-mx20"
+        "source": "coex-wiki-capacite"
       },
       "pixelsMax": {
         "valeur": 3900000,
-        "source": "avlgear-mx20"
+        "source": "coex-mx20-v1-0-1"
       },
       "ports": {
         "valeur": 6,
-        "source": "avlgear-mx20"
+        "source": "coex-mx20-v1-0-1"
       },
       "largeurMaxPx": {
-        "valeur": 4096,
-        "source": "avlgear-mx20"
+        "valeurs": [
+          {
+            "valeur": 3840,
+            "source": "coex-mx20-v1-0-1"
+          },
+          {
+            "valeur": 4096,
+            "source": "avlgear-mx20",
+            "nonRetenue": true
+          }
+        ]
       },
       "hauteurMaxPx": {
-        "valeur": 4096,
-        "source": "avlgear-mx20"
+        "valeurs": [
+          {
+            "valeur": 2560,
+            "source": "coex-mx20-v1-0-1"
+          },
+          {
+            "valeur": 4096,
+            "source": "avlgear-mx20",
+            "nonRetenue": true
+          }
+        ]
       },
       "distributeur": "novastar-cvt10",
       "sortiesParDistributeur": {
@@ -1100,20 +1301,86 @@
         "source": "avlgear-mx20"
       },
       "logiciel": "VMP",
-      "note": "6 sorties 1G ; 2 sorties optiques 10G qui recopient les 6 ports. Capacité par port reprise du MX40 Pro, à confirmer sur la fiche."
+      "note": "6 sorties 1G ; 2 sorties optiques 10G qui recopient les 6 ports. En 10 bits avec une carte Armor autre que A10s Pro ou A8s Pro : 329 861 px par port (fiche V1.0.1)."
     },
     {
       "id": "coex-mx30",
       "marque": "COEX",
       "modele": "MX30",
       "famille": "novastar",
-      "statut": "à compléter",
+      "debitUtileBps": {
+        "valeur": 950000000,
+        "source": "coex-wiki-capacite"
+      },
+      "cartesPro": true,
+      "pixelsMax": {
+        "valeur": 6500000,
+        "source": "coex-mx30-v1-0-1"
+      },
       "ports": {
         "valeur": 10,
-        "source": "ledwallcentral-coex-mx30"
+        "source": "coex-mx30-v1-0-1"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "coex-mx30-v1-0-1"
+      },
+      "hauteurMaxPx": {
+        "valeur": 7680,
+        "source": "coex-mx30-v1-0-1"
+      },
+      "entrees": "1 × HDMI 2.0 (4096 × 2160 à 60 Hz ; 8192 px de large et 7680 px de haut au plus), 1 × HDMI 1.4 (4096 × 1080 à 60 Hz ; 4096 px de large ou de haut au plus), 1 × DP 1.1 (4096 × 1080 à 60 Hz ; 4096 px de large ou de haut au plus), 2 × 3G-SDI (1920 × 1080 à 60 Hz)",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "hdmi-1.4",
+          "dp",
+          "3g-sdi"
+        ],
+        "source": "coex-mx30-v1-0-1",
+        "note": "DP 1.1 rangée en « dp » : la connectique de la base ne connaît que le DP 1.2 ; son format vient de la fiche."
+      },
+      "entreesFormats": {
+        "valeur": [
+          {
+            "type": "hdmi-2.0",
+            "nom": "HDMI 2.0",
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60,
+            "largeurMaxPx": 8192,
+            "hauteurMaxPx": 7680
+          },
+          {
+            "type": "hdmi-1.4",
+            "nom": "HDMI 1.4",
+            "largeurPx": 4096,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4096,
+            "hauteurMaxPx": 4096
+          },
+          {
+            "type": "dp",
+            "nom": "DP 1.1",
+            "largeurPx": 4096,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4096,
+            "hauteurMaxPx": 4096
+          },
+          {
+            "type": "3g-sdi",
+            "nom": "3G-SDI",
+            "largeurPx": 1920,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "coex-mx30-v1-0-1"
       },
       "logiciel": "VMP",
-      "note": "10 sorties 1G et 2 sorties optiques 10G. Capacité, canvas et entrées à compléter."
+      "note": "Sorties : 10 ports 1G, et 2 ports optiques 10G : OPT 1 porte les ports 1 à 10, OPT 2 en est la copie. 8192 × 7680 px au plus (fiche V1.0.1). Capacité par port comme le MX40 Pro ; en 10 bits avec une carte Armor autre que A10s Pro ou A8s Pro : 329 861 px."
     },
     {
       "id": "coex-cx40-pro",
@@ -1121,20 +1388,74 @@
       "modele": "CX40 Pro",
       "famille": "novastar",
       "capacitePort60Hz8bits": {
-        "valeur": 2951200,
-        "source": "luxwave-cx40-pro"
+        "valeurs": [
+          {
+            "valeur": 2592000,
+            "source": "coex-cx40-pro-fiches"
+          },
+          {
+            "valeur": 2951200,
+            "source": "luxwave-cx40-pro",
+            "nonRetenue": true
+          }
+        ]
       },
       "capacitePort60Hz10bits": {
-        "valeur": 2213200,
-        "source": "luxwave-cx40-pro"
+        "valeurs": [
+          {
+            "valeur": 2073000,
+            "source": "coex-cx40-pro-fiches"
+          },
+          {
+            "valeur": 2213200,
+            "source": "luxwave-cx40-pro",
+            "nonRetenue": true
+          }
+        ]
       },
       "capacitePort60Hz12bits": {
+        "valeurs": [
+          {
+            "valeur": 1475600,
+            "source": "coex-cx40-pro-fiches"
+          },
+          {
+            "valeur": 1475600,
+            "source": "luxwave-cx40-pro"
+          }
+        ]
+      },
+      "cartesCapaciteHaute": {
+        "valeur": [
+          "XA50 Pro",
+          "CA50E"
+        ],
+        "source": "coex-cx40-pro-v1-5-0"
+      },
+      "capaciteHaute60Hz8bits": {
+        "valeur": 2951200,
+        "source": "coex-cx40-pro-v1-5-0"
+      },
+      "capaciteHaute60Hz10bits": {
+        "valeurs": [
+          {
+            "valeur": 2291312,
+            "source": "coex-cx40-pro-v1-5-0"
+          },
+          {
+            "valeur": 2213200,
+            "source": "luxwave-cx40-pro",
+            "nonRetenue": true
+          }
+        ]
+      },
+      "capaciteHaute60Hz12bits": {
         "valeur": 1475600,
-        "source": "luxwave-cx40-pro"
+        "source": "coex-cx40-pro-v1-5-0"
       },
       "pixelsMax": {
         "valeur": 9000000,
-        "source": "luxwave-cx40-pro"
+        "source": "coex-cx40-pro-v1-5-0"
       },
       "ports": {
         "valeur": 6,
@@ -1143,19 +1464,33 @@
       "typePorts": "5G",
       "largeurMaxPx": {
         "valeur": 16384,
-        "source": "luxwave-cx40-pro"
+        "source": "coex-cx40-pro-v1-5-0"
       },
       "hauteurMaxPx": {
         "valeur": 16384,
-        "source": "luxwave-cx40-pro"
+        "source": "coex-cx40-pro-v1-5-0"
       },
       "cartesCompatibles": {
-        "valeur": [
-          "CA50E",
-          "CA50C",
-          "XA50"
-        ],
-        "source": "stagelightingstore-cx40-pro"
+        "valeurs": [
+          {
+            "valeur": [
+              "CA50E",
+              "CA50C",
+              "XA50",
+              "XA50 Pro"
+            ],
+            "source": "coex-cx40-pro-v1-5-0"
+          },
+          {
+            "valeur": [
+              "CA50E",
+              "CA50C",
+              "XA50"
+            ],
+            "source": "stagelightingstore-cx40-pro",
+            "nonRetenue": true
+          }
+        ]
       },
       "entrees": "2 × HDMI 2.0, 1 × DP 1.2, 2 × 12G-SDI",
       "entreesTypes": {
@@ -1168,7 +1503,7 @@
       },
       "latence": "1 trame en mode tout-en-un",
       "logiciel": "VMP",
-      "note": "6 sorties 5G et fibre 40G. 16 384 px de large ou de haut, dans la limite de 9 M px. Cartes de réception 5G seulement."
+      "note": "6 sorties 5G et fibre 40G. 16 384 px de large ou de haut, dans la limite de 9 M px. Cartes de réception 5G seulement. Capacité par port selon la carte : XA50 Pro ou CA50E (fiche V1.5.0) ; CA50C, XA50 ou carte inconnue, la plus basse des fiches V1.0.1 et V1.5.0."
     },
     {
       "id": "colorlight-s6f",
@@ -1329,8 +1664,17 @@
         "source": "choix-conception-colorlight"
       },
       "pixelsMax": {
-        "valeur": 13100000,
-        "source": "ledwallcentral-colorlight"
+        "valeurs": [
+          {
+            "valeur": 13000000,
+            "source": "colorlight-page-vx20"
+          },
+          {
+            "valeur": 13100000,
+            "source": "ledwallcentral-colorlight",
+            "nonRetenue": true
+          }
+        ]
       },
       "ports": {
         "valeur": 20,
