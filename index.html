@@ -180,6 +180,14 @@
         <label class="case" data-famille="brompton" hidden><input type="checkbox" name="ull"><span>ULL, Ultra Low Latency (capacité divisée par 2)</span></label>
         <label class="case" data-famille="novastar"><input type="checkbox" name="cartesPro"><span>Cartes A8s Pro ou A10s Pro (MX40 Pro, 10 bits)</span></label>
         <label class="case" data-famille="novastar"><input type="checkbox" name="modeOptique"><span>MX40 Pro : mode 40 ports (sorties optiques et convertisseurs)</span></label>
+        <div class="champ" data-famille="novastar">
+          <label for="carte-sortie">MX2000 Pro et MX6000 Pro : cartes de sortie</label>
+          <select id="carte-sortie" name="carteSortie">
+            <option value="auto" selected>Selon la carte des dalles</option>
+            <option value="4x10g">4x10G (ports 1G, CVT10)</option>
+            <option value="1x40g">1 × 40G (ports 5G, CVT8-5G)</option>
+          </select>
+        </div>
       </form>
 
       <div class="barre-copie">

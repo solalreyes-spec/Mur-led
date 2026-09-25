@@ -1,8 +1,13 @@
 // Service worker : l'appli marche hors ligne. Chaque fichier de l'appli est servi depuis le cache, puis
 // vérifié en arrière-plan ; si un fichier a changé, il est rangé dans le cache et la page propose de recharger.
 // La page de tests lit toujours les derniers fichiers. Ajouter ici tout nouveau fichier de l'appli (test D23).
+// Chaque publication qui change un fichier de l'appli change VERSION et EMPREINTE (test N8) : ce fichier change
+// donc aussi, le navigateur installe la nouvelle version d'un bloc (tous les fichiers dans un cache neuf),
+// supprime l'ancien cache et la page propose de recharger.
 
-const CACHE = 'mur-led';
+const VERSION = 2;
+const EMPREINTE = '2e9d6331c6b605154a883bc46b0665d614439c1bb19d23e9d6c6af0968fdf31f';
+const CACHE = `mur-led-v${VERSION}`;
 const FICHIERS = [
   './',
   'index.html',
@@ -48,9 +53,15 @@ self.addEventListener('install', (evenement) => {
 });
 
 self.addEventListener('activate', (evenement) => {
-  evenement.waitUntil(caches.keys()
-    .then((cles) => Promise.all(cles.filter((c) => c !== CACHE).map((c) => caches.delete(c))))
-    .then(() => self.clients.claim()));
+  evenement.waitUntil((async () => {
+    const anciens = (await caches.keys()).filter((c) => c !== CACHE);
+    await Promise.all(anciens.map((c) => caches.delete(c)));
+    await self.clients.claim();
+    // Mise à jour (un ancien cache existait) : les pages ouvertes affichent « Recharger ».
+    if (anciens.length > 0) {
+      for (const page of await self.clients.matchAll({ type: 'window' })) page.postMessage({ type: 'nouvelle-version', version: VERSION });
+    }
+  })());
 });
 
 self.addEventListener('fetch', (evenement) => {

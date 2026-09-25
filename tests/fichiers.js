@@ -8,6 +8,35 @@ export function listeCache(texteSw) {
   return bloc ? [...bloc[1].matchAll(/'([^']+)'/g)].map((m) => m[1]) : [];
 }
 
+// Version du cache et empreinte déclarées dans sw.js.
+export function versionCache(texteSw) {
+  const m = /const VERSION = (\d+);/.exec(texteSw ?? '');
+  return m ? Number(m[1]) : null;
+}
+export function empreinteDeclaree(texteSw) {
+  const m = /const EMPREINTE = '([0-9a-f]{64})';/.exec(texteSw ?? '');
+  return m ? m[1] : null;
+}
+
+// Empreinte des fichiers de l'appli mis en cache : SHA-256 du chemin et du contenu de chaque fichier, dans l'ordre
+// de FICHIERS (sauf « ./ », doublon de index.html). Elle change dès qu'un fichier de l'appli change.
+// `lireOctets(chemin)` renvoie un ArrayBuffer.
+export async function empreinteCache(texteSw, lireOctets) {
+  const enc = new TextEncoder();
+  const morceaux = [];
+  for (const chemin of listeCache(texteSw).filter((c) => c !== './')) {
+    morceaux.push(enc.encode(`${chemin}\n`), new Uint8Array(await lireOctets(chemin)), enc.encode('\n'));
+  }
+  const tout = new Uint8Array(morceaux.reduce((s, m) => s + m.length, 0));
+  let i = 0;
+  for (const m of morceaux) {
+    tout.set(m, i);
+    i += m.length;
+  }
+  const hache = await crypto.subtle.digest('SHA-256', tout);
+  return [...new Uint8Array(hache)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
 function resoudre(dossier, chemin) {
   const parties = `${dossier}${chemin}`.split('/');
   const propres = [];

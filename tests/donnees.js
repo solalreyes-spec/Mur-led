@@ -160,10 +160,10 @@ export const DONNEES = [
         'brompton-t1', 'brompton-s4', 'brompton-m2', 'brompton-s8', 'brompton-sx40',
         'novastar-mctrl300', 'novastar-mctrl660', 'novastar-mctrl660-pro', 'novastar-mctrl-r5', 'novastar-mctrl4k',
         'novastar-vx2u', 'novastar-novapro-hd', 'novastar-vx4s', 'novastar-vx4u', 'novastar-vx6s', 'novastar-novapro-uhd-jr',
-        'coex-mx40-pro', 'coex-mx20', 'coex-mx30', 'coex-cx40-pro',
+        'coex-mx40-pro', 'coex-mx20', 'coex-mx30', 'coex-cx40-pro', 'coex-ku20', 'coex-mx2000-pro', 'coex-mx6000-pro', 'coex-sp60-pro',
         'colorlight-s6f', 'colorlight-x8e', 'colorlight-x16e', 'colorlight-vx20', 'colorlight-z6', 'colorlight-z8t',
       ]);
-      v.egal('distributeurs', base.distributeurs.map((d) => d.id), ['brompton-xd', 'novastar-cvt10']);
+      v.egal('distributeurs', base.distributeurs.map((d) => d.id), ['brompton-xd', 'novastar-cvt10', 'novastar-cvt10-pro', 'coex-cvt8-5g']);
     },
   },
   {
@@ -285,7 +285,7 @@ export const DONNEES = [
     verifier(v, contexte) {
       const base = baseConnectique(contexte);
       v.egal('liaisons', base.liaisons.map((l) => l.id),
-        ['dvi-single', 'dvi-dual', 'hdmi-1.2', 'hdmi-1.3', 'hdmi-1.4', 'hdmi-2.0', 'dp-1.2', '3g-sdi', '6g-sdi', '12g-sdi']);
+        ['dvi-single', 'dvi-dual', 'hdmi-1.2', 'hdmi-1.3', 'hdmi-1.4', 'hdmi-2.0', 'hdmi-2.1', 'dp-1.2', 'dp-1.4', '3g-sdi', '6g-sdi', '12g-sdi', 'st2110-25g', 'st2110-100g']);
       for (const l of base.liaisons) {
         v.egal(`${l.id} : valeurs sans source`, valeursSourcees(l).filter((x) => !base.sources[x.source]).map((x) => x.nom), []);
         const r = calculs.resoudreFiche(l, base.sources);
@@ -383,7 +383,7 @@ export const DONNEES = [
         'novastar-mctrl300', 'novastar-mctrl660', 'novastar-mctrl660-pro', 'novastar-mctrl-r5', 'novastar-mctrl4k',
         'novastar-vx2u', 'novastar-novapro-hd', 'novastar-vx4s', 'novastar-vx4u', 'novastar-vx6s', 'novastar-novapro-uhd-jr',
       ]);
-      v.egal('réglés avec VMP (COEX)', avec('logiciel', 'VMP'), ['coex-mx40-pro', 'coex-mx20', 'coex-mx30', 'coex-cx40-pro']);
+      v.egal('réglés avec VMP (COEX)', avec('logiciel', 'VMP'), ['coex-mx40-pro', 'coex-mx20', 'coex-mx30', 'coex-cx40-pro', 'coex-ku20', 'coex-mx2000-pro', 'coex-mx6000-pro', 'coex-sp60-pro']);
       v.egal('mapping interpolé : M2 et T1 seulement', base.processeurs.filter((p) => p.mappingInterpole?.valeur === true).map((p) => p.id), ['brompton-t1', 'brompton-m2']);
     },
   },
@@ -703,6 +703,139 @@ export const DONNEES = [
       const m660 = p('novastar-mctrl660');
       v.egal('MCTRL660 : 3840 × 576 et 512 × 3840 px tiennent dans un seul (sous 2,3 M px)',
         [calculs.evaluerProcesseur(calculs.mur(dalle, 30, 18), dalle, m660, reglages).nombre, calculs.evaluerProcesseur(calculs.mur(dalle, 4, 120), dalle, m660, reglages).nombre], [1, 1]);
+    },
+  },
+  {
+    id: 'D31',
+    titre: 'COEX existants complétés par leurs fiches : entrées, sorties optiques, latence, consommation, poids, adresses',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const p = (id) => calculs.resoudreFiche(bp.processeurs.find((x) => x.id === id), bp.sources);
+      const mx20 = p('coex-mx20');
+      v.egal('MX20 : entrées HDMI 1.3 et 3G-SDI (fiche V1.0.1), 50 W, 4,5 kg', [mx20.entreesTypes, mx20.sources.entreesTypes.source.id, mx20.puissanceW, mx20.poidsKg], [['hdmi-1.3', '3g-sdi'], 'coex-mx20-v1-0-1', 50, 4.5]);
+      v.vrai('MX20 : 2 × HDMI 1.3 (1920 × 1200), OPT 1 = ports 1 à 6, OPT 2 copie, latence 0 ou 1 trame',
+        /2 × HDMI 1\.3/.test(mx20.entrees) && /1920 × 1200/.test(mx20.entrees) && /OPT 1/.test(mx20.sortiesOptiques) && /copie/.test(mx20.sortiesOptiques) && /0 trame/.test(mx20.latence));
+      v.vrai('MX30 : OPT 1 = ports 1 à 10, OPT 2 copie', /ports 1 à 10/.test(p('coex-mx30').sortiesOptiques) && /copie/.test(p('coex-mx30').sortiesOptiques));
+      const mx40 = p('coex-mx40-pro');
+      v.egal('MX40 Pro : 95 W, 7,5 kg, 1U', [mx40.puissanceW, mx40.poidsKg, mx40.hauteurU], [95, 7.5, 1]);
+      v.vrai('MX40 Pro : modes 20 et 40 ports décrits', /mode 20 ports/i.test(mx40.sortiesOptiques) && /mode 40 ports/i.test(mx40.sortiesOptiques) && /CVT10/.test(mx40.sortiesOptiques));
+      const dp = (mx40.entreesFormats ?? []).find((f) => f.type === 'dp-1.2');
+      v.egal('MX40 Pro : DP 1.2 à 4096 × 2160 ou 8192 × 1080 à 60 Hz (format de fiche)', [dp?.largeurPx, dp?.hauteurPx, dp?.frequenceHz, dp?.largeurMaxPx], [4096, 2160, 60, 8192]);
+      const cx40 = p('coex-cx40-pro');
+      v.egal('CX40 Pro : entrées de la fiche V1.5.0, 105 W, 8,1 kg', [cx40.entreesTypes, cx40.sources.entreesTypes.source.id, cx40.puissanceW, cx40.poidsKg], [['hdmi-2.0', 'dp-1.2', '12g-sdi'], 'coex-cx40-pro-v1-5-0', 105, 8.1]);
+      v.vrai('CX40 Pro : 1 optique 40G', /40G/.test(cx40.sortiesOptiques));
+      const adresses = ['coex-mx20-v1-0-1', 'coex-mx30-v1-0-1', 'coex-mx40-pro-v1-5', 'coex-cx40-pro-v1-5-0', 'coex-wiki-capacite', 'coex-wiki-5g']
+        .filter((id) => !/^https:\/\//.test(bp.sources[id]?.url ?? ''));
+      v.egal('adresse de chaque fiche et page du wiki COEX', adresses, []);
+    },
+  },
+  {
+    id: 'D32',
+    titre: 'Convertisseurs COEX : CVT10, CVT10 Pro et CVT8-5G, entrées, sorties, fibre, consommation, poids',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const d = (id) => calculs.resoudreFiche(bp.distributeurs.find((x) => x.id === id), bp.sources);
+      const cvt10 = d('novastar-cvt10');
+      v.egal('CVT10 : 1 port 10G vers 10 ports 1G, 22 W', [cvt10.sorties, cvt10.typeSorties, cvt10.entree, cvt10.puissanceW, cvt10.sources.sorties.source.id], [10, '1G', '1 × 10G', 22, 'coex-wiki-cvt10']);
+      v.vrai('CVT10 : S monomode 10 km, M multimode 300 m ; deux côte à côte = 1U', /10 km/.test(cvt10.fibre) && /300 m/.test(cvt10.fibre) && /1U/.test(cvt10.note ?? ''));
+      const pro = d('novastar-cvt10-pro');
+      v.egal('CVT10 Pro : 10 ports 1G, 22 W, 5,9 kg (fiche V1.1.0)', [pro.sorties, pro.puissanceW, pro.poidsKg, pro.sources.poidsKg.source.id], [10, 22, 5.9, 'coex-cvt10-pro-v1-1-0']);
+      const cvt8 = d('coex-cvt8-5g');
+      v.egal('CVT8-5G : 1 port 40G vers 8 ports 5G, 33 W, 2,26 kg', [cvt8.sorties, cvt8.typeSorties, cvt8.entree, cvt8.puissanceW, cvt8.poidsKg], [8, '5G', '1 × 40G', 33, 2.26]);
+      v.vrai('CVT8-5G : 5GS monomode 10 km, 5GM multimode OM3 100 m ou OM4 150 m, MPO', /10 km/.test(cvt8.fibre) && /OM3 100 m/.test(cvt8.fibre) && /OM4 150 m/.test(cvt8.fibre) && /MPO/.test(cvt8.fibre));
+      v.vrai('CVT8-5G : copie non officielle signalée', /copie non officielle/.test(bp.sources[cvt8.sources.sorties.source.id]?.confiance ?? ''));
+    },
+  },
+  {
+    id: 'D33',
+    titre: 'Nouveaux processeurs COEX : KU20, SP60 Pro, MX2000 Pro, MX6000 Pro, avec leurs fiches',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const p = (id) => calculs.resoudreFiche(bp.processeurs.find((x) => x.id === id), bp.sources);
+      const ids = (s) => s.sources.map((x) => x.id);
+      const ku20 = p('coex-ku20');
+      v.egal('KU20 : 3,9 M px, 6 ports, 3840 × 2560, 25 W, 2,1 kg, fiche V1.1.0',
+        [ku20.pixelsMax, ku20.ports, ku20.largeurMaxPx, ku20.hauteurMaxPx, ku20.puissanceW, ku20.poidsKg, ku20.latence, ids(ku20.sources.pixelsMax)],
+        [3900000, 6, 3840, 2560, 25, 2.1, '0 trame', ['coex-ku20-v1-1-0']]);
+      const mx2000 = p('coex-mx2000-pro');
+      v.egal('MX2000 Pro : 35,38 M px, 8192 × 8192, 2 emplacements de sortie, 260 W, 12 kg',
+        [mx2000.pixelsMax, mx2000.largeurMaxPx, mx2000.hauteurMaxPx, mx2000.emplacementsSortie, mx2000.puissanceW, mx2000.poidsKg], [35380000, 8192, 8192, 2, 260, 12]);
+      v.vrai('MX2000 Pro : 8192 peut-être par entrée comme sur le MX6000 Pro, à confirmer', /par entrée/.test(mx2000.sources.largeurMaxPx.note ?? '') && /à confirmer/.test(mx2000.sources.largeurMaxPx.note ?? ''));
+      v.egal('MX2000 Pro : capacité 1G de sa fiche ; 5G et 128 px déduits',
+        [ids(mx2000.sources.debitUtileBps).includes('coex-mx2000-pro-v1-1-1'), mx2000.sources.capacite5G60Hz8bits.source.confiance, mx2000.sources.largeurChargeeMinPx.source.confiance],
+        [true, 'déduit', 'déduit']);
+      v.egal('MX2000 Pro : fiche V1.1.1, copie hébergée par ark.ventures', bp.sources['coex-mx2000-pro-v1-1-1'].confiance, 'constructeur, copie hébergée par un tiers');
+      const mx6000 = p('coex-mx6000-pro');
+      v.egal('MX6000 Pro : 141 M px, 16 384 px de large ou de haut par carte de sortie, 8192 px par entrée, 8 emplacements de sortie, 625 W, 31 kg sans cartes',
+        [mx6000.pixelsMax, mx6000.largeurMaxPx, mx6000.hauteurMaxPx, mx6000.sourceMaxPx, mx6000.emplacementsSortie, mx6000.puissanceW, mx6000.poidsKg], [141000000, 16384, 16384, 8192, 8, 625, 31]);
+      v.egal('MX6000 Pro : cartes de sortie 4x10G et 1 × 40G', [mx6000.carteSortie1G.nom, mx6000.carteSortie5G.nom], ['MX_4x10G_Fiber', 'CX_1x40G_Fiber']);
+      v.vrai('MX6000 Pro : entrées 8K (HDMI 2.1, DP 1.4) et ST 2110 signalées', /HDMI 2\.1/.test(mx6000.entrees) && /DP 1\.4/.test(mx6000.entrees) && /ST 2110/.test(mx6000.entrees));
+      v.egal('MX6000 Pro, 5G : 2 592 000 / 2 073 000 / 1 475 600 px (le plus bas des fiches V1.1.1 et V1.5.0), document constructeur',
+        [8, 10, 12].map((b) => [mx6000[`capacite5G60Hz${b}bits`], ['constructeur', 'constructeur, copie hébergée par un tiers'].includes(mx6000.sources[`capacite5G60Hz${b}bits`].source.confiance)]),
+        [[2592000, true], [2073000, true], [1475600, true]]);
+      v.egal('MX6000 Pro, 5G : anciennes valeurs de la V1.1.1 visibles (1 728 000 px en 12 bits)', mx6000.sources.capacite5G60Hz12bits.autres.map((x) => [x.valeur, ids(x)]), [[1728000, ['coex-mx6000-pro-v1-1-1']]]);
+      v.egal('MX6000 Pro, 5G avec XA50 Pro ou CA50E : 2 951 200 / 2 291 312 / 1 475 600 px (V1.5.0)',
+        [8, 10, 12].map((b) => [mx6000[`capacite5GHaute60Hz${b}bits`], ids(mx6000.sources[`capacite5GHaute60Hz${b}bits`])[0]]),
+        [[2951200, 'coex-mx6000-pro-v1-5-0'], [2291312, 'coex-mx6000-pro-v1-5-0'], [1475600, 'coex-mx6000-pro-v1-5-0']]);
+      v.egal('MX6000 Pro : capacité 1G et règle des 128 px de sa fiche', [ids(mx6000.sources.debitUtileBps).includes('coex-mx6000-pro-v1-5-0'), mx6000.sources.largeurChargeeMinPx.source.id], [true, 'coex-mx6000-pro-v1-5-0']);
+      const sp60 = p('coex-sp60-pro');
+      v.egal('SP60 Pro : fiche d\'information V1.0.0, calcul hors appli', [sp60.calculHorsAppli, ids(sp60.sources.ports)], ['processeur sous-pixel, calcul hors appli', ['coex-sp60-pro-v1-0-0']]);
+      const adresses = ['coex-ku20-v1-1-0', 'coex-mx2000-pro-v1-1-1', 'coex-wiki-mx2000-pro', 'coex-mx6000-pro-v1-1-1', 'coex-mx6000-pro-v1-5-0', 'coex-sp60-pro-v1-0-0']
+        .filter((id) => !/^https:\/\//.test(bp.sources[id]?.url ?? ''));
+      v.egal('adresse de chaque fiche', adresses, []);
+    },
+  },
+  {
+    id: 'D34',
+    titre: 'Cartes de réception COEX Novastar : capacité d\'une carte en 8, 10 et 12 bits, IC PWM ou classiques, fiche et adresse',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const cartes = bp.cartesReception.map((c) => calculs.resoudreFiche(c, bp.sources));
+      v.egal('7 cartes', cartes.map((c) => c.modele), ['A5s Plus', 'A7s Plus', 'A8s Pro', 'A10s Pro', 'A10s Plus-N', 'CA50E', 'XA50 Pro']);
+      const cap = (modele) => cartes.find((c) => c.modele === modele).capacites.map((x) => `${x.bits}${x.ic ? ` ${x.ic}` : ''} ${x.largeurPx}×${x.hauteurPx}`);
+      v.egal('A5s Plus', cap('A5s Plus'), ['8 PWM 512×384', '8 classique 384×384', '10 PWM 256×384', '10 classique 192×384', '12 PWM 256×384', '12 classique 192×384']);
+      v.egal('A7s Plus : 10 et 12 bits non précisés', cap('A7s Plus'), ['8 PWM 512×512', '8 classique 512×384']);
+      v.egal('A8s Pro', cap('A8s Pro'), ['8 512×512']);
+      v.egal('A10s Pro', cap('A10s Pro'), ['8 512×512', '10 512×512', '12 512×256']);
+      v.egal('A10s Plus-N', cap('A10s Plus-N'), ['8 PWM 512×512']);
+      v.egal('CA50E, 5G', [cartes.find((c) => c.modele === 'CA50E').typePorts, cap('CA50E')], ['5G', ['8 768×512', '10 768×512', '12 512×480']]);
+      v.egal('XA50 Pro, 5G', [cartes.find((c) => c.modele === 'XA50 Pro').typePorts, cap('XA50 Pro')], ['5G', ['8 1024×512', '10 1024×512', '12 620×512']]);
+      const fautes = cartes.filter((c) => {
+        const s = bp.sources[c.sources.capacites.source.id];
+        return s?.confiance !== 'constructeur' || !/^https:\/\//.test(s?.url ?? '') || !s?.date;
+      }).map((c) => c.modele);
+      v.egal('chaque carte : fiche constructeur datée, avec son adresse', fautes, []);
+    },
+  },
+  {
+    id: 'D35',
+    titre: 'LEDCAST : fiches « information », une par pitch, source page produit ledcast.fr consultée le 25/09/2026, exclues du calcul',
+    etape: 'ledcast',
+    verifier(v, contexte) {
+      const base = lireBase(contexte);
+      const infos = (base.informations ?? []).map((f) => calculs.resoudreFiche(f, base.sources));
+      v.egal('32 fiches LEDCAST, toutes « information »', [infos.length, infos.every((f) => f.marque === 'LEDCAST' && f.statut === 'information')], [32, true]);
+      v.egal('aucune dans les dalles utilisables', base.dalles.some((d) => d.marque === 'LEDCAST'), false);
+      const noms = infos.map((f) => f.nom);
+      v.egal('une ligne par pitch (Titan-MX Miniled, Flex, Floor Indoor)', ['LEDCAST Titan-MX Miniled 1.9', 'LEDCAST Titan-MX Miniled 2.6', 'LEDCAST Flex 1.8', 'LEDCAST Flex 2', 'LEDCAST Flex 2.5', 'LEDCAST Flex 3',
+        'LEDCAST Floor Indoor 1.5', 'LEDCAST Floor Indoor 3.9', 'LEDCAST E.Light-R 1.9 COB', 'LEDCAST Titan Miniled Corner', 'LEDCAST Symphonie', 'LEDCAST Banner XL 10'].every((n) => noms.includes(n)), true);
+      const f = (nom) => infos.find((x) => x.nom === nom);
+      v.egal('Titan-MX Miniled : 7680 Hz, courbe de −6° à +6°', [f('LEDCAST Titan-MX Miniled 1.9').rafraichissementHz, f('LEDCAST Titan-MX Miniled 1.9').courbure], [7680, '−6° à +6°']);
+      v.egal('Hydra : courbe ±5°', f('LEDCAST Hydra 2.6').courbure, '±5°');
+      v.egal('E.Light-R : 5 kg sur les trois pitchs', ['1.9 COB', '2.6', '2.9'].map((x) => f(`LEDCAST E.Light-R ${x}`).poidsKg), [5, 5, 5]);
+      v.vrai('Floor Indoor : charge de 2 t/m² signalée', /2 t\/m²/.test(f('LEDCAST Floor Indoor 2.6').note));
+      v.egal('Goldwin Outdoor : IP65, formats 500 × 500 et 500 × 1000 signalés', [f('LEDCAST Goldwin Outdoor 3.9').indiceIP, /500 × 500 et 500 × 1000/.test(f('LEDCAST Goldwin Outdoor 3.9').note)], ['IP65', true]);
+      v.egal('Starter+ et Starter 2 Outdoor : IP65', [f('LEDCAST Starter+ Outdoor 4.8').indiceIP, f('LEDCAST Starter 2 Outdoor 3.9').indiceIP], ['IP65', 'IP65']);
+      v.vrai('Symphonie : pitch de 5 à 16 mm signalé', /5 à 16/.test(f('LEDCAST Symphonie').note));
+      v.egal('Banner XL : pitch 10, 7000 cd/m²', [f('LEDCAST Banner XL 10').pitchMm, f('LEDCAST Banner XL 10').luminositeNits], [10, 7000]);
+      const sources = new Set(infos.flatMap((x) => Object.values(x.sources).map((s) => s.source.id)));
+      v.vrai('sources : pages produit ledcast.fr, consultées le 25/09/2026, avec leur adresse',
+        [...sources].every((id) => /ledcast\.fr/.test(base.sources[id]?.url ?? '') && base.sources[id]?.date === '2026-09-25'));
+      v.egal('exclues du calcul : pixels et dimensions absents, fiche non enregistrable telle quelle', infos.every((x) => !x.pxH && !x.largeurMm), true);
     },
   },
 ];

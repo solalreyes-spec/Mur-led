@@ -55,7 +55,7 @@ export function resumeMur({ dalle, mur: m }) {
 }
 
 // `r` : évaluation du processeur retenu ; `distributeur` : nom du distributeur (XD, CVT10) s'il y en a.
-export function resumeData(r, { conseille = false, distributeur = null, origineBits = null, gainDixBits = null } = {}) {
+export function resumeData(r, { conseille = false, distributeur = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null } = {}) {
   const proc = r.processeur;
   if (!r.groupes?.length) {
     return texte(['DATA', `Processeur : ${proc.nom}`, `Impossible : ${r.impossible ?? 'ce processeur ne convient pas à ce mur'}`, ...alertes(r.alertes)]);
@@ -67,6 +67,7 @@ export function resumeData(r, { conseille = false, distributeur = null, origineB
   const lignes = [
     'DATA',
     `Processeur : ${r.nombre} × ${proc.nom}${conseille ? ', conseillé' : ''}`,
+    r.configuration ? `Configuration : ${r.configuration}` : null,
     `Réglages : ${nombreCourt(reg.frequenceHz)} Hz, ${reg.bits} bits réseau${reg.ull ? ', ULL' : ''}, `
       + `${reg.redondance ? 'avec redondance' : 'sans redondance'}${reg.modeOptique ? ', mode optique' : ''}`,
     origineBits ? `Profondeur réseau : ${reg.bits} bits, ${origineBits}` : null,
@@ -90,8 +91,11 @@ export function resumeData(r, { conseille = false, distributeur = null, origineB
       if (charge.auDela95) alertesPorts.push(`Alerte : câblage ${cablage}, un port chargé à ${nombre(charge.taux * 100, 1)} %, au-delà de 95 %`);
     }
   }
+  const conso = consommationProcesseur(proc);
+  if (conso) lignes.push(conso);
   if (distributeur && r.totaux?.distributeurs) {
-    lignes.push(`${distributeur} : ${nombre(reg.redondance ? r.totaux.distributeurs.redondance : r.totaux.distributeurs.colonnes)}`);
+    lignes.push(`${distributeur} : ${nombre(reg.redondance ? r.totaux.distributeurs.redondance : r.totaux.distributeurs.colonnes)}`
+      + `${puissanceDistributeurW ? `, ${nombreCourt(puissanceDistributeurW)} W chacun` : ''}`);
   }
   r.groupes.forEach((gr, i) => {
     const ports = reg.redondance ? gr.ports.redondance.colonnes : gr.ports.colonnes;
@@ -101,6 +105,16 @@ export function resumeData(r, { conseille = false, distributeur = null, origineB
   });
   lignes.push(...alertesPorts, ...alertes(r.alertes));
   return texte(lignes);
+}
+
+// Consommation, poids et hauteur en rack d'un processeur, quand sa fiche les donne : « MX40 Pro : 95 W, 7,5 kg, 1U chacun ».
+export function consommationProcesseur(proc) {
+  const morceaux = [
+    proc.puissanceW ? `${nombreCourt(proc.puissanceW)} W` : null,
+    proc.poidsKg ? `${nombreCourt(proc.poidsKg, 2)} kg` : null,
+    proc.hauteurU ? `${nombreCourt(proc.hauteurU)}U` : null,
+  ].filter(Boolean);
+  return morceaux.length ? `${proc.modele} : ${morceaux.join(', ')} chacun` : null;
 }
 
 // `r` : contrôle de la source ; `evaluation` : processeur retenu ; `rRegie` : contrôle de la régie choisie.

@@ -13,7 +13,8 @@
       "titre": "Fiche COEX MX40 Pro V1.5.0",
       "court": "Fiche MX40 Pro V1.5.0",
       "date": "2025-09-30",
-      "confiance": "constructeur"
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2025/10/MX40-Pro-LED-Display-Controller-Specifications-V1.5.0.pdf"
     },
     "tessera-manuel-v3-5": {
       "titre": "Manuel Tessera v3.5 (canvas, capacités §13.1.4), repris dans le cahier des charges du projet",
@@ -218,25 +219,29 @@
       "titre": "Wiki COEX Novastar, Loading Capacity Instructions : capacité × 24 × fréquence < 10⁹ × 0,95 (consulté le 25/09/2026)",
       "court": "Wiki COEX Novastar",
       "date": "2026-09-25",
-      "confiance": "constructeur"
+      "confiance": "constructeur",
+      "url": "https://coex.novastar.wiki/en/Intro&Info/Loading-Capacity-Instructions"
     },
     "coex-mx20-v1-0-1": {
       "titre": "Fiche COEX MX20 V1.0.1",
       "court": "Fiche MX20 V1.0.1",
       "date": "2023-07-04",
-      "confiance": "constructeur"
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2023/07/MX20-LED-Display-Controller-Specifications-V1.0.1.pdf"
     },
     "coex-mx30-v1-0-1": {
       "titre": "Fiche COEX MX30 V1.0.1",
       "court": "Fiche MX30 V1.0.1",
       "date": "2023-07-04",
-      "confiance": "constructeur"
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2023/07/MX30-LED-Display-Controller-Specifications-V1.0.1.pdf"
     },
     "coex-cx40-pro-v1-5-0": {
       "titre": "Fiche COEX CX40 Pro V1.5.0",
       "court": "Fiche CX40 Pro V1.5.0",
       "date": "2025-09-30",
-      "confiance": "constructeur"
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2025/09/CX40-Pro-LED-Display-Controller-Specifications-V1.5.0.pdf"
     },
     "coex-cx40-pro-fiches": {
       "titre": "Fiches COEX CX40 Pro V1.0.1 (04/07/2023) et V1.5.0 (30/09/2025) : la plus basse des deux, cartes CA50C, XA50 ou inconnue",
@@ -249,6 +254,143 @@
       "court": "Page produit Colorlight VX20",
       "date": "2026-09-25",
       "confiance": "constructeur"
+    },
+    "coex-wiki-5g": {
+      "titre": "Wiki COEX Novastar, 5G Solution (consulté le 25/09/2026)",
+      "court": "Wiki COEX Novastar (5G)",
+      "date": "2026-09-25",
+      "confiance": "constructeur",
+      "url": "https://coex.novastar.wiki/en/Solution/5G-Solution"
+    },
+    "coex-wiki-cvt10": {
+      "titre": "Wiki COEX Novastar, CVT10 (consulté le 25/09/2026)",
+      "court": "Wiki COEX Novastar (CVT10)",
+      "date": "2026-09-25",
+      "confiance": "constructeur",
+      "url": "https://coex.novastar.wiki/en/Accessory/CVT10"
+    },
+    "coex-cvt10-pro-v1-1-0": {
+      "titre": "Fiche COEX CVT10 Pro Fiber Converter V1.1.0",
+      "court": "Fiche CVT10 Pro V1.1.0",
+      "date": "2024-09-19",
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2024/10/CVT10-Pro-Fiber-Converter-Specifications-V1.1.0.pdf"
+    },
+    "coex-cvt8-5g-v1-1-0": {
+      "titre": "Fiche COEX CVT8-5G Fiber Converter V1.1.0 (copie non officielle)",
+      "court": "Fiche CVT8-5G V1.1.0",
+      "date": "2026-05-11",
+      "confiance": "constructeur, copie non officielle",
+      "url": "https://novastar.show/api/specs?path=cvt8-5g-fiber-converter.pdf"
+    },
+    "coex-largeur-chargee-analogie": {
+      "titre": "Règle des 128 px de largeur chargée, par analogie avec la fiche MX40 Pro V1.5.0 (30/09/2025), absente de sa fiche",
+      "court": "Par analogie avec la fiche MX40 Pro, absente de sa fiche",
+      "date": "2025-09-30",
+      "confiance": "déduit"
+    },
+    "coex-ku20-v1-1-0": {
+      "titre": "Fiche COEX KU20 LED Display Controller V1.1.0",
+      "court": "Fiche KU20 V1.1.0",
+      "date": "2023-04-28",
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2023/05/KU20-LED-Display-Controller-Specifications-V1.1.0.pdf"
+    },
+    "coex-sp60-pro-v1-0-0": {
+      "titre": "Fiche COEX SP60 Pro V1.0.0, copie hébergée par olympianled.com",
+      "court": "Fiche SP60 Pro V1.0.0",
+      "date": "2023-07-27",
+      "confiance": "constructeur, copie hébergée par un tiers",
+      "url": "https://olympianled.com/wp-content/uploads/2023/11/SP60-Pro-LED-Display-Controller-Specifications-V1.0.0.pdf"
+    },
+    "coex-mx2000-pro-v1-1-1": {
+      "titre": "Fiche COEX MX2000 Pro V1.1.1, copie hébergée par ark.ventures",
+      "court": "Fiche MX2000 Pro V1.1.1",
+      "date": "2023-10-13",
+      "confiance": "constructeur, copie hébergée par un tiers",
+      "url": "https://www.ark.ventures/wp-content/themes/onepress-child/img/products/novastar/MX2000Pro/MX2000-Pro.pdf"
+    },
+    "coex-wiki-mx2000-pro": {
+      "titre": "Wiki COEX Novastar, MX2000 Pro : carte de sortie 1 × 40G (ports 5G), absente de sa fiche V1.1.1 (consulté le 25/09/2026)",
+      "court": "Wiki COEX Novastar (MX2000 Pro)",
+      "date": "2026-09-25",
+      "confiance": "constructeur",
+      "url": "https://coex.novastar.wiki/en/Processor/MX2000-Pro"
+    },
+    "coex-mx6000-pro-v1-1-1": {
+      "titre": "Fiche COEX MX6000 Pro V1.1.1",
+      "court": "Fiche MX6000 Pro V1.1.1",
+      "date": "2023-10-13",
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2023/12/MX6000-Pro-LED-Display-Controller-Specifications-V1.1.1.pdf"
+    },
+    "coex-mx6000-pro-v1-5-0": {
+      "titre": "Fiche COEX MX6000 Pro V1.5.0, copie hébergée par eagerled.com",
+      "court": "Fiche MX6000 Pro V1.5.0",
+      "date": "2025-09-30",
+      "confiance": "constructeur, copie hébergée par un tiers",
+      "url": "https://www.eagerled.com/resource/NovaStar/Document/COEX/MX6000%20Pro/MX6000-Pro-LED-Display-Controller-Specifications-V1.5.0.pdf"
+    },
+    "coex-regle-5g": {
+      "titre": "Capacité des ports 5G COEX : fiches V1.5.0 avec XA50 Pro ou CA50E, sinon la plus basse des anciennes et nouvelles fiches (règle C4), appliquée par analogie aux cartes 1 × 40G et au CVT8-5G",
+      "court": "Règle 5G COEX, par analogie",
+      "date": "2025-09-30",
+      "confiance": "déduit"
+    },
+    "coex-mx2000-entrees-analogie": {
+      "titre": "Formats des cartes d'entrée 4K et 8K de la fiche MX6000 Pro V1.5.0, appliqués par analogie au MX2000 Pro",
+      "court": "Par analogie avec la fiche MX6000 Pro",
+      "date": "2025-09-30",
+      "confiance": "déduit"
+    },
+    "novastar-a5s-plus-v1-3-0": {
+      "titre": "Fiche Novastar A5s Plus Receiving Card Specifications V1.3.0",
+      "court": "Fiche A5s Plus V1.3.0",
+      "date": "2024-07-15",
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2024/07/A5s-Plus-Receiving-Card-Specifications-V1.3.0.pdf"
+    },
+    "novastar-a7s-plus-v1-2-3": {
+      "titre": "Fiche Novastar A7s Plus Receiving Card Specifications V1.2.3",
+      "court": "Fiche A7s Plus V1.2.3",
+      "date": "2024-10-25",
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2024/10/A7s-Plus-Receiving-Card-Specifications-V1.2.3.pdf"
+    },
+    "novastar-a8s-pro-v1-1-0": {
+      "titre": "Fiche Novastar A8s Pro Receiving Card Specifications V1.1.0",
+      "court": "Fiche A8s Pro V1.1.0",
+      "date": "2023-09-13",
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2023/09/A8s-Pro-Receiving-Card-Specifications-V1.1.0.pdf"
+    },
+    "novastar-a10s-pro-v1-3-0": {
+      "titre": "Fiche Novastar A10s Pro Receiving Card Specifications V1.3.0",
+      "court": "Fiche A10s Pro V1.3.0",
+      "date": "2024-08-20",
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2024/12/A10s-Pro-Receiving-Card-Specifications-V1.3.0.pdf"
+    },
+    "novastar-a10s-plus-n-v1-1-4": {
+      "titre": "Fiche Novastar A10s Plus-N Receiving Card Specifications V1.1.4",
+      "court": "Fiche A10s Plus-N V1.1.4",
+      "date": "2025-03-31",
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2025/04/A10s-Plus-N-Receiving-Card-Specifications-V1.1.4.pdf"
+    },
+    "novastar-ca50e-v1-1-1": {
+      "titre": "Fiche Novastar CA50E Receiving Card Specifications V1.1.1",
+      "court": "Fiche CA50E V1.1.1",
+      "date": "2023-12-30",
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2024/01/CA50E-Receiving-Card-Specifications-V1.1.1.pdf"
+    },
+    "novastar-xa50-pro-v1-0-3": {
+      "titre": "Fiche Novastar XA50 Pro Receiving Card Specifications V1.0.3",
+      "court": "Fiche XA50 Pro V1.0.3",
+      "date": "2024-07-19",
+      "confiance": "constructeur",
+      "url": "https://oss.novastar.tech/uploads/2025/04/XA50-Pro-Receiving-Card-Specifications-V1.0.3.pdf"
     }
   },
   "distributeurs": [
@@ -264,13 +406,62 @@
     },
     {
       "id": "novastar-cvt10",
-      "marque": "Novastar",
+      "marque": "COEX (Novastar)",
       "modele": "CVT10",
+      "entree": "1 × 10G",
       "sorties": {
         "valeur": 10,
-        "source": "cahier-des-charges-module-4"
+        "source": "coex-wiki-cvt10"
       },
-      "note": "Convertisseur fibre, seulement pour les liaisons au-delà de 100 m en cuivre."
+      "typeSorties": "1G",
+      "fibre": "S : monomode, 10 km ; M : multimode, 300 m",
+      "puissanceW": {
+        "valeur": 22,
+        "source": "coex-wiki-cvt10"
+      },
+      "note": "Convertisseur fibre : obligatoire pour le mode 40 ports du MX40 Pro, sinon seulement au-delà de 100 m de cuivre. Deux CVT10 côte à côte = 1U. Même rôle : CVT10 Pro."
+    },
+    {
+      "id": "novastar-cvt10-pro",
+      "marque": "COEX (Novastar)",
+      "modele": "CVT10 Pro",
+      "entree": "1 × 10G",
+      "sorties": {
+        "valeur": 10,
+        "source": "coex-cvt10-pro-v1-1-0"
+      },
+      "typeSorties": "1G",
+      "fibre": "S : monomode, 10 km ; M : multimode, 300 m",
+      "puissanceW": {
+        "valeur": 22,
+        "source": "coex-cvt10-pro-v1-1-0"
+      },
+      "poidsKg": {
+        "valeur": 5.9,
+        "source": "coex-cvt10-pro-v1-1-0"
+      },
+      "note": "Même rôle que le CVT10."
+    },
+    {
+      "id": "coex-cvt8-5g",
+      "marque": "COEX (Novastar)",
+      "modele": "CVT8-5G",
+      "entree": "1 × 40G",
+      "sorties": {
+        "valeur": 8,
+        "source": "coex-cvt8-5g-v1-1-0"
+      },
+      "typeSorties": "5G",
+      "fibre": "5GS : monomode OS1/OS2, LC, 10 km ; 5GM : multimode OM3 100 m ou OM4 150 m, MPO",
+      "puissanceW": {
+        "valeur": 33,
+        "source": "coex-cvt8-5g-v1-1-0"
+      },
+      "poidsKg": {
+        "valeur": 2.26,
+        "source": "coex-cvt8-5g-v1-1-0"
+      },
+      "note": "Convertisseur fibre 40G vers 8 ports 5G (CX40 Pro, cartes 1 × 40G). Fiche : copie non officielle."
     }
   ],
   "processeurs": [
@@ -1228,11 +1419,12 @@
         "source": "coex-mx40-pro-v1-5"
       },
       "distributeur": "novastar-cvt10",
+      "distributeurObligatoireOptique": true,
       "sortiesParDistributeur": {
         "valeur": 10,
         "source": "cahier-des-charges-module-4"
       },
-      "entrees": "3 × HDMI 2.0, DP 1.2, 12G-SDI",
+      "entrees": "3 × HDMI 2.0 et 1 × DP 1.2 (4096 × 2160 ou 8192 × 1080 à 60 Hz), 1 × 12G-SDI",
       "entreesTypes": {
         "valeur": [
           "hdmi-2.0",
@@ -1241,8 +1433,57 @@
         ],
         "source": "coex-mx40-pro-v1-5"
       },
+      "entreesFormats": {
+        "valeur": [
+          {
+            "type": "hdmi-2.0",
+            "nom": "HDMI 2.0",
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60,
+            "largeurMaxPx": 8192
+          },
+          {
+            "type": "dp-1.2",
+            "nom": "DP 1.2",
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60,
+            "largeurMaxPx": 8192
+          }
+        ],
+        "source": "coex-mx40-pro-v1-5"
+      },
+      "sortiesOptiques": {
+        "valeur": "4 optiques 10G. Mode 20 ports : OPT 1 = ports 1 à 10, OPT 2 = ports 11 à 20, OPT 3 et 4 = copies. Mode 40 ports : OPT 1 à 4 = ports 1 à 40 via CVT10, plafond 9 M px",
+        "source": "coex-mx40-pro-v1-5"
+      },
+      "largeurChargeeMinPx": {
+        "valeurs": [
+          {
+            "valeur": 128,
+            "source": "coex-mx40-pro-v1-5"
+          },
+          {
+            "valeur": 128,
+            "source": "coex-wiki-capacite"
+          }
+        ]
+      },
+      "puissanceW": {
+        "valeur": 95,
+        "source": "coex-mx40-pro-v1-5"
+      },
+      "poidsKg": {
+        "valeur": 7.5,
+        "source": "coex-mx40-pro-v1-5"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "coex-mx40-pro-v1-5"
+      },
       "latence": "0 ou 1 trame",
-      "note": "20 sorties 1G en cuivre. Les 4 sorties optiques 10G permettent un mode 40 ports avec des convertisseurs ; capacité totale inchangée. 16384 px de large ou de haut. En 10 bits, les cartes A8s Pro ou A10s Pro portent 494 791 px par port à 60 Hz."
+      "note": "20 sorties 1G en cuivre. Mode 40 ports par les 4 sorties optiques 10G et des CVT10, obligatoires ; capacité totale inchangée (9 M px). 16384 px de large ou de haut. En 10 bits, les cartes A8s Pro ou A10s Pro portent 494 791 px par port à 60 Hz."
     },
     {
       "id": "coex-mx20",
@@ -1292,16 +1533,33 @@
         "valeur": 10,
         "source": "cahier-des-charges-module-4"
       },
-      "entrees": "2 × HDMI 1.3, 1 × 3G-SDI",
+      "entrees": "2 × HDMI 1.3 (1920 × 1200), 1 × 3G-SDI",
       "entreesTypes": {
         "valeur": [
           "hdmi-1.3",
           "3g-sdi"
         ],
-        "source": "avlgear-mx20"
+        "source": "coex-mx20-v1-0-1"
+      },
+      "sortiesOptiques": {
+        "valeur": "2 optiques 10G : OPT 1 = ports 1 à 6, OPT 2 = copie",
+        "source": "coex-mx20-v1-0-1"
+      },
+      "largeurChargeeMinPx": {
+        "valeur": 128,
+        "source": "coex-largeur-chargee-analogie"
+      },
+      "puissanceW": {
+        "valeur": 50,
+        "source": "coex-mx20-v1-0-1"
+      },
+      "poidsKg": {
+        "valeur": 4.5,
+        "source": "coex-mx20-v1-0-1"
       },
       "logiciel": "VMP",
-      "note": "6 sorties 1G ; 2 sorties optiques 10G qui recopient les 6 ports. En 10 bits avec une carte Armor autre que A10s Pro ou A8s Pro : 329 861 px par port (fiche V1.0.1)."
+      "note": "6 sorties 1G. En 10 bits avec une carte Armor autre que A10s Pro ou A8s Pro : 329 861 px par port (fiche V1.0.1).",
+      "latence": "0 trame en envoi seul, 1 en tout en un"
     },
     {
       "id": "coex-mx30",
@@ -1378,6 +1636,14 @@
           }
         ],
         "source": "coex-mx30-v1-0-1"
+      },
+      "sortiesOptiques": {
+        "valeur": "2 optiques 10G : OPT 1 = ports 1 à 10, OPT 2 = copie",
+        "source": "coex-mx30-v1-0-1"
+      },
+      "largeurChargeeMinPx": {
+        "valeur": 128,
+        "source": "coex-largeur-chargee-analogie"
       },
       "logiciel": "VMP",
       "note": "Sorties : 10 ports 1G, et 2 ports optiques 10G : OPT 1 porte les ports 1 à 10, OPT 2 en est la copie. 8192 × 7680 px au plus (fiche V1.0.1). Capacité par port comme le MX40 Pro ; en 10 bits avec une carte Armor autre que A10s Pro ou A8s Pro : 329 861 px."
@@ -1499,11 +1765,540 @@
           "dp-1.2",
           "12g-sdi"
         ],
-        "source": "luxwave-cx40-pro"
+        "source": "coex-cx40-pro-v1-5-0"
+      },
+      "sortiesOptiques": {
+        "valeur": "1 optique 40G (vers un CVT8-5G, 8 ports 5G)",
+        "source": "coex-cx40-pro-v1-5-0"
+      },
+      "puissanceW": {
+        "valeur": 105,
+        "source": "coex-cx40-pro-v1-5-0"
+      },
+      "poidsKg": {
+        "valeur": 8.1,
+        "source": "coex-cx40-pro-v1-5-0"
+      },
+      "distributeur": "coex-cvt8-5g",
+      "sortiesParDistributeur": {
+        "valeur": 8,
+        "source": "coex-cvt8-5g-v1-1-0"
       },
       "latence": "1 trame en mode tout-en-un",
       "logiciel": "VMP",
       "note": "6 sorties 5G et fibre 40G. 16 384 px de large ou de haut, dans la limite de 9 M px. Cartes de réception 5G seulement. Capacité par port selon la carte : XA50 Pro ou CA50E (fiche V1.5.0) ; CA50C, XA50 ou carte inconnue, la plus basse des fiches V1.0.1 et V1.5.0."
+    },
+    {
+      "id": "coex-ku20",
+      "marque": "COEX",
+      "modele": "KU20",
+      "famille": "novastar",
+      "logiciel": "VMP",
+      "debitUtileBps": {
+        "valeur": 950000000,
+        "source": "coex-wiki-capacite"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "coex-ku20-v1-1-0",
+        "note": "10 bits seulement avec un programme personnalisé"
+      },
+      "pixelsMax": {
+        "valeur": 3900000,
+        "source": "coex-ku20-v1-1-0"
+      },
+      "ports": {
+        "valeur": 6,
+        "source": "coex-ku20-v1-1-0"
+      },
+      "typePorts": "1G",
+      "largeurMaxPx": {
+        "valeur": 3840,
+        "source": "coex-ku20-v1-1-0"
+      },
+      "hauteurMaxPx": {
+        "valeur": 2560,
+        "source": "coex-ku20-v1-1-0"
+      },
+      "entrees": "1 × HDMI 1.3 (1920 × 1200 à 60 Hz)",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-1.3"
+        ],
+        "source": "coex-ku20-v1-1-0"
+      },
+      "entreesFormats": {
+        "valeur": [
+          {
+            "type": "hdmi-1.3",
+            "nom": "HDMI 1.3",
+            "largeurPx": 1920,
+            "hauteurPx": 1200,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "coex-ku20-v1-1-0"
+      },
+      "largeurChargeeMinPx": {
+        "valeur": 128,
+        "source": "coex-largeur-chargee-analogie"
+      },
+      "puissanceW": {
+        "valeur": 25,
+        "source": "coex-ku20-v1-1-0"
+      },
+      "poidsKg": {
+        "valeur": 2.1,
+        "source": "coex-ku20-v1-1-0"
+      },
+      "latence": "0 trame",
+      "note": "6 sorties 1G. 8 bits ; 10 bits seulement avec un programme personnalisé."
+    },
+    {
+      "id": "coex-mx2000-pro",
+      "marque": "COEX",
+      "modele": "MX2000 Pro",
+      "famille": "novastar",
+      "logiciel": "VMP",
+      "debitUtileBps": {
+        "valeurs": [
+          {
+            "valeur": 950000000,
+            "source": "coex-wiki-capacite"
+          },
+          {
+            "valeur": 950000000,
+            "source": "coex-mx2000-pro-v1-1-1"
+          }
+        ]
+      },
+      "cartesPro": true,
+      "pixelsMax": {
+        "valeur": 35380000,
+        "source": "coex-mx2000-pro-v1-1-1"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "coex-mx2000-pro-v1-1-1",
+        "note": "peut être une limite par entrée comme sur le MX6000 Pro, à confirmer"
+      },
+      "hauteurMaxPx": {
+        "valeur": 8192,
+        "source": "coex-mx2000-pro-v1-1-1",
+        "note": "peut être une limite par entrée comme sur le MX6000 Pro, à confirmer"
+      },
+      "emplacementsSortie": {
+        "valeur": 2,
+        "source": "coex-mx2000-pro-v1-1-1"
+      },
+      "emplacementsEntree": {
+        "valeur": 2,
+        "source": "coex-mx2000-pro-v1-1-1"
+      },
+      "carteSortie1G": {
+        "valeur": {
+          "id": "4x10g",
+          "nom": "MX_4x10G_Fiber",
+          "nomCourt": "4x10G",
+          "typePorts": "1G",
+          "convertisseur": "novastar-cvt10",
+          "convertisseursParCarte": 4,
+          "portsParConvertisseur": 10
+        },
+        "source": "coex-mx2000-pro-v1-1-1"
+      },
+      "carteSortie5G": {
+        "valeur": {
+          "id": "1x40g",
+          "nom": "1 × 40G",
+          "nomCourt": "1 × 40G",
+          "typePorts": "5G",
+          "convertisseur": "coex-cvt8-5g",
+          "convertisseursParCarte": 1,
+          "portsParConvertisseur": 8,
+          "cartesReception": [
+            "CA50E",
+            "CA50C",
+            "XA50",
+            "XA50 Pro"
+          ]
+        },
+        "source": "coex-wiki-mx2000-pro"
+      },
+      "capacite5G60Hz8bits": {
+        "valeur": 2592000,
+        "source": "coex-regle-5g"
+      },
+      "capacite5G60Hz10bits": {
+        "valeur": 2073000,
+        "source": "coex-regle-5g"
+      },
+      "capacite5G60Hz12bits": {
+        "valeur": 1475600,
+        "source": "coex-regle-5g"
+      },
+      "cartes5GCapaciteHaute": {
+        "valeur": [
+          "XA50 Pro",
+          "CA50E"
+        ],
+        "source": "coex-regle-5g"
+      },
+      "capacite5GHaute60Hz8bits": {
+        "valeur": 2951200,
+        "source": "coex-regle-5g"
+      },
+      "capacite5GHaute60Hz10bits": {
+        "valeur": 2291312,
+        "source": "coex-regle-5g"
+      },
+      "capacite5GHaute60Hz12bits": {
+        "valeur": 1475600,
+        "source": "coex-regle-5g"
+      },
+      "entrees": "2 emplacements d'entrée : carte 4K (4 × HDMI 2.0, 4 × DP 1.2 ou 4 × 12G-SDI) ; carte 8K (2 × HDMI 2.1 ou DP 1.4). Formats des cartes par analogie avec la fiche MX6000 Pro (déduit)",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2",
+          "12g-sdi",
+          "hdmi-2.1",
+          "dp-1.4"
+        ],
+        "source": "coex-mx2000-pro-v1-1-1"
+      },
+      "entreesFormats": {
+        "valeur": [
+          {
+            "type": "hdmi-2.0",
+            "nom": "HDMI 2.0",
+            "largeurPx": 8192,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "largeurMaxPx": 8192,
+            "hauteurMaxPx": 8192
+          },
+          {
+            "type": "dp-1.2",
+            "nom": "DP 1.2",
+            "largeurPx": 8192,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "largeurMaxPx": 8192,
+            "hauteurMaxPx": 8192
+          },
+          {
+            "type": "hdmi-2.1",
+            "nom": "HDMI 2.1",
+            "largeurPx": 8192,
+            "hauteurPx": 4320,
+            "frequenceHz": 30,
+            "largeurMaxPx": 8192,
+            "hauteurMaxPx": 8192
+          },
+          {
+            "type": "dp-1.4",
+            "nom": "DP 1.4",
+            "largeurPx": 7680,
+            "hauteurPx": 4320,
+            "frequenceHz": 30,
+            "largeurMaxPx": 7680,
+            "hauteurMaxPx": 4320
+          },
+          {
+            "type": "dp-1.4",
+            "nom": "DP 1.4",
+            "largeurPx": 7680,
+            "hauteurPx": 4320,
+            "frequenceHz": 60,
+            "largeurMaxPx": 7680,
+            "hauteurMaxPx": 4320,
+            "condition": "avec la carte DP 1.4 8K à 60 Hz"
+          }
+        ],
+        "source": "coex-mx2000-entrees-analogie"
+      },
+      "largeurChargeeMinPx": {
+        "valeur": 128,
+        "source": "coex-largeur-chargee-analogie"
+      },
+      "puissanceW": {
+        "valeur": 260,
+        "source": "coex-mx2000-pro-v1-1-1"
+      },
+      "poidsKg": {
+        "valeur": 12,
+        "source": "coex-mx2000-pro-v1-1-1"
+      },
+      "latence": "0 trame",
+      "note": "2 emplacements de sortie : carte MX_4x10G_Fiber (4 × 10G, chacun vers un CVT10 ou CVT10 Pro, 10 ports 1G), ou carte 1 × 40G vers un CVT8-5G (8 ports 5G), citée par le wiki COEX. 8192 px de large ou de haut sur la fiche : peut être une limite par entrée comme sur le MX6000 Pro, à confirmer."
+    },
+    {
+      "id": "coex-mx6000-pro",
+      "marque": "COEX",
+      "modele": "MX6000 Pro",
+      "famille": "novastar",
+      "logiciel": "VMP",
+      "debitUtileBps": {
+        "valeurs": [
+          {
+            "valeur": 950000000,
+            "source": "coex-wiki-capacite"
+          },
+          {
+            "valeur": 950000000,
+            "source": "coex-mx6000-pro-v1-5-0"
+          }
+        ]
+      },
+      "cartesPro": true,
+      "pixelsMax": {
+        "valeurs": [
+          {
+            "valeur": 141000000,
+            "source": "coex-mx6000-pro-v1-1-1"
+          },
+          {
+            "valeur": 141000000,
+            "source": "coex-mx6000-pro-v1-5-0"
+          }
+        ]
+      },
+      "largeurMaxPx": {
+        "valeur": 16384,
+        "source": "coex-mx6000-pro-v1-5-0",
+        "note": "par carte de sortie"
+      },
+      "hauteurMaxPx": {
+        "valeur": 16384,
+        "source": "coex-mx6000-pro-v1-5-0",
+        "note": "par carte de sortie"
+      },
+      "sourceMaxPx": {
+        "valeur": 8192,
+        "source": "coex-mx6000-pro-v1-5-0",
+        "note": "8192 px maxi par entrée (une source)"
+      },
+      "emplacementsSortie": {
+        "valeur": 8,
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "emplacementsEntree": {
+        "valeur": 8,
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "carteSortie1G": {
+        "valeur": {
+          "id": "4x10g",
+          "nom": "MX_4x10G_Fiber",
+          "nomCourt": "4x10G",
+          "typePorts": "1G",
+          "convertisseur": "novastar-cvt10",
+          "convertisseursParCarte": 4,
+          "portsParConvertisseur": 10
+        },
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "carteSortie5G": {
+        "valeur": {
+          "id": "1x40g",
+          "nom": "CX_1x40G_Fiber",
+          "nomCourt": "1 × 40G",
+          "typePorts": "5G",
+          "convertisseur": "coex-cvt8-5g",
+          "convertisseursParCarte": 1,
+          "portsParConvertisseur": 8,
+          "cartesReception": [
+            "CA50E",
+            "CA50C",
+            "XA50",
+            "XA50 Pro"
+          ]
+        },
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "capacite5G60Hz8bits": {
+        "valeurs": [
+          {
+            "valeur": 2592000,
+            "source": "coex-mx6000-pro-v1-1-1"
+          },
+          {
+            "valeur": 2951200,
+            "source": "coex-mx6000-pro-v1-5-0"
+          }
+        ]
+      },
+      "capacite5G60Hz10bits": {
+        "valeurs": [
+          {
+            "valeur": 2073000,
+            "source": "coex-mx6000-pro-v1-1-1"
+          },
+          {
+            "valeur": 2291312,
+            "source": "coex-mx6000-pro-v1-5-0"
+          }
+        ]
+      },
+      "capacite5G60Hz12bits": {
+        "valeurs": [
+          {
+            "valeur": 1728000,
+            "source": "coex-mx6000-pro-v1-1-1"
+          },
+          {
+            "valeur": 1475600,
+            "source": "coex-mx6000-pro-v1-5-0"
+          }
+        ]
+      },
+      "cartes5GCapaciteHaute": {
+        "valeur": [
+          "XA50 Pro",
+          "CA50E"
+        ],
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "capacite5GHaute60Hz8bits": {
+        "valeur": 2951200,
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "capacite5GHaute60Hz10bits": {
+        "valeur": 2291312,
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "capacite5GHaute60Hz12bits": {
+        "valeur": 1475600,
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "entrees": "8 emplacements d'entrée : carte 4K (4 × HDMI 2.0 ou 4 × DP 1.2 : 8192 × 1080 ou 1080 × 8192 à 60 Hz ; ou 4 × 12G-SDI) ; carte 8K (2 × HDMI 2.1 : 8192 × 4320 à 30 Hz ; ou DP 1.4 : 7680 × 4320 à 30 Hz, à 60 Hz avec la carte DP 1.4 8K à 60 Hz) ; ST 2110 25G (4096 × 2160 ou 8192 × 1080 à 60 Hz) ; ST 2110 100G (8192 × 4320 à 60 Hz, une source)",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2",
+          "12g-sdi",
+          "hdmi-2.1",
+          "dp-1.4",
+          "st2110-25g",
+          "st2110-100g"
+        ],
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "entreesFormats": {
+        "valeur": [
+          {
+            "type": "hdmi-2.0",
+            "nom": "HDMI 2.0",
+            "largeurPx": 8192,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "largeurMaxPx": 8192,
+            "hauteurMaxPx": 8192
+          },
+          {
+            "type": "dp-1.2",
+            "nom": "DP 1.2",
+            "largeurPx": 8192,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "largeurMaxPx": 8192,
+            "hauteurMaxPx": 8192
+          },
+          {
+            "type": "hdmi-2.1",
+            "nom": "HDMI 2.1",
+            "largeurPx": 8192,
+            "hauteurPx": 4320,
+            "frequenceHz": 30,
+            "largeurMaxPx": 8192,
+            "hauteurMaxPx": 8192
+          },
+          {
+            "type": "dp-1.4",
+            "nom": "DP 1.4",
+            "largeurPx": 7680,
+            "hauteurPx": 4320,
+            "frequenceHz": 30,
+            "largeurMaxPx": 7680,
+            "hauteurMaxPx": 4320
+          },
+          {
+            "type": "dp-1.4",
+            "nom": "DP 1.4",
+            "largeurPx": 7680,
+            "hauteurPx": 4320,
+            "frequenceHz": 60,
+            "largeurMaxPx": 7680,
+            "hauteurMaxPx": 4320,
+            "condition": "avec la carte DP 1.4 8K à 60 Hz"
+          },
+          {
+            "type": "st2110-25g",
+            "nom": "ST 2110 25G",
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60,
+            "largeurMaxPx": 8192
+          },
+          {
+            "type": "st2110-100g",
+            "nom": "ST 2110 100G",
+            "largeurPx": 8192,
+            "hauteurPx": 4320,
+            "frequenceHz": 60,
+            "largeurMaxPx": 8192,
+            "hauteurMaxPx": 4320
+          }
+        ],
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "largeurChargeeMinPx": {
+        "valeur": 128,
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "puissanceW": {
+        "valeur": 625,
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "poidsKg": {
+        "valeur": 31,
+        "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "latence": "0 trame",
+      "note": "8 emplacements de sortie : carte MX_4x10G_Fiber (4 × 10G, chacun vers un CVT10 ou CVT10 Pro, 10 ports 1G) ou CX_1x40G_Fiber (vers un CVT8-5G, 8 ports 5G). 16 384 px de large ou de haut par carte de sortie, 141 M px en tout ; 8192 px maxi par entrée : au-delà, plusieurs sources. Poids de 31 kg sans cartes."
+    },
+    {
+      "id": "coex-sp60-pro",
+      "marque": "COEX",
+      "modele": "SP60 Pro",
+      "famille": "novastar",
+      "logiciel": "VMP",
+      "statut": "à compléter",
+      "calculHorsAppli": "processeur sous-pixel, calcul hors appli",
+      "ports": {
+        "valeur": 20,
+        "source": "coex-sp60-pro-v1-0-0"
+      },
+      "typePorts": "1G",
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "coex-sp60-pro-v1-0-0"
+      },
+      "hauteurMaxPx": {
+        "valeur": 7680,
+        "source": "coex-sp60-pro-v1-0-0"
+      },
+      "entrees": "2 × HDMI 2.0",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0"
+        ],
+        "source": "coex-sp60-pro-v1-0-0"
+      },
+      "note": "Processeur sous-pixel : cartes A8s Pro avec un programme dédié. Fiche d'information seulement : calcul hors appli."
     },
     {
       "id": "colorlight-s6f",
@@ -1745,6 +2540,196 @@
         "source": "aimsalliance-colorlight-z8t"
       },
       "note": "Ports 5G et fibre 10G : nombre de ports, capacité par port, hauteur maxi et entrées à compléter."
+    }
+  ],
+  "cartesReception": [
+    {
+      "id": "novastar-a5s-plus",
+      "marque": "Novastar",
+      "modele": "A5s Plus",
+      "typePorts": "1G",
+      "capacites": {
+        "valeur": [
+          {
+            "bits": 8,
+            "ic": "PWM",
+            "largeurPx": 512,
+            "hauteurPx": 384
+          },
+          {
+            "bits": 8,
+            "ic": "classique",
+            "largeurPx": 384,
+            "hauteurPx": 384
+          },
+          {
+            "bits": 10,
+            "ic": "PWM",
+            "largeurPx": 256,
+            "hauteurPx": 384
+          },
+          {
+            "bits": 10,
+            "ic": "classique",
+            "largeurPx": 192,
+            "hauteurPx": 384
+          },
+          {
+            "bits": 12,
+            "ic": "PWM",
+            "largeurPx": 256,
+            "hauteurPx": 384
+          },
+          {
+            "bits": 12,
+            "ic": "classique",
+            "largeurPx": 192,
+            "hauteurPx": 384
+          }
+        ],
+        "source": "novastar-a5s-plus-v1-3-0"
+      },
+      "note": "Capacité d'une carte à 60 Hz ; « non précisé » quand la fiche ne donne pas la profondeur."
+    },
+    {
+      "id": "novastar-a7s-plus",
+      "marque": "Novastar",
+      "modele": "A7s Plus",
+      "typePorts": "1G",
+      "capacites": {
+        "valeur": [
+          {
+            "bits": 8,
+            "ic": "PWM",
+            "largeurPx": 512,
+            "hauteurPx": 512
+          },
+          {
+            "bits": 8,
+            "ic": "classique",
+            "largeurPx": 512,
+            "hauteurPx": 384
+          }
+        ],
+        "source": "novastar-a7s-plus-v1-2-3"
+      },
+      "note": "Capacité d'une carte à 60 Hz ; « non précisé » quand la fiche ne donne pas la profondeur."
+    },
+    {
+      "id": "novastar-a8s-pro",
+      "marque": "Novastar",
+      "modele": "A8s Pro",
+      "typePorts": "1G",
+      "capacites": {
+        "valeur": [
+          {
+            "bits": 8,
+            "largeurPx": 512,
+            "hauteurPx": 512
+          }
+        ],
+        "source": "novastar-a8s-pro-v1-1-0"
+      },
+      "note": "Capacité d'une carte à 60 Hz ; « non précisé » quand la fiche ne donne pas la profondeur."
+    },
+    {
+      "id": "novastar-a10s-pro",
+      "marque": "Novastar",
+      "modele": "A10s Pro",
+      "typePorts": "1G",
+      "capacites": {
+        "valeur": [
+          {
+            "bits": 8,
+            "largeurPx": 512,
+            "hauteurPx": 512
+          },
+          {
+            "bits": 10,
+            "largeurPx": 512,
+            "hauteurPx": 512
+          },
+          {
+            "bits": 12,
+            "largeurPx": 512,
+            "hauteurPx": 256
+          }
+        ],
+        "source": "novastar-a10s-pro-v1-3-0"
+      },
+      "note": "Capacité d'une carte à 60 Hz ; « non précisé » quand la fiche ne donne pas la profondeur."
+    },
+    {
+      "id": "novastar-a10s-plus-n",
+      "marque": "Novastar",
+      "modele": "A10s Plus-N",
+      "typePorts": "1G",
+      "capacites": {
+        "valeur": [
+          {
+            "bits": 8,
+            "ic": "PWM",
+            "largeurPx": 512,
+            "hauteurPx": 512
+          }
+        ],
+        "source": "novastar-a10s-plus-n-v1-1-4"
+      },
+      "note": "Capacité d'une carte à 60 Hz ; « non précisé » quand la fiche ne donne pas la profondeur."
+    },
+    {
+      "id": "novastar-ca50e",
+      "marque": "Novastar",
+      "modele": "CA50E",
+      "typePorts": "5G",
+      "capacites": {
+        "valeur": [
+          {
+            "bits": 8,
+            "largeurPx": 768,
+            "hauteurPx": 512
+          },
+          {
+            "bits": 10,
+            "largeurPx": 768,
+            "hauteurPx": 512
+          },
+          {
+            "bits": 12,
+            "largeurPx": 512,
+            "hauteurPx": 480
+          }
+        ],
+        "source": "novastar-ca50e-v1-1-1"
+      },
+      "note": "Capacité d'une carte à 60 Hz ; « non précisé » quand la fiche ne donne pas la profondeur."
+    },
+    {
+      "id": "novastar-xa50-pro",
+      "marque": "Novastar",
+      "modele": "XA50 Pro",
+      "typePorts": "5G",
+      "capacites": {
+        "valeur": [
+          {
+            "bits": 8,
+            "largeurPx": 1024,
+            "hauteurPx": 512
+          },
+          {
+            "bits": 10,
+            "largeurPx": 1024,
+            "hauteurPx": 512
+          },
+          {
+            "bits": 12,
+            "largeurPx": 620,
+            "hauteurPx": 512
+          }
+        ],
+        "source": "novastar-xa50-pro-v1-0-3"
+      },
+      "note": "Capacité d'une carte à 60 Hz ; « non précisé » quand la fiche ne donne pas la profondeur."
     }
   ]
 }

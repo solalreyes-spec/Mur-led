@@ -225,6 +225,27 @@
       "court": "Page produit INFiLED",
       "date": "2026-09-25",
       "confiance": "constructeur"
+    },
+    "ledcast-rental-indoor": {
+      "titre": "Page produit ledcast.fr, écrans rental indoor (consultée le 25/09/2026) : sans données de calcul",
+      "court": "Page produit ledcast.fr (rental indoor)",
+      "date": "2026-09-25",
+      "confiance": "constructeur",
+      "url": "https://ledcast.fr/produits/ecrans-rental/rental-indoor/"
+    },
+    "ledcast-rental-outdoor": {
+      "titre": "Page produit ledcast.fr, écrans rental outdoor (consultée le 25/09/2026) : sans données de calcul",
+      "court": "Page produit ledcast.fr (rental outdoor)",
+      "date": "2026-09-25",
+      "confiance": "constructeur",
+      "url": "https://ledcast.fr/produits/ecrans-rental/rental-outdoor/"
+    },
+    "ledcast-rental": {
+      "titre": "Pages produit ledcast.fr, écrans rental indoor et outdoor (consultées le 25/09/2026) : sans données de calcul",
+      "court": "Pages produit ledcast.fr",
+      "date": "2026-09-25",
+      "confiance": "constructeur",
+      "url": "https://ledcast.fr/produits/ecrans-rental/rental-outdoor/"
     }
   },
   "dalles": [
@@ -1289,6 +1310,570 @@
         "source": "cahier-des-charges-gabarits",
         "type": "estimée"
       }
+    }
+  ],
+  "informations": [
+    {
+      "id": "ledcast-titan-mx-miniled-1-9",
+      "marque": "LEDCAST",
+      "modele": "Titan-MX Miniled",
+      "version": "1.9",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 1.9,
+        "source": "ledcast-rental-indoor"
+      },
+      "rafraichissementHz": {
+        "valeur": 7680,
+        "source": "ledcast-rental-indoor"
+      },
+      "courbure": {
+        "valeur": "−6° à +6°",
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-titan-mx-miniled-2-6",
+      "marque": "LEDCAST",
+      "modele": "Titan-MX Miniled",
+      "version": "2.6",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 2.6,
+        "source": "ledcast-rental-indoor"
+      },
+      "rafraichissementHz": {
+        "valeur": 7680,
+        "source": "ledcast-rental-indoor"
+      },
+      "courbure": {
+        "valeur": "−6° à +6°",
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-titan-miniled-flex-1-9",
+      "marque": "LEDCAST",
+      "modele": "Titan Miniled Flex",
+      "version": "1.9",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 1.9,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-titan-miniled-flex-2-6",
+      "marque": "LEDCAST",
+      "modele": "Titan Miniled Flex",
+      "version": "2.6",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 2.6,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-titan-miniled-corner",
+      "marque": "LEDCAST",
+      "modele": "Titan Miniled Corner",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-e-light-r-1-9-cob",
+      "marque": "LEDCAST",
+      "modele": "E.Light-R",
+      "version": "1.9 COB",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 1.9,
+        "source": "ledcast-rental-indoor"
+      },
+      "poidsKg": {
+        "valeur": 5,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "LED COB. Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-e-light-r-2-6",
+      "marque": "LEDCAST",
+      "modele": "E.Light-R",
+      "version": "2.6",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 2.6,
+        "source": "ledcast-rental-indoor"
+      },
+      "poidsKg": {
+        "valeur": 5,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-e-light-r-2-9",
+      "marque": "LEDCAST",
+      "modele": "E.Light-R",
+      "version": "2.9",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 2.9,
+        "source": "ledcast-rental-indoor"
+      },
+      "poidsKg": {
+        "valeur": 5,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-hydra-1-9",
+      "marque": "LEDCAST",
+      "modele": "Hydra",
+      "version": "1.9",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 1.9,
+        "source": "ledcast-rental-indoor"
+      },
+      "courbure": {
+        "valeur": "±5°",
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-hydra-2-6",
+      "marque": "LEDCAST",
+      "modele": "Hydra",
+      "version": "2.6",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 2.6,
+        "source": "ledcast-rental-indoor"
+      },
+      "courbure": {
+        "valeur": "±5°",
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-flex-1-8",
+      "marque": "LEDCAST",
+      "modele": "Flex",
+      "version": "1.8",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 1.8,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-flex-2",
+      "marque": "LEDCAST",
+      "modele": "Flex",
+      "version": "2",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 2.0,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-flex-2-5",
+      "marque": "LEDCAST",
+      "modele": "Flex",
+      "version": "2.5",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 2.5,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-flex-3",
+      "marque": "LEDCAST",
+      "modele": "Flex",
+      "version": "3",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 3.0,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-floor-indoor-1-5",
+      "marque": "LEDCAST",
+      "modele": "Floor Indoor",
+      "version": "1.5",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 1.5,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Dalle de sol : charge de 2 t/m². Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-floor-indoor-2-6",
+      "marque": "LEDCAST",
+      "modele": "Floor Indoor",
+      "version": "2.6",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 2.6,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Dalle de sol : charge de 2 t/m². Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-floor-indoor-2-9",
+      "marque": "LEDCAST",
+      "modele": "Floor Indoor",
+      "version": "2.9",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 2.9,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Dalle de sol : charge de 2 t/m². Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-floor-indoor-3-9",
+      "marque": "LEDCAST",
+      "modele": "Floor Indoor",
+      "version": "3.9",
+      "usage": {
+        "valeur": "intérieur",
+        "source": "ledcast-rental-indoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 3.9,
+        "source": "ledcast-rental-indoor"
+      },
+      "note": "Dalle de sol : charge de 2 t/m². Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-goldwin-outdoor-2-9",
+      "marque": "LEDCAST",
+      "modele": "Goldwin Outdoor",
+      "version": "2.9",
+      "usage": {
+        "valeur": "extérieur",
+        "source": "ledcast-rental-outdoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 2.9,
+        "source": "ledcast-rental-outdoor"
+      },
+      "indiceIP": {
+        "valeur": "IP65",
+        "source": "ledcast-rental-outdoor"
+      },
+      "note": "Formats 500 × 500 et 500 × 1000 mm. Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-goldwin-outdoor-3-9",
+      "marque": "LEDCAST",
+      "modele": "Goldwin Outdoor",
+      "version": "3.9",
+      "usage": {
+        "valeur": "extérieur",
+        "source": "ledcast-rental-outdoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 3.9,
+        "source": "ledcast-rental-outdoor"
+      },
+      "indiceIP": {
+        "valeur": "IP65",
+        "source": "ledcast-rental-outdoor"
+      },
+      "note": "Formats 500 × 500 et 500 × 1000 mm. Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-goldwin-outdoor-4-8",
+      "marque": "LEDCAST",
+      "modele": "Goldwin Outdoor",
+      "version": "4.8",
+      "usage": {
+        "valeur": "extérieur",
+        "source": "ledcast-rental-outdoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 4.8,
+        "source": "ledcast-rental-outdoor"
+      },
+      "indiceIP": {
+        "valeur": "IP65",
+        "source": "ledcast-rental-outdoor"
+      },
+      "note": "Formats 500 × 500 et 500 × 1000 mm. Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-hydra-outdoor-3-9",
+      "marque": "LEDCAST",
+      "modele": "Hydra Outdoor",
+      "version": "3.9",
+      "usage": {
+        "valeur": "extérieur",
+        "source": "ledcast-rental-outdoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 3.9,
+        "source": "ledcast-rental-outdoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-hydra-outdoor-4-8",
+      "marque": "LEDCAST",
+      "modele": "Hydra Outdoor",
+      "version": "4.8",
+      "usage": {
+        "valeur": "extérieur",
+        "source": "ledcast-rental-outdoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 4.8,
+        "source": "ledcast-rental-outdoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-light-r-outdoor-3-9",
+      "marque": "LEDCAST",
+      "modele": "Light-R Outdoor",
+      "version": "3.9",
+      "usage": {
+        "valeur": "extérieur",
+        "source": "ledcast-rental-outdoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 3.9,
+        "source": "ledcast-rental-outdoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-light-r-outdoor-4-8",
+      "marque": "LEDCAST",
+      "modele": "Light-R Outdoor",
+      "version": "4.8",
+      "usage": {
+        "valeur": "extérieur",
+        "source": "ledcast-rental-outdoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 4.8,
+        "source": "ledcast-rental-outdoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-starter-plus-outdoor-3-9",
+      "marque": "LEDCAST",
+      "modele": "Starter+ Outdoor",
+      "version": "3.9",
+      "usage": {
+        "valeur": "extérieur",
+        "source": "ledcast-rental-outdoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 3.9,
+        "source": "ledcast-rental-outdoor"
+      },
+      "indiceIP": {
+        "valeur": "IP65",
+        "source": "ledcast-rental-outdoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-starter-plus-outdoor-4-8",
+      "marque": "LEDCAST",
+      "modele": "Starter+ Outdoor",
+      "version": "4.8",
+      "usage": {
+        "valeur": "extérieur",
+        "source": "ledcast-rental-outdoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 4.8,
+        "source": "ledcast-rental-outdoor"
+      },
+      "indiceIP": {
+        "valeur": "IP65",
+        "source": "ledcast-rental-outdoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-starter-2-outdoor-3-9",
+      "marque": "LEDCAST",
+      "modele": "Starter 2 Outdoor",
+      "version": "3.9",
+      "usage": {
+        "valeur": "extérieur",
+        "source": "ledcast-rental-outdoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 3.9,
+        "source": "ledcast-rental-outdoor"
+      },
+      "indiceIP": {
+        "valeur": "IP65",
+        "source": "ledcast-rental-outdoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-starter-2-outdoor-4-8",
+      "marque": "LEDCAST",
+      "modele": "Starter 2 Outdoor",
+      "version": "4.8",
+      "usage": {
+        "valeur": "extérieur",
+        "source": "ledcast-rental-outdoor"
+      },
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 4.8,
+        "source": "ledcast-rental-outdoor"
+      },
+      "indiceIP": {
+        "valeur": "IP65",
+        "source": "ledcast-rental-outdoor"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-symphonie",
+      "marque": "LEDCAST",
+      "modele": "Symphonie",
+      "statut": "information",
+      "plagePitchMm": {
+        "valeur": "5 à 16",
+        "source": "ledcast-rental"
+      },
+      "note": "Pitch de 5 à 16 mm. Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-banner-6",
+      "marque": "LEDCAST",
+      "modele": "Banner",
+      "version": "6",
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 6.0,
+        "source": "ledcast-rental"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
+    },
+    {
+      "id": "ledcast-banner-xl-10",
+      "marque": "LEDCAST",
+      "modele": "Banner XL",
+      "version": "10",
+      "statut": "information",
+      "pitchMm": {
+        "valeur": 10.0,
+        "source": "ledcast-rental"
+      },
+      "luminositeNits": {
+        "valeur": 7000,
+        "source": "ledcast-rental"
+      },
+      "note": "Fiche d'information : la page produit ne publie pas les données de calcul (pixels, dimensions, P max). À compléter avec la fiche technique."
     }
   ],
   "bumpers": [

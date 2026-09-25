@@ -5,6 +5,7 @@ import { dimensionner, densite, pitchCalculeMm, dalleTournee } from './calculs.j
 import { nombre, nombreCourt, signe, sourceCourte, dateCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
 import { resumeMur } from './resumes.js';
+import { optionsInformations } from './fiches.js';
 
 const formulaire = document.getElementById('form-mur');
 const zoneResultats = document.getElementById('resultats');
@@ -12,13 +13,16 @@ const zoneResultats = document.getElementById('resultats');
 const BADGES = { modifiee: ' (version modifiée)', ajoutee: ' (ma fiche)' };
 
 // Liste des dalles : celles du parc actif, puis les gabarits. Garde la dalle choisie si elle y est encore.
-function remplirListe(select, { visibles, gabarits, nomParc }) {
+function remplirListe(select, { visibles, gabarits, informations = [], nomParc }) {
   const avant = select.value;
   const option = (d) => el('option', { value: d.id },
     `${d.nom}${d.usage ? ` (${d.usage})` : ''}${BADGES[d.statutBase] ?? ''} — ${nombreCourt(d.largeurMm)} × ${nombreCourt(d.hauteurMm)} mm, ${d.pxH} × ${d.pxV} px`);
+  // Fiches d'information (LEDCAST) : visibles, grisées, jamais choisies tant qu'elles ne sont pas complétées.
+  const infos = optionsInformations(informations);
   remplacer(select,
     el('optgroup', { label: nomParc ? `Parc ${nomParc}` : 'Dalles' }, visibles.map(option)),
-    el('optgroup', { label: 'Gabarits génériques (non sourcés)' }, gabarits.map(option)));
+    el('optgroup', { label: 'Gabarits génériques (non sourcés)' }, gabarits.map(option)),
+    infos.length ? el('optgroup', { label: 'Fiches d\'information, à compléter' }, infos.map((o) => el('option', { value: o.id, disabled: '' }, o.libelle))) : null);
   if ([...visibles, ...gabarits].some((d) => d.id === avant)) select.value = avant;
   select.disabled = false;
 }

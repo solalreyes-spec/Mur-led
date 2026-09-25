@@ -38,6 +38,12 @@
       "court": "Choix de conception du projet",
       "date": "2026-09-24",
       "confiance": "à confirmer sur la fiche de chaque processeur"
+    },
+    "coex-mx6000-pro-v1-5-0-entrees": {
+      "titre": "Fiche COEX MX6000 Pro V1.5.0 (30/09/2025) : formats de ses cartes d'entrée ; format maxi de la norme non relevé",
+      "court": "Fiche MX6000 Pro V1.5.0",
+      "date": "2025-09-30",
+      "confiance": "constructeur (fiche MX6000 Pro), norme à confirmer"
     }
   },
   "liaisons": [
@@ -174,6 +180,24 @@
       }
     },
     {
+      "id": "hdmi-2.1",
+      "nom": "HDMI 2.1",
+      "famille": "hdmi",
+      "rang": 5,
+      "formatMaxLargeurPx": {
+        "valeur": 8192,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 4320,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 30,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
+      }
+    },
+    {
       "id": "dp-1.2",
       "nom": "DisplayPort 1.2",
       "famille": "dp",
@@ -189,6 +213,24 @@
       "formatMaxFrequenceHz": {
         "valeur": 60,
         "source": "dp-1-2-a-confirmer"
+      }
+    },
+    {
+      "id": "dp-1.4",
+      "nom": "DisplayPort 1.4",
+      "famille": "dp",
+      "rang": 2,
+      "formatMaxLargeurPx": {
+        "valeur": 7680,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 4320,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
       }
     },
     {
@@ -251,6 +293,42 @@
       "formatMaxFrequenceHz": {
         "valeur": 60,
         "source": "oliverdy-connectique"
+      }
+    },
+    {
+      "id": "st2110-25g",
+      "nom": "ST 2110 25G",
+      "famille": "st2110",
+      "rang": 1,
+      "formatMaxLargeurPx": {
+        "valeur": 4096,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
+      }
+    },
+    {
+      "id": "st2110-100g",
+      "nom": "ST 2110 100G",
+      "famille": "st2110",
+      "rang": 2,
+      "formatMaxLargeurPx": {
+        "valeur": 8192,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 4320,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "coex-mx6000-pro-v1-5-0-entrees"
       }
     }
   ]

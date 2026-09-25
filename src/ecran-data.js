@@ -8,7 +8,7 @@ import {
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
 import { alertesSansManques, ligneManques } from './manques.js';
-import { resumeData } from './resumes.js';
+import { resumeData, consommationProcesseur } from './resumes.js';
 
 const formulaire = document.getElementById('form-data');
 const zone = document.getElementById('resultats-data');
@@ -22,6 +22,8 @@ let surChangement = () => {};
 let nomParc = null;
 // Profondeur réseau par défaut de chaque marque dans le parc actif : { bits, source } (réglage du parc ou défaut).
 let bitsParDefaut = {};
+// Cartes de réception de la base, pour le contrôle d'une carte face à la dalle.
+let cartesReception = [];
 const defautBits = (famille) => bitsParDefaut[famille] ?? { bits: BIT_DEPTH_PAR_DEFAUT[famille], source: 'défaut' };
 // Profondeur choisie et d'où elle vient : défaut de la marque, réglage du parc, ou réglage à la main.
 function origineBits(famille, bits) {
@@ -67,6 +69,7 @@ function lireFormulaire() {
     ull: d.has('ull'),
     cartesPro: d.has('cartesPro'),
     modeOptique: d.has('modeOptique'),
+    carteSortie: d.get('carteSortie') || 'auto',
   };
 }
 
@@ -80,7 +83,7 @@ function preparerFamille(famille, garderReglages = false) {
       const manquants = champsManquants(p);
       const badge = { modifiee: ' (version modifiée)', ajoutee: ' (ma fiche)' }[p.statutBase] ?? '';
       return el('option', { value: p.id, disabled: manquants.length > 0 ? '' : null },
-        `${p.nom}${badge}${manquants.length > 0 ? ' (à compléter)' : ''}`);
+        `${p.nom}${badge}${p.calculHorsAppli ? ` (${p.calculHorsAppli})` : (manquants.length > 0 ? ' (à compléter)' : '')}`);
     }),
   );
   if ([...select.options].some((o) => o.value === avant && !o.disabled)) select.value = avant;
@@ -126,10 +129,11 @@ function champPorts(r) {
   return r.reglages.modeOptique ? 'portsOptionOptique' : 'ports';
 }
 
-function nomDistributeur(proc) {
-  const d = distributeurs.get(proc.distributeur);
+// Convertisseurs du processeur retenu : obligatoires (XD du SX40, CVT10 du MX40 Pro en mode 40 ports) ou seulement si fibre.
+function nomDistributeur(r) {
+  const d = distributeurs.get(r.processeur.distributeur);
   if (!d) return null;
-  return proc.distributeurObligatoire ? d.modele : `${d.modele} (si fibre)`;
+  return r.distributeurObligatoire ? d.modele : `${d.modele} (si fibre)`;
 }
 
 function sectionPorts(e, dalle, r) {
@@ -208,7 +212,7 @@ function tableControles(r) {
 
 function tableDecoupage(r) {
   const proc = r.processeur;
-  const distributeur = nomDistributeur(proc);
+  const distributeur = nomDistributeur(r);
   const red = r.reglages.redondance;
   const ports = (p) => (red
     ? `${p.redondance.colonnes} (${2 * p.auPlusJusteSerpentin} au plus juste)`
@@ -248,7 +252,7 @@ function sectionProcesseur(r, conseil) {
     return el('section', { class: 'bloc-resultats' }, titre, alerte(r.impossible, 'alerte-erreur'), r.global ? tableControles(r) : null);
   }
   const g = r.global;
-  const distributeur = nomDistributeur(proc);
+  const distributeur = nomDistributeur(r);
   const globalTexte = `Décompte global, sans découpage par processeur : ${g.colonnes.ports} ports en colonnes entières`
     + `${g.distributeurs && distributeur ? ` (${g.distributeurs.colonnes} ${distributeur})` : ''}, `
     + `${g.serpentin.ports} au plus juste (minimum théorique)`
@@ -257,6 +261,7 @@ function sectionProcesseur(r, conseil) {
     titre,
     el('div', { class: 'carte resultat-principal' },
       el('p', { class: 'chiffre-cle' }, `${r.nombre} × ${proc.modele}`),
+      r.configuration ? el('p', { class: 'sous-titre' }, r.configuration) : null,
       el('p', { class: 'sous-titre' }, r.unSeulSuffit
         ? `Un seul ${proc.nom} suffit.`
         : `Limité par : ${r.limites.map((l) => LIBELLES_CONTROLE[l].toLowerCase()).join(', ')}. `
@@ -273,9 +278,25 @@ function sectionProcesseur(r, conseil) {
     el('p', { class: 'source' }, globalTexte),
     el('p', { class: 'source' }, [
       proc.entrees ? `Entrées : ${proc.entrees}.` : null,
+      proc.sortiesOptiques ? ` Sorties optiques : ${proc.sortiesOptiques}.` : null,
       proc.latence ? ` Latence : ${proc.latence}.` : null,
       proc.note ? ` ${proc.note}` : null,
-    ].filter(Boolean).join('')));
+    ].filter(Boolean).join('')),
+    consoLigne(r),
+    (r.carteReception ?? []).filter((x) => x.capacite).map((x) => el('p', { class: 'source' },
+      `${x.texte} : ${x.ok ? 'passe' : 'dépassé'}${x.note ? `. ${x.note}` : ''}. Source : ${x.carte.sources?.capacites?.sources.map(sourceCourte).join(', ') ?? 'fiche de la carte'}.`)));
+}
+
+// Consommation et poids du processeur et de ses convertisseurs, affichés sans calcul.
+function consoLigne(r) {
+  const d = distributeurs.get(r.processeur.distributeur);
+  const texte = [
+    consommationProcesseur(r.processeur),
+    d?.puissanceW || d?.poidsKg
+      ? `${d.modele} : ${[d.puissanceW ? `${nombreCourt(d.puissanceW)} W` : null, d.poidsKg ? `${nombreCourt(d.poidsKg, 2)} kg` : null].filter(Boolean).join(', ')} chacun`
+      : null,
+  ].filter(Boolean).join(' ; ');
+  return texte ? el('p', { class: 'source' }, `Consommation et poids : ${texte}.`) : null;
 }
 
 function sectionAutres(e, evaluations, choisie) {
@@ -322,6 +343,8 @@ function calculer(e) {
   const { dalle, mur } = etatMur;
   const reglages = {
     frequenceHz: e.frequenceHz, bits: e.bits, ull: e.ull, cartesPro: e.cartesPro, redondance: e.redondance, modeOptique: e.modeOptique,
+    carteSortie: e.carteSortie,
+    cartesReception,
     departCablage: departData,
   };
 
@@ -376,7 +399,8 @@ function calculer(e) {
     el('a', { href: '#mur' }, 'Modifier le mur'));
 
   dernier = {
-    choisie, conseille: choisie === conseil, distributeur: nomDistributeur(choisie.processeur),
+    choisie, conseille: choisie === conseil, distributeur: nomDistributeur(choisie),
+    puissanceDistributeurW: distributeurs.get(choisie.processeur.distributeur)?.puissanceW ?? null,
     origineBits: origineBits(choisie.processeur.famille, choisie.reglages.bits),
     gainDixBits: gain,
   };
@@ -421,6 +445,7 @@ export function actualiserData(base, premiereFois = false) {
   distributeurs = new Map(base.distributeurs.map((d) => [d.id, d]));
   sources = base.sources;
   nomParc = base.nomParc ?? null;
+  cartesReception = base.cartesReception ?? [];
   // Nouveau parc actif : sa profondeur réseau remplace le défaut de la marque affichée.
   const famille = lireFormulaire().famille;
   const avant = defautBits(famille).bits;

@@ -2,7 +2,7 @@
 // data ou élec en serpentin, blocs de processeurs. Sert à l'écran (couleurs du thème, mode rouge compris) et à
 // l'export en image (couleurs d'impression sur fond blanc). Aucun calcul ici.
 
-import { dallesDuMur } from './calculs.js';
+import { dallesDuMur, MODELES_DISTRIBUTEUR } from './calculs.js';
 import { nombre, nombreCourt } from './format.js';
 import { svg } from './dom.js';
 
@@ -103,8 +103,8 @@ export function repereSchema(cablage, { evaluation = null, distanceM = null } = 
   if (cablage === 'elec') return { lignes: ['Armoire', distance ? `à ${distance} m` : null].filter(Boolean) };
   if (cablage !== 'data' || !evaluation?.processeur) return null;
   const proc = evaluation.processeur;
-  if (proc.distributeurObligatoire) {
-    return { lignes: [proc.famille === 'brompton' ? 'XD' : 'Distributeur', distance ? `fibre ${distance} m` : null].filter(Boolean) };
+  if (evaluation.distributeurObligatoire ?? proc.distributeurObligatoire) {
+    return { lignes: [MODELES_DISTRIBUTEUR[proc.distributeur] ?? 'Distributeur', distance ? `fibre ${distance} m` : null].filter(Boolean) };
   }
   const n = evaluation.nombre ?? 1;
   return { lignes: [`${n > 1 ? `${n} × ` : ''}${proc.modele}`, distance ? `régie à ${distance} m` : null].filter(Boolean) };

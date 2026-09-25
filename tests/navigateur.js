@@ -6,6 +6,8 @@ import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, enregistrer, TEINTES } from
 import { geometrieSchema, trajetsSchema, construireSvg, repereSchema, PALETTE_EXPORT } from '../src/dessin-schema.js';
 import { processeurDeBase, baseProcesseurs, dalleDeBase } from './base.js';
 import { DALLE_CAS_13 } from './dalles-fictives.js';
+import { versionCache, empreinteDeclaree, empreinteCache } from './fichiers.js';
+import { VERSIONS_CACHE } from './versions-cache.js';
 
 const DALLE_192 = { id: 'fictive-192', nom: 'Dalle 500 mm, 192 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
 
@@ -41,19 +43,32 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N2',
-    titre: 'Plus grand canvas de la base : une seule image, à sa taille exacte, mire comprise',
+    titre: 'Plus grand canvas de la base : en une seule image quand il tient (NovaPro UHD Jr), en tuiles exactes au-delà (MX6000 Pro), mire comprise',
     etape: '8c',
     async verifier(v, contexte) {
       const base = baseProcesseurs(contexte);
       const actifs = base.processeurs.map((p) => calculs.resoudreFiche(p, base.sources)).filter((p) => calculs.champsManquants(p).length === 0);
-      const plusGrand = actifs.reduce((a, b) => (b.pixelsMax > a.pixelsMax ? b : a));
-      const colonnes = Math.floor(Math.min(plusGrand.largeurMaxPx, 7680) / 192);
-      const lignes = Math.floor(plusGrand.pixelsMax / (colonnes * 192 * 192));
+      const mire = { grille: true, cercles: true, diagonales: true, numeros: true };
+      // Le plus grand canvas qui tient en une seule image.
+      const unique = actifs.filter((p) => p.pixelsMax <= calculs.SURFACE_MAX_IMAGE).reduce((a, b) => (b.pixelsMax > a.pixelsMax ? b : a));
+      const colonnes = Math.floor(Math.min(unique.largeurMaxPx, 7680) / 192);
+      const lignes = Math.floor(unique.pixelsMax / (colonnes * 192 * 192));
       const zone = calculs.pixelMap(calculs.mur(DALLE_192, colonnes, lignes), DALLE_192).mur;
-      v.egal(`${plusGrand.nom} : canvas de ${zone.largeurPx} × ${zone.hauteurPx} px, en une seule image`,
-        [zone.largeurPx * zone.hauteurPx <= plusGrand.pixelsMax, calculs.tuilesImage(zone.largeurPx, zone.hauteurPx).length], [true, 1]);
-      const image = await decoder(await canvasEnPng(pixelMapEnCanvas(zone, { grille: true, cercles: true, diagonales: true, numeros: true })));
+      v.egal(`${unique.nom} : canvas de ${zone.largeurPx} × ${zone.hauteurPx} px, en une seule image`,
+        [unique.id, zone.largeurPx * zone.hauteurPx <= unique.pixelsMax, calculs.tuilesImage(zone.largeurPx, zone.hauteurPx).length], ['novastar-novapro-uhd-jr', true, 1]);
+      const image = await decoder(await canvasEnPng(pixelMapEnCanvas(zone, mire)));
       v.egal('taille du PNG', [image.width, image.height], [zone.largeurPx, zone.hauteurPx]);
+      // Le plus grand canvas de la base, à ses limites (largeur, hauteur, pixels) : en tuiles, chacune exacte.
+      const plusGrand = actifs.reduce((a, b) => (b.pixelsMax > a.pixelsMax ? b : a));
+      const colonnesG = Math.floor(plusGrand.largeurMaxPx / 192);
+      const lignesG = Math.floor(Math.min(plusGrand.hauteurMaxPx, plusGrand.pixelsMax / (colonnesG * 192)) / 192);
+      const zoneG = calculs.pixelMap(calculs.mur(DALLE_192, colonnesG, lignesG), DALLE_192).mur;
+      const tuiles = calculs.tuilesImage(zoneG.largeurPx, zoneG.hauteurPx);
+      v.egal(`${plusGrand.nom} : canvas de ${zoneG.largeurPx} × ${zoneG.hauteurPx} px, en ${tuiles.length} tuiles sous la limite`,
+        [plusGrand.id, zoneG.largeurPx * zoneG.hauteurPx <= plusGrand.pixelsMax, tuiles.length > 1, tuiles.every((x) => x.largeurPx * x.hauteurPx <= calculs.SURFACE_MAX_IMAGE)],
+        ['coex-mx6000-pro', true, true, true]);
+      const premiere = await decoder(await canvasEnPng(pixelMapEnCanvas(zoneG, mire, tuiles[0])));
+      v.egal('première tuile à sa taille exacte', [premiere.width, premiere.height], [tuiles[0].largeurPx, tuiles[0].hauteurPx]);
     },
   },
   {
@@ -234,6 +249,25 @@ export const NAVIGATEUR = [
           chemin.getAttribute('y1') === chemin.getAttribute('y2') && x1 <= Math.min(...xs) && x2 >= Math.max(...xs));
         svg.remove();
       }
+    },
+  },
+  {
+    id: 'N8',
+    titre: 'Mise à jour des appareils : un fichier de l\'appli qui change sans nouvelle version du cache (sw.js) fait échouer ce test',
+    etape: 7,
+    async verifier(v) {
+      const texte = await (await fetch('sw.js', { cache: 'no-store' })).text();
+      const version = versionCache(texte);
+      const declaree = empreinteDeclaree(texte);
+      const calculee = await empreinteCache(texte, async (chemin) => (await fetch(chemin, { cache: 'no-store' })).arrayBuffer());
+      v.vrai('sw.js : version du cache et empreinte déclarées, cache nommé d\'après la version',
+        version !== null && declaree !== null && /const CACHE = `mur-led-v\$\{VERSION\}`;/.test(texte));
+      v.egal('empreinte des fichiers de l\'appli (si un fichier change : nouvelle VERSION et EMPREINTE dans sw.js, une ligne dans tests/versions-cache.js)', calculee, declaree);
+      const connue = VERSIONS_CACHE.find((x) => x.version === version);
+      v.egal('version enregistrée avec cette même empreinte : changer un fichier demande une nouvelle version', connue?.empreinte, declaree);
+      v.egal('la version de sw.js est la dernière enregistrée', version, VERSIONS_CACHE[VERSIONS_CACHE.length - 1].version);
+      v.vrai('versions croissantes, une empreinte différente à chaque version',
+        VERSIONS_CACHE.every((x, i, t) => i === 0 || (x.version > t[i - 1].version && x.empreinte !== t[i - 1].empreinte)));
     },
   },
 ];

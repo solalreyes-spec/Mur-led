@@ -122,8 +122,10 @@ function construire() {
     fusion: f,
     dalles: resoudre(f.dalles.dalles, f.dalles.sources),
     gabarits: resoudre(f.dalles.gabarits, f.dalles.sources),
+    informations: resoudre(f.dalles.informations, f.dalles.sources),
     bumpers: resoudre(f.dalles.bumpers, f.dalles.sources),
     processeurs: resoudre(f.processeurs.processeurs, f.processeurs.sources),
+    cartesReception: resoudre(f.processeurs.cartesReception, f.processeurs.sources),
     distributeurs: resoudre(f.processeurs.distributeurs, f.processeurs.sources),
     sourcesProcesseurs: f.processeurs.sources,
     regies: resoudre(f.regies.regies, f.regies.sources),
@@ -147,13 +149,15 @@ const nomParc = () => base.parcs.find((p) => p.id === parcActif)?.nom ?? null;
 // Dalles vues dans le parc actif : carte de réception et fichier de config réglés pour ce parc.
 const pourMur = () => {
   const dalles = courant.dalles.map((d) => appliquerReglagesParc(d, base, parcActif));
-  return { dalles, gabarits: courant.gabarits, visibles: filtrerParParc(dalles, base, parcActif, 'dalle'), nomParc: nomParc() };
+  return { dalles, gabarits: courant.gabarits, informations: courant.informations, visibles: filtrerParParc(dalles, base, parcActif, 'dalle'), nomParc: nomParc() };
 };
 const pourData = () => ({
   processeurs: filtrerParParc(courant.processeurs, base, parcActif, 'processeur'),
   distributeurs: courant.distributeurs,
   sources: courant.sourcesProcesseurs,
   nomParc: nomParc(),
+  // Cartes de réception de la base : capacité d'une carte face à la dalle.
+  cartesReception: courant.cartesReception,
   // Profondeur réseau par défaut dans le parc actif, par marque.
   bitsParDefaut: Object.fromEntries(['brompton', 'novastar', 'colorlight'].map((f) => [f, bitsReseauParc(base, parcActif, f)])),
 });

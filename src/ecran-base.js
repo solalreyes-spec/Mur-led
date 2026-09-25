@@ -34,7 +34,8 @@ function toutesSources() {
 // Fiches brutes d'un type (gabarits exclus : génériques, non sourcés) et leur version résolue.
 function fichesDuType(type) {
   const f = ctx.fusion;
-  const brutes = { dalle: f.dalles.dalles, bumper: f.dalles.bumpers, processeur: f.processeurs.processeurs, regie: f.regies.regies }[type] ?? [];
+  // Dalles : aussi les fiches d'information (LEDCAST), à compléter.
+  const brutes = { dalle: [...f.dalles.dalles, ...(f.dalles.informations ?? [])], bumper: f.dalles.bumpers, processeur: f.processeurs.processeurs, regie: f.regies.regies }[type] ?? [];
   const sources = { dalle: f.dalles.sources, bumper: f.dalles.sources, processeur: f.processeurs.sources, regie: f.regies.sources }[type];
   return brutes.map((brute) => ({ brute, resolue: resoudreFiche(brute, sources) }));
 }
@@ -198,7 +199,8 @@ function elementFiche(type, { brute, resolue }) {
       el('span', { class: 'puces' },
         brute.statutBase === 'modifiee' ? badge('version modifiée', 'badge-info') : null,
         brute.statutBase === 'ajoutee' ? badge('ma fiche', 'badge-reussi') : null,
-        manquants.length ? badge(type === 'dalle' ? 'incomplète' : 'à compléter', 'badge-alerte') : null,
+        brute.statut === 'information' ? badge('information, à compléter', 'badge-alerte')
+          : (manquants.length ? badge(type === 'dalle' ? 'incomplète' : 'à compléter', 'badge-alerte') : null),
         parcs.filter((p) => estMembre(ctx.base, p.id, type, brute.id)).map((p) => {
           const r = reglageDalleParc(ctx.base, p.id, brute.id);
           const carte = r ? [r.carteReceptionMarque, r.carteReceptionModele].filter(Boolean).join(' ') : '';

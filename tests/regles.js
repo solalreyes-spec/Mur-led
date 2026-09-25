@@ -1747,7 +1747,7 @@ export const REGLES = [
         grand.map((x, i) => ({ id: `T${i}`, x: [x.x, x.x + x.largeurPx - 1], y: [x.y, x.y + x.hauteurPx - 1] })), 7680, 4320);
       const actifs = baseProcesseurs(contexte).processeurs.map((p) => calculs.resoudreFiche(p, baseProcesseurs(contexte).sources)).filter((p) => calculs.champsManquants(p).length === 0);
       const plusGrand = actifs.reduce((a, b) => (b.pixelsMax > a.pixelsMax ? b : a));
-      v.egal('plus grand canvas de la base : NovaPro UHD Jr, 10,4 M px, une seule image', [plusGrand.id, plusGrand.pixelsMax <= calculs.SURFACE_MAX_IMAGE], ['novastar-novapro-uhd-jr', true]);
+      v.egal('plus grand canvas de la base : MX6000 Pro, 141 M px, au-delà de la limite : en tuiles', [plusGrand.id, plusGrand.pixelsMax <= calculs.SURFACE_MAX_IMAGE], ['coex-mx6000-pro', false]);
       v.vrai('Colorlight Z8t (17,69 M px, à compléter) : il passerait en tuiles', calculs.tuilesImage(16384, 1080).length > 1);
     },
   },
@@ -2131,6 +2131,249 @@ export const REGLES = [
       v.vrai('fiche : sorties 10 ports 1G, OPT 1 porte les ports 1 à 10, OPT 2 en est la copie', /OPT 2/.test(mx30.note ?? '') && /copie/.test(mx30.note ?? ''));
       const mctrl = calculs.controleEntree(processeurDeBase(contexte, 'novastar-mctrl660'), { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60, liaison: 'hdmi-2.0' }, liaisons);
       v.egal('processeur sans formats de fiche : contrôle par la norme, comme avant (MCTRL660, HDMI 1.3)', [mctrl.ok, mctrl.liaison.id], [false, 'hdmi-1.3']);
+    },
+  },
+  {
+    id: 'R119',
+    titre: 'COEX, ports 1G : largeur chargée d\'au moins 128 px, sinon capacité du port réduite de (128 − largeur) × hauteur',
+    etape: 'coex',
+    verifier(v, contexte) {
+      v.egal('exemple de la fiche : colonne de 104 px sur 1248 px, 29 952 px en moins', calculs.penaliteLargeurChargee(104, 1248, 128), 29952);
+      v.egal('128 px de large ou plus : pas de réduction', [calculs.penaliteLargeurChargee(128, 1248, 128), calculs.penaliteLargeurChargee(208, 1248, 128)], [0, 0]);
+      const cb5 = dalleDeBase(contexte, 'roe-cb5-mkii');
+      const m = calculs.mur(cb5, 4, 30);
+      const mx40 = processeurDeBase(contexte, 'coex-mx40-pro');
+      v.egal('MX40 Pro : largeur chargée mini de 128 px, sourcée', [mx40.largeurChargeeMinPx, mx40.sources.largeurChargeeMinPx.source.id], [128, 'coex-mx40-pro-v1-5']);
+      const e = calculs.evaluerProcesseur(m, cb5, mx40, { frequenceHz: 60, bits: 8 });
+      // Colonne de 30 CB5 : 104 × 6240 = 648 960 px, 798 720 px avec la réduction, au-delà des 659 722 px d'un port.
+      v.egal('MX40 Pro : colonne de 30 CB5 coupée en 2 segments de 15, 8 ports', [e.global.colonnes.segments, e.global.colonnes.ports], [[15, 15], 8]);
+      v.vrai('alerte : largeur chargée de 104 px, 74 880 px de capacité en moins par port', e.alertes.some((a) => a.includes('128') && /74.880/.test(a)));
+      const k4 = calculs.evaluerProcesseur(m, cb5, processeurDeBase(contexte, 'novastar-mctrl4k'), { frequenceHz: 60, bits: 8 });
+      v.egal('Novastar hors COEX : pas de réduction, une colonne par port', [k4.global.colonnes.colonnesParPort, k4.global.colonnes.ports], [1, 4]);
+      const auPlusJuste = calculs.cablageData(m, cb5, e, { depart: 'bas-gauche' }).variantes.find((x) => x.mode === 'auPlusJuste');
+      const hors = auPlusJuste.processeurs.flatMap((p) => p.ports).filter((port) => {
+        const cols = new Set(port.dalles.map((id) => id.split(' ')[0]));
+        const rangs = new Set(port.dalles.map((id) => id.split(' ')[1]));
+        return port.px + calculs.penaliteLargeurChargee(cols.size * 104, rangs.size * 208, 128) > e.capacite + 1e-6;
+      });
+      v.egal('au plus juste : chaque port tient, réduction comprise', hors.length, 0);
+      const sans = calculs.evaluerProcesseur(m, cb5, { ...mx40, largeurChargeeMinPx: undefined }, { frequenceHz: 60, bits: 8 });
+      v.egal('Data : le serpentin au plus juste compte la réduction (5 ports, 4 sans elle)', [e.global.serpentin.ports, sans.global.serpentin.ports], [5, 4]);
+    },
+  },
+  {
+    id: 'R120',
+    titre: 'MX40 Pro en mode 40 ports : CVT10 obligatoires, un par groupe de 10 ports, comptés par processeur ; cuivre depuis le pied du mur',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_7, 44, 10);
+      const mx40 = processeurDeBase(contexte, 'coex-mx40-pro');
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, mx40, { ...NOVASTAR_60_8, modeOptique: true });
+      v.egal('2 MX40 Pro (pixels), 22 ports chacun, 3 CVT10 chacun', [e.nombre, e.groupes.map((g) => g.ports.colonnes), e.groupes.map((g) => g.distributeurs.colonnes)], [2, [22, 22], [3, 3]]);
+      v.egal('CVT10 obligatoires en mode 40 ports', e.distributeurObligatoire, true);
+      const cuivre = calculs.evaluerProcesseur(m, DALLE_CAS_7, mx40, NOVASTAR_60_8);
+      v.egal('mode 20 ports : CVT10 seulement si fibre', cuivre.distributeurObligatoire, false);
+      const t = calculs.cablageData(m, DALLE_CAS_7, e, { depart: 'bas-gauche', distanceRegieM: 80 }).variantes.find((x) => x.mode === 'colonnes');
+      const port = t.processeurs[0].ports[0];
+      v.proche('fibre jusqu\'au CVT10 : 80 m × 1,10', port.fibreM, 88, 1e-9);
+      v.proche('cuivre depuis le pied du mur : trajet seul jusqu\'au centre de C1 R10 (0,5 m) × 1,10', port.longueurCuivreM, 0.55, 1e-9);
+    },
+  },
+  {
+    id: 'R121',
+    titre: 'COEX 5G : câble Cat6A obligatoire, longueur maxi non publiée (« à confirmer ») ; CVT8-5G si fibre, 8 ports 5G',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const cx40 = processeurDeBase(contexte, 'coex-cx40-pro');
+      const m = calculs.mur(DALLE_CAS_7, 44, 10);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, cx40, NOVASTAR_60_8);
+      v.vrai('Data : Cat6A obligatoire, longueur maxi à confirmer', e.alertes.some((a) => a.includes('Cat6A') && a.includes('à confirmer')));
+      v.egal('CVT8-5G, 8 ports 5G, seulement si fibre', [cx40.distributeur, cx40.sortiesParDistributeur, e.distributeurObligatoire], ['coex-cvt8-5g', 8, false]);
+      const t = calculs.cablageData(m, DALLE_CAS_7, e, { depart: 'bas-gauche', distanceRegieM: 150 }).variantes.find((x) => x.mode === 'colonnes');
+      v.vrai('Schéma : pas de seuil de 100 m en 5G, longueur à confirmer', !t.alertes.some((a) => a.includes('100 m')) && t.alertes.some((a) => a.includes('Cat6A') && a.includes('à confirmer')));
+      const mx40 = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'coex-mx40-pro'), NOVASTAR_60_8);
+      v.vrai('1G : pas d\'alerte Cat6A', !mx40.alertes.some((a) => a.includes('Cat6A')));
+    },
+  },
+  {
+    id: 'R122',
+    titre: 'Data : consommation et poids du processeur et des convertisseurs affichés, repris dans le texte copié',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_7, 44, 10);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'coex-mx40-pro'), { ...NOVASTAR_60_8, modeOptique: true });
+      const cvt10 = calculs.resoudreFiche(baseProcesseurs(contexte).distributeurs.find((x) => x.id === 'novastar-cvt10'), baseProcesseurs(contexte).sources);
+      const lignes = resumes.resumeData(e, { distributeur: 'CVT10', puissanceDistributeurW: cvt10.puissanceW }).split('\n');
+      v.vrai('processeur : 95 W, 7,5 kg, 1U', lignes.includes('MX40 Pro : 95 W, 7,5 kg, 1U chacun'));
+      v.vrai('convertisseurs : 22 W chacun', lignes.some((l) => l.startsWith('CVT10 : 6') && l.includes('22 W chacun')));
+    },
+  },
+  {
+    id: 'R123',
+    titre: 'Règle des 128 px : source constructeur pour le MX40 Pro, « déduit » par analogie pour les MX20 et MX30 (absente de leur fiche) ; format HDMI 2.0 du MX40 Pro de sa fiche',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const source = (id) => processeurDeBase(contexte, id).sources.largeurChargeeMinPx.source;
+      v.egal('MX40 Pro : fiche V1.5.0, constructeur', [source('coex-mx40-pro').id, source('coex-mx40-pro').confiance], ['coex-mx40-pro-v1-5', 'constructeur']);
+      for (const id of ['coex-mx20', 'coex-mx30']) {
+        const s = source(id);
+        v.egal(`${id} : 128 px par analogie, « déduit »`, [processeurDeBase(contexte, id).largeurChargeeMinPx, s.id, s.confiance], [128, 'coex-largeur-chargee-analogie', 'déduit']);
+        v.vrai(`${id} : la source dit « par analogie avec la fiche MX40 Pro, absente de sa fiche »`, /par analogie avec la fiche MX40 Pro/.test(s.titre) && /absente de sa fiche/.test(s.titre));
+      }
+      const cb5 = dalleDeBase(contexte, 'roe-cb5-mkii');
+      const e = calculs.evaluerProcesseur(calculs.mur(cb5, 4, 30), cb5, processeurDeBase(contexte, 'coex-mx30'), { frequenceHz: 60, bits: 8 });
+      v.vrai('MX30 : alerte des 128 px marquée « déduit »', e.alertes.some((a) => a.includes('128') && a.includes('déduit')));
+      const mx40 = processeurDeBase(contexte, 'coex-mx40-pro');
+      const hdmi = mx40.entreesFormats.find((f) => f.type === 'hdmi-2.0');
+      v.egal('MX40 Pro : HDMI 2.0 à 4096 × 2160 ou 8192 × 1080 à 60 Hz, de sa fiche', [hdmi.largeurPx, hdmi.hauteurPx, hdmi.frequenceHz, hdmi.largeurMaxPx, mx40.sources.entreesFormats.source.id],
+        [4096, 2160, 60, 8192, 'coex-mx40-pro-v1-5']);
+    },
+  },
+  {
+    id: 'R124',
+    titre: 'KU20 : 8 bits seulement par défaut, 10 et 12 bits refusés avec la raison (programme personnalisé)',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const ku20 = processeurDeBase(contexte, 'coex-ku20');
+      const m = calculs.mur(DALLE_CAS_7, 12, 6);
+      const e8 = calculs.evaluerProcesseur(m, DALLE_CAS_7, ku20, NOVASTAR_60_8);
+      v.egal('8 bits : 1 KU20, 6 ports de 2 colonnes', [e8.nombre, e8.global.colonnes.ports, e8.global.colonnes.colonnesParPort], [1, 6, 2]);
+      const e10 = calculs.evaluerProcesseur(m, DALLE_CAS_7, ku20, { frequenceHz: 60, bits: 10 });
+      v.vrai('10 bits : refusé, programme personnalisé', e10.nombre === null && /programme personnalisé/.test(e10.impossible ?? ''));
+      const e12 = calculs.evaluerProcesseur(m, DALLE_CAS_7, ku20, { frequenceHz: 60, bits: 12 });
+      v.vrai('12 bits : refusé', e12.nombre === null && /8 bits/.test(e12.impossible ?? ''));
+      v.egal('règle des 128 px par analogie (déduit)', ku20.sources.largeurChargeeMinPx.source.confiance, 'déduit');
+      const liaisons = liaisonsDeBase(contexte);
+      v.egal('entrée HDMI 1.3 de la fiche : 1920 × 1200 à 60 Hz passe, 2304 × 1152 à 60 Hz non',
+        [1920, 2304].map((l) => calculs.controleEntree(ku20, { largeurPx: l, hauteurPx: l === 1920 ? 1200 : 1152, frequenceHz: 60, liaison: 'hdmi-1.3' }, liaisons).ok), [true, false]);
+    },
+  },
+  {
+    id: 'R125',
+    titre: 'SP60 Pro : processeur sous-pixel, fiche d\'information, refusé dans Data avec « processeur sous-pixel, calcul hors appli »',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const sp60 = processeurDeBase(contexte, 'coex-sp60-pro');
+      const m = calculs.mur(DALLE_CAS_7, 12, 6);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, sp60, NOVASTAR_60_8);
+      v.egal('refusé avec la raison', [e.nombre, /processeur sous-pixel, calcul hors appli/.test(e.impossible ?? '')], [null, true]);
+      v.egal('jamais conseillé', calculs.processeurConseille([e]), null);
+      v.egal('fiche : 20 ports 1G, 8192 × 7680, 2 × HDMI 2.0', [sp60.ports, sp60.largeurMaxPx, sp60.hauteurMaxPx, sp60.entreesTypes], [20, 8192, 7680, ['hdmi-2.0']]);
+    },
+  },
+  {
+    id: 'R126',
+    titre: 'MX2000 Pro et MX6000 Pro : cartes de sortie selon la carte des dalles (4x10G et CVT10, ou 1 × 40G et CVT8-5G), plafond de pixels, fibre jusqu\'aux convertisseurs',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const mx6000 = processeurDeBase(contexte, 'coex-mx6000-pro');
+      const mx2000 = processeurDeBase(contexte, 'coex-mx2000-pro');
+      const m = calculs.mur(DALLE_CAS_7, 42, 10);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, mx6000, NOVASTAR_60_8);
+      v.egal('carte inconnue : 4x10G, 42 ports 1G, 5 CVT10 sur 2 cartes', [e.nombre, e.totaux.ports.colonnes, e.totaux.distributeurs.colonnes, e.totaux.cartesSortie], [1, 42, 5, 2]);
+      v.egal('affichage de la configuration', e.configuration, 'MX6000 Pro + 2 cartes 4x10G + 5 CVT10');
+      v.vrai('alerte : carte de réception inconnue, 4x10G par défaut', e.alertes.some((a) => a.includes('Carte de réception inconnue') && a.includes('4x10G')));
+      v.egal('MX6000 Pro : 8 emplacements, 320 ports 1G au plus ; CVT10 obligatoires', [e.controles.ports.limite, e.distributeurObligatoire], [320, true]);
+      const e5 = calculs.evaluerProcesseur(m, DALLE_CARTE_CA50E, mx6000, NOVASTAR_60_8);
+      v.egal('carte CA50E (5G) : 1 × 40G, 2 951 200 px par port, 6 ports 5G, 1 CVT8-5G', [calculs.entierInferieur(e5.capacite), e5.totaux.ports.colonnes, e5.configuration],
+        [2951200, 6, 'MX6000 Pro + 1 carte 1 × 40G + 1 CVT8-5G']);
+      v.egal('5G : 64 ports au plus (8 cartes × 8)', e5.controles.ports.limite, 64);
+      const force = calculs.evaluerProcesseur(m, DALLE_CARTE_CA50E, mx6000, { ...NOVASTAR_60_8, carteSortie: '4x10g' });
+      v.egal('choix à la main : 4x10G même avec des cartes 5G', force.configuration, 'MX6000 Pro + 2 cartes 4x10G + 5 CVT10');
+      const e2 = calculs.evaluerProcesseur(m, DALLE_CAS_7, mx2000, NOVASTAR_60_8);
+      v.egal('MX2000 Pro : 2 emplacements, 80 ports 1G au plus', [e2.controles.ports.limite, e2.configuration], [80, 'MX2000 Pro + 2 cartes 4x10G + 5 CVT10']);
+      v.vrai('MX2000 Pro : carte 1 × 40G citée par le wiki COEX, absente de sa fiche', /absente de sa fiche/.test(mx2000.sources.carteSortie5G.source.titre));
+      const petit = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 42, 10), DALLE_CAS_7, { ...mx2000, pixelsMax: 10000000 }, NOVASTAR_60_8);
+      v.egal('plafond aux pixels maxi du processeur', petit.nombre, 2);
+      const t = calculs.cablageData(m, DALLE_CAS_7, e, { depart: 'bas-gauche', distanceRegieM: 50 }).variantes.find((x) => x.mode === 'colonnes');
+      v.proche('fibre jusqu\'au CVT10 : 50 m × 1,10', t.processeurs[0].ports[0].fibreM, 55, 1e-9);
+      v.egal('ports nommés par convertisseur', t.processeurs[0].ports[10].libelle, 'CVT10 2, port 1');
+    },
+  },
+  {
+    id: 'R127',
+    titre: 'MX6000 Pro : formats des cartes d\'entrée de sa fiche contrôlés (HDMI 2.0, DP 1.2, HDMI 2.1, DP 1.4, ST 2110) ; MX2000 Pro, mêmes cartes 4K et 8K par analogie (déduit)',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      v.egal('liaisons 8K et ST 2110 connues de l\'appli', ['hdmi-2.1', 'dp-1.4', 'st2110-25g', 'st2110-100g'].every((id) => liaisons.some((l) => l.id === id)), true);
+      const mx6000 = processeurDeBase(contexte, 'coex-mx6000-pro');
+      const entree = (proc, l, h, f, liaison) => calculs.controleEntree(proc, { largeurPx: l, hauteurPx: h, frequenceHz: f, liaison }, liaisons);
+      v.egal('HDMI 2.0 : 8192 × 1080 et 1080 × 8192 à 60 Hz passent, 8704 px de large non',
+        [entree(mx6000, 8192, 1080, 60, 'hdmi-2.0').ok, entree(mx6000, 1080, 8192, 60, 'hdmi-2.0').ok, entree(mx6000, 8704, 1016, 60, 'hdmi-2.0').ok], [true, true, false]);
+      v.egal('DP 1.2 : pareil', [entree(mx6000, 8192, 1080, 60, 'dp-1.2').ok, entree(mx6000, 8704, 1016, 60, 'dp-1.2').ok], [true, false]);
+      v.egal('HDMI 2.1 : 8192 × 4320 à 30 Hz, pas à 60 Hz', [entree(mx6000, 8192, 4320, 30, 'hdmi-2.1').ok, entree(mx6000, 8192, 4320, 60, 'hdmi-2.1').ok], [true, false]);
+      const dp60 = entree(mx6000, 7680, 4320, 60, 'dp-1.4');
+      v.egal('DP 1.4 : 7680 × 4320 à 30 Hz ; à 60 Hz avec la carte DP 1.4 8K à 60 Hz, signalée',
+        [entree(mx6000, 7680, 4320, 30, 'dp-1.4').ok, dp60.ok, dp60.alertes.some((a) => a.includes('carte DP 1.4 8K à 60 Hz'))], [true, true, true]);
+      v.egal('DP 1.4 : 7680 px de large au plus', entree(mx6000, 8192, 4320, 30, 'dp-1.4').ok, false);
+      v.egal('ST 2110 25G : 4096 × 2160 ou 8192 × 1080 à 60 Hz, pas 8192 × 2160',
+        [entree(mx6000, 4096, 2160, 60, 'st2110-25g').ok, entree(mx6000, 8192, 1080, 60, 'st2110-25g').ok, entree(mx6000, 8192, 2160, 60, 'st2110-25g').ok], [true, true, false]);
+      v.egal('ST 2110 100G : 8192 × 4320 à 60 Hz en une source', entree(mx6000, 8192, 4320, 60, 'st2110-100g').ok, true);
+      const mx2000 = processeurDeBase(contexte, 'coex-mx2000-pro');
+      v.egal('MX2000 Pro : formats 4K et 8K par analogie, « déduit »', [entree(mx2000, 8192, 4320, 30, 'hdmi-2.1').ok, mx2000.sources.entreesFormats.source.confiance], [true, 'déduit']);
+      v.egal('MX2000 Pro : pas de ST 2110', entree(mx2000, 4096, 2160, 60, 'st2110-25g').ok, false);
+    },
+  },
+  {
+    id: 'R128',
+    titre: 'MX6000 Pro : 16 384 px de large ou de haut par carte de sortie et 141 M px ; au-delà de 8192 px, un seul processeur mais plusieurs sources (8192 px maxi par entrée)',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const mx6000 = processeurDeBase(contexte, 'coex-mx6000-pro');
+      const m = calculs.mur(DALLE_CAS_7, 60, 10);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, mx6000, NOVASTAR_60_8);
+      v.egal('mur de 11 520 × 1920 px : un seul MX6000 Pro', e.nombre, 1);
+      v.vrai('alerte : plusieurs sources nécessaires, 8192 px maxi par entrée', e.alertes.some((a) => a.includes('plusieurs sources nécessaires') && a.includes('8192')));
+      v.egal('au-delà de 16 384 px de large : deux MX6000 Pro', calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 86, 2), DALLE_CAS_7, mx6000, NOVASTAR_60_8).nombre, 2);
+      v.vrai('sous 8192 px : pas d\'alerte de sources', !calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 42, 10), DALLE_CAS_7, mx6000, NOVASTAR_60_8).alertes.some((a) => a.includes('plusieurs sources')));
+      v.egal('MX2000 Pro : 8192 px pour le mur, deux processeurs à 11 520 px', calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'coex-mx2000-pro'), NOVASTAR_60_8).nombre, 2);
+    },
+  },
+  {
+    id: 'R129',
+    titre: 'Carte de réception connue : dimensions de la dalle face à la capacité d\'une carte à la profondeur choisie ; IC inconnu, IC classiques ; « non précisé » signalé ; alerte, jamais de refus',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const cartes = bp.cartesReception.map((c) => calculs.resoudreFiche(c, bp.sources));
+      const dalle = (modele, pxH, pxV, extra = {}) => ({ ...DALLE_CAS_7, id: 'fictive-carte', nom: `Dalle ${pxH} × ${pxV} px`, pxH, pxV, carteReceptionMarque: 'Novastar', carteReceptionModele: modele, ...extra });
+      const c = (d, bits) => calculs.controleCarteReception(d, cartes, bits);
+      const a5s = c(dalle('A5s Plus', 400, 300), 8);
+      v.egal('A5s Plus, 8 bits, IC inconnu : 384 × 384 (IC classiques) ; 400 px de large, dépassé', [a5s.capacite.largeurPx, a5s.capacite.hauteurPx, a5s.ok], [384, 384, false]);
+      v.vrai('note : IC classiques retenus, 512 × 384 avec IC PWM', /IC classiques/.test(a5s.alerte) && /512 × 384/.test(a5s.alerte));
+      v.egal('A5s Plus avec IC PWM connus : 512 × 384, passe', c(dalle('A5s Plus', 400, 300, { typeIC: 'PWM' }), 8).ok, true);
+      v.egal('A5s Plus, 10 bits : 192 × 384 (IC classiques), 200 px de large dépassé', c(dalle('A5s Plus', 200, 300), 10).ok, false);
+      const a7s = c(dalle('A7s Plus', 256, 256), 10);
+      v.egal('A7s Plus, 10 bits : non précisé, signalé, pas de contrôle', [a7s.ok, /non précisée/.test(a7s.alerte)], [null, true]);
+      v.egal('A10s Pro, 12 bits : 512 × 256, une dalle de 256 × 512 dépasse', c(dalle('A10s Pro', 256, 512), 12).ok, false);
+      v.egal('CA50E, 12 bits : 512 × 480, dalle de 500 × 500 dépassée ; 8 bits : 768 × 512, passe', [c(dalle('CA50E', 500, 500), 12).ok, c(dalle('CA50E', 500, 500), 8).ok], [false, true]);
+      v.egal('XA50 Pro, 12 bits : 620 × 512, dalle de 600 × 500 passe', c(dalle('XA50 Pro', 600, 500), 12).ok, true);
+      const plusN = c(dalle('A10s Plus N', 520, 100), 8);
+      v.egal('A10s Plus-N (nom écrit sans tiret), 8 bits : 512 × 512 IC PWM seulement, 520 px de large dépassé', [plusN.carte.modele, plusN.ok], ['A10s Plus-N', false]);
+      v.egal('carte absente de la base (A10s) : pas de contrôle', c(dalle('A10s', 176, 176), 8), null);
+      const e = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 12, 6), dalle('A5s Plus', 400, 300), processeurDeBase(contexte, 'coex-mx40-pro'), { ...NOVASTAR_60_8, cartesReception: cartes });
+      v.egal('Data : alerte de carte, sans refus', [e.nombre !== null, e.alertes.some((x) => x.includes('A5s Plus') && x.includes('384 × 384'))], [true, true]);
+      v.egal('Data : contrôle de carte gardé dans le résultat', e.carteReception?.[0]?.carte.modele, 'A5s Plus');
+    },
+  },
+  {
+    id: 'R130',
+    titre: 'Fiches « information » (LEDCAST) : grisées dans la liste des dalles du Mur, jamais choisies ; complétées par l\'utilisateur, elles deviennent des dalles',
+    etape: 'ledcast',
+    verifier(v, contexte) {
+      const base = contexte.dalles;
+      const infos = base.informations.map((f) => calculs.resoudreFiche(f, base.sources));
+      const options = fiches.optionsInformations(infos);
+      v.egal('une option par fiche, grisée, marquée « information, à compléter »',
+        [options.length, options.every((o) => o.disabled && o.libelle.includes('(information, à compléter)'))], [32, true]);
+      const depart = { dalles: contexte.dalles, processeurs: contexte.processeurs, regies: contexte.regies };
+      const brute = base.informations.find((f) => f.id === 'ledcast-flex-2-5');
+      const complete = { ...brute, largeurMm: { valeur: 500, source: 'test' }, hauteurMm: { valeur: 500, source: 'test' }, pxH: { valeur: 200, source: 'test' }, pxV: { valeur: 200, source: 'test' } };
+      const maBase = { ...fiches.baseVide(), fiches: [{ type: 'dalle', fiche: complete }], sources: { test: { titre: 'Test', court: 'Test', date: null, confiance: 'constructeur' } } };
+      const f = fiches.fusionner(depart, maBase);
+      v.egal('complétée : passe dans les dalles (version modifiée) et quitte les fiches d\'information',
+        [f.dalles.dalles.find((d) => d.id === 'ledcast-flex-2-5')?.statutBase, f.dalles.informations.some((d) => d.id === 'ledcast-flex-2-5')], ['modifiee', false]);
     },
   },
 ];

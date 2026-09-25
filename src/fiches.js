@@ -239,7 +239,10 @@ const EMPLACEMENTS = { dalle: ['dalles', 'dalles'], bumper: ['dalles', 'bumpers'
 export function fusionner(depart, base) {
   const marquer = (liste) => (liste ?? []).map((f) => ({ ...f, statutBase: 'depart' }));
   const resultat = {
-    dalles: { ...depart.dalles, dalles: marquer(depart.dalles?.dalles), gabarits: marquer(depart.dalles?.gabarits), bumpers: marquer(depart.dalles?.bumpers) },
+    dalles: {
+      ...depart.dalles, dalles: marquer(depart.dalles?.dalles), gabarits: marquer(depart.dalles?.gabarits), bumpers: marquer(depart.dalles?.bumpers),
+      informations: marquer(depart.dalles?.informations),
+    },
     processeurs: { ...depart.processeurs, processeurs: marquer(depart.processeurs?.processeurs) },
     regies: { ...depart.regies, regies: marquer(depart.regies?.regies) },
   };
@@ -248,6 +251,22 @@ export function fusionner(depart, base) {
   }
   for (const { type, fiche } of base.fiches) {
     const [fichier, nomListe] = EMPLACEMENTS[type];
+    // Fiche d'information (LEDCAST) reprise par l'utilisateur : complète (dimensions et pixels), elle devient une dalle ;
+    // sinon elle reste une fiche d'information, en version modifiée.
+    const infos = type === 'dalle' ? resultat.dalles.informations : [];
+    const j = infos.findIndex((f) => f.id === fiche.id);
+    if (j >= 0) {
+      const complete = ['largeurMm', 'hauteurMm', 'pxH', 'pxV'].every((c) => !vide(fiche[c]));
+      if (complete) {
+        infos.splice(j, 1);
+        const dalle = { ...fiche, statutBase: 'modifiee' };
+        if (dalle.statut === 'information') delete dalle.statut;
+        resultat.dalles.dalles.push(dalle);
+      } else {
+        infos[j] = { ...fiche, statutBase: 'modifiee' };
+      }
+      continue;
+    }
     const liste = resultat[fichier][nomListe];
     const i = liste.findIndex((f) => f.id === fiche.id);
     if (i >= 0) liste[i] = { ...fiche, statutBase: 'modifiee' };
@@ -386,6 +405,15 @@ export function basculerMembre(base, parcId, type, id) {
 export function filtrerParParc(liste, base, parcId, type) {
   if (!parcId) return liste;
   return liste.filter((f) => estMembre(base, parcId, type, f.id));
+}
+
+// Fiches d'information (LEDCAST : pages produit sans données de calcul) : options grisées de la liste des dalles.
+export function optionsInformations(informations) {
+  return (informations ?? []).map((d) => ({
+    id: d.id,
+    libelle: `${d.nom}${d.usage ? ` (${d.usage})` : ''} (information, à compléter)`,
+    disabled: true,
+  }));
 }
 
 // Réglages d'une dalle propres à un parc : une même dalle existe avec plusieurs cartes de réception selon le loueur.
