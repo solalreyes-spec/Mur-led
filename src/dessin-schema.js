@@ -6,32 +6,23 @@ import { dallesDuMur } from './calculs.js';
 import { nombre, nombreCourt } from './format.js';
 import { svg } from './dom.js';
 
-const NB_COULEURS = 8;
-// Motifs de trait, pour distinguer les trajets sans compter sur la couleur (mode rouge, impression en noir).
-export const MOTIFS = [null, [3, 2], [0.6, 1.6]];
-
+// Deux couleurs seulement : câbles principaux, et câbles de secours en pointillés. Les ports (ou les lignes) se
+// distinguent par un fond de dalles alterné (deux gris) et par leur numéro au départ de chaque chaîne.
 export const PALETTE_ECRAN = {
-  fond: 'var(--fond)', dalle: 'var(--surface-2)', demi: 'var(--surface)', bord: 'var(--bordure)', contour: 'var(--texte-doux)',
-  texte: 'var(--texte)', texteDoux: 'var(--texte-doux)', accent: 'var(--accent)', police: null,
-  trace: (i) => `var(--trace-${(i % NB_COULEURS) + 1})`,
-  phase: (n) => `var(--phase-${n})`,
+  fond: 'var(--fond)', dalle: 'var(--dalle-a)', dalleAlt: 'var(--dalle-b)', demi: 'var(--surface)', bord: 'var(--bordure)',
+  contour: 'var(--texte-doux)', texte: 'var(--texte)', texteDoux: 'var(--texte-doux)', accent: 'var(--accent)', police: null,
+  principal: 'var(--trace-principal)', secours: 'var(--trace-secours)',
 };
-const TRACES_EXPORT = ['#1565c0', '#e65100', '#2e7d32', '#ad1457', '#6a1b9a', '#00838f', '#8d6e00', '#c62828'];
-const PHASES_EXPORT = ['#c62828', '#1565c0', '#2e7d32'];
 export const PALETTE_EXPORT = {
-  fond: '#ffffff', dalle: '#eef1f6', demi: '#f8f9fb', bord: '#aab2bf', contour: '#5b6472',
+  fond: '#ffffff', dalle: '#eef1f6', dalleAlt: '#d5dce7', demi: '#f8f9fb', bord: '#aab2bf', contour: '#5b6472',
   texte: '#1d2330', texteDoux: '#5b6472', accent: '#0a66c2', police: 'Helvetica, Arial, sans-serif',
-  trace: (i) => TRACES_EXPORT[i % NB_COULEURS],
-  phase: (n) => PHASES_EXPORT[n - 1],
+  principal: '#1565c0', secours: '#e65100',
 };
 
 const pluriel = (n, singulier, plurielForme) => `${nombre(n)} ${n > 1 ? plurielForme : singulier}`;
 const pourcent = (taux) => `${nombre(taux * 100, 1)} %`;
 
-// Couleur d'un trajet dans une palette.
-export const couleurTrajet = (t, palette) => (t.teinte.type === 'phase' ? palette.phase(t.teinte.numero) : palette.trace(t.teinte.index));
-
-// Trajets à dessiner : un par port (data) ou par ligne (élec), avec sa teinte, son motif et ses dalles.
+// Trajets à dessiner : un par port (data) ou par ligne (élec), avec son rang (fond alterné), son sens et ses dalles.
 // `vue.cablage` : 'data', 'elec' ou 'aucun' ; `canvasNumero` limite la data aux ports de ce processeur.
 export function trajetsSchema(vue, vd, ve, canvasNumero = null) {
   if (vue.cablage === 'data' && vd) {
@@ -44,25 +35,26 @@ export function trajetsSchema(vue, vd, ve, canvasNumero = null) {
         cle: `p${p.numero}-${port.numero}`,
         groupe: plusieurs ? `${p.modele} n° ${p.numero}` : p.modele,
         processeur: p.numero,
+        rang: i,
+        orientation: vd.orientation ?? 'colonnes',
         etiquette: plusieurs ? `${p.numero}.${port.numero}` : `${port.numero}`,
-        libelle: `${port.libelle} : ${pluriel(port.dalles.length, 'dalle', 'dalles')}, ${pourcent(port.taux)}`,
+        libelle: `${port.libelle} : ${pluriel(port.dalles.length, 'dalle', 'dalles')}, ${pourcent(port.taux)}`
+          + `${port.secours?.retourM ? `, retour de secours ${nombreCourt(port.secours.retourM, 1)} m` : ''}`,
         dalles: port.dalles,
-        teinte: { type: 'trace', index: i },
-        motif: MOTIFS[Math.floor(i / NB_COULEURS) % MOTIFS.length],
         secours: port.secours,
       };
     })).filter((t) => !canvasNumero || t.processeur === canvasNumero);
   }
   if (vue.cablage === 'elec' && ve) {
     const mono = ve.phases.length === 1;
-    return ve.lignesDetail.map((l) => ({
+    return ve.lignesDetail.map((l, i) => ({
       cle: `l${l.numero}`,
       groupe: mono ? 'Lignes' : `Phase L${l.phase}`,
-      etiquette: `${l.numero}`,
+      rang: i,
+      orientation: ve.orientation ?? 'colonnes',
+      etiquette: mono ? `${l.numero}` : `${l.numero} · L${l.phase}`,
       libelle: `ligne ${l.numero}${mono ? '' : `, L${l.phase}`} : ${pluriel(l.dalles.length, 'dalle', 'dalles')}, ${nombreCourt(l.puissanceW)} W`,
       dalles: l.dalles,
-      teinte: { type: 'phase', numero: mono ? 1 : l.phase },
-      motif: mono ? null : MOTIFS[(l.phase - 1) % MOTIFS.length],
       secours: null,
     }));
   }
@@ -126,15 +118,19 @@ export function construireSvg({
   const cote = Math.min(...[...rects.values()].map((r) => Math.min(r.w, r.h)));
   const trait = cote * 0.07;
   const police = cote * 0.2;
-  const couleurs = [...new Set(trajets.map((t) => couleurTrajet(t, palette)))];
-  const idMarqueur = new Map(couleurs.map((c, i) => [c, `fleche-${i}`]));
+  // Fond alterné : dalles d'un port (ou d'une ligne) en un gris, celles du suivant dans l'autre.
+  const rangDe = new Map(trajets.flatMap((t) => t.dalles.map((id) => [id, t.rang])));
+  const fondDalle = (id, r) => {
+    if (rangDe.has(id)) return rangDe.get(id) % 2 === 0 ? palette.dalle : palette.dalleAlt;
+    return r.d?.type === 'demi' ? palette.demi : palette.dalle;
+  };
 
   const tuiles = [...rects.entries()].map(([id, r]) => {
     const choisie = id === dalleChoisie;
     return svg('g', { 'data-dalle': id },
       svg('rect', {
         class: `dalle${r.d?.type === 'demi' ? ' demi' : ''}${choisie ? ' choisie' : ''}`, x: r.x, y: r.y, width: r.w, height: r.h,
-        style: `fill: ${r.d?.type === 'demi' ? palette.demi : palette.dalle}; stroke: ${choisie ? palette.accent : palette.bord}`,
+        style: `fill: ${fondDalle(id, r)}; stroke: ${choisie ? palette.accent : palette.bord}`,
         'stroke-width': cote * (choisie ? 0.05 : 0.015),
       }),
       svg('text', {
@@ -155,29 +151,35 @@ export function construireSvg({
       'font-size': police * 1.1, style: `fill: ${palette.texte}`, 'font-weight': 700,
     }, b.libelle)));
 
-  // Trajet : talon depuis le bord du côté du départ, serpentin fléché, retour de redondance en pointillés.
+  // Trajet : talon depuis le bord de départ (bas en stack, haut en accroche ; côté gauche ou droit pour un câblage
+  // par rangées), serpentin fléché, retour de secours en pointillés le long de la dernière colonne (ou rangée),
+  // jamais en diagonale.
   const bordY = coin.startsWith('haut') ? -marge * 0.35 : hauteur + marge * 0.35;
+  const bordX = coin.endsWith('gauche') ? -marge * 0.35 : largeur + marge * 0.35;
   const lignes = trajets.map((t) => {
     const points = t.dalles.filter((id) => rects.has(id)).map((id) => centre(rects.get(id)));
     if (points.length === 0) return null;
-    const couleur = couleurTrajet(t, palette);
     const [x0, y0] = points[0];
     const [xn, yn] = points[points.length - 1];
+    const parRangees = t.orientation === 'rangees';
+    const [xd, yd] = parRangees ? [bordX, y0] : [x0, bordY];
+    const [xs, ys] = parRangees ? [bordX, yn] : [xn, bordY];
     const actif = selection === null || selection === t.cle;
     const largeurTrait = trait * (selection === t.cle ? 1.8 : 1);
-    const pointilles = t.motif ? t.motif.map((x) => x * trait * 2).join(' ') : null;
-    const style = `fill: none; stroke: ${couleur}`;
-    const fleche = `url(#${idMarqueur.get(couleur)})`;
+    const style = `fill: none; stroke: ${palette.principal}`;
     return svg('g', { 'data-trajet': t.cle, class: actif ? null : 'attenue' },
-      svg('line', { class: 'trajet', x1: x0, y1: bordY, x2: x0, y2: y0, style, 'stroke-width': largeurTrait, 'stroke-dasharray': pointilles, 'stroke-linecap': 'round' }),
+      svg('line', { class: 'trajet', x1: xd, y1: yd, x2: x0, y2: y0, style, 'stroke-width': largeurTrait, 'stroke-linecap': 'round' }),
       svg('polyline', {
-        class: 'trajet', points: points.map((p) => p.join(',')).join(' '), style, 'stroke-width': largeurTrait, 'stroke-dasharray': pointilles,
-        'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'marker-mid': fleche, 'marker-end': fleche,
+        class: 'trajet', points: points.map((p) => p.join(',')).join(' '), style, 'stroke-width': largeurTrait,
+        'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'marker-mid': 'url(#fleche)', 'marker-end': 'url(#fleche)',
       }),
-      t.secours ? svg('line', { class: 'trajet', x1: xn, y1: yn, x2: xn, y2: bordY, style, 'stroke-width': largeurTrait * 0.7, 'stroke-dasharray': `${trait * 1.2} ${trait * 1.4}` }) : null,
-      svg('circle', { cx: x0, cy: bordY, r: police * 0.95, style: `fill: ${palette.fond}; stroke: ${couleur}`, 'stroke-width': trait * 0.6 }),
+      t.secours ? svg('line', {
+        class: 'trajet secours', x1: xn, y1: yn, x2: xs, y2: ys, style: `fill: none; stroke: ${palette.secours}`,
+        'stroke-width': largeurTrait * 0.8, 'stroke-dasharray': `${trait * 1.2} ${trait * 1.2}`,
+      }) : null,
+      svg('circle', { class: 'depart', cx: xd, cy: yd, r: police * (t.etiquette.length > 3 ? 1.2 : 0.95), style: `fill: ${palette.fond}; stroke: ${palette.principal}`, 'stroke-width': trait * 0.6 }),
       svg('text', {
-        class: 'numero-trajet', x: x0, y: bordY, 'font-size': police * (t.etiquette.length > 3 ? 0.7 : 0.95), style: `fill: ${couleur}`,
+        class: 'numero-trajet', x: xd, y: yd, 'font-size': police * (t.etiquette.length > 3 ? 0.62 : 0.95), style: `fill: ${palette.principal}`,
         'font-weight': 700, 'text-anchor': 'middle', 'dominant-baseline': 'central',
       }, t.etiquette));
   });
@@ -193,9 +195,9 @@ export function construireSvg({
     'font-family': palette.police,
     style: largeurPx ? null : `aspect-ratio: ${complet.w} / ${complet.h}`,
   },
-  svg('defs', {}, couleurs.map((c, i) => svg('marker', {
-    id: `fleche-${i}`, viewBox: '0 0 10 10', refX: 5, refY: 5, markerWidth: 3.2, markerHeight: 3.2, orient: 'auto',
-  }, svg('path', { d: 'M1,1 L9,5 L1,9 z', style: `fill: ${c}` })))),
+  svg('defs', {}, svg('marker', {
+    id: 'fleche', viewBox: '0 0 10 10', refX: 5, refY: 5, markerWidth: 3.2, markerHeight: 3.2, orient: 'auto',
+  }, svg('path', { d: 'M1,1 L9,5 L1,9 z', style: `fill: ${palette.principal}` }))),
   svg('rect', { x: complet.x, y: complet.y, width: complet.w, height: complet.h, style: `fill: ${palette.fond}` }),
   svg('rect', { x: 0, y: 0, width: largeur, height: hauteur, style: `fill: none; stroke: ${palette.texteDoux}`, 'stroke-width': cote * 0.02 }),
   tuiles, contours, lignes);

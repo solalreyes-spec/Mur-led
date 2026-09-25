@@ -187,16 +187,8 @@ details.manques p { margin: 0 14px 10px; }
 .bandeau-donnees { margin: 16px 0 0; }
 
 /* Onglet Schéma */
-:root {
-  --trace-1: #5aa9ff; --trace-2: #ffb347; --trace-3: #7ee081; --trace-4: #ff7ab6;
-  --trace-5: #c49bff; --trace-6: #4dd9d9; --trace-7: #ffe066; --trace-8: #ff8a65;
-  --phase-1: #ff8a65; --phase-2: #5aa9ff; --phase-3: #7ee081;
-}
-:root[data-mode="rouge"] {
-  --trace-1: #ff3b30; --trace-2: #b3261e; --trace-3: #ff8a80; --trace-4: #d9463b;
-  --trace-5: #ff6659; --trace-6: #8c1d18; --trace-7: #ffb4a9; --trace-8: #e0443a;
-  --phase-1: #ff3b30; --phase-2: #ff8a80; --phase-3: #b3261e;
-}
+:root { --trace-principal: #5aa9ff; --trace-secours: #ffb347; --dalle-a: #1f232b; --dalle-b: #2c323d; }
+:root[data-mode="rouge"] { --trace-principal: #ff3b30; --trace-secours: #ff9e80; --dalle-a: #150000; --dalle-b: #2a0606; }
 .cartes-variantes { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
 .carte-variante {
   flex: 0 0 auto;
@@ -240,7 +232,11 @@ details.manques p { margin: 0 14px 10px; }
 }
 .puce-trajet[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-2); }
 .puce-trajet svg { width: 26px; height: 10px; flex: none; }
-.legende-groupe { width: 100%; margin: 6px 0 0; color: var(--texte-doux); font-size: 0.8rem; }
+.legende-groupe { width: 100%; margin: 6px 0 0; color: var(--texte-doux); font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.legende-cle { display: inline-flex; align-items: center; gap: 6px; }
+.legende-cle svg { width: 26px; height: 10px; }
+.puce-numero { font-weight: 700; color: var(--trace-principal); }
+.carte-variante .mention { color: var(--alerte); font-size: 0.78rem; }
 .info-dalle { margin-top: 10px; }
 .liste-exports { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .liste-exports li { display: grid; gap: 6px; font-size: 0.9rem; }

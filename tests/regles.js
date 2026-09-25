@@ -1618,7 +1618,7 @@ export const REGLES = [
       v.egal('rectangles : 3 ports de 2 colonnes par MCTRL660', rect.processeurs.map((p) => p.ports.map((x) => x.dalles.length)), [[12, 12, 12], [12, 12, 12]]);
       v.vrai('rectangles : chaque port couvre un rectangle plein', rect.processeurs.every((p) => p.ports.every((x) => rectanglePlein(x.dalles))));
       verifierPorts(v, rect, 72, e);
-      v.egal('conseil NovaLCT : les rectangles', t.conseil, 'rectangles');
+      v.egal('conseil, même en NovaLCT : colonnes entières (règle du terrain)', t.conseil, 'colonnes');
       const apj = t.variantes.find((x) => x.mode === 'auPlusJuste');
       v.egal('au plus juste : non réalisable tel quel dans NovaLCT', [apj.possible, /non réalisable tel quel dans NovaLCT/.test(apj.raison ?? '')], [false, true]);
       const er = calculs.evaluerProcesseur(m, DALLE_CAS_13, mctrl, { ...NOVASTAR_60_8, redondance: true });
@@ -1660,11 +1660,16 @@ export const REGLES = [
       v.egal('variantes', t.variantes.map((x) => x.mode), ['colonnes', 'colonnesEquilibre', 'rangees', 'auPlusJuste', 'auPlusJusteEquilibre']);
       for (const variante of t.variantes) verifierLignes(v, variante, 72, elec.ligne.utileW, DALLE_CAS_13.chainagePowerMax);
       const nb = (mode) => t.variantes.find((x) => x.mode === mode).lignesDetail.length;
-      v.egal('lignes : comme l\'onglet Élec', [nb('colonnes'), nb('auPlusJuste'), nb('auPlusJusteEquilibre')],
-        [elec.lignes.colonnes.nombre, elec.lignes.auPlusJuste.nombre, elec.triphase.auPlusJuste.equilibre.lignes.length]);
+      v.egal('colonnes entières, au minimum : autant de colonnes que la ligne en supporte, 4 lignes de 3 colonnes',
+        t.variantes.find((x) => x.mode === 'colonnes').lignesDetail.map((l) => colonnesDe(l.dalles).length), [3, 3, 3, 3]);
+      v.egal('colonnes entières, phases équilibrées : 6 lignes de 2 colonnes, 3 120 W par phase, écart 0 %',
+        [nb('colonnesEquilibre'), t.variantes.find((x) => x.mode === 'colonnesEquilibre').phases.map((p) => p.puissanceW),
+          t.variantes.find((x) => x.mode === 'colonnesEquilibre').ecartPhasesPourcent], [6, [3120, 3120, 3120], 0]);
+      v.egal('au plus juste : comme l\'onglet Élec', [nb('auPlusJuste'), nb('auPlusJusteEquilibre')],
+        [elec.lignes.auPlusJuste.nombre, elec.triphase.auPlusJuste.equilibre.lignes.length]);
       v.egal('équilibre : charge des phases comme l\'onglet Élec', t.variantes.find((x) => x.mode === 'auPlusJusteEquilibre').phases.map((p) => p.puissanceW),
         elec.triphase.auPlusJuste.equilibre.phases.map((p) => p.puissanceW));
-      v.egal('conseil : au plus juste, phases équilibrées', t.conseil, 'auPlusJusteEquilibre');
+      v.egal('conseil en triphasé : colonnes entières, phases équilibrées', t.conseil, 'colonnesEquilibre');
       const cb5 = dalleDeBase(contexte, 'roe-cb5-mkii');
       const m5 = calculs.mur(cb5, 10, 4);
       const e5 = calculs.electricite(m5, cb5, {});
@@ -1673,6 +1678,8 @@ export const REGLES = [
       const tm = calculs.cablageElec(m, DALLE_CAS_13, mono, { depart: 'haut-gauche' });
       v.egal('mono : pas de variante équilibrée, une seule phase', [tm.variantes.map((x) => x.mode), tm.variantes[0].lignesDetail.every((l) => l.phase === 1)],
         [['colonnes', 'rangees', 'auPlusJuste'], true]);
+      v.egal('mono : conseil au minimum de lignes, 4 lignes de 3 colonnes',
+        [tm.conseil, tm.variantes.find((x) => x.mode === 'colonnes').lignesDetail.map((l) => colonnesDe(l.dalles).length)], ['colonnes', [3, 3, 3, 3]]);
     },
   },
   {
@@ -1873,8 +1880,182 @@ export const REGLES = [
         });
       }
     },
+  },  {
+    id: 'R108',
+    titre: 'Départ du câblage selon le mode du mur : en bas en stack, en haut en accroche, forçable',
+    etape: '8b',
+    verifier(v, contexte) {
+      v.egal('stack, côté gauche : en bas à gauche', calculs.coinDepart({ mode: 'stack', cote: 'gauche' }), 'bas-gauche');
+      v.egal('accroche, côté droit : en haut à droite', calculs.coinDepart({ mode: 'accroche', cote: 'droite' }), 'haut-droite');
+      v.egal('automatique par défaut', calculs.coinDepart({ mode: 'stack', cote: 'droite', bord: 'auto' }), 'bas-droite');
+      v.egal('stack forcé en haut (régie arrivant par le haut)', calculs.coinDepart({ mode: 'stack', cote: 'gauche', bord: 'haut' }), 'haut-gauche');
+      v.egal('accroche forcée en bas (armoire arrivant par le bas)', calculs.coinDepart({ mode: 'accroche', cote: 'droite', bord: 'bas' }), 'bas-droite');
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const m = calculs.mur(bp2, 12, 6);
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      for (const [mode, rangee] of [['stack', 6], ['accroche', 1]]) {
+        const coin = calculs.coinDepart({ mode, cote: 'gauche' });
+        const e = calculs.evaluerProcesseur(m, bp2, s8, { ...BROMPTON_60_10, departCablage: coin });
+        const data = calculs.cablageData(m, bp2, e, { depart: coin });
+        const elec = calculs.cablageElec(m, bp2, calculs.electricite(m, bp2, { depart: coin }), { depart: coin });
+        const premieres = [
+          ...data.variantes.find((x) => x.mode === data.conseil).processeurs.flatMap((p) => p.ports.map((x) => x.dalles[0])),
+          ...elec.variantes.find((x) => x.mode === elec.conseil).lignesDetail.map((l) => l.dalles[0]),
+        ];
+        v.vrai(`${mode} : chaque entrée data et chaque arrivée élec au bord ${rangee === 6 ? 'bas (rangée 6)' : 'haut (rangée 1)'}`, premieres.every((id) => position(id)[1] === rangee));
+      }
+    },
+  },
+  {
+    id: 'R109',
+    titre: 'Variante conseillée : colonnes entières, le plus de colonnes par port ; nombre pair seulement en redondance',
+    etape: '8b',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const essais = [
+        ['BP2 V2 12 × 6 sur S8', bp2, calculs.mur(bp2, 12, 6), 'brompton-s8', BROMPTON_60_10],
+        ['cas 13 sur MCTRL660', DALLE_CAS_13, calculs.mur(DALLE_CAS_13, 12, 6), 'novastar-mctrl660', NOVASTAR_60_8],
+        ['cas 7 sur SX40', DALLE_CAS_7, calculs.mur(DALLE_CAS_7, 44, 10), 'brompton-sx40', BROMPTON_60_10],
+        ['cas 5 sur MCTRL660', CABINET_CAS_5, calculs.mur(CABINET_CAS_5, 10, 3), 'novastar-mctrl660', NOVASTAR_60_8],
+      ];
+      for (const [nom, dalle, m, id, reglages] of essais) {
+        const e = calculs.evaluerProcesseur(m, dalle, processeurDeBase(contexte, id), { ...reglages, departCablage: 'bas-gauche' });
+        const t = calculs.cablageData(m, dalle, e, { depart: 'bas-gauche' });
+        v.egal(`${nom} : conseil par colonnes entières`, t.conseil, 'colonnes');
+        v.vrai(`${nom} : aucune colonne coupée entre deux ports`, colonnesEntieres(t.variantes.find((x) => x.mode === 'colonnes').processeurs.flatMap((p) => p.ports), m.rangees.length));
+        v.egal(`${nom} : au plus juste disponible, mais signalé`, t.variantes.find((x) => x.mode === 'auPlusJuste').mention, 'optimisation, rarement câblé ainsi sur le terrain');
+      }
+      const m5 = calculs.mur(DALLE_CAS_13, 12, 5);
+      const conseillee = (id) => {
+        const e = calculs.evaluerProcesseur(m5, DALLE_CAS_13, processeurDeBase(contexte, id), NOVASTAR_60_8);
+        return calculs.cablageData(m5, DALLE_CAS_13, e, { depart: 'bas-gauche' }).variantes.find((x) => x.mode === 'colonnes');
+      };
+      const k4 = conseillee('novastar-mctrl4k');
+      v.egal('MCTRL4K sans redondance, colonnes de 5 dalles : 3 colonnes par port, 4 ports comme l\'onglet Data',
+        k4.processeurs[0].ports.map((p) => colonnesDe(p.dalles).length), [3, 3, 3, 3]);
+      const k660 = conseillee('novastar-mctrl660');
+      v.egal('MCTRL660 sans redondance : 3 colonnes par port', k660.processeurs[0].ports.map((p) => colonnesDe(p.dalles).length), [3, 3, 3, 3]);
+    },
+  },
+  {
+    id: 'R110',
+    titre: 'Retour de secours : le long de la dernière colonne jusqu\'au bord de départ, jamais en diagonale, longueur affichée',
+    etape: '8b',
+    verifier(v, contexte) {
+      const m7 = calculs.mur(DALLE_CAS_7, 44, 10);
+      const e7 = calculs.evaluerProcesseur(m7, DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), { ...BROMPTON_60_10, redondance: true, departCablage: 'bas-gauche' });
+      const v7 = calculs.cablageData(m7, DALLE_CAS_7, e7, { depart: 'bas-gauche' }).variantes.find((x) => x.mode === 'colonnes');
+      const p = v7.processeurs[0].ports[0];
+      v.vrai('chemin du secours : segments verticaux ou horizontaux seulement', v7.processeurs.every((pr) => pr.ports.every((x) => droit(x.secours.chemin))));
+      v.egal('cas 7 en stack : de la dernière dalle (en haut de C1) au bord bas, puis au coin', p.secours.chemin, [[250, 250], [250, 5000], [0, 5000]]);
+      v.proche('longueur du retour le long du mur : (4,75 + 0,25 m) × 1,10 de mou', p.secours.retourM, 5.5, 0.001);
+      v.egal('une colonne par port, nombre impair : retour long', p.secours.long, true);
+      v.vrai('alerte « retour de secours long »', v7.alertes.some((a) => /retour de secours long/.test(a) && /5,5 m/.test(a)));
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const m = calculs.mur(bp2, 12, 6);
+      const e = calculs.evaluerProcesseur(m, bp2, processeurDeBase(contexte, 'brompton-s8'), { ...BROMPTON_60_10, redondance: true, departCablage: 'bas-gauche' });
+      const vc = calculs.cablageData(m, bp2, e, { depart: 'bas-gauche', distanceRegieM: 20 }).variantes.find((x) => x.mode === 'colonnes');
+      const p2 = vc.processeurs[0].ports[0];
+      v.egal('BP2 V2 sur S8 : deux colonnes par port, la chaîne revient en bas, retour court', [p2.secours.long, p2.secours.chemin], [false, [[750, 2750], [750, 3000], [0, 3000]]]);
+      v.proche('longueur du retour de secours avec la distance régie : (20 + 1 m) × 1,10', p2.secours.longueurCuivreM, 23.1, 0.001);
+      v.vrai('pas d\'alerte de retour long', !vc.alertes.some((a) => /retour de secours long/.test(a)));
+    },
+  },
+  {
+    id: 'R111',
+    titre: 'Élec : autant de colonnes entières que la ligne en supporte ; en triphasé, l\'équilibre des phases ; tête au même bord que la data',
+    etape: '8b',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      for (const [nom, dalle, conseil] of [['BP2 V2 (190 W, deux colonnes au plus)', bp2, 'colonnes'],
+        ['cas 13 (130 W, trois colonnes tiennent, deux équilibrent les phases)', DALLE_CAS_13, 'colonnesEquilibre']]) {
+        const m = calculs.mur(dalle, 12, 6);
+        const t = calculs.cablageElec(m, dalle, calculs.electricite(m, dalle, { depart: 'bas-gauche' }), { depart: 'bas-gauche' });
+        const vc = t.variantes.find((x) => x.mode === t.conseil);
+        v.egal(`${nom} : conseil en colonnes entières, phases équilibrées`, t.conseil, conseil);
+        v.egal(`${nom} : 6 lignes de 2 colonnes entières`, vc.lignesDetail.map((l) => colonnesDe(l.dalles).length), [2, 2, 2, 2, 2, 2]);
+        v.vrai(`${nom} : aucune colonne coupée entre deux lignes`, colonnesEntieres(vc.lignesDetail, 6));
+        v.vrai(`${nom} : chaque tête en bas (rangée 6)`, vc.lignesDetail.every((l) => position(l.dalles[0])[1] === 6));
+        v.egal(`${nom} : au plus juste signalé`, t.variantes.find((x) => x.mode === 'auPlusJuste').mention, 'optimisation, rarement câblé ainsi sur le terrain');
+      }
+    },
+  },
+  {
+    id: 'R112',
+    titre: 'Data et Schéma comptent les mêmes ports en colonnes entières ; nombre pair en redondance, sauf s\'il coûte un processeur ; minimum théorique en second',
+    etape: '8b',
+    verifier(v, contexte) {
+      const colonnesDuSchema = (m, dalle, e) => calculs.cablageData(m, dalle, e, { depart: 'bas-gauche' }).variantes.find((x) => x.mode === 'colonnes');
+      const m5 = calculs.mur(DALLE_CAS_13, 12, 5);
+      const e4 = calculs.evaluerProcesseur(m5, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl4k'), { ...NOVASTAR_60_8, redondance: true, departCablage: 'bas-gauche' });
+      const s4 = colonnesDuSchema(m5, DALLE_CAS_13, e4);
+      v.egal('MCTRL4K en redondance : 2 colonnes par port (nombre pair), 6 ports principaux dans Data comme dans Schéma',
+        [e4.global.colonnes.colonnesParPort, e4.totaux.ports.colonnes, s4.processeurs[0].ports.map((p) => colonnesDe(p.dalles).length)], [2, 6, [2, 2, 2, 2, 2, 2]]);
+      v.egal('MCTRL4K en redondance : 12 ports avec les secours', e4.totaux.ports.redondance.colonnes, 12);
+      v.egal('minimum théorique en second : 4 ports au plus juste', e4.global.minimum.nombre, 4);
+      v.vrai('raison de l\'écart : le nombre pair en redondance', /nombre pair/.test(e4.global.minimum.texte ?? '') && /2 colonnes par port au lieu de 3/.test(e4.global.minimum.texte ?? ''));
+      const e660 = calculs.evaluerProcesseur(m5, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), { ...NOVASTAR_60_8, redondance: true, departCablage: 'bas-gauche' });
+      const s660 = colonnesDuSchema(m5, DALLE_CAS_13, e660);
+      v.egal('MCTRL660 en redondance : le nombre pair coûterait un processeur (3 au lieu de 2), gardé à 3 colonnes par port',
+        [e660.nombre, e660.pairAbandonne, e660.global.colonnes.colonnesParPort], [2, { avecPair: 3, sansPair: 2 }, 3]);
+      v.vrai('alerte : nombre pair abandonné, retour de secours long', e660.alertes.some((a) => /nombre pair/.test(a) && /3 × Novastar MCTRL660 au lieu de 2/.test(a) && /retour de secours est long/.test(a)));
+      v.egal('schéma : 3 colonnes par port sur chaque MCTRL660', s660.processeurs.map((p) => p.ports.map((q) => colonnesDe(q.dalles).length)), [[3, 3], [3, 3]]);
+      v.vrai('schéma : retours de secours longs signalés, de 3,9 m à 8,8 m', s660.alertes.some((a) => /retour de secours long, de 3,9 m à 8,8 m/.test(a)));
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const m = calculs.mur(bp2, 12, 6);
+      for (const redondance of [false, true]) {
+        const e = calculs.evaluerProcesseur(m, bp2, processeurDeBase(contexte, 'brompton-s8'), { ...BROMPTON_60_10, redondance, departCablage: 'bas-gauche' });
+        const s = colonnesDuSchema(m, bp2, e);
+        v.egal(`BP2 V2 sur S8${redondance ? ' en redondance' : ''} : mêmes ports dans Data et dans Schéma`,
+          e.totaux.ports.colonnes, s.processeurs.reduce((n, p) => n + p.ports.length, 0));
+      }
+    },
+  },
+  {
+    id: 'R113',
+    titre: 'Élec en triphasé : conseil à l\'équilibre des phases en colonnes entières, écart en pourcentage, minimum de lignes en second',
+    etape: '8b',
+    verifier(v) {
+      const e = calculs.electricite(calculs.mur(DALLE_CAS_13, 12, 6), DALLE_CAS_13, { arrivee: { type: 'tri', intensiteA: 32 } });
+      const { equilibre, minimum } = e.triphase.colonnes;
+      v.egal('cas 13 : équilibre de 6 lignes de 2 colonnes, écart 0 %', [equilibre.lignes.map((l) => l.colonnes), equilibre.ecartW, equilibre.ecartPourcent],
+        [[2, 2, 2, 2, 2, 2], 0, 0]);
+      v.egal('minimum en second : 4 lignes de 3 colonnes, 2 340 W d\'écart, 50 %', [minimum.lignes.map((l) => l.colonnes), minimum.ecartW, minimum.ecartPourcent],
+        [[3, 3, 3, 3], 2340, 50]);
+      v.egal('lignes retenues : celles de l\'équilibre', e.lignes.retenues, 6);
+      v.vrai('raison de l\'écart au minimum théorique : l\'équilibre des phases', /équilibre des phases : 6 lignes au lieu de 4/.test(e.lignes.minimum.texte ?? ''));
+      const e10 = calculs.electricite(calculs.mur(DALLE_CAS_13, 10, 6), DALLE_CAS_13, { arrivee: { type: 'tri', intensiteA: 32 } });
+      v.egal('dalle du cas 13 en 10 × 6 : à écart égal (25 %), le moins de lignes, et les plus régulières : 3-3-2-2 plutôt que 3-3-3-1',
+        [e10.triphase.colonnes.equilibre.lignes.map((l) => l.colonnes), e10.triphase.colonnes.equilibre.phases.map((p) => p.puissanceW),
+          e10.triphase.colonnes.equilibre.ecartPourcent], [[3, 3, 2, 2], [2340, 2340, 3120], 25]);
+      const mono = calculs.electricite(calculs.mur(DALLE_CAS_13, 12, 6), DALLE_CAS_13, { arrivee: { type: 'mono', intensiteA: 32 } });
+      v.egal('monophasé : rien ne change, le minimum de lignes', [mono.triphase, mono.lignes.retenues], [null, 4]);
+    },
   },
 ];
+
+// Colonnes touchées par un trajet.
+function colonnesDe(ids) {
+  return [...new Set(ids.map((id) => position(id)[0]))];
+}
+
+// Chaque colonne entière dans un seul trajet (port ou ligne) : aucune colonne coupée entre deux trajets.
+function colonnesEntieres(trajets, nbRangees) {
+  const proprietaire = new Map();
+  for (const [i, t] of trajets.entries()) {
+    for (const id of t.dalles) {
+      const [c] = position(id);
+      if (proprietaire.has(c) && proprietaire.get(c) !== i) return false;
+      proprietaire.set(c, i);
+    }
+  }
+  return trajets.every((t) => colonnesDe(t.dalles).every((c) => t.dalles.filter((id) => position(id)[0] === c).length === nbRangees));
+}
+
+// Chemin fait de segments verticaux ou horizontaux seulement.
+function droit(chemin) {
+  return chemin.every((p, i) => i === 0 || p[0] === chemin[i - 1][0] || p[1] === chemin[i - 1][1]);
+}
 
 // Pixels couverts exactement une fois : dans le cadre, surfaces égales et aucun chevauchement.
 function verifierCouverture(v, libelle, dalles, largeur, hauteur) {

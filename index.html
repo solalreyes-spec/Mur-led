@@ -434,14 +434,25 @@
         </fieldset>
         <div class="paire">
           <div class="champ">
-            <label for="depart-data">Départ data</label>
-            <select id="depart-data" name="departData"><option value="haut-gauche">Haut gauche</option><option value="haut-droite">Haut droite</option><option value="bas-gauche">Bas gauche</option><option value="bas-droite">Bas droite</option></select>
+            <label for="cote-data">Data : côté du processeur</label>
+            <select id="cote-data" name="coteData"><option value="gauche">Gauche</option><option value="droite">Droite</option></select>
           </div>
           <div class="champ">
-            <label for="depart-elec">Départ élec</label>
-            <select id="depart-elec" name="departElec"><option value="haut-gauche">Haut gauche</option><option value="haut-droite">Haut droite</option><option value="bas-gauche">Bas gauche</option><option value="bas-droite">Bas droite</option></select>
+            <label for="bord-data">Data : bord des entrées</label>
+            <select id="bord-data" name="bordData"><option value="auto">Automatique</option><option value="haut">Forcer en haut</option><option value="bas">Forcer en bas</option></select>
           </div>
         </div>
+        <div class="paire">
+          <div class="champ">
+            <label for="cote-elec">Élec : côté de l'armoire</label>
+            <select id="cote-elec" name="coteElec"><option value="gauche">Gauche</option><option value="droite">Droite</option></select>
+          </div>
+          <div class="champ">
+            <label for="bord-elec">Élec : bord des arrivées</label>
+            <select id="bord-elec" name="bordElec"><option value="auto">Automatique</option><option value="haut">Forcer en haut</option><option value="bas">Forcer en bas</option></select>
+          </div>
+        </div>
+        <p class="note">Automatique : en bas pour un mur posé (stack), en haut pour un mur accroché, selon l'onglet Poids. Force l'autre bord quand la régie ou l'armoire arrive par l'autre côté.</p>
         <details class="fiche">
           <summary>Longueur des câbles de tête (facultatif)</summary>
           <div class="formulaire">

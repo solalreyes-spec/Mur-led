@@ -514,7 +514,9 @@ function modeleCharge(parPort, charge) {
 // Ports nécessaires pour un mur, au plus juste et en colonnes entières.
 // Une colonne plus haute qu'un port est répartie en segments égaux ; la demi-dalle reste dans le segment de son bord.
 // La limite en nombre de dalles (redondance Brompton : 50 par boucle) compte une demi-dalle pour une dalle.
-export function cablage(m, parPort, charge = null) {
+// `pair` (redondance) : nombre pair de colonnes par port quand il en tient au moins deux, pour que la chaîne revienne
+// au bord de départ ; sans redondance, le plus de colonnes entières par port.
+export function cablage(m, parPort, charge = null, { pair = false } = {}) {
   if (!(parPort >= 1)) throw new ErreurSaisie('Une seule dalle dépasse la capacité d\'un port.');
   const modele = modeleCharge(parPort, charge);
   const tient = (e, d) => e <= modele.maxEntieres && d <= modele.maxDemi(e);
@@ -540,10 +542,12 @@ export function cablage(m, parPort, charge = null) {
 
   let colonnes;
   if (tient(entieresParColonne, demiParColonne)) {
-    let k = 1;
-    while (k < m.colonnes && tient((k + 1) * entieresParColonne, (k + 1) * demiParColonne)) k += 1;
+    let kmax = 1;
+    while (kmax < m.colonnes && tient((kmax + 1) * entieresParColonne, (kmax + 1) * demiParColonne)) kmax += 1;
+    const k = pair && kmax >= 2 ? kmax - (kmax % 2) : kmax;
     colonnes = {
       colonnesParPort: k,
+      colonnesParPortMax: kmax,
       segments: [parColonne],
       ports: Math.ceil(m.colonnes / k),
       dallesMaxParPort: k * parColonne,
@@ -583,6 +587,32 @@ export function cablage(m, parPort, charge = null) {
     seuil: { dallesEnMoins: auPlusJuste > 1 ? dernier.e + dernier.d : null },
     remplissage,
     total,
+  };
+}
+
+// Minimum théorique (au plus juste) face au décompte retenu en colonnes entières, avec la raison de l'écart.
+// `unite` : 'port' ou 'ligne' ; `pair` : nombre pair de colonnes imposé par la redondance.
+function minimumTheorique(c, minimum, m, unite, { pair = false } = {}) {
+  const retenu = c.colonnes.ports;
+  const pl = (n) => `${n} ${unite}${n > 1 ? 's' : ''}`;
+  const raisons = [];
+  const k = c.colonnes.colonnesParPort;
+  if (!k) {
+    raisons.push(`chaque colonne dépasse un${unite === 'ligne' ? 'e' : ''} ${unite} : elle est coupée en ${c.colonnes.segments.length} segments égaux`);
+  } else {
+    const kmax = c.colonnes.colonnesParPortMax;
+    const sansPair = Math.ceil(m.colonnes / kmax);
+    if (pair && k < kmax && retenu > sansPair) {
+      raisons.push(`en redondance, ${k} colonnes par ${unite} au lieu de ${kmax} : un nombre pair ramène chaque chaîne au bord de départ `
+        + `(${pl(sansPair)} sans cette règle)`);
+    }
+    if (sansPair > minimum) raisons.push(`une colonne n'est jamais coupée entre deux ${unite}s`);
+  }
+  return {
+    nombre: minimum,
+    raisons,
+    texte: retenu === minimum ? null
+      : `Minimum théorique : ${pl(minimum)} au plus juste, contre ${retenu} en colonnes entières. Écart : ${raisons.join(' ; ')}.`,
   };
 }
 
@@ -642,7 +672,7 @@ function sousMur(m, dalle, colonnes, premiereRangee, nbRangees) {
 
 function blocProcesseur(m, dalle, proc, contexte, { colonnes, premiereColonne, rangees, premiereRangee }) {
   const sous = sousMur(m, dalle, colonnes, premiereRangee, rangees);
-  const c = cablage(sous, contexte.parPort, contexte.charge);
+  const c = cablage(sous, contexte.parPort, contexte.charge, { pair: contexte.pair });
   const ports = portsFaceALimite(c, proc, contexte);
   const canvas = canvasProcesseur(proc, sous.pxLargeur, sous.pxHauteur);
   const sorties = proc.sortiesParDistributeur;
@@ -682,7 +712,7 @@ function blocProcesseur(m, dalle, proc, contexte, { colonnes, premiereColonne, r
 // Contrôles d'un processeur pour tout le mur, puis découpage : en colonnes entières d'abord,
 // en rangées si le mur est trop haut, en grille s'il est à la fois trop large et trop haut.
 function decouper(m, dalle, proc, contexte) {
-  const global = cablage(m, contexte.parPort, contexte.charge);
+  const global = cablage(m, contexte.parPort, contexte.charge, { pair: contexte.pair });
   const ports = portsFaceALimite(global, proc, contexte);
   const hauteurMax = Math.max(...formatsCanvas(proc).map((f) => f.hauteurPx));
   const largeurMax = largeurMaxPour(proc, Math.min(m.pxHauteur, hauteurMax));
@@ -829,11 +859,26 @@ export function evaluerProcesseur(m, dalle, proc, reglages = {}) {
     return { ...base, impossible: `Le ${proc.nom} n'a qu'un seul port : pas de redondance possible.` };
   }
 
+  // En redondance, nombre pair de colonnes par port pour que chaque chaîne revienne au bord de départ,
+  // sauf s'il coûte un processeur : alors le plus de colonnes par port, et des retours de secours longs.
   const contexte = {
-    parPort, capacite, redondance, modeOptique: optique,
+    parPort, capacite, redondance, modeOptique: optique, pair: redondance,
     charge: { capacite, pxParDalle, pxParDemi, plafond },
   };
-  const d = decouper(m, dalle, proc, contexte);
+  let d = decouper(m, dalle, proc, contexte);
+  let pairAbandonne = null;
+  if (redondance) {
+    const sansPair = decouper(m, dalle, proc, { ...contexte, pair: false });
+    if (sansPair.nombre !== null && (d.nombre === null || sansPair.nombre < d.nombre)) {
+      pairAbandonne = { avecPair: d.nombre, sansPair: sansPair.nombre };
+      contexte.pair = false;
+      d = sansPair;
+      const k = d.global.colonnes.colonnesParPort;
+      alertes.push(`Redondance : un nombre pair de colonnes par port demanderait ${pairAbandonne.avecPair === null
+        ? 'plus de processeurs' : `${pairAbandonne.avecPair} × ${proc.nom}`} au lieu de ${sansPair.nombre}. Gardé à ${k} colonnes par port : `
+        + 'des chaînes finissent au bord opposé au départ, leur retour de secours est long (longueur dans l\'onglet Schéma).');
+    }
+  }
   // Au plus juste le long du vrai serpentin : il fait foi quand il diffère du décompte théorique (demi-dalles).
   const departCablage = reglages.departCablage ?? 'haut-gauche';
   for (const g of d.groupes) {
@@ -909,6 +954,8 @@ export function evaluerProcesseur(m, dalle, proc, reglages = {}) {
             + `contre ${d.global.auPlusJuste} au décompte théorique. Le serpentin alterne dalles entières et demi-dalles : `
             + 'un port ne peut pas toujours être rempli au plus juste.',
       },
+      // Décompte retenu en colonnes entières ; minimum théorique au plus juste donné en second.
+      minimum: minimumTheorique(d.global, serpentinGlobal.length, m, 'port', { pair: contexte.pair }),
       // Décompte global, sans découpage par processeur (celui du formateur).
       distributeurs: sorties ? {
         auPlusJuste: Math.ceil(d.global.auPlusJuste / sorties),
@@ -924,6 +971,9 @@ export function evaluerProcesseur(m, dalle, proc, reglages = {}) {
     nombre: d.nombre,
     grille: d.grille,
     unSeulSuffit: d.nombre === 1,
+    // Redondance : nombre pair de colonnes par port appliqué, ou abandonné parce qu'il coûterait un processeur.
+    colonnesPaires: contexte.pair,
+    pairAbandonne,
     impossible: d.impossible,
     groupes: d.groupes,
     totaux,
@@ -1210,10 +1260,13 @@ function versPhases(lignes, tensionV, capacitePhaseW, affectation) {
   });
   for (const p of phases) p.intensiteA = p.puissanceW / tensionV;
   const charges = phases.map((p) => p.puissanceW);
+  const ecartW = arrondiW(Math.max(...charges) - Math.min(...charges));
   return {
     lignes,
     phases,
-    ecartW: arrondiW(Math.max(...charges) - Math.min(...charges)),
+    ecartW,
+    // Écart entre la phase la plus chargée et la moins chargée, rapporté à la plus chargée.
+    ecartPourcent: Math.max(...charges) > 0 ? (100 * ecartW) / Math.max(...charges) : 0,
     ok: charges.every((w) => w <= capacitePhaseW + EPS),
   };
 }
@@ -1343,6 +1396,9 @@ export function electricite(m, dalle, reglages = {}) {
             + 'une ligne ne peut pas toujours être remplie au plus juste.',
       },
       colonnes: { nombre: lignesColonnes.length, colonnesParLigne: c.colonnes.colonnesParPort, segments: c.colonnes.segments, lignes: lignesColonnes },
+      // Lignes retenues : en colonnes entières, au minimum ; en triphasé, celles de l'équilibre des phases.
+      retenues: lignesColonnes.length,
+      minimum: minimumTheorique(c, lignesAuPlusJuste.length, m, 'ligne'),
     },
     arrivee: {
       type: arrivee.type,
@@ -1379,22 +1435,44 @@ export function electricite(m, dalle, reglages = {}) {
         break;
       }
     }
-    // Équilibre en colonnes entières : colonnes réparties sur un multiple de 3 lignes, si le mur a assez de colonnes.
-    let equilibreColonnes = null;
-    const nColonnes = multipleDe3(lignesColonnes.length);
-    if (c.colonnes.colonnesParPort && m.colonnes >= nColonnes) {
-      const lignes = repartir(m.colonnes, nColonnes).map((n) => ({
-        colonnes: n, dalles: n * (entieresParColonne + demiParColonne), puissanceW: watts(n * entieresParColonne, n * demiParColonne),
+    // Équilibre des phases en colonnes entières (conseil) : parmi les répartitions des colonnes entières, du minimum
+    // de lignes à une colonne par ligne, l'écart entre phases le plus faible ; à écart égal, le moins de lignes ;
+    // à lignes égales, les plus régulières (3-3-2-2 plutôt que 3-3-3-1). Chaque ligne, des plus chargées aux moins
+    // chargées, va sur la phase la moins chargée. Colonne coupée en segments : les lignes sont fixes.
+    let equilibreColonnes;
+    if (c.colonnes.colonnesParPort) {
+      const versLignes = (tailles) => tailles.map((k) => ({
+        colonnes: k, dalles: k * (entieresParColonne + demiParColonne), puissanceW: watts(k * entieresParColonne, k * demiParColonne),
       }));
-      equilibreColonnes = repartitionEquilibree(lignes, tensionV, capacitePhaseW);
-    } else if (!c.colonnes.colonnesParPort && lignesColonnes.length % 3 === 0) {
-      equilibreColonnes = repartitionEquilibree(lignesColonnes, tensionV, capacitePhaseW);
+      const candidats = [lignesColonnes.map((l) => l.colonnes), ...suite(lignesColonnes.length, m.colonnes).map((n) => repartir(m.colonnes, n))];
+      const avant = (a, b) => a.ecartW < b.ecartW - EPS
+        || (Math.abs(a.ecartW - b.ecartW) <= EPS && (a.n < b.n || (a.n === b.n && a.irregularite < b.irregularite)));
+      let meilleur = null;
+      for (const tailles of candidats) {
+        const option = repartitionMinimale(versLignes(tailles), tensionV, capacitePhaseW);
+        const cle = { ecartW: option.ecartW, n: tailles.length, irregularite: Math.max(...tailles) - Math.min(...tailles), option };
+        if (!meilleur || avant(cle, meilleur)) meilleur = cle;
+      }
+      equilibreColonnes = meilleur.option;
+    } else {
+      equilibreColonnes = repartitionMinimale(lignesColonnes.map((l) => ({ ...l })), tensionV, capacitePhaseW);
     }
     resultat.triphase = {
       auPlusJuste: { equilibre: equilibreApj, minimum: repartitionMinimale(lignesAuPlusJuste, tensionV, capacitePhaseW) },
       colonnes: { equilibre: equilibreColonnes, minimum: repartitionMinimale(lignesColonnes, tensionV, capacitePhaseW) },
     };
-    const conseil = equilibreApj ?? resultat.triphase.auPlusJuste.minimum;
+    // Conseil : l'équilibre des phases en colonnes entières ; le minimum de lignes est proposé en second.
+    const conseil = equilibreColonnes;
+    const minimumColonnes = resultat.triphase.colonnes.minimum;
+    resultat.lignes.retenues = conseil.lignes.length;
+    if (conseil.lignes.length > minimumColonnes.lignes.length) {
+      const pc = (x) => `${nombreCourt(x, 0)} %`;
+      const ecart = resultat.lignes.minimum;
+      ecart.raisons.push(`équilibre des phases : ${conseil.lignes.length} lignes au lieu de ${minimumColonnes.lignes.length}, `
+        + `écart entre phases ${pc(conseil.ecartPourcent)} au lieu de ${pc(minimumColonnes.ecartPourcent)}`);
+      ecart.texte = `Minimum théorique : ${ecart.nombre} ligne${ecart.nombre > 1 ? 's' : ''} au plus juste, contre ${conseil.lignes.length} `
+        + `en colonnes entières. Écart : ${ecart.raisons.join(' ; ')}.`;
+    }
     if (!conseil.ok) {
       const max = Math.max(...conseil.phases.map((p) => p.puissanceW));
       alertes.push(`Arrivée tri ${nombreCourt(arrivee.intensiteA)} A : la phase la plus chargée demande ${nombreCourt(max)} W `
@@ -1675,64 +1753,74 @@ function remplirGlouton(ordre, poids, capacite, plafond) {
   return groupes;
 }
 
-// Groupes de positions par colonnes entières (k colonnes par groupe depuis le coin de départ), ou, si une colonne
-// dépasse, chaque colonne en segments (tailles de haut en bas, comme `cablage`).
-function groupesColonnes(cols, rows, c, coin) {
-  const deGauche = coin.endsWith('gauche');
-  const ordreCols = deGauche ? cols : [...cols].reverse();
+// Règles du terrain (étape 8b) : un port ou une ligne prend des colonnes entières et part du bord de départ.
+
+// Groupes de colonnes entières depuis le côté de départ, chacun en serpentin depuis le bord de départ :
+// k colonnes par groupe, ou la taille de chaque groupe (tableau).
+function lotsDeColonnes(cols, rows, tailles, coin) {
+  const ordreCols = coin.endsWith('gauche') ? cols : [...cols].reverse();
+  const liste = Array.isArray(tailles) ? tailles : repartirParLots(ordreCols.length, tailles);
   const groupes = [];
-  if (c.colonnes.colonnesParPort) {
-    const k = c.colonnes.colonnesParPort;
-    for (let i = 0; i < ordreCols.length; i += k) {
-      const lot = ordreCols.slice(i, i + k).sort((a, b) => a - b);
-      groupes.push(serpentin(lot, rows, 'vertical', coin));
-    }
-    return groupes;
+  let avant = 0;
+  for (const n of liste) {
+    groupes.push(serpentin(ordreCols.slice(avant, avant + n).sort((a, b) => a - b), rows, 'vertical', coin));
+    avant += n;
   }
+  return groupes;
+}
+
+// Lots de k, le dernier avec le reste.
+function repartirParLots(total, k) {
+  return Array.from({ length: Math.ceil(total / k) }, (_, i) => Math.min(k, total - i * k));
+}
+
+// Colonne plus haute qu'un port ou qu'une ligne : chaque colonne en segments égaux (tailles de haut en bas,
+// comme `cablage`), chacun partant de son extrémité côté bord de départ.
+function segmentsDeColonnes(cols, rows, tailles, coin) {
+  const ordreCols = coin.endsWith('gauche') ? cols : [...cols].reverse();
   const segments = [];
   let debut = 0;
-  for (const n of c.colonnes.segments) {
+  for (const n of tailles) {
     segments.push(rows.slice(debut, debut + n));
     debut += n;
   }
   const ordreSegments = coin.startsWith('haut') ? segments : [...segments].reverse();
-  for (const col of ordreCols) for (const seg of ordreSegments) groupes.push(serpentin([col], seg, 'vertical', coin));
-  return groupes;
+  return ordreCols.flatMap((col) => ordreSegments.map((seg) => serpentin([col], seg, 'vertical', coin)));
 }
 
-// Groupes par rangées entières (rangées consécutives depuis le coin tant qu'elles tiennent), ou, pour une rangée
-// qui dépasse, la rangée en segments égaux de colonnes.
-function groupesRangees(cols, rows, poids, capacite, plafond, coin) {
+// Groupes par rangées entières depuis le bord de départ, en serpentin depuis le côté de départ : le plus de rangées
+// qui tiennent, en nombre pair en redondance (data). Une rangée qui ne tient pas seule est coupée en segments égaux
+// de colonnes.
+function groupesRangees(cols, rows, poids, capacite, plafond, coin, { pair = false } = {}) {
   const ordreRows = coin.startsWith('haut') ? rows : [...rows].reverse();
   const ordreCols = coin.endsWith('gauche') ? cols : [...cols].reverse();
-  const chargeRangee = (r) => cols.reduce((s, c) => s + poids([c, r]), 0);
-  const tient = (positions) => positions.reduce((s, p) => s + poids(p), 0) <= capacite + EPS && positions.length <= plafond;
-  const groupes = [];
-  let lot = [];
-  const fermer = () => {
-    if (lot.length > 0) groupes.push(serpentin(cols, [...lot].sort((a, b) => a - b), 'horizontal', coin));
-    lot = [];
+  const positions = (rs) => rs.flatMap((r) => cols.map((c) => [c, r]));
+  const tient = (ps) => ps.reduce((s, p) => s + poids(p), 0) <= capacite + EPS && ps.length <= plafond;
+  const lots = (k) => {
+    const groupes = [];
+    for (let i = 0; i < ordreRows.length; i += k) groupes.push(ordreRows.slice(i, i + k));
+    return groupes;
   };
-  for (const r of ordreRows) {
-    if (!(chargeRangee(r) <= capacite + EPS && cols.length <= plafond)) {
-      fermer();
-      let s = 2;
-      while (s < cols.length && !repartir(cols.length, s).every((n, i, tailles) => {
-        const avant = tailles.slice(0, i).reduce((a, b) => a + b, 0);
-        return tient(ordreCols.slice(avant, avant + n).map((c) => [c, r]));
-      })) s += 1;
-      let avant = 0;
-      for (const n of repartir(cols.length, s)) {
-        groupes.push(serpentin(ordreCols.slice(avant, avant + n).sort((a, b) => a - b), [r], 'horizontal', coin));
-        avant += n;
-      }
-      continue;
+  let kmax = 0;
+  for (let n = 1; n <= ordreRows.length && lots(n).every((l) => tient(positions(l))); n += 1) kmax = n;
+  if (kmax >= 1) {
+    for (let k = pair && kmax >= 2 ? kmax - (kmax % 2) : kmax; k >= 1; k -= 1) {
+      if (lots(k).every((l) => tient(positions(l)))) return lots(k).map((l) => serpentin(cols, [...l].sort((a, b) => a - b), 'horizontal', coin));
     }
-    const avec = [...lot, r];
-    if (lot.length > 0 && !tient(avec.flatMap((x) => cols.map((c) => [c, x])))) fermer();
-    lot.push(r);
   }
-  fermer();
+  const groupes = [];
+  for (const r of ordreRows) {
+    let s = 1;
+    while (s < cols.length && !repartir(cols.length, s).every((n, i, tailles) => {
+      const avant = tailles.slice(0, i).reduce((a, b) => a + b, 0);
+      return tient(ordreCols.slice(avant, avant + n).map((c) => [c, r]));
+    })) s += 1;
+    let avant = 0;
+    for (const n of repartir(cols.length, s)) {
+      groupes.push(serpentin(ordreCols.slice(avant, avant + n).sort((a, b) => a - b), [r], 'horizontal', coin));
+      avant += n;
+    }
+  }
   return groupes;
 }
 
@@ -1750,6 +1838,26 @@ function trajetDepuisCoin(m, coin, d) {
   const y0 = coin.startsWith('haut') ? 0 : m.hauteurMm;
   return (Math.abs(d.mm.x + d.mm.largeur / 2 - x0) + Math.abs(d.mm.y + d.mm.hauteur / 2 - y0)) / 1000;
 }
+
+// Retour de secours : de la dernière dalle au bord de départ en longeant la structure (le long de sa colonne, ou de
+// sa rangée pour un câblage par rangées), puis le long du bord jusqu'au coin. Jamais en diagonale. Points en mm.
+function cheminSecours(m, coin, d, orientation) {
+  const xc = d.mm.x + d.mm.largeur / 2;
+  const yc = d.mm.y + d.mm.hauteur / 2;
+  const x0 = coin.endsWith('gauche') ? 0 : m.largeurMm;
+  const y0 = coin.startsWith('haut') ? 0 : m.hauteurMm;
+  return orientation === 'rangees' ? [[xc, yc], [x0, yc], [x0, y0]] : [[xc, yc], [xc, y0], [x0, y0]];
+}
+const longueurCheminM = (chemin) => chemin.reduce((s, p, i) => (i === 0 ? 0 : s + Math.abs(p[0] - chemin[i - 1][0]) + Math.abs(p[1] - chemin[i - 1][1])), 0) / 1000;
+
+// Coin de départ selon le mode du mur : en bas pour un mur posé (stack), en haut pour un mur accroché ; le bord
+// peut être forcé quand la régie ou l'armoire arrive par l'autre côté. Côté : celui du processeur ou de l'armoire.
+export function coinDepart({ mode = 'accroche', cote = 'gauche', bord = 'auto' } = {}) {
+  const vertical = bord === 'haut' || bord === 'bas' ? bord : (mode === 'stack' ? 'bas' : 'haut');
+  return `${vertical}-${cote === 'droite' ? 'droite' : 'gauche'}`;
+}
+
+export const MENTION_AU_PLUS_JUSTE = 'optimisation, rarement câblé ainsi sur le terrain';
 
 // Rectangle englobant d'un port en pixels réels, tel que NovaLCT le compte.
 function pxRectangleEnglobant(positions, dalle, hauteurs) {
@@ -1801,18 +1909,32 @@ export function cablageData(m, dalle, evaluation, {
   };
   const mou = 1 + margeMou;
 
+  const limite = redondance && proc.portsRedondance ? proc.portsRedondance : (modeOptique && proc.portsOptionOptique ? proc.portsOptionOptique : proc.ports);
+  const utilises = (nb) => (redondance && !proc.portsRedondance ? 2 * nb : nb);
   const modes = ['colonnes', 'rangees', 'auPlusJuste', ...(novaLCT ? ['rectangles'] : [])];
   const variantes = modes.map((mode) => {
     const raisons = [];
+    const notes = [];
+    const orientation = mode === 'rangees' ? 'rangees' : 'colonnes';
     const processeurs = evaluation.groupes.map((g, i) => {
       const cols = suite(g.premiereColonne, g.derniereColonne);
       const rows = suite(g.premiereRangee, g.derniereRangee);
       const sous = sousMur(m, dalle, g.colonnes, g.premiereRangee, g.rangees);
       let groupes;
       if (mode === 'colonnes') {
-        groupes = groupesColonnes(cols, rows, cablage(sous, evaluation.dallesParPort, charge), depart);
+        // Mêmes colonnes par port que l'onglet Data : le plus possible, en nombre pair en redondance
+        // (sauf s'il coûte un processeur).
+        const cBloc = cablage(sous, evaluation.dallesParPort, charge, { pair: evaluation.colonnesPaires });
+        const k = cBloc.colonnes.colonnesParPort;
+        if (k) {
+          groupes = lotsDeColonnes(cols, rows, k, depart);
+        } else {
+          groupes = segmentsDeColonnes(cols, rows, cBloc.colonnes.segments, depart);
+          notes.push(`Processeur n° ${i + 1} : une colonne dépasse la capacité d'un port. Elle est coupée en ${cBloc.colonnes.segments.length} `
+            + 'segments égaux : les ports éloignés du bord démarrent au milieu de leur colonne, leur câble de tête longe la colonne.');
+        }
       } else if (mode === 'rangees') {
-        groupes = groupesRangees(cols, rows, poids, capacite, plafond, depart);
+        groupes = groupesRangees(cols, rows, poids, capacite, plafond, depart, { pair: evaluation.colonnesPaires });
       } else if (mode === 'auPlusJuste') {
         groupes = remplirGlouton(serpentin(cols, rows, 'vertical', depart), poids, capacite, plafond);
         if (novaLCT) {
@@ -1837,17 +1959,32 @@ export function cablageData(m, dalle, evaluation, {
       }
 
       const nb = groupes.length;
-      const limite = redondance && proc.portsRedondance ? proc.portsRedondance : (modeOptique && proc.portsOptionOptique ? proc.portsOptionOptique : proc.ports);
-      const utilises = redondance && !proc.portsRedondance ? 2 * nb : nb;
-      if (utilises > limite) {
-        raisons.push(`Le processeur n° ${i + 1} demande ${utilises} ports${redondance && proc.portsRedondance ? ' principaux' : ''}, `
+      if (utilises(nb) > limite) {
+        raisons.push(`Le processeur n° ${i + 1} demande ${utilises(nb)} ports${redondance && proc.portsRedondance ? ' principaux' : ''}, `
           + `au-delà des ${limite} d'un ${proc.nom}.`);
       }
       const ports = groupes.map((grp, j) => {
         const px = grp.reduce((s, p) => s + poids(p), 0);
         const trajet = trajetDepuisCoin(m, depart, tuile(grp[0]));
+        const base = portEtSecours(j + 1, nb);
+        if (base.secours) {
+          // Retour de secours le long de la structure ; long quand la chaîne finit loin du bord de départ.
+          const derniere = tuile(grp[grp.length - 1]);
+          const chemin = cheminSecours(m, depart, derniere, orientation);
+          const long = orientation === 'rangees'
+            ? Math.abs(chemin[0][0] - chemin[1][0]) > derniere.mm.largeur
+            : Math.abs(chemin[0][1] - chemin[1][1]) > derniere.mm.hauteur;
+          const murM = longueurCheminM(chemin);
+          base.secours = {
+            ...base.secours,
+            chemin,
+            retourM: murM * mou,
+            long,
+            longueurCuivreM: distanceRegieM === null ? null : (surDistributeur ? murM : distanceRegieM + murM) * mou,
+          };
+        }
         return {
-          ...portEtSecours(j + 1, nb),
+          ...base,
           dalles: grp.map(([c, r]) => idDalle(c, r)),
           px,
           taux: px / capacite,
@@ -1866,9 +2003,19 @@ export function cablageData(m, dalle, evaluation, {
         + `(jusqu'à ${nombreCourt(Math.max(...longs.map((p) => p.longueurCuivreM)), 1)} m) : l'Ethernet en cuivre s'arrête à ${LIMITE_CUIVRE_M} m, `
         + `passe en fibre avec des ${fibre} au pied du mur.`);
     }
+    const retoursLongs = tous.filter((p) => p.secours?.long).map((p) => p.secours.retourM);
+    if (retoursLongs.length > 0) {
+      const [min, max] = [Math.min(...retoursLongs), Math.max(...retoursLongs)].map((x) => nombreCourt(x, 1));
+      alertes.push(`${retoursLongs.length} port${retoursLongs.length > 1 ? 's finissent' : ' finit'} au bord opposé au départ `
+        + `(nombre impair de ${orientation === 'rangees' ? 'rangées' : 'colonnes'}) : retour de secours long, `
+        + `${min === max ? `${min} m` : `de ${min} m à ${max} m`} le long de la structure.`);
+    }
     return {
       mode,
       libelle: LIBELLES_DATA[mode],
+      orientation,
+      mention: mode === 'auPlusJuste' ? MENTION_AU_PLUS_JUSTE : null,
+      ecart: notes.length ? notes.join(' ') : null,
       possible: raisons.length === 0,
       raison: raisons.length ? raisons.join(' ') : null,
       processeurs,
@@ -1884,7 +2031,8 @@ export function cablageData(m, dalle, evaluation, {
       alertes,
     };
   });
-  return { depart, conseil: novaLCT ? 'rectangles' : 'colonnes', variantes, alertes: [] };
+  // Conseil : colonnes entières, comme sur le terrain ; l'au plus juste reste une optimisation.
+  return { depart, conseil: 'colonnes', variantes, alertes: [] };
 }
 
 const LIBELLES_ELEC = {
@@ -1935,19 +2083,16 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
   const c = cablage(m, elec.dallesParLigne.retenu, { capacite: utileW, pxParDalle: pDalle, pxParDemi: pDemi, plafond });
   const serpent = serpentin(cols, rows, 'vertical', depart);
 
-  const tailles = {
-    colonnes: () => groupesColonnes(cols, rows, c, depart),
-    colonnesEquilibre: () => {
-      if (!c.colonnes.colonnesParPort) return groupesColonnes(cols, rows, c, depart);
-      const ordreCols = depart.endsWith('gauche') ? cols : [...cols].reverse();
-      const groupes = [];
-      let avant = 0;
-      for (const n of repartir(m.colonnes, elec.triphase.colonnes.equilibre.lignes.length)) {
-        groupes.push(serpentin(ordreCols.slice(avant, avant + n).sort((a, b) => a - b), rows, 'vertical', depart));
-        avant += n;
-      }
-      return groupes;
-    },
+  // Une ligne prend autant de colonnes entières qu'elle en supporte avec la marge choisie ; jamais une colonne
+  // coupée, sauf colonne plus lourde qu'une ligne (segments égaux).
+  const kmax = c.colonnes.colonnesParPort;
+  const coupee = kmax ? null : `Une colonne dépasse une ligne : elle est coupée en ${c.colonnes.segments.length} segments égaux, `
+    + 'les lignes éloignées du bord démarrent au milieu de leur colonne.';
+  const notes = { colonnes: coupee, colonnesEquilibre: coupee };
+  const groupesDe = {
+    colonnes: () => (kmax ? lotsDeColonnes(cols, rows, kmax, depart) : segmentsDeColonnes(cols, rows, c.colonnes.segments, depart)),
+    // Répartition conseillée de l'onglet Élec en triphasé : mêmes lignes, dans l'ordre depuis le côté de départ.
+    colonnesEquilibre: () => lotsDeColonnes(cols, rows, elec.triphase.colonnes.equilibre.lignes.map((l) => l.colonnes), depart),
     rangees: () => groupesRangees(cols, rows, poids, utileW, plafond, depart),
     auPlusJuste: () => remplirGlouton(serpent, poids, utileW, plafond),
     auPlusJusteEquilibre: () => {
@@ -1963,13 +2108,17 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
       return null;
     },
   };
+  // Variante équilibrée en colonnes entières seulement quand ses lignes diffèrent du minimum de lignes.
+  const tailles = (option) => option?.lignes.map((l) => l.colonnes).join(' ');
+  const equilibreDistinct = !mono && kmax && elec.triphase.colonnes.equilibre
+    && tailles(elec.triphase.colonnes.equilibre) !== tailles(elec.triphase.colonnes.minimum);
   const modes = mono
     ? ['colonnes', 'rangees', 'auPlusJuste']
-    : ['colonnes', ...(elec.triphase.colonnes.equilibre ? ['colonnesEquilibre'] : []), 'rangees', 'auPlusJuste',
+    : ['colonnes', ...(equilibreDistinct ? ['colonnesEquilibre'] : []), 'rangees', 'auPlusJuste',
       ...(elec.triphase.auPlusJuste.equilibre ? ['auPlusJusteEquilibre'] : [])];
 
   const variantes = modes.map((mode) => {
-    const groupes = tailles[mode]();
+    const groupes = groupesDe[mode]();
     const lignesDetail = groupes.map((grp, i) => {
       const puissanceW = arrondiW(grp.reduce((s, p) => s + poids(p), 0));
       return {
@@ -1981,16 +2130,24 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
         longueurTeteM: distanceArmoireM === null ? null : (distanceArmoireM + trajetDepuisCoin(m, depart, tuile(grp[0]))) * (1 + margeMou),
       };
     });
-    const { phases, ok } = phasesDesLignes(lignesDetail, { equilibre: mode.endsWith('Equilibre'), mono, tensionV, capacitePhaseW });
+    // Au plus juste équilibré et rangées : lignes à tour de rôle sur L1, L2 et L3 ; colonnes entières et au plus juste :
+    // les plus chargées d'abord sur la phase la moins chargée, comme l'onglet Élec.
+    const equilibre = ['auPlusJusteEquilibre', 'rangees'].includes(mode);
+    const { phases, ok } = phasesDesLignes(lignesDetail, { equilibre, mono, tensionV, capacitePhaseW });
+    const charges = phases.map((p) => p.puissanceW);
     const alertes = ok ? [] : [`Une phase dépasse les ${nombreCourt(capacitePhaseW)} W utiles de l'arrivée : il faut une arrivée plus forte.`];
     return {
       mode,
       libelle: LIBELLES_ELEC[mode],
+      orientation: mode === 'rangees' ? 'rangees' : 'colonnes',
+      mention: mode.startsWith('auPlusJuste') ? MENTION_AU_PLUS_JUSTE : null,
+      ecart: notes[mode] ?? null,
       possible: true,
       raison: null,
       lignesDetail,
       lignes: lignesDetail.length,
       phases,
+      ecartPhasesPourcent: mono || Math.max(...charges) === 0 ? null : (100 * (Math.max(...charges) - Math.min(...charges))) / Math.max(...charges),
       ok,
       chargeMax: Math.max(...lignesDetail.map((l) => l.taux)),
       cablesTete: lignesDetail.length,
@@ -1998,8 +2155,8 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
       alertes,
     };
   });
-  const conseil = modes.includes('auPlusJusteEquilibre') ? 'auPlusJusteEquilibre' : 'auPlusJuste';
-  return { depart, conseil, variantes, alertes: [] };
+  // Conseil : en triphasé, l'équilibre des phases en colonnes entières ; en monophasé, le minimum de lignes.
+  return { depart, conseil: modes.includes('colonnesEquilibre') ? 'colonnesEquilibre' : 'colonnes', variantes, alertes: [] };
 }
 
 // Dalle tournée d'un quart de tour (portrait ↔ paysage), seulement si sa fiche le permet.

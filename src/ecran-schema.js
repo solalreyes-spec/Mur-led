@@ -2,13 +2,13 @@
 // Tout est calculé par calculs.js (dallesDuMur, pixelMap, cablageData, cablageElec) : ici, seulement le dessin.
 
 import {
-  dallesDuMur, pixelMap, cablageData, cablageElec, tuilesImage, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie,
+  dallesDuMur, pixelMap, cablageData, cablageElec, tuilesImage, coinDepart, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie,
 } from './calculs.js';
 import { resumeCablage } from './resumes.js';
 import { nombre, nombreCourt, lireNombre } from './format.js';
 import { el, svg, remplacer } from './dom.js';
 import {
-  trajetsSchema, geometrieSchema, blocsSchema, construireSvg, couleurTrajet, PALETTE_ECRAN, PALETTE_EXPORT,
+  trajetsSchema, geometrieSchema, blocsSchema, construireSvg, PALETTE_ECRAN, PALETTE_EXPORT,
 } from './dessin-schema.js';
 import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, telecharger, enregistrer, modeEnregistrement } from './export.js';
 
@@ -20,6 +20,8 @@ let etatData = null;
 let etatElec = null;
 let publierDeparts = () => {};
 let departsPublies = { data: 'haut-gauche', elec: 'haut-gauche' };
+// Mode du mur (onglet Poids) : en stack, les entrées data et les arrivées élec partent du bas.
+let modeMur = 'accroche';
 // Trajet mis en évidence (port ou ligne) et dalle choisie ; cadrage courant du dessin.
 let selection = null;
 let dalleChoisie = null;
@@ -41,8 +43,8 @@ function lireFormulaire() {
   return {
     vue: d.get('vue'),
     cablage: d.get('cablage'),
-    departData: d.get('departData'),
-    departElec: d.get('departElec'),
+    departData: coinDepart({ mode: modeMur, cote: d.get('coteData'), bord: d.get('bordData') }),
+    departElec: coinDepart({ mode: modeMur, cote: d.get('coteElec'), bord: d.get('bordElec') }),
     distanceRegieM: facultatif('distanceRegieM'),
     distanceArmoireM: facultatif('distanceArmoireM'),
     margeMou: mou === null ? MARGE_MOU_DEFAUT : mou / 100,
@@ -188,6 +190,7 @@ function carteVariante(v, choisie, conseil, champ, lignes) {
   },
   el('strong', {}, v.libelle.charAt(0).toUpperCase() + v.libelle.slice(1)),
   lignes.map((l) => el('span', {}, l)),
+  v.mention ? el('span', { class: 'mention' }, v.mention) : null,
   v.mode === conseil ? el('span', { class: 'badge badge-reussi' }, 'conseillé') : null,
   v.possible ? null : el('span', { class: 'badge badge-echec' }, 'impossible'));
   bouton.addEventListener('click', () => {
@@ -213,20 +216,25 @@ function cartesElec(t, ve) {
       pluriel(v.lignes, 'ligne', 'lignes'),
       `charge maxi ${pourcent(v.chargeMax)}`,
       v.phases.length > 1 ? v.phases.map((p) => `L${p.numero} ${nombreCourt(p.puissanceW)} W`).join(' · ') : `${nombreCourt(v.phases[0].puissanceW)} W`,
+      v.ecartPhasesPourcent === null ? null : `écart entre phases ${nombreCourt(v.ecartPhasesPourcent, 0)} %`,
       `${pluriel(v.cablesTete, 'câble de tête', 'câbles de tête')}, ${pluriel(v.liaisons, 'liaison', 'liaisons')}`,
     ])));
 }
 
+const trait = (couleur, pointilles = false) => svg('svg', { viewBox: '0 0 26 10', 'aria-hidden': 'true' },
+  svg('line', { x1: 1, y1: 5, x2: 25, y2: 5, style: `stroke: ${couleur}`, 'stroke-width': 3, 'stroke-dasharray': pointilles ? '4 3' : null }));
+
 function legende(trajets) {
   if (trajets.length === 0) return null;
   const groupes = [...new Set(trajets.map((t) => t.groupe))];
-  return el('div', { class: 'legende-trajets' }, groupes.flatMap((g) => [
+  return el('div', { class: 'legende-trajets' },
+    el('p', { class: 'legende-groupe' }, el('span', { class: 'legende-cle' }, trait(PALETTE_ECRAN.principal), 'câbles principaux'),
+      trajets.some((t) => t.secours) ? el('span', { class: 'legende-cle' }, trait(PALETTE_ECRAN.secours, true), 'retours de secours') : null),
+    groupes.flatMap((g) => [
     groupes.length > 1 || trajets.length > 1 ? el('p', { class: 'legende-groupe' }, g) : null,
     ...trajets.filter((t) => t.groupe === g).map((t) => {
       const puce = el('button', { type: 'button', class: 'puce-trajet', 'aria-pressed': String(selection === t.cle) },
-        svg('svg', { viewBox: '0 0 26 10', 'aria-hidden': 'true' },
-          svg('line', { x1: 1, y1: 5, x2: 25, y2: 5, style: `stroke: ${couleurTrajet(t, PALETTE_ECRAN)}`, 'stroke-width': 3, 'stroke-dasharray': t.motif ? t.motif.map((x) => x * 3).join(' ') : null })),
-        t.libelle);
+        el('span', { class: 'puce-numero' }, t.etiquette), t.libelle);
       puce.addEventListener('click', () => {
         selection = selection === t.cle ? null : t.cle;
         mettreAJour();
@@ -234,6 +242,15 @@ function legende(trajets) {
       return puce;
     }),
   ]));
+}
+
+// Texte de l'option « Automatique » : le bord que le mode du mur donne.
+function libellesAuto() {
+  const bord = modeMur === 'stack' ? 'en bas (mur posé)' : 'en haut (mur accroché)';
+  for (const nom of ['bordData', 'bordElec']) {
+    const option = formulaire.elements[nom].querySelector('option[value="auto"]');
+    option.textContent = `Automatique : ${bord}`;
+  }
 }
 
 function ficheDalle(id, pm, vd, ve) {
@@ -416,6 +433,7 @@ function mettreAJour() {
         cartesData(data, vd),
       ];
       if (!vd.possible) alertes.push(alerte(vd.raison, 'alerte-erreur'));
+      if (vd.ecart) alertes.push(alerte(vd.ecart, 'alerte-info'));
       if (vd.noteSecours) alertes.push(alerte(vd.noteSecours, 'alerte-info'));
       if (vd.mode === 'auPlusJuste' && etatData.choisie.global?.serpentin?.ecart) alertes.push(alerte(etatData.choisie.global.serpentin.ecart, 'alerte-info'));
       alertes.push(...vd.alertes.map((x) => alerte(x)));
@@ -429,6 +447,7 @@ function mettreAJour() {
           el('a', { href: '#elec' }, 'Modifier')),
         cartesElec(elec, ve),
       ];
+      if (ve.ecart) alertes.push(alerte(ve.ecart, 'alerte-info'));
       if (ve.mode === 'auPlusJuste' && etatElec.r.lignes.auPlusJuste.ecart) alertes.push(alerte(etatElec.r.lignes.auPlusJuste.ecart, 'alerte-info'));
       alertes.push(...ve.alertes.map((x) => alerte(x)));
     }
@@ -467,6 +486,13 @@ export function initialiserSchema({ surDepart = () => {} } = {}) {
   formulaire.addEventListener('change', mettreAJour);
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());
   document.getElementById('export-schema').addEventListener('click', exporterSchema);
+}
+
+// Appelé quand le mode du mur change dans l'onglet Poids (accroche ou stack).
+export function definirModeMur(mode) {
+  modeMur = mode === 'stack' ? 'stack' : 'accroche';
+  libellesAuto();
+  mettreAJour();
 }
 
 export function murModifiePourSchema(etat) {

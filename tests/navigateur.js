@@ -4,7 +4,7 @@
 import * as calculs from '../src/calculs.js';
 import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, enregistrer, TEINTES } from '../src/export.js';
 import { geometrieSchema, trajetsSchema, construireSvg, PALETTE_EXPORT } from '../src/dessin-schema.js';
-import { processeurDeBase, baseProcesseurs } from './base.js';
+import { processeurDeBase, baseProcesseurs, dalleDeBase } from './base.js';
 import { DALLE_CAS_13 } from './dalles-fictives.js';
 
 const DALLE_192 = { id: 'fictive-192', nom: 'Dalle 500 mm, 192 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
@@ -123,6 +123,28 @@ export const NAVIGATEUR = [
       v.egal('partage refusé par le navigateur : téléchargement en secours', [refuse.resultat, refuse.telecharges], ['telechargement', ['mur-led-pixel-map.png']]);
       const sans = await enregistrer(blob, 'sans-partage.png', { nav: {}, telecharger: () => {} });
       v.egal('navigateur sans partage : téléchargement', sans, 'telechargement');
+    },
+  },  {
+    id: 'N6',
+    titre: 'Schéma : deux couleurs (principal et secours), fonds alternés par port, secours jamais en diagonale, départs au bon bord',
+    etape: '8b',
+    async verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const m = calculs.mur(bp2, 12, 6);
+      const e = calculs.evaluerProcesseur(m, bp2, processeurDeBase(contexte, 'brompton-s8'), { frequenceHz: 60, bits: 10, redondance: true, departCablage: 'bas-gauche' });
+      const data = calculs.cablageData(m, bp2, e, { depart: 'bas-gauche' });
+      const vue = { vue: 'physique', canvasVue: 'mur', cablage: 'data' };
+      const geo = geometrieSchema(vue, m, bp2, calculs.pixelMap(m, bp2, e));
+      const trajets = trajetsSchema(vue, data.variantes.find((x) => x.mode === data.conseil), null, null);
+      const { svg } = construireSvg({ geo, trajets, coin: 'bas-gauche', blocs: [], palette: PALETTE_EXPORT });
+      const couleurs = new Set([...svg.querySelectorAll('.trajet')].map((x) => x.style.stroke));
+      v.egal('deux couleurs de câbles : principal et secours', couleurs.size, 2);
+      const secours = [...svg.querySelectorAll('.secours')];
+      v.vrai('un retour de secours par port', secours.length === trajets.length);
+      v.vrai('retours de secours : jamais en diagonale', secours.every((l) => l.getAttribute('x1') === l.getAttribute('x2') || l.getAttribute('y1') === l.getAttribute('y2')));
+      const fond = (id) => svg.querySelector(`[data-dalle="${id}"] rect`).style.fill;
+      v.vrai('fonds alternés : deux ports voisins en gris différents, un même port en un seul gris', fond('C1 R1') === fond('C2 R1') && fond('C1 R1') !== fond('C3 R1'));
+      v.vrai('stack : chaque départ sous le mur', [...svg.querySelectorAll('.depart')].every((c) => Number(c.getAttribute('cy')) > m.hauteurMm));
     },
   },
 ];

@@ -8,7 +8,7 @@ import { initialiserMur, actualiserMur, signalerErreurMur } from './ecran-mur.js
 import { initialiserData, actualiserData, murModifie, definirDepartData } from './ecran-data.js';
 import { initialiserCanvas, actualiserRegies, donneesModifiees } from './ecran-canvas.js';
 import { initialiserElec, murModifiePourElec, definirDepartElec } from './ecran-elec.js';
-import { initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema } from './ecran-schema.js';
+import { initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur } from './ecran-schema.js';
 import { initialiserPoids, actualiserBumpers, murModifiePourPoids } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
 import { restaurerConfiguration, suivreConfiguration, reglagesParDefaut } from './configuration.js';
@@ -218,6 +218,12 @@ if (depart.dalles) {
   });
 }
 initialiserBase({ base, depart, fusion: courant.fusion, parcActif, persistant }, enregistrerBase);
+
+// Mode du mur (accroche ou stack, onglet Poids) : il décide du bord de départ des câbles dans le Schéma.
+const formPoids = document.getElementById('form-poids');
+const publierModeMur = () => definirModeMur(new FormData(formPoids).get('mode'));
+formPoids.addEventListener('change', publierModeMur);
+publierModeMur();
 
 // Saisies de la dernière session, puis sauvegarde automatique ; copie des résultats.
 await restaurerConfiguration();

@@ -134,7 +134,8 @@ function sectionPorts(e, dalle, r) {
   const demi = r.pxParDemi ? `demi-dalle : ${nombre(r.pxParDemi)} px, ses vrais pixels pour la charge des ports` : null;
   const colonnes = g.colonnes.colonnesParPort
     ? `${pluriel(g.colonnes.colonnesParPort, 'colonne', 'colonnes')} de ${g.colonnes.segments[0]} dalles par port`
-    : `chaque colonne en ${g.colonnes.segments.length} segments : ${g.colonnes.segments.join(' + ')}`;
+      + `${g.colonnes.colonnesParPort < g.colonnes.colonnesParPortMax ? ' (nombre pair en redondance)' : ''}`
+    : `chaque colonne en ${g.colonnes.segments.length} segments égaux : ${g.colonnes.segments.join(' + ')}`;
   const redondance = (n) => (e.redondance ? `redondance : ${n} ports` : `${n} ports en redondance`);
 
   const champCapacite = proc[`capacitePort60Hz${r.reglages.bits}bits`] !== undefined ? `capacitePort60Hz${r.reglages.bits}bits` : 'debitUtileBps';
@@ -149,17 +150,18 @@ function sectionPorts(e, dalle, r) {
       tuile('Dalles par port', nombre(r.dallesParPort),
         `partie entière de ${nombre(entierInferieur(r.capacite))} / ${nombre(r.pxParDalle)}`,
         r.plafondBoucle ? `plafonné à ${proc.maxDallesParBoucleRedondance} par boucle en redondance` : null),
-      tuile('Ports au plus juste', nombre(g.serpentin.ports), `serpentin depuis ${LIBELLES_COIN[g.serpentin.depart]}`,
+      tuile('Ports en colonnes entières', nombre(g.colonnes.ports), colonnes, redondance(g.redondance.colonnes),
+        texteCharge(g.chargeMax.colonnes), 'retenus, comme le schéma'),
+      tuile('Minimum théorique', nombre(g.serpentin.ports), `au plus juste, serpentin depuis ${LIBELLES_COIN[g.serpentin.depart]}`,
         g.serpentin.ecart ? `décompte théorique : ${nombre(g.auPlusJuste)}` : null,
         redondance(2 * g.serpentin.ports), texteCharge(g.serpentin.chargeMax),
-        g.auPlusJusteRealisable ? null : 'non réalisable tel quel dans NovaLCT'),
+        g.auPlusJusteRealisable ? null : 'non réalisable tel quel dans NovaLCT',
+        ...g.minimum.raisons.map((raison) => `écart : ${raison}`)),
       g.rectangles
         ? tuile('Conseil NovaLCT', nombre(g.rectangles.ports),
           `rectangles de ${pluriel(g.rectangles.colonnes, 'colonne', 'colonnes')} × ${pluriel(g.rectangles.rangees, 'rangée', 'rangées')}`,
           redondance(g.rectangles.redondance), 'chaque port compte le rectangle qui englobe ses dalles')
         : null,
-      tuile('Ports en colonnes entières', nombre(g.colonnes.ports), colonnes, redondance(g.redondance.colonnes),
-        texteCharge(g.chargeMax.colonnes)),
       g.seuil.dallesEnMoins !== null
         ? tuile('Seuil', pluriel(g.seuil.dallesEnMoins, 'dalle', 'dalles'), 'en moins évitent un port (au plus juste)')
         : null));
@@ -239,10 +241,10 @@ function sectionProcesseur(r, conseil) {
   }
   const g = r.global;
   const distributeur = nomDistributeur(proc);
-  const globalTexte = `Décompte global, sans découpage par processeur : ${g.serpentin.ports} ports au plus juste`
-    + `${g.distributeurs && distributeur ? ` (${Math.ceil(g.serpentin.ports / proc.sortiesParDistributeur)} ${distributeur})` : ''}, `
-    + `${g.colonnes.ports} en colonnes entières`
-    + `${g.distributeurs && distributeur ? ` (${g.distributeurs.colonnes} ${distributeur})` : ''}.`;
+  const globalTexte = `Décompte global, sans découpage par processeur : ${g.colonnes.ports} ports en colonnes entières`
+    + `${g.distributeurs && distributeur ? ` (${g.distributeurs.colonnes} ${distributeur})` : ''}, `
+    + `${g.serpentin.ports} au plus juste (minimum théorique)`
+    + `${g.distributeurs && distributeur ? ` (${Math.ceil(g.serpentin.ports / proc.sortiesParDistributeur)} ${distributeur})` : ''}.`;
   return el('section', { class: 'bloc-resultats' },
     titre,
     el('div', { class: 'carte resultat-principal' },
@@ -344,7 +346,7 @@ function calculer(e) {
   if (choisie.global) {
     const { colonnes } = choisie.global.chargeMax;
     if (choisie.global.serpentin.ecart) alertes.push(alerte(choisie.global.serpentin.ecart, 'alerte-info'));
-    for (const [charge, cablage] of [[choisie.global.serpentin.chargeMax, 'au plus juste'], [colonnes, 'en colonnes entières']]) {
+    for (const [charge, cablage] of [[colonnes, 'en colonnes entières'], [choisie.global.serpentin.chargeMax, 'au plus juste']]) {
       if (charge.auDela95) {
         alertes.push(alerte(`Câblage ${cablage} : un port est chargé à ${nombre(charge.taux * 100, 1)} %, `
           + 'au-delà de 95 %. Garde de la marge.'));

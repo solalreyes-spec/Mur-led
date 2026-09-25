@@ -64,6 +64,9 @@ function textePMax(fiche, p) {
   return `${watts(p.valeurW)}${s ? ` (${s.sources.map(sourceCourte).join(', ')})` : ''}`;
 }
 
+// Colonnes de chaque ligne d'une répartition, pour comparer deux répartitions.
+const taillesLignes = (option) => option.lignes.map((l) => l.colonnes).join(' + ');
+
 function tablePhases(option, capaciteW, titre, conseil) {
   if (!option) return null;
   const lignes = option.phases.map((p) => el('tr', { class: p.puissanceW > capaciteW ? 'limite' : null },
@@ -77,7 +80,7 @@ function tablePhases(option, capaciteW, titre, conseil) {
   return el('div', {},
     el('h4', {}, titre, conseil ? el('span', { class: 'badge badge-reussi' }, 'conseillé') : null),
     el('p', { class: 'source' }, `${pluriel(option.lignes.length, 'ligne', 'lignes')} de ${detailLignes} ${enColonnes ? 'colonnes' : 'dalles'}. `
-      + `Écart entre phases : ${watts(option.ecartW)}.`),
+      + `Écart entre phases : ${watts(option.ecartW)}, soit ${nombreCourt(option.ecartPourcent, 0)} % de la phase la plus chargée.`),
     el('div', { class: 'tableau-defilant' },
       el('table', { class: 'table-donnees' },
         el('thead', {}, el('tr', {}, el('th', {}, 'Phase'), el('th', {}, 'Lignes'), el('th', {}, 'Charge'), el('th', {}, 'Intensité'), el('th', {}, ''))),
@@ -99,14 +102,14 @@ function sectionArrivee(r) {
   return el('section', { class: 'bloc-resultats' },
     el('h3', {}, `Arrivée tri ${nombreCourt(a.intensiteA)} A : ${watts(a.capacitePhaseW)} utiles par phase`),
     el('p', { class: 'source' }, `Maxi théorique à 230 V : ${watts(a.capacite230W)} par phase. Une phase ne prête jamais sa puissance à une autre.`),
-    el('h4', {}, 'Au plus juste'),
-    tablePhases(t.auPlusJuste.equilibre, a.capacitePhaseW, 'Équilibre (lignes en multiple de 3)', true),
-    tablePhases(t.auPlusJuste.minimum, a.capacitePhaseW, 'Au minimum de lignes', false),
     el('h4', {}, 'En colonnes entières'),
-    t.colonnes.equilibre
-      ? tablePhases(t.colonnes.equilibre, a.capacitePhaseW, 'Équilibre (lignes en multiple de 3)', false)
-      : el('p', { class: 'source' }, 'Pas d\'équilibre possible en colonnes entières pour ce mur.'),
-    tablePhases(t.colonnes.minimum, a.capacitePhaseW, 'Au minimum de lignes', false));
+    tablePhases(t.colonnes.equilibre, a.capacitePhaseW, 'Équilibre des phases (écart le plus faible)', true),
+    taillesLignes(t.colonnes.equilibre) === taillesLignes(t.colonnes.minimum)
+      ? el('p', { class: 'source' }, 'Au minimum de lignes : mêmes lignes, même répartition.')
+      : tablePhases(t.colonnes.minimum, a.capacitePhaseW, 'Au minimum de lignes', false),
+    el('h4', {}, 'Au plus juste (minimum théorique)'),
+    tablePhases(t.auPlusJuste.equilibre, a.capacitePhaseW, 'Équilibre (lignes en multiple de 3)', false),
+    tablePhases(t.auPlusJuste.minimum, a.capacitePhaseW, 'Au minimum de lignes', false));
 }
 
 function sectionAppel(r) {
@@ -169,9 +172,11 @@ function mettreAJour() {
     el('a', { href: '#mur' }, 'Modifier le mur'));
   const d = r.dallesParLigne;
   const colonnes = r.lignes.colonnes;
+  const equilibreDistinct = Boolean(r.triphase)
+    && taillesLignes(r.triphase.colonnes.equilibre) !== taillesLignes(r.triphase.colonnes.minimum);
   const detailColonnes = colonnes.colonnesParLigne
     ? `${pluriel(colonnes.colonnesParLigne, 'colonne', 'colonnes')} par ligne`
-    : `chaque colonne en ${colonnes.segments.length} segments : ${colonnes.segments.join(' + ')}`;
+    : `chaque colonne en ${colonnes.segments.length} segments égaux : ${colonnes.segments.join(' + ')}`;
 
   remplacer(zone,
     recap,
@@ -192,10 +197,14 @@ function mettreAJour() {
           d.limite === 'chaînage' ? `limité par le chaînage du constructeur (${d.chainage}) ; ${d.puissance} en puissance` : null,
           d.chainage && d.limite !== 'chaînage' ? `chaînage du constructeur : ${d.chainage}` : null,
           `${d.theoriques230} théoriques à 230 V, jamais appliqué`),
-        tuile('Lignes au plus juste', nombre(r.lignes.auPlusJuste.nombre), `serpentin depuis ${LIBELLES_COIN[r.lignes.auPlusJuste.depart]}`,
+        tuile('Lignes en colonnes entières', nombre(r.lignes.retenues),
+          equilibreDistinct ? `phases équilibrées : ${taillesLignes(r.triphase.colonnes.equilibre)} colonnes` : detailColonnes,
+          equilibreDistinct ? `au minimum : ${pluriel(colonnes.nombre, 'ligne', 'lignes')}, ${detailColonnes}` : null,
+          'retenues, comme le schéma'),
+        tuile('Minimum théorique', nombre(r.lignes.auPlusJuste.nombre), `au plus juste, serpentin depuis ${LIBELLES_COIN[r.lignes.auPlusJuste.depart]}`,
           r.lignes.auPlusJuste.ecart ? `décompte théorique : ${nombre(r.lignes.auPlusJuste.theorique)}` : null,
-          `dalles : ${r.lignes.auPlusJuste.lignes.map((l) => l.dalles).join(' + ')}`),
-        tuile('Lignes en colonnes entières', nombre(colonnes.nombre), detailColonnes))),
+          `dalles : ${r.lignes.auPlusJuste.lignes.map((l) => l.dalles).join(' + ')}`,
+          ...r.lignes.minimum.raisons.map((raison) => `écart : ${raison}`)))),
     sectionArrivee(r),
     sectionAppel(r),
     el('section', { class: 'bloc-resultats' },
