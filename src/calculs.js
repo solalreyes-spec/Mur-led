@@ -6,6 +6,8 @@
 import { nombreCourt } from './format.js';
 
 const EPS = 1e-9;
+// « 2 ports », « 1 port ».
+const quantite = (n, mot) => `${nombreCourt(n)} ${mot}${n > 1 ? 's' : ''}`;
 
 // Erreur due à la saisie (valeur impossible, cible trop petite…) : affichée telle quelle à l'utilisateur.
 export class ErreurSaisie extends Error {}
@@ -45,11 +47,29 @@ export const PLUS_DEFAVORABLE = {
   capacitePort60Hz8bits: 'min',
   capacitePort60Hz10bits: 'min',
   capacitePort60Hz12bits: 'min',
+  capaciteCartesPro60Hz10bits: 'min',
+  capaciteFibre60Hz10bits: 'min',
+  capaciteFibre60Hz12bits: 'min',
+  dimensionMaxPortPx: 'min',
+  hauteurReduitePortPx: 'min',
+  longueurCable5GM: 'min',
+  // Latence : la plus longue ; hauteur en rack : la plus haute.
+  latenceMinImages: 'max',
+  latenceMaxImages: 'max',
+  hauteurU: 'max',
   largeurChargeeMinPx: 'max',
   puissanceW: 'max',
   emplacementsSortie: 'min',
   sourceMaxPx: 'min',
   capacite5G60Hz8bits: 'min',
+  capacitePort120Hz8bits: 'min',
+  capacitePort120Hz10bits: 'min',
+  capacitePort240Hz8bits: 'min',
+  capacitePort240Hz10bits: 'min',
+  capacite5G120Hz8bits: 'min',
+  capacite5G120Hz10bits: 'min',
+  capacite5G240Hz8bits: 'min',
+  capacite5G240Hz10bits: 'min',
   capacite5G60Hz10bits: 'min',
   capacite5G60Hz12bits: 'min',
   capacite5GHaute60Hz8bits: 'min',
@@ -113,6 +133,7 @@ export function valeurRetenue(champ, sens, sources = {}, declinaisonDefaut = nul
     declinaisons: retenue.declinaisons,
     autres: groupes.filter((g) => g !== retenue),
     conflit,
+    selonVersion,
     conflitSansRegle: conflit && !sens && !selonVersion,
     note: champ.note ?? null,
   };
@@ -138,6 +159,27 @@ export function resoudreFiche(fiche, sources = {}) {
   resolue.note = fiche.note ?? null;
   resolue.declinaisons = fiche.declinaisons ?? null;
   return resolue;
+}
+
+// Valeurs en conflit d'une liste de fiches (relevé des sources) : pour chaque champ où plusieurs valeurs servent
+// encore, la valeur retenue (la plus défavorable, ou sans règle) et les autres, chacune avec ses sources.
+// Une valeur « non retenue » (corrigée par le constructeur) et des valeurs propres à chaque version ne sont pas des conflits.
+export function valeursEnConflit(liste, sources = {}, sens = PLUS_DEFAVORABLE) {
+  const conflits = [];
+  for (const fiche of liste) {
+    const nom = resoudreFiche(fiche, sources).nom;
+    for (const [champ, valeur] of Object.entries(fiche)) {
+      if (!estSourcee(valeur) || !valeur.valeurs) continue;
+      const r = valeurRetenue(valeur, sens[champ], sources, fiche.declinaisonDefaut ?? null);
+      if (!r.conflit || r.selonVersion) continue;
+      const groupe = (g) => ({ valeur: g.valeur, type: g.type ?? null, sources: g.sources });
+      conflits.push({
+        id: fiche.id, nom, champ, regle: sens[champ] ?? null,
+        retenue: groupe(r), autres: r.autres.filter((g) => !g.nonRetenue).map(groupe),
+      });
+    }
+  }
+  return conflits;
 }
 
 // ---------------------------------------------------------------------------
@@ -382,22 +424,60 @@ export function formuleCapacite(famille, { frequenceHz = 60, bits, ull = false, 
   return `${debit} / (${facteurs})${famille === 'brompton' && ull ? ' / 2 (ULL)' : ''}`;
 }
 
+// Profondeur réseau que le processeur ne sait pas faire (KU20 en 10 bits, MCTRL300 en 10 bits, Colorlight en 12 bits) :
+// la raison, avec sa source ; sinon null.
+export function refusBitsReseau(proc, bits) {
+  const possibles = proc.bitsReseauPossibles;
+  if (!possibles || possibles.includes(bits)) return null;
+  const pourquoi = proc.sources?.bitsReseauPossibles?.note;
+  return `Le ${proc.nom} travaille en ${possibles.join(' ou ')} bits${pourquoi ? ` ; ${pourquoi}` : ''} `
+    + `(${proc.sources?.bitsReseauPossibles?.source.court ?? 'sa fiche'}) : pas de calcul en ${bits} bits.`;
+}
+
 // Capacité d'un port pour un processeur donné :
-//   - valeur de sa fiche à 60 Hz (CX40 Pro, Colorlight), proportionnelle à la fréquence, marquée « déduit » hors 60 Hz ;
+//   - valeur de sa fiche à 60 Hz (CX40 Pro, Colorlight, Novastar en 10 et 12 bits), proportionnelle à la fréquence,
+//     marquée « déduit » hors 60 Hz ;
+//   - MX40 Pro en 10 bits avec cartes Pro : valeur du catalogue (480 000 px), la formule reste visible en note ;
 //   - sinon formule de sa marque avec son débit utile (Brompton, Novastar, MX40 Pro, MX20).
 // Les valeurs dont la source est « déduit » ou « à confirmer » le restent dans le résultat.
 export function capacitePortProcesseur(proc, reglages = {}) {
   const { frequenceHz = 60, bits = BIT_DEPTH_PAR_DEFAUT[proc.famille], ull = false, cartesPro = false, carte = null } = reglages;
   if (![8, 10, 12].includes(bits)) throw new ErreurSaisie('Le bit depth réseau vaut 8, 10 ou 12 bits.');
   if (!(Number.isFinite(frequenceHz) && frequenceHz > 0)) throw new ErreurSaisie('Indique une fréquence supérieure à zéro.');
+  const refus = refusBitsReseau(proc, bits);
+  if (refus) throw new ErreurSaisie(refus);
+  if (bits === 10 && cartesPro && proc.cartesPro === true && proc.capaciteCartesPro60Hz10bits !== undefined) {
+    const reference = proc.capaciteCartesPro60Hz10bits;
+    const source = proc.sources?.capaciteCartesPro60Hz10bits;
+    const formule = capacitePort(proc.famille, { frequenceHz, bits, cartesPro: true, debitBps: proc.debitUtileBps });
+    const notes = [`${nombreCourt(reference)} px à 60 Hz en 10 bits${source?.note ? ` ${source.note}` : ''} (${source?.source.court ?? 'fiche'}) ; `
+      + `la formule du débit, ${formuleCapacite(proc.famille, { frequenceHz, bits, cartesPro: true, debitBps: proc.debitUtileBps })}, `
+      + `donne ${nombreCourt(entierInferieur(formule))} px, non retenue`];
+    if (frequenceHz !== 60) notes.push(`déduit : ${nombreCourt(reference)} px à 60 Hz, proportionnel à la fréquence`);
+    return {
+      champ: 'capaciteCartesPro60Hz10bits',
+      capacite: (reference * 60) / frequenceHz,
+      formule: frequenceHz === 60
+        ? `${nombreCourt(reference)} px (${source?.source.court ?? 'fiche'}, 60 Hz, 10 bits, cartes Pro)`
+        : `${nombreCourt(reference)} × 60 / ${nombreCourt(frequenceHz)}`,
+      deduit: frequenceHz !== 60,
+      aConfirmer: /à confirmer/.test(source?.source.confiance ?? ''),
+      notes,
+    };
+  }
   // CX40 Pro : capacité haute de la fiche avec les cartes qu'elle nomme (XA50 Pro, CA50E) ; avec une autre carte
   // ou une carte inconnue, la plus basse des fiches.
   const cartesHautes = proc.cartesCapaciteHaute ?? [];
-  const haute = Boolean(carte) && cartesHautes.includes(carte) && proc[`capaciteHaute60Hz${bits}bits`] !== undefined;
+  const hauteExiste = proc[`capaciteHaute60Hz${bits}bits`] !== undefined;
+  const haute = Boolean(carte) && cartesHautes.includes(carte) && hauteExiste;
   const champ = haute ? `capaciteHaute60Hz${bits}bits` : `capacitePort60Hz${bits}bits`;
   const notes = [];
-  if (cartesHautes.length > 0 && !haute) {
+  if (cartesHautes.length > 0 && !haute && hauteExiste) {
     notes.push(`carte ${carte ?? 'non précisée'} : capacité la plus basse des fiches (capacité plus haute avec une carte ${cartesHautes.join(' ou ')})`);
+  }
+  // Colorlight : capacités publiées (ou déduites) à 120 et 240 Hz, pas proportionnelles à la fréquence.
+  if (!haute && proc[champ] !== undefined && FREQUENCES_PUBLIEES.some((f) => proc[`capacitePort${f}Hz${bits}bits`] !== undefined)) {
+    return capaciteParFrequences(proc, bits, frequenceHz, notes);
   }
   if (proc[champ] !== undefined) {
     const reference = proc[champ];
@@ -406,6 +486,8 @@ export function capacitePortProcesseur(proc, reglages = {}) {
       notes.push(`déduit : ${nombreCourt(reference)} px à 60 Hz sur la fiche, proportionnel à la fréquence`);
     }
     if (/déduit|à confirmer/.test(confiance)) notes.push(`${bits} bits : ${confiance}`);
+    // Note de la fiche (VX Pro : « en HDR, capacité jusqu'à ÷ 4 »).
+    if (proc.sources?.[champ]?.note) notes.push(proc.sources[champ].note);
     return {
       champ,
       capacite: (reference * 60) / frequenceHz,
@@ -432,20 +514,160 @@ export function capacitePortProcesseur(proc, reglages = {}) {
   };
 }
 
+// Capacité d'un port quand la fiche la donne à plusieurs fréquences (Colorlight : 60, 120 et 240 Hz) : valeur de la
+// fréquence publiée ; entre deux fréquences publiées, la plus défavorable des deux proportions ; en dessous de la
+// plus basse ou au-dessus de la plus haute, proportionnelle depuis la plus proche. Hors fréquence publiée : déduit.
+const FREQUENCES_PUBLIEES = [120, 240];
+function capaciteParFrequences(proc, bits, frequenceHz, notes) {
+  const points = [60, ...FREQUENCES_PUBLIEES]
+    .map((f) => ({ f, champ: `capacitePort${f}Hz${bits}bits` }))
+    .filter((p) => proc[p.champ] !== undefined)
+    .map((p) => ({ ...p, valeur: proc[p.champ], source: proc.sources?.[p.champ] }));
+  const court = (p) => p.source?.source.court ?? 'fiche';
+  const deduitSource = (p) => /déduit/.test(p.source?.source.confiance ?? '');
+  const exact = points.find((p) => p.f === frequenceHz);
+  if (exact) {
+    const confiance = exact.source?.source.confiance ?? '';
+    if (/déduit|à confirmer/.test(confiance)) notes.push(`${bits} bits à ${exact.f} Hz : ${confiance} (${court(exact)})`);
+    if (exact.source?.note) notes.push(exact.source.note);
+    return {
+      champ: exact.champ,
+      capacite: exact.valeur,
+      formule: `${nombreCourt(exact.valeur)} px (${court(exact)}, ${exact.f} Hz, ${bits} bits)`,
+      deduit: deduitSource(exact),
+      aConfirmer: /à confirmer/.test(confiance),
+      notes,
+    };
+  }
+  const dessous = points.filter((p) => p.f < frequenceHz).pop() ?? null;
+  const dessus = points.find((p) => p.f > frequenceHz) ?? null;
+  const candidats = [dessous, dessus].filter(Boolean).map((p) => ({ ...p, capacite: (p.valeur * p.f) / frequenceHz }));
+  const retenu = candidats.reduce((a, b) => (b.capacite < a.capacite ? b : a));
+  const texte = (p) => `${nombreCourt(p.valeur)} px à ${p.f} Hz (${court(p)})`;
+  notes.push(candidats.length > 1
+    ? `déduit : la plus défavorable des proportions depuis ${texte(candidats[0])} et depuis ${texte(candidats[1])}`
+    : `déduit : ${texte(retenu)}, proportionnel à la fréquence`);
+  // En dessous de 60 Hz (50 Hz en Europe) : même logique de débit que la formule Novastar.
+  if (frequenceHz < points[0].f) notes.push(`capacité à ${nombreCourt(frequenceHz)} Hz déduite du débit, aucune fiche Colorlight ne la publie`);
+  return {
+    champ: retenu.champ,
+    capacite: retenu.capacite,
+    formule: `${nombreCourt(retenu.valeur)} × ${retenu.f} / ${nombreCourt(frequenceHz)}`,
+    deduit: true,
+    aConfirmer: /à confirmer/.test(retenu.source?.source.confiance ?? ''),
+    notes,
+  };
+}
+
 // Champs obligatoires qui manquent à une fiche processeur. Un modèle incomplet apparaît dans la liste
 // mais ne sert à aucun calcul.
 export function champsManquants(proc) {
   const manquants = [];
-  const parFiche = [8, 10, 12].every((b) => proc[`capacitePort60Hz${b}bits`] !== undefined);
+  // Capacités de la fiche pour chaque profondeur que le processeur sait faire (Colorlight : 8 et 10 bits).
+  const parFiche = (proc.bitsReseauPossibles ?? [8, 10, 12]).every((b) => proc[`capacitePort60Hz${b}bits`] !== undefined);
   const parFormule = proc.famille in DEBIT_UTILE_BPS && proc.debitUtileBps > 0;
   if (!parFiche && !parFormule) manquants.push('capacite');
-  // MX2000 Pro, MX6000 Pro : les ports viennent des cartes de sortie.
+  // MX2000 Pro, MX6000 Pro : les ports viennent des cartes de sortie. Série H : ports, pixels, largeur et hauteur
+  // viennent des cartes d'envoi LED.
   const portsParCartes = proc.emplacementsSortie > 0 && Boolean(proc.carteSortie1G || proc.carteSortie5G);
+  const toutParCartes = proc.emplacementsSortie > 0 && proc.cartesSortieLED?.length > 0;
   for (const champ of ['pixelsMax', 'ports', 'largeurMaxPx', 'hauteurMaxPx']) {
-    if (champ === 'ports' && portsParCartes) continue;
+    if (toutParCartes || (champ === 'ports' && portsParCartes)) continue;
     if (!(proc[champ] > 0)) manquants.push(champ);
   }
   return manquants;
+}
+
+// Série H (Novastar), X100 Pro et Z8t (Colorlight) : processeur vu avec la carte de sortie choisie (`choix` : son
+// identifiant). Par défaut : la carte qui accepte la carte de réception des dalles (carte 5G), sinon la première carte
+// qui ne soit pas 5G si la carte des dalles est connue, sinon la première de la liste. Ports = emplacements × ceux
+// d'une carte ; pixels plafonnés par l'appareil quand sa fiche le donne. Largeur et hauteur maxi d'une carte : zone
+// de chaque carte (le mur se répartit entre les cartes comme entre les ports, `cartesParZones`) ; l'appareil prend
+// celles de sa fiche (Z8t : 16 384 × 8192), sinon toutes ses cartes côte à côte. H_16xRJ45+2xfiber : fibre en copie des ports (CVT4K si fibre). Cartes fibre (H_4xfiber, 2 × 10G du
+// X100 Pro, 4 × 10G du Z8t) : convertisseurs obligatoires. Fibres ou ports de secours dédiés : ports principaux
+// comptés en redondance, secours par des convertisseurs miroirs.
+function processeurAvecCartesLED(proc, choix, dalle) {
+  const cartes = proc.cartesSortieLED;
+  const norme = (x) => String(x).replace(/[\s-]+/g, '').toUpperCase();
+  const carteDalle = dalle?.carteReceptionModele ?? null;
+  const alertes = [];
+  let carte = cartes.find((c) => c.id === choix);
+  if (!carte) {
+    const acceptee = carteDalle ? cartes.find((c) => c.cartesReception?.some((x) => norme(x) === norme(carteDalle))) : null;
+    carte = acceptee ?? (carteDalle ? cartes.find((c) => c.typePorts !== '5G') : null) ?? cartes[0];
+    const autre = cartes.find((c) => c.typePorts !== '5G' && c !== carte);
+    if (!carteDalle && carte.typePorts === '5G' && autre) {
+      alertes.push(`Carte de réception inconnue : cartes de sortie ${carte.nomCourt} (ports 5G) par défaut sur le ${proc.modele} ; `
+        + `choisis ${autre.nomCourt} si les dalles ont des cartes 1G.`);
+    }
+  }
+  const n = proc.emplacementsSortie;
+  const source = proc.sources?.cartesSortieLED;
+  const pixelsCartes = n * carte.pixelsMax;
+  // Largeur et hauteur de l'appareil absentes de sa fiche : ses cartes côte à côte, déduit.
+  const coteACote = (note) => ({
+    ...source,
+    source: { ...source?.source, court: `${source?.source.court ?? 'fiche'}, déduit : cartes côte à côte`, confiance: 'déduit' },
+    note,
+  });
+  const plafond = proc.pixelsMax > 0 && proc.pixelsMax < pixelsCartes;
+  const effectif = {
+    ...proc,
+    sources: {
+      ...proc.sources,
+      ports: source,
+      pixelsMax: plafond ? proc.sources?.pixelsMax : source,
+      largeurMaxPx: proc.largeurMaxPx ? proc.sources?.largeurMaxPx : coteACote(`${n} cartes de ${carte.largeurMaxPx} px de large`),
+      hauteurMaxPx: proc.hauteurMaxPx ? proc.sources?.hauteurMaxPx : coteACote(`${n} cartes de ${carte.hauteurMaxPx} px de haut`),
+      sortiesFibre: carte.sortiesFibre ? { ...source, note: carte.noteFibre ?? null } : undefined,
+    },
+    ports: n * carte.ports,
+    pixelsMax: plafond ? proc.pixelsMax : pixelsCartes,
+    largeurMaxPx: proc.largeurMaxPx ?? n * carte.largeurMaxPx,
+    hauteurMaxPx: proc.hauteurMaxPx ?? n * carte.hauteurMaxPx,
+    sortiesFibre: carte.sortiesFibre ?? null,
+    distributeur: carte.convertisseur ?? null,
+    sortiesParDistributeur: carte.portsParConvertisseur ?? null,
+    distributeurObligatoire: Boolean(carte.convertisseurObligatoire),
+    carteSortie: { ...carte, portsParCarte: carte.ports },
+  };
+  if (carte.portsSecours) effectif.portsRedondance = n * carte.ports;
+  // Un port ne dépasse jamais la zone de sa carte.
+  const zone = Math.min(carte.largeurMaxPx, carte.hauteurMaxPx);
+  if (!(proc.dimensionMaxPortPx <= zone) || carte.typePorts === '5G') {
+    effectif.dimensionMaxPortPx = zone;
+    effectif.sources.dimensionMaxPortPx = { ...source, note: `zone d'une carte ${carte.nomCourt}` };
+  }
+  if (carte.typePorts === '5G') {
+    // Ports 5G : capacité 5G de la fiche, cartes de réception 5G seulement ; pas de limite de 4096 px (ports 1G).
+    effectif.typePorts = '5G';
+    for (const f of [60, ...FREQUENCES_PUBLIEES]) {
+      for (const b of [8, 10, 12]) {
+        effectif[`capacitePort${f}Hz${b}bits`] = proc[`capacite5G${f}Hz${b}bits`];
+        effectif.sources[`capacitePort${f}Hz${b}bits`] = proc.sources?.[`capacite5G${f}Hz${b}bits`];
+      }
+    }
+    effectif.cartesCompatibles = carte.cartesReception ?? proc.cartesCompatibles5G;
+  }
+  if (carte.fibre) {
+    // Capacité 10 et 12 bits d'une fibre de la série H : non chiffrée sur la fiche.
+    if (proc.capaciteFibre60Hz10bits !== undefined) {
+      for (const b of [10, 12]) {
+        effectif[`capacitePort60Hz${b}bits`] = proc[`capaciteFibre60Hz${b}bits`];
+        effectif.sources[`capacitePort60Hz${b}bits`] = proc.sources?.[`capaciteFibre60Hz${b}bits`];
+      }
+    }
+    const conversion = proc.sources?.conversionFibre;
+    const modele = MODELES_DISTRIBUTEUR[carte.convertisseur] ?? 'convertisseur';
+    const detail = proc.conversionFibre ?? (carte.portsConvertisseur && carte.portsConvertisseur !== carte.portsParConvertisseur
+      ? `un ${modele} par fibre, ${carte.portsParConvertisseur} ports utilisés sur ${carte.portsConvertisseur}` : `un ${modele} par fibre, obligatoire`);
+    const origine = conversion ?? source;
+    alertes.push(`Carte ${carte.nomCourt} du ${proc.modele} : ${carte.fibres > 1 ? `${carte.fibres} fibres de ${carte.portsParConvertisseur} ports chacune`
+      : `1 fibre de ${carte.portsParConvertisseur} ports`} ; ${detail}${carte.noteFibre && !conversion ? ` ; ${carte.noteFibre}` : ''}`
+      + ` (${origine?.source.court ?? 'fiche'}${/déduit/.test(origine?.source.confiance ?? '') ? ', déduit' : ''}).`);
+  }
+  if (carte.ancienneFiche) alertes.push(`Carte ${carte.nomCourt} du ${proc.modele} : ancienne version de fiche, ${carte.ancienneFiche}.`);
+  return { proc: effectif, alerte: alertes };
 }
 
 // MX2000 Pro, MX6000 Pro : processeur vu avec ses cartes de sortie. Carte des dalles 5G (CA50E, XA50 Pro…) :
@@ -665,7 +887,11 @@ export function cablage(m, parPort, charge = null, { pair = false } = {}) {
   // COEX 1G : un port qui charge moins de 128 px de large perd de la capacité (rectangle chargé).
   const lmin = charge?.largeurMinPx ?? 0;
   const penalite = (largeur, hauteur) => penaliteLargeurChargee(largeur, hauteur, lmin);
-  const tientRect = (e, d, largeur, hauteur) => tient(e, d) && (!lmin || modele.px(e, d) + penalite(largeur, hauteur) <= charge.capacite + EPS);
+  // Colorlight : la zone d'un port ne dépasse pas 4096 px de large ni de haut.
+  const dmax = charge?.dimensionMaxPx ?? Infinity;
+  const tientRect = (e, d, largeur, hauteur) => tient(e, d)
+    && (dmax === Infinity || (largeur <= dmax && hauteur <= dmax))
+    && (!lmin || modele.px(e, d) + penalite(largeur, hauteur) <= charge.capacite + EPS);
   const wDalle = charge?.largeurDallePx ?? 0;
   const hauteurSegment = (n, avecDemi) => (avecDemi ? (n - 1) * charge.pxHauteurDalle + charge.pxHauteurDemi : n * (charge?.pxHauteurDalle ?? 0));
   const entieresParColonne = m.lignes;
@@ -807,10 +1033,17 @@ function portsFaceALimite(c, proc, { redondance, modeOptique }) {
   return { valeur: redondance ? c.redondance.colonnes : c.colonnes.ports, limite, principaux: false };
 }
 
-// Données de la réduction « largeur chargée » (COEX 1G) pour la charge d'un port ; rien pour les autres processeurs.
-function chargeLargeur(proc, dalle, m) {
-  if (!proc.largeurChargeeMinPx) return {};
-  return { largeurMinPx: proc.largeurChargeeMinPx, largeurDallePx: dalle.pxH, pxHauteurDalle: dalle.pxV, pxHauteurDemi: m.demi?.pxV ?? dalle.pxV };
+// Géométrie de la zone d'un port, pour les processeurs qui la limitent : réduction « largeur chargée » (COEX 1G)
+// et largeur ou hauteur maxi d'une zone de port (Colorlight : 4096 px, fiche S20) ; rien pour les autres.
+function chargeGeometrie(proc, dalle, m) {
+  if (!proc.largeurChargeeMinPx && !proc.dimensionMaxPortPx) return {};
+  return {
+    ...(proc.largeurChargeeMinPx ? { largeurMinPx: proc.largeurChargeeMinPx } : {}),
+    ...(proc.dimensionMaxPortPx ? { dimensionMaxPx: proc.dimensionMaxPortPx } : {}),
+    largeurDallePx: dalle.pxH,
+    pxHauteurDalle: dalle.pxV,
+    pxHauteurDemi: m.demi?.pxV ?? dalle.pxV,
+  };
 }
 
 // Bloc du mur confié à un processeur : quelques colonnes et quelques rangées, avec la rangée
@@ -825,6 +1058,58 @@ function sousMur(m, dalle, colonnes, premiereRangee, nbRangees) {
   });
 }
 
+// Cartes de sortie pour un nombre de ports : par ports d'une carte (série H), sinon par convertisseurs (MX2000 Pro, MX6000 Pro).
+function cartesPour(proc, ports) {
+  const carte = proc.carteSortie;
+  if (carte.portsParCarte) return Math.ceil(ports / carte.portsParCarte);
+  return Math.ceil(Math.ceil(ports / proc.sortiesParDistributeur) / carte.convertisseursParCarte);
+}
+
+// Cartes de sortie d'un bloc quand chaque carte a sa zone (série H, X100 Pro, Z8t) : les ports, dans l'ordre du
+// câblage en colonnes entières, vont sur une carte tant qu'elle a des ports libres, que ses pixels suffisent et que la
+// zone qu'elle charge reste dans sa largeur et sa hauteur maxi ; sinon sur la carte suivante. En redondance sans
+// secours dédiés, les secours occupent la moitié des ports d'une carte. Renvoie le nombre de ports principaux de
+// chaque carte (les convertisseurs se comptent carte par carte), ou null si un port seul dépasse une carte.
+function cartesParZones(proc, sous, c, dalle, { redondance = false } = {}) {
+  const carte = proc.carteSortie;
+  const hauteurs = sous.rangees.map((t) => (t === 'demi' ? sous.demi.pxV : dalle.pxV));
+  const pxRangees = sous.rangees.map((t) => (t === 'demi' ? sous.demi.pxH * sous.demi.pxV : dalle.pxH * dalle.pxV));
+  const somme = (t, a, b) => t.slice(a, b + 1).reduce((x, y) => x + y, 0);
+  const ports = [];
+  const k = c.colonnes.colonnesParPort;
+  if (k) {
+    for (let x = 0; x < sous.colonnes; x += k) ports.push({ c0: x, c1: Math.min(x + k, sous.colonnes) - 1, r0: 0, r1: hauteurs.length - 1 });
+  } else {
+    for (let x = 0; x < sous.colonnes; x += 1) {
+      let r = 0;
+      for (const n of c.colonnes.segments) {
+        ports.push({ c0: x, c1: x, r0: r, r1: r + n - 1 });
+        r += n;
+      }
+    }
+  }
+  const parCarte = redondance && !proc.portsRedondance ? Math.floor(carte.portsParCarte / 2) : carte.portsParCarte;
+  const tient = (z) => z.n <= parCarte && z.px <= carte.pixelsMax
+    && (z.c1 - z.c0 + 1) * dalle.pxH <= carte.largeurMaxPx && somme(hauteurs, z.r0, z.r1) <= carte.hauteurMaxPx;
+  const cartes = [];
+  let zone = null;
+  for (const p of ports) {
+    const px = (p.c1 - p.c0 + 1) * somme(pxRangees, p.r0, p.r1);
+    const essai = zone && {
+      c0: Math.min(zone.c0, p.c0), c1: Math.max(zone.c1, p.c1), r0: Math.min(zone.r0, p.r0), r1: Math.max(zone.r1, p.r1), n: zone.n + 1, px: zone.px + px,
+    };
+    if (essai && tient(essai)) {
+      zone = essai;
+      cartes[cartes.length - 1] = zone.n;
+    } else {
+      zone = { ...p, n: 1, px };
+      if (!tient(zone)) return null;
+      cartes.push(1);
+    }
+  }
+  return cartes;
+}
+
 function blocProcesseur(m, dalle, proc, contexte, { colonnes, premiereColonne, rangees, premiereRangee }) {
   const sous = sousMur(m, dalle, colonnes, premiereRangee, rangees);
   const c = cablage(sous, contexte.parPort, contexte.charge, { pair: contexte.pair });
@@ -834,10 +1119,18 @@ function blocProcesseur(m, dalle, proc, contexte, { colonnes, premiereColonne, r
   // Position du bloc dans le mur, en pixels, de 0 à largeur − 1.
   const xPx = (premiereColonne - 1) * dalle.pxH;
   const yPx = premiereRangee > 1 ? sousMur(m, dalle, 1, 1, premiereRangee - 1).pxHauteur : 0;
+  // Série H, X100 Pro, Z8t : cartes comptées par zones, convertisseurs carte par carte.
+  const parZones = proc.carteSortie?.largeurMaxPx ? {
+    colonnes: cartesParZones(proc, sous, c, dalle),
+    redondance: cartesParZones(proc, sous, c, dalle, { redondance: true }),
+  } : null;
+  const zones = parZones && { colonnes: parZones.colonnes?.length ?? Infinity, redondance: parZones.redondance?.length ?? Infinity };
+  const convertisseurs = (liste, facteur) => (liste ? liste.reduce((t, n) => t + Math.ceil((facteur * n) / sorties), 0) : Infinity);
   const ok = sous.pxTotal <= proc.pixelsMax
     && canvas !== null
     && ports.valeur <= ports.limite
-    && (!proc.dallesMax || sous.dalles.total <= proc.dallesMax);
+    && (!proc.dallesMax || sous.dalles.total <= proc.dallesMax)
+    && (!zones || (contexte.redondance ? zones.redondance : zones.colonnes) <= proc.emplacementsSortie);
   return {
     colonnes,
     premiereColonne,
@@ -855,15 +1148,18 @@ function blocProcesseur(m, dalle, proc, contexte, { colonnes, premiereColonne, r
     hauteurPx: sous.pxHauteur,
     ports: { auPlusJuste: c.auPlusJuste, colonnes: c.colonnes.ports, redondance: c.redondance },
     distributeurs: sorties ? {
-      colonnes: Math.ceil(c.colonnes.ports / sorties),
+      colonnes: parZones ? convertisseurs(parZones.colonnes, 1) : Math.ceil(c.colonnes.ports / sorties),
       auPlusJuste: Math.ceil(c.auPlusJuste / sorties),
-      redondance: 2 * Math.ceil(c.colonnes.ports / sorties),
+      // Secours dédiés : convertisseurs miroirs ; sinon les ports doublés de chaque carte.
+      redondance: parZones
+        ? (proc.portsRedondance ? 2 * convertisseurs(parZones.redondance, 1) : convertisseurs(parZones.redondance, 2))
+        : 2 * Math.ceil(c.colonnes.ports / sorties),
     } : null,
-    // MX2000 Pro, MX6000 Pro : cartes de sortie qui portent ces convertisseurs.
-    cartesSortie: proc.carteSortie && sorties ? {
-      colonnes: Math.ceil(Math.ceil(c.colonnes.ports / sorties) / proc.carteSortie.convertisseursParCarte),
-      redondance: Math.ceil((2 * Math.ceil(c.colonnes.ports / sorties)) / proc.carteSortie.convertisseursParCarte),
-    } : null,
+    // MX2000 Pro, MX6000 Pro : cartes de sortie qui portent ces convertisseurs ; série H : ports par carte.
+    cartesSortie: zones ?? (proc.carteSortie ? {
+      colonnes: cartesPour(proc, c.colonnes.ports),
+      redondance: cartesPour(proc, proc.portsRedondance ? c.colonnes.ports : 2 * c.colonnes.ports),
+    } : null),
     chargeMax: chargePx(c.colonnes.pxMaxParPort, contexte.capacite),
     ok,
   };
@@ -890,6 +1186,14 @@ function decouper(m, dalle, proc, contexte) {
   };
   if (proc.dallesMax) {
     controles.dalles = controle(m.dalles.total, proc.dallesMax, Math.ceil(m.dalles.total / proc.dallesMax));
+  }
+  // Série H, X100 Pro, Z8t : cartes de sortie nécessaires, chaque carte dans sa zone.
+  if (proc.carteSortie?.largeurMaxPx) {
+    const cartes = cartesParZones(proc, m, global, dalle, { redondance: contexte.redondance })?.length ?? null;
+    controles.cartes = {
+      ...controle(cartes ?? Infinity, proc.emplacementsSortie, cartes === null ? Infinity : Math.ceil(cartes / proc.emplacementsSortie)),
+      zone: { largeurPx: proc.carteSortie.largeurMaxPx, hauteurPx: proc.carteSortie.hauteurMaxPx },
+    };
   }
   const limites = Object.entries(controles).filter(([, c]) => c.nombre > 1).map(([nom]) => nom);
   const resultat = { global, controles, limites, nombre: null, grille: null, groupes: [], impossible: null };
@@ -950,7 +1254,8 @@ function rectanglesNovaLCT(m, dalle, capacite) {
 // Réglages : frequenceHz, bits, ull (Brompton), cartesPro et modeOptique (MX40 Pro), redondance.
 export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   // MX2000 Pro, MX6000 Pro : ports, convertisseurs et capacité selon la carte de sortie retenue.
-  const avecCartes = procFiche.carteSortie1G || procFiche.carteSortie5G ? processeurAvecCartes(procFiche, dalle, reglages.carteSortie) : null;
+  let avecCartes = procFiche.carteSortie1G || procFiche.carteSortie5G ? processeurAvecCartes(procFiche, dalle, reglages.carteSortie) : null;
+  if (procFiche.cartesSortieLED?.length && procFiche.emplacementsSortie > 0) avecCartes = processeurAvecCartesLED(procFiche, reglages.carteSortie, dalle);
   const proc = avecCartes?.proc ?? procFiche;
   const {
     frequenceHz = 60, bits = BIT_DEPTH_PAR_DEFAUT[proc.famille], ull = false, cartesPro = false,
@@ -964,20 +1269,18 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   };
   const vide = {
     processeur: proc, reglages: { ...reglagesCapacite, redondance, modeOptique }, global: null, controles: {}, limites: [],
-    nombre: null, grille: null, unSeulSuffit: false, groupes: [], totaux: null, seuil: null, alertes: [], aCompleter: [], manques: [],
+    nombre: null, grille: null, unSeulSuffit: false, groupes: [], totaux: null, seuil: null, alertes: [], notes: [], aCompleter: [], manques: [],
   };
   // SP60 Pro (sous-pixel) : fiche d'information, calcul hors appli.
   if (proc.calculHorsAppli) return { ...vide, impossible: `${proc.nom} : ${proc.calculHorsAppli}.` };
-  // KU20 : 8 bits par défaut ; 10 bits seulement avec un programme personnalisé.
-  if (proc.bitsReseauPossibles && !proc.bitsReseauPossibles.includes(bits)) {
-    const pourquoi = proc.sources?.bitsReseauPossibles?.note;
-    return {
-      ...vide,
-      impossible: `Le ${proc.nom} travaille en ${proc.bitsReseauPossibles.join(' ou ')} bits${pourquoi ? ` ; ${pourquoi}` : ''} `
-        + `(${proc.sources?.bitsReseauPossibles?.source.court ?? 'sa fiche'}) : pas de calcul en ${bits} bits.`,
-    };
-  }
+  // KU20 : 8 bits par défaut, 10 bits seulement avec un programme personnalisé ; MCTRL300 : pas d'entrée 10 bits ;
+  // Colorlight : capacité 12 bits non publiée.
+  const refusBits = refusBitsReseau(proc, bits);
+  if (refusBits) return { ...vide, impossible: refusBits };
   const manquants = champsManquants(proc);
+  if (procFiche.statut === 'information') {
+    return { ...vide, aCompleter: manquants, impossible: `${proc.nom} : fiche d'information, à compléter avec une fiche constructeur ; aucun calcul avec ce modèle.` };
+  }
   if (manquants.length > 0) {
     return { ...vide, aCompleter: manquants, impossible: `Fiche du ${proc.nom} à compléter : aucun calcul avec ce modèle.` };
   }
@@ -989,7 +1292,7 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   const qualite = capacitePortProcesseur(proc, { ...reglagesCapacite, carte: dalle.carteReceptionModele ?? null });
   const capacite = qualite.capacite;
   const alertes = qualite.notes.map((note) => `Capacité par port du ${proc.nom} : ${note}.`);
-  if (avecCartes?.alerte) alertes.push(avecCartes.alerte);
+  if (avecCartes?.alerte) alertes.push(...[].concat(avecCartes.alerte));
   alertes.push(...cartesReception.map((x) => x.alerte).filter(Boolean));
   // Manques de la fiche qui touchent ce calcul : leur texte est aussi une alerte.
   const manques = [];
@@ -1014,8 +1317,23 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   const parPort = dallesParPort(capacite, pxParDalle, { plafond });
   const optique = modeOptique && Boolean(proc.portsOptionOptique);
   if (proc.typePorts === '5G') {
-    alertes.push(`Câbles de tête du ${proc.nom} (ports à 5 Gbit/s) : ${TEXTE_CABLE_5G}.`);
+    alertes.push(`Câbles de tête du ${proc.nom} (ports à 5 Gbit/s) : ${texteCable5G(proc)}.`);
   }
+  // Informations sans alerte (Colorlight : règle des 1280 px de la fiche S20 sur un autre modèle).
+  const notes = [];
+  // Capacité de l'appareil : ports utiles × capacité d'un port, plafonnée par le total de la fiche
+  // (VX4S : 4 × 650 000 = 2,6 M, mais 2,3 M au total). En redondance, les ports principaux seulement.
+  const portsSorties = optique && proc.portsOptionOptique ? proc.portsOptionOptique : proc.ports;
+  const portsAppareil = redondance ? (proc.portsRedondance ?? Math.floor(portsSorties / 2)) : portsSorties;
+  const sommePorts = portsAppareil * capacite;
+  const capaciteAppareil = {
+    ports: portsAppareil,
+    capacitePort: capacite,
+    sommePorts,
+    pixelsMax: proc.pixelsMax,
+    valeur: Math.min(sommePorts, proc.pixelsMax),
+    limite: sommePorts < proc.pixelsMax - EPS ? 'ports' : 'total',
+  };
   const base = {
     ...vide,
     reglages: { ...reglagesCapacite, redondance, modeOptique: optique },
@@ -1027,7 +1345,9 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     champCapacite: qualite.champ,
     capaciteDeduite: qualite.deduit,
     capaciteAConfirmer: qualite.aConfirmer,
+    capaciteAppareil,
     alertes,
+    notes,
     manques,
     pxParDalle,
     pxParDemi: m.demi ? pxParDemi : null,
@@ -1048,7 +1368,7 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   // sauf s'il coûte un processeur : alors le plus de colonnes par port, et des retours de secours longs.
   const contexte = {
     parPort, capacite, redondance, modeOptique: optique, pair: redondance,
-    charge: { capacite, pxParDalle, pxParDemi, plafond, ...chargeLargeur(proc, dalle, m) },
+    charge: { capacite, pxParDalle, pxParDemi, plafond, ...chargeGeometrie(proc, dalle, m) },
   };
   let d = decouper(m, dalle, proc, contexte);
   let pairAbandonne = null;
@@ -1084,6 +1404,44 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
           ? 'règle de la fiche MX40 Pro, appliquée par analogie : déduit' : 'fiche MX40 Pro V1.5.0, wiki COEX'}). Colonnes comptées en conséquence.`);
     }
   }
+  // Colorlight : zone d'un port limitée en largeur et en hauteur ; alerte chiffrée quand la limite coûte des ports.
+  const dmax = proc.dimensionMaxPortPx;
+  if (dmax && d.global) {
+    const sansLimite = cablage(m, parPort, { ...contexte.charge, dimensionMaxPx: undefined }, { pair: contexte.pair });
+    const col = d.global.colonnes;
+    if (col.ports > sansLimite.colonnes.ports) {
+      const source = proc.sources?.dimensionMaxPortPx;
+      const detail = col.colonnesParPort
+        ? `${quantite(col.colonnesParPort, 'colonne')} par port au lieu de ${sansLimite.colonnes.colonnesParPort ?? 1}`
+        : `chaque colonne (${nombreCourt(m.pxHauteur)} px de haut) coupée en ${col.segments.length} segments égaux (${col.segments.join(' + ')} dalles)`;
+      alertes.push(`Ports du ${proc.nom} : ${dmax} px de large ou de haut au plus par port (${source?.source.court ?? 'fiche'}`
+        + `${/déduit/.test(source?.source.confiance ?? '') ? ', déduit' : ''}) : ${detail}, `
+        + `${quantite(col.ports, 'port')} au lieu de ${quantite(sansLimite.colonnes.ports, 'port')}.`);
+    }
+  }
+  // Colorlight 1G : capacité réduite au-delà de 1280 px de haut (fiche S20). Alerte sur les modèles dont la fiche le dit,
+  // simple note sur les autres.
+  if (proc.famille === 'colorlight' && proc.typePorts !== '5G' && d.global) {
+    const col = d.global.colonnes;
+    const hauteurPort = col.colonnesParPort ? m.pxHauteur : Math.max(...col.segments) * dalle.pxV;
+    const seuil = proc.hauteurReduitePortPx ?? HAUTEUR_REDUITE_S20_PX;
+    if (hauteurPort > seuil) {
+      const source = proc.sources?.hauteurReduitePortPx?.source;
+      if (proc.hauteurReduitePortPx) {
+        alertes.push(`Ports du ${proc.nom} : un port charge ${nombreCourt(hauteurPort)} px de haut ; capacité réduite au-delà de ${seuil} px de haut, `
+          + `valeur non publiée : vérifie dans LEDVISION (${source?.court ?? 'fiche'}).`);
+      } else {
+        notes.push(`Ports du ${proc.nom} : un port charge ${nombreCourt(hauteurPort)} px de haut. La fiche S20 annonce une capacité réduite au-delà de `
+          + `${HAUTEUR_REDUITE_S20_PX} px de haut : règle écrite sur la fiche S20, non confirmée pour ce modèle.`);
+      }
+    }
+  }
+  // Sorties fibre qui copient ou secourent les ports Ethernet (MCTRL4K) : elles n'ajoutent aucune capacité.
+  if (proc.sortiesFibre === 'copie') {
+    const note = proc.sources?.sortiesFibre?.note;
+    alertes.push(`Sorties fibre du ${proc.nom} : copies ou secours des ports Ethernet, aucune capacité ajoutée `
+      + `(${proc.ports} ports au plus)${note ? ` ; ${note}` : ''}.`);
+  }
   // Au plus juste le long du vrai serpentin : il fait foi quand il diffère du décompte théorique (demi-dalles).
   const departCablage = reglages.departCablage ?? 'haut-gauche';
   for (const g of d.groupes) {
@@ -1103,17 +1461,22 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
       colonnes: somme((g) => g.distributeurs.colonnes),
       auPlusJuste: somme((g) => g.distributeurs.auPlusJuste),
       redondance: somme((g) => g.distributeurs.redondance),
+      // Ports des convertisseurs qui ne servent pas (CVT10 d'un VX400 Pro : 6 sur 10).
+      portsNonUtilises: somme((g) => (redondance ? g.distributeurs.redondance * sorties - g.ports.redondance.colonnes
+        : g.distributeurs.colonnes * sorties - g.ports.colonnes)),
     } : null,
     cartesSortie: proc.carteSortie ? somme((g) => (redondance ? g.cartesSortie.redondance : g.cartesSortie.colonnes)) : null,
   };
-  // MX2000 Pro, MX6000 Pro : « MX6000 Pro + 2 cartes 4x10G + 6 CVT10 ».
+  // MX2000 Pro, MX6000 Pro, série H : « MX6000 Pro + 2 cartes 4x10G + 6 CVT10 », « H5 + 2 cartes H_20xRJ45 ».
+  // Les convertisseurs n'y figurent que s'ils sont obligatoires.
   let configuration = null;
   if (proc.carteSortie && totaux) {
     const cartes = totaux.cartesSortie;
-    const convertisseurs = redondance ? totaux.distributeurs.redondance : totaux.distributeurs.colonnes;
+    const avecConvertisseurs = Boolean(proc.distributeurObligatoire && totaux.distributeurs);
+    const convertisseurs = avecConvertisseurs ? (redondance ? totaux.distributeurs.redondance : totaux.distributeurs.colonnes) : 0;
     const modeleConvertisseur = MODELES_DISTRIBUTEUR[proc.distributeur] ?? 'convertisseurs';
-    configuration = `${d.nombre > 1 ? `${d.nombre} × ` : ''}${proc.modele} + ${cartes} carte${cartes > 1 ? 's' : ''} ${proc.carteSortie.nomCourt} `
-      + `+ ${convertisseurs} ${modeleConvertisseur}${d.nombre > 1 ? ' au total' : ''}`;
+    configuration = `${d.nombre > 1 ? `${d.nombre} × ` : ''}${proc.modele} + ${cartes} carte${cartes > 1 ? 's' : ''} ${proc.carteSortie.nomCourt}`
+      + `${avecConvertisseurs ? ` + ${convertisseurs} ${modeleConvertisseur}` : ''}${d.nombre > 1 ? ' au total' : ''}`;
   }
 
   // Alerte de seuil processeur : colonnes à retirer pour économiser un processeur.
@@ -1148,6 +1511,11 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   if (c.ports.depasse) {
     alertes.push(`Le mur demande ${c.ports.valeur} ports${c.ports.principaux ? ' principaux' : ''}, au-delà des ${c.ports.limite} `
       + `d'un ${proc.nom}${ilEnFaut(c.ports.nombre)}.`);
+  }
+  if (c.cartes?.depasse) {
+    alertes.push(`Le mur demande ${Number.isFinite(c.cartes.valeur) ? c.cartes.valeur : 'plus de'} cartes ${proc.carteSortie.nomCourt} (zone de `
+      + `${nombreCourt(c.cartes.zone.largeurPx)} × ${nombreCourt(c.cartes.zone.hauteurPx)} px au plus par carte), au-delà des ${c.cartes.limite} `
+      + `d'un ${proc.nom}${ilEnFaut(c.cartes.nombre)}.`);
   }
   if (c.dalles?.depasse) {
     alertes.push(`Le mur compte ${c.dalles.valeur} dalles, au-delà des ${c.dalles.limite} d'un ${proc.nom}${ilEnFaut(c.dalles.nombre)}.`);
@@ -1195,6 +1563,15 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     totaux,
     seuil: { dallesEnMoins: d.global.seuil.dallesEnMoins, colonnesEnMoins },
   };
+}
+
+// Conseil « toutes marques du parc » : chaque processeur évalué à la profondeur réseau par défaut de sa marque
+// (réglage du parc compris, `bitsParFamille`), la marque choisie (`famille`) à la profondeur du formulaire.
+export function evaluerToutesMarques(m, dalle, processeurs, reglages, { famille = null, bitsParFamille = {} } = {}) {
+  return processeurs.map((p) => {
+    const bits = p.famille === famille ? reglages.bits : (bitsParFamille[p.famille] ?? BIT_DEPTH_PAR_DEFAUT[p.famille] ?? reglages.bits);
+    return evaluerProcesseur(m, dalle, p, { ...reglages, bits });
+  });
 }
 
 // Processeur conseillé par défaut : le moins de processeurs, puis la plus petite capacité en pixels.
@@ -1309,8 +1686,19 @@ export function controleEntree(proc, source, liaisons) {
   }
 
   // Format de l'entrée donné par la fiche du processeur : il passe avant la norme de la liaison. Plusieurs formats :
-  // le premier qui accepte la source, sinon le dernier (le plus large) pour la raison du refus.
-  const essais = formatsDeFiche(proc, liaison).map((f) => ({ f, c: controleFormatFiche(f, liaison, source) }));
+  // le premier qui accepte la source, sinon le dernier (le plus large) pour la raison du refus. Un format propre à une
+  // profondeur (VX16s : 3840 × 1080 en 10 ou 12 bits) ne vaut que pour elle ; source sans profondeur : 8 bits.
+  const bitsSource = source.bits ?? 8;
+  const formatsFiche = formatsDeFiche(proc, liaison);
+  const formats = formatsFiche.filter((f) => !f.bits || f.bits.includes(bitsSource));
+  if (formatsFiche.length > 0 && formats.length === 0) {
+    const acceptes = [...new Set(formatsFiche.flatMap((f) => f.bits ?? []))].join(' ou ');
+    return {
+      ok: false, liaison, controle: null, alertes,
+      refus: `Entrée ${formatsFiche[0].nom} du ${proc.nom} : ${acceptes} bits seulement sur sa fiche, pas ${bitsSource} bits.`,
+    };
+  }
+  const essais = formats.map((f) => ({ f, c: controleFormatFiche(f, liaison, source) }));
   const retenu = essais.find((x) => x.c.ok) ?? essais[essais.length - 1] ?? null;
   const format = retenu?.f ?? null;
   const controle = retenu ? retenu.c : controleLiaison(liaison, source);
@@ -1448,10 +1836,44 @@ export function sourceConseillee(evaluation, liaisons, frequenceHz) {
 // Régies et scalers
 // ---------------------------------------------------------------------------
 
+// Modèle générique (régies, switchers, scalers) : `entrees` et `sorties` par type de liaison et nombre, avec format
+// maxi et source ; `couches`, `latence`, `bitsParCouleur`, `emplacements`, `hauteurU`, `poidsKg`, `puissanceW`,
+// `statutCommercial`. Les anciens `modesSortie` et `sortiesTypes` (E2 Gen 2) restent prioritaires.
+// Sorties qui alimentent des processeurs : ni multiviewer, ni copie d'une autre sortie.
+const sortiesUtiles = (regie) => (Array.isArray(regie.sorties) ? regie.sorties : [])
+  .filter((s) => s.role !== 'multiviewer' && !s.copie);
+
+// Modes de sortie d'une régie : ceux de sa fiche, sinon un mode par type de sortie du modèle générique
+// (« 8 × DVI single link »), au format maxi de la sortie, ou de la liaison quand la fiche ne le donne pas.
+export function modesSortieRegie(regie, liaisons = []) {
+  if (regie.modesSortie?.length) return regie.modesSortie;
+  const multiviewerDedie = (regie.sorties ?? []).some((s) => s.role === 'multiviewer');
+  return sortiesUtiles(regie).map((s) => {
+    const liaison = liaisons.find((l) => l.id === s.type);
+    return {
+      nom: `${s.nombre} × ${liaison?.nom ?? s.type}`,
+      sorties: s.nombre,
+      sortiesAvecMultiviewer: multiviewerDedie ? s.nombre : null,
+      largeurMaxPx: s.largeurMaxPx ?? liaison?.formatMaxLargeurPx,
+      hauteurMaxPx: s.hauteurMaxPx ?? liaison?.formatMaxHauteurPx,
+      frequenceHz: s.frequenceMaxHz ?? liaison?.formatMaxFrequenceHz,
+      source: s.source,
+      type: s.type,
+    };
+  });
+}
+
+// Types de liaison des sorties : ceux de la fiche, sinon ceux des sorties du modèle générique.
+export function sortiesTypesRegie(regie) {
+  if (regie.sortiesTypes?.length) return regie.sortiesTypes;
+  return [...new Set(sortiesUtiles(regie).map((s) => s.type))];
+}
+
 export function champsManquantsRegie(regie) {
   const manquants = [];
-  if (!regie.modesSortie?.length) manquants.push('modesSortie');
-  if (!regie.sortiesTypes?.length) manquants.push('sortiesTypes');
+  const sorties = sortiesUtiles(regie).length > 0;
+  if (!regie.modesSortie?.length && !sorties) manquants.push('modesSortie');
+  if (!regie.sortiesTypes?.length && !sorties) manquants.push('sortiesTypes');
   return manquants;
 }
 
@@ -1466,13 +1888,14 @@ export function controleRegie(regie, evaluation, source, liaisons, { multiviewer
   }
   const refus = [];
   const alertes = [];
-  const modes = regie.modesSortie
+  const modesFiche = modesSortieRegie(regie, liaisons);
+  const modes = modesFiche
     .filter((md) => !multiviewer || md.sortiesAvecMultiviewer)
     .map((md) => ({ ...md, disponibles: multiviewer ? md.sortiesAvecMultiviewer : md.sorties }))
     .filter((md) => source.largeurPx <= md.largeurMaxPx && source.hauteurPx <= md.hauteurMaxPx && source.frequenceHz <= md.frequenceHz + EPS);
   const mode = modes.length ? modes.reduce((a, b) => (b.disponibles > a.disponibles ? b : a)) : null;
-  if (multiviewer && regie.modesSortie.some((md) => !md.sortiesAvecMultiviewer)) {
-    alertes.push(`Multiviewer : ${regie.modesSortie.filter((md) => !md.sortiesAvecMultiviewer).map((md) => `mode ${md.nom}`).join(', ')} `
+  if (multiviewer && modesFiche.some((md) => !md.sortiesAvecMultiviewer)) {
+    alertes.push(`Multiviewer : ${modesFiche.filter((md) => !md.sortiesAvecMultiviewer).map((md) => `mode ${md.nom}`).join(', ')} `
       + 'non retenu, faute de nombre de sorties connu.');
   }
   if (!mode) {
@@ -1483,7 +1906,7 @@ export function controleRegie(regie, evaluation, source, liaisons, { multiviewer
       + `en mode ${mode.nom}${multiviewer ? ', avec le multiviewer' : ''}.`);
   }
   const choisie = liaisons.find((l) => l.id === source.liaison);
-  const sorties = regie.sortiesTypes.map((id) => liaisons.find((l) => l.id === id)).filter(Boolean);
+  const sorties = sortiesTypesRegie(regie).map((id) => liaisons.find((l) => l.id === id)).filter(Boolean);
   if (choisie && !sorties.some((l) => l.famille === choisie.famille && l.rang >= choisie.rang)) {
     refus.push(`La régie ${regie.nom} n'a pas de sortie ${choisie.nom} (sorties : ${sorties.map((l) => l.nom).join(', ')}).`);
   }
@@ -1943,11 +2366,29 @@ const COTE_MAX_IMAGE = 32767;
 const LIMITE_CUIVRE_M = 100;
 // Câble des ports 5G (CX40 Pro, CVT8-5G) : le Cat6A du wiki COEX, le plus exigeant ; 100 m de la fiche CVT8-5G.
 const TEXTE_CABLE_5G = 'Cat6A obligatoire (wiki COEX) ; 100 m au plus (fiche CVT8-5G V1.1.0, copie non officielle, qui accepte le Cat6 jusqu\'à 100 m)';
+// Colorlight 5G : câble blindé Cat6 ou mieux, longueur de la fiche (80 m sur les fiches Z3 et Z8t, déduit ailleurs).
+export function texteCable5G(proc) {
+  if (!proc.longueurCable5GM) return TEXTE_CABLE_5G;
+  return `câble blindé Cat6 ou mieux, ${proc.longueurCable5GM} m au plus (${proc.sources?.longueurCable5GM?.source.court ?? 'fiche'})`;
+}
+const limiteCuivre = (proc) => (proc.typePorts === '5G' && proc.longueurCable5GM ? proc.longueurCable5GM : LIMITE_CUIVRE_M);
+// Colorlight 1G : hauteur au-delà de laquelle la capacité d'un port baisse (fiche S20 V2.1, p. 2).
+const HAUTEUR_REDUITE_S20_PX = 1280;
 export const MARGE_MOU_DEFAUT = 0.1;
+// Processeurs sans sortie fibre (MCTRL300, MCTRL660, VX2U, VX4S, VX6s…) : fibre seulement par convertisseurs sur chaque port.
+const TEXTE_SANS_FIBRE = 'pas de sortie fibre : une paire de CVT310 (multimode, 550 m) ou CVT320 (monomode, 20 km) par port au-delà de 100 m';
+// Colorlight sans sortie fibre : les H10FN2, H10FN et H10Fix demandent une sortie fibre 10G.
+const TEXTE_SANS_FIBRE_COLORLIGHT = 'pas de sortie fibre : une paire de convertisseurs Ethernet-fibre 1G par port au-delà de 100 m '
+  + '(les H10FN2, H10FN et H10Fix demandent une sortie fibre 10G ; choix de conception du projet)';
+// Convertisseurs de même rôle, cités en note.
+const AUTRES_DISTRIBUTEURS = { 'colorlight-h10fn2': 'H10FN ou H10Fix' };
 // Distributeur fibre proposé quand le cuivre dépasse 100 m, si la fiche du processeur n'en nomme pas.
 const FIBRE_PAR_FAMILLE = { brompton: 'XD', novastar: 'CVT10', colorlight: 'convertisseurs fibre' };
 // Nom court des convertisseurs, pour les libellés de ports et les alertes.
-export const MODELES_DISTRIBUTEUR = { 'brompton-xd': 'XD', 'novastar-cvt10': 'CVT10', 'coex-cvt8-5g': 'CVT8-5G' };
+export const MODELES_DISTRIBUTEUR = {
+  'brompton-xd': 'XD', 'novastar-cvt10': 'CVT10', 'coex-cvt8-5g': 'CVT8-5G', 'novastar-cvt4k': 'CVT4K', 'novastar-cvt310': 'CVT310', 'novastar-cvt320': 'CVT320',
+  'colorlight-h10fn2': 'H10FN2', 'colorlight-h2f': 'H2F', 'colorlight-h10fix-5g': 'H10Fix-5G',
+};
 
 export const idDalle = (colonne, rangee) => `C${colonne} R${rangee}`;
 const suite = (debut, fin) => Array.from({ length: fin - debut + 1 }, (_, i) => debut + i);
@@ -2171,7 +2612,7 @@ export function cablageData(m, dalle, evaluation, {
   const tuile = ([c, r]) => dalles.get(idDalle(c, r));
   const poids = (p) => (tuile(p).type === 'demi' ? evaluation.pxParDemi : evaluation.pxParDalle);
   const hauteurs = m.rangees.map((type) => (type === 'demi' ? m.demi.pxV : dalle.pxV));
-  const charge = { capacite, pxParDalle: evaluation.pxParDalle, pxParDemi: evaluation.pxParDemi ?? evaluation.pxParDalle, plafond, ...chargeLargeur(proc, dalle, m) };
+  const charge = { capacite, pxParDalle: evaluation.pxParDalle, pxParDemi: evaluation.pxParDemi ?? evaluation.pxParDalle, plafond, ...chargeGeometrie(proc, dalle, m) };
   // COEX 1G : réduction de capacité d'un port qui charge moins de 128 px de large (rectangle englobant).
   const penalite = penaliteGroupe(charge, m.rangees);
   const sorties = proc.sortiesParDistributeur;
@@ -2284,13 +2725,17 @@ export function cablageData(m, dalle, evaluation, {
 
     const tous = processeurs.flatMap((p) => p.ports);
     const alertes = [];
-    // 5G : Cat6A obligatoire, 100 m au plus comme en 1G (fiche CVT8-5G).
-    const longs = tous.filter((p) => p.longueurCuivreM > LIMITE_CUIVRE_M);
-    if (cinqG) alertes.push(`Ports 5G : câble ${TEXTE_CABLE_5G}.`);
+    // 5G : Cat6A obligatoire, 100 m au plus comme en 1G (fiche CVT8-5G) ; Colorlight : câble blindé, 80 m (fiches Z3 et Z8t).
+    const limiteM = limiteCuivre(proc);
+    const longs = tous.filter((p) => p.longueurCuivreM > limiteM);
+    if (cinqG) alertes.push(`Ports 5G : ${proc.longueurCable5GM ? '' : 'câble '}${texteCable5G(proc)}.`);
     if (longs.length > 0) {
-      alertes.push(`${longs.length} câble${longs.length > 1 ? 's' : ''} de tête en cuivre au-delà de ${LIMITE_CUIVRE_M} m `
-        + `(jusqu'à ${nombreCourt(Math.max(...longs.map((p) => p.longueurCuivreM)), 1)} m) : l'Ethernet en cuivre s'arrête à ${LIMITE_CUIVRE_M} m, `
-        + `passe en fibre avec des ${fibre} au pied du mur.`);
+      const autres = AUTRES_DISTRIBUTEURS[proc.distributeur];
+      alertes.push(`${longs.length} câble${longs.length > 1 ? 's' : ''} de tête en cuivre au-delà de ${limiteM} m `
+        + `(jusqu'à ${nombreCourt(Math.max(...longs.map((p) => p.longueurCuivreM)), 1)} m) : l'Ethernet en cuivre s'arrête à ${limiteM} m, `
+        + (proc.sortiesFibre === 'aucune'
+          ? `et le ${proc.modele} n'a ${proc.famille === 'colorlight' ? TEXTE_SANS_FIBRE_COLORLIGHT : TEXTE_SANS_FIBRE}.`
+          : `passe en fibre avec des ${fibre} au pied du mur${autres && !nomDistributeur ? ` (${autres} possibles)` : ''}.`));
     }
     const retoursLongs = tous.filter((p) => p.secours?.long).map((p) => p.secours.retourM);
     if (retoursLongs.length > 0) {

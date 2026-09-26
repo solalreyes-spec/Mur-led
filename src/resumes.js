@@ -55,6 +55,27 @@ export function resumeMur({ dalle, mur: m }) {
   ]);
 }
 
+// Latence chiffrée d'un processeur, en images, avec sa source : « 0 à 3 images (Fiche VX2000 Pro V1.4.0) » ;
+// « au moins 1 image, maximum non publié (…) » quand la fiche ne donne qu'un minimum (« as low as »). Sinon null.
+export function texteLatence(proc) {
+  const min = proc.latenceMinImages;
+  const max = proc.latenceMaxImages;
+  if (min === undefined && max === undefined) return null;
+  const images = (n) => `${nombre(n)} image${n > 1 ? 's' : ''}`;
+  let texte;
+  if (min !== undefined && max !== undefined) texte = min === max ? images(min) : `${nombre(min)} à ${images(max)}`;
+  else if (min !== undefined) texte = `au moins ${images(min)}, maximum non publié`;
+  else texte = `${images(max)} au plus`;
+  const sources = [...new Set([sourcesDe(proc, 'latenceMinImages'), sourcesDe(proc, 'latenceMaxImages')].filter(Boolean))].join(', ');
+  return `${texte}${sources ? ` (${sources})` : ''}`;
+}
+
+// Capacité de l'appareil : « min(4 ports × 650 000 = 2 600 000 px ; total de la fiche 2 300 000 px) = 2 300 000 px ».
+export function texteCapaciteAppareil(c) {
+  return `min(${pluriel(c.ports, 'port', 'ports')} × ${nombre(entierInferieur(c.capacitePort))} = ${nombre(entierInferieur(c.sommePorts))} px ; `
+    + `total de la fiche ${nombre(c.pixelsMax)} px) = ${nombre(entierInferieur(c.valeur))} px`;
+}
+
 // `r` : évaluation du processeur retenu ; `distributeur` : nom du distributeur (XD, CVT10) s'il y en a.
 // `configs` : lots et configs du mur pour le logiciel du processeur (fiches.configsDuMur), avec la version relevée.
 export function resumeData(r, { conseille = false, distributeur = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null, configs = null } = {}) {
@@ -77,6 +98,7 @@ export function resumeData(r, { conseille = false, distributeur = null, puissanc
     `Capacité par port : ${nombre(entierInferieur(r.capacite))} px`,
     r.formule ? `Calcul de la capacité : ${r.formule}` : null,
     sourceCapacite ? `Source de la capacité : ${sourceCapacite}` : null,
+    r.capaciteAppareil ? `Capacité de l'appareil : ${texteCapaciteAppareil(r.capaciteAppareil)}` : null,
     `Pixels par dalle : ${nombre(r.pxParDalle)} px`,
     `Dalles par port : ${nombre(r.dallesParPort)}`,
   ];
@@ -96,9 +118,13 @@ export function resumeData(r, { conseille = false, distributeur = null, puissanc
   const conso = consommationProcesseur(proc);
   if (conso) lignes.push(conso);
   if (distributeur && r.totaux?.distributeurs) {
+    const libres = r.totaux.distributeurs.portsNonUtilises;
     lignes.push(`${distributeur} : ${nombre(reg.redondance ? r.totaux.distributeurs.redondance : r.totaux.distributeurs.colonnes)}`
+      + `${libres > 0 ? `, ${pluriel(libres, 'port non utilisé', 'ports non utilisés')}` : ''}`
       + `${puissanceDistributeurW ? `, ${nombreCourt(puissanceDistributeurW)} W chacun` : ''}`);
   }
+  const latence = texteLatence(proc);
+  if (latence) lignes.push(`Latence : ${latence}`);
   r.groupes.forEach((gr, i) => {
     const ports = reg.redondance ? gr.ports.redondance.colonnes : gr.ports.colonnes;
     lignes.push(`${proc.modele} n° ${i + 1} : colonnes ${gr.premiereColonne} à ${gr.derniereColonne}`
@@ -106,7 +132,7 @@ export function resumeData(r, { conseille = false, distributeur = null, puissanc
       + ` (${pluriel(gr.dalles, 'dalle', 'dalles')}, ${pluriel(ports, 'port', 'ports')})`);
   });
   if (configs) lignes.push(...configs.lignes, configs.version ?? null);
-  lignes.push(...alertesPorts, ...alertes(r.alertes), ...alertes(configs?.alertes));
+  lignes.push(...alertesPorts, ...alertes(r.alertes), ...(r.notes ?? []).map((x) => `Note : ${x}`), ...alertes(configs?.alertes));
   return texte(lignes);
 }
 

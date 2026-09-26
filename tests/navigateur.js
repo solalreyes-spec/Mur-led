@@ -44,19 +44,25 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N2',
-    titre: 'Plus grand canvas de la base : en une seule image quand il tient (NovaPro UHD Jr), en tuiles exactes au-delà (MX6000 Pro), mire comprise',
+    titre: 'Plus grand canvas de la base : en une seule image quand il tient (VX2000 Pro, par la capacité de l\'appareil ; à égalité avec X20, VX20, X20m et Z5, le premier de la base), en tuiles exactes au-delà (MX6000 Pro), mire comprise',
     etape: '8c',
     async verifier(v, contexte) {
       const base = baseProcesseurs(contexte);
-      const actifs = base.processeurs.map((p) => calculs.resoudreFiche(p, base.sources)).filter((p) => calculs.champsManquants(p).length === 0);
+      // Série H exclue : processeur par cartes d'envoi, ses pixels maxi dépendent des cartes installées (le H20 serait le plus grand).
+      const actifs = base.processeurs.map((p) => calculs.resoudreFiche(p, base.sources))
+        .filter((p) => !p.cartesSortieLED && calculs.champsManquants(p).length === 0);
       const mire = { grille: true, cercles: true, diagonales: true, numeros: true };
-      // Le plus grand canvas qui tient en une seule image.
-      const unique = actifs.filter((p) => p.pixelsMax <= calculs.SURFACE_MAX_IMAGE).reduce((a, b) => (b.pixelsMax > a.pixelsMax ? b : a));
+      // Le plus grand canvas qui tient en une seule image (16 777 216 px au plus), comparé par la capacité de l'appareil :
+      // min(ports × capacité d'un port à 60 Hz, à la profondeur par défaut de la marque ; pixels maxi de la fiche).
+      const capaciteAppareil = (p) => Math.min(p.ports * calculs.capacitePortProcesseur(p, { frequenceHz: 60 }).capacite, p.pixelsMax);
+      const unique = actifs.map((p) => ({ ...p, capaciteAppareil: capaciteAppareil(p) }))
+        .filter((p) => Number.isFinite(p.capaciteAppareil) && p.capaciteAppareil <= calculs.SURFACE_MAX_IMAGE)
+        .reduce((a, b) => (b.capaciteAppareil > a.capaciteAppareil ? b : a));
       const colonnes = Math.floor(Math.min(unique.largeurMaxPx, 7680) / 192);
-      const lignes = Math.floor(unique.pixelsMax / (colonnes * 192 * 192));
+      const lignes = Math.floor(unique.capaciteAppareil / (colonnes * 192 * 192));
       const zone = calculs.pixelMap(calculs.mur(DALLE_192, colonnes, lignes), DALLE_192).mur;
       v.egal(`${unique.nom} : canvas de ${zone.largeurPx} × ${zone.hauteurPx} px, en une seule image`,
-        [unique.id, zone.largeurPx * zone.hauteurPx <= unique.pixelsMax, calculs.tuilesImage(zone.largeurPx, zone.hauteurPx).length], ['novastar-novapro-uhd-jr', true, 1]);
+        [unique.id, zone.largeurPx * zone.hauteurPx <= unique.capaciteAppareil, calculs.tuilesImage(zone.largeurPx, zone.hauteurPx).length], ['novastar-vx2000-pro', true, 1]);
       const image = await decoder(await canvasEnPng(pixelMapEnCanvas(zone, mire)));
       v.egal('taille du PNG', [image.width, image.height], [zone.largeurPx, zone.hauteurPx]);
       // Le plus grand canvas de la base, à ses limites (largeur, hauteur, pixels) : en tuiles, chacune exacte.

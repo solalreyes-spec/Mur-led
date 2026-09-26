@@ -51,6 +51,7 @@ export const CHAMPS = {
     { nom: 'marque', libelle: 'Marque', genre: 'brut', niveau: 'enregistrer' },
     { nom: 'modele', libelle: 'Modèle', genre: 'brut', niveau: 'enregistrer' },
     { nom: 'famille', libelle: 'Famille (brompton, novastar ou colorlight)', genre: 'brut', niveau: 'enregistrer', valeurs: ['brompton', 'novastar', 'colorlight'] },
+    { nom: 'gamme', libelle: 'Gamme (MCTRL, VX Pro, Tessera…)', genre: 'brut' },
     { nom: 'pixelsMax', libelle: 'Pixels maxi', genre: 'entier', unite: 'px' },
     { nom: 'ports', libelle: 'Nombre de ports', genre: 'entier' },
     { nom: 'largeurMaxPx', libelle: 'Largeur maxi', genre: 'entier', unite: 'px' },
@@ -60,13 +61,32 @@ export const CHAMPS = {
     { nom: 'capacitePort60Hz10bits', libelle: 'Capacité par port à 60 Hz, 10 bits', genre: 'nombre', unite: 'px' },
     { nom: 'capacitePort60Hz12bits', libelle: 'Capacité par port à 60 Hz, 12 bits', genre: 'nombre', unite: 'px' },
     { nom: 'dallesMax', libelle: 'Dalles maxi', genre: 'entier' },
+    { nom: 'hauteurReduitePortPx', libelle: 'Hauteur de port au-delà de laquelle la capacité baisse (Colorlight)', genre: 'entier', unite: 'px' },
+    { nom: 'longueurCable5GM', libelle: 'Longueur maxi du câble des ports 5G', genre: 'nombre', unite: 'm' },
     { nom: 'entreesTypes', libelle: 'Entrées (types de liaison)', genre: 'liste' },
+    { nom: 'latenceMinImages', libelle: 'Latence mini (0 si « 0 frame »)', genre: 'entierOuZero', unite: 'images' },
+    { nom: 'latenceMaxImages', libelle: 'Latence maxi', genre: 'entierOuZero', unite: 'images' },
+    { nom: 'puissanceW', libelle: 'Consommation', genre: 'nombre', unite: 'W' },
+    { nom: 'poidsKg', libelle: 'Poids', genre: 'nombre', unite: 'kg' },
+    { nom: 'hauteurU', libelle: 'Hauteur en rack', genre: 'nombre', unite: 'U' },
+    { nom: 'statutCommercial', libelle: 'Statut commercial (actuel, ancien…)', genre: 'texte' },
   ],
+  // Modèle générique (régies, switchers, scalers) : les entrées, sorties et emplacements sont des listes d'objets
+  // ({ type, nombre, largeurMaxPx, hauteurMaxPx, frequenceMaxHz, source }), saisies dans le JSON (LISTES_SOURCEES).
   regie: [
     { nom: 'marque', libelle: 'Marque', genre: 'brut', niveau: 'enregistrer' },
     { nom: 'modele', libelle: 'Modèle', genre: 'brut', niveau: 'enregistrer' },
+    { nom: 'gamme', libelle: 'Gamme', genre: 'brut' },
     { nom: 'role', libelle: 'Rôle', genre: 'brut' },
+    { nom: 'position', libelle: 'Position (amont ou aval du processeur)', genre: 'brut', valeurs: ['amont', 'aval'] },
     { nom: 'sortiesTypes', libelle: 'Sorties (types de liaison)', genre: 'liste' },
+    { nom: 'couches', libelle: 'Couches', genre: 'entier' },
+    { nom: 'latence', libelle: 'Latence', genre: 'texte' },
+    { nom: 'bitsParCouleur', libelle: 'Bits par couleur', genre: 'entier', unite: 'bits' },
+    { nom: 'hauteurU', libelle: 'Hauteur en rack', genre: 'nombre', unite: 'U' },
+    { nom: 'poidsKg', libelle: 'Poids', genre: 'nombre', unite: 'kg' },
+    { nom: 'puissanceW', libelle: 'Consommation', genre: 'nombre', unite: 'W' },
+    { nom: 'statutCommercial', libelle: 'Statut commercial (actuel, ancien, arrêté…)', genre: 'texte' },
   ],
   bumper: [
     { nom: 'marque', libelle: 'Marque', genre: 'brut', niveau: 'enregistrer' },
@@ -87,6 +107,10 @@ const LIBELLES_MANQUANTS = {
 export function libelleChamp(type, nom) {
   return CHAMPS[type]?.find((c) => c.nom === nom)?.libelle ?? LIBELLES_MANQUANTS[nom] ?? nom;
 }
+
+// Listes d'objets qui portent chacun leur source (processeurs : formats de canvas ; régies : modes de sortie,
+// entrées, sorties, emplacements de cartes).
+const LISTES_SOURCEES = ['formatsCanvas', 'modesSortie', 'entrees', 'sorties', 'emplacements'];
 
 function estSourcee(champ) {
   return champ !== null && typeof champ === 'object' && !Array.isArray(champ) && ('valeur' in champ || 'valeurs' in champ);
@@ -115,6 +139,7 @@ export function nettoyerFiche(fiche) {
 function valeurValide(genre, valeur) {
   if (genre === 'nombre') return typeof valeur === 'number' && Number.isFinite(valeur) && valeur > 0;
   if (genre === 'entier') return Number.isInteger(valeur) && valeur > 0;
+  if (genre === 'entierOuZero') return Number.isInteger(valeur) && valeur >= 0;
   if (genre === 'texte') return typeof valeur === 'string' && valeur.trim() !== '';
   if (genre === 'liste') return Array.isArray(valeur) && valeur.length > 0;
   if (genre === 'booleen') return typeof valeur === 'boolean';
@@ -150,18 +175,24 @@ export function validerFiche(type, fiche, sources = {}) {
       else if (!sources[entree.source]) erreurs.push(`${libelle} : source « ${entree.source} » inconnue.`);
       else sourcesUtilisees.add(entree.source);
       if (spec && !valeurValide(spec.genre, entree.valeur)) {
-        erreurs.push(`${libelle} : « ${entree.valeur} » n'est pas ${{ nombre: 'un nombre positif', entier: 'un entier positif', texte: 'un texte', liste: 'une liste', booleen: 'oui ou non (true ou false)' }[spec.genre] ?? 'valide'}.`);
+        erreurs.push(`${libelle} : « ${entree.valeur} » n'est pas ${{ nombre: 'un nombre positif', entier: 'un entier positif', entierOuZero: 'un entier positif ou nul', texte: 'un texte', liste: 'une liste', booleen: 'oui ou non (true ou false)' }[spec.genre] ?? 'valide'}.`);
       }
       if (entree.type !== undefined && !TYPES_VALEUR.includes(entree.type)) {
         erreurs.push(`${libelle} : type de valeur « ${entree.type} » inconnu (max, typique ou mesuré).`);
       }
     }
   }
-  // Sources portées par des listes non sourcées (formats de canvas, modes de sortie).
-  for (const nom of ['formatsCanvas', 'modesSortie']) {
-    for (const entree of propre[nom] ?? []) {
+  // Sources portées par des listes non sourcées (formats de canvas, modes de sortie, entrées, sorties et emplacements
+  // du modèle générique des régies) : une source par élément.
+  for (const nom of LISTES_SOURCEES) {
+    if (!Array.isArray(propre[nom])) continue;
+    for (const entree of propre[nom]) {
       if (!entree.source || !sources[entree.source]) erreurs.push(`${nom} : source « ${entree.source ?? ''} » absente ou inconnue.`);
       else sourcesUtilisees.add(entree.source);
+      if ((nom === 'entrees' || nom === 'sorties') && !entree.type) erreurs.push(`${nom} : type de liaison absent.`);
+      if (['entrees', 'sorties', 'emplacements'].includes(nom) && !(Number.isInteger(entree.nombre) && entree.nombre > 0)) {
+        erreurs.push(`${nom} : nombre « ${entree.nombre ?? ''} » absent ou non entier.`);
+      }
     }
   }
   for (const id of sourcesUtilisees) {
@@ -227,7 +258,7 @@ export function enregistrerFiche(base, type, fiche, sources = {}) {
   for (const champ of Object.values(propre)) {
     if (estSourcee(champ)) for (const x of champ.valeurs ?? [champ]) cites.add(x.source);
   }
-  for (const nom of ['formatsCanvas', 'modesSortie']) for (const x of propre[nom] ?? []) cites.add(x.source);
+  for (const nom of LISTES_SOURCEES) if (Array.isArray(propre[nom])) for (const x of propre[nom]) cites.add(x.source);
   const nouvellesSources = Object.fromEntries(Object.entries(sources).filter(([id]) => cites.has(id)));
   const fiches = base.fiches.filter((f) => !(f.type === type && f.fiche.id === propre.id));
   return { ...base, sources: { ...base.sources, ...nouvellesSources }, fiches: [...fiches, { type, fiche: propre }] };
@@ -249,7 +280,7 @@ export function fusionner(depart, base) {
       ...depart.dalles, dalles: marquer(depart.dalles?.dalles), gabarits: marquer(depart.dalles?.gabarits), bumpers: marquer(depart.dalles?.bumpers),
       informations: marquer(depart.dalles?.informations),
     },
-    processeurs: { ...depart.processeurs, processeurs: marquer(depart.processeurs?.processeurs) },
+    processeurs: { ...depart.processeurs, processeurs: marquer(depart.processeurs?.processeurs), informations: marquer(depart.processeurs?.informations) },
     regies: { ...depart.regies, regies: marquer(depart.regies?.regies) },
   };
   for (const fichier of Object.keys(resultat)) {
@@ -257,17 +288,19 @@ export function fusionner(depart, base) {
   }
   for (const { type, fiche } of base.fiches) {
     const [fichier, nomListe] = EMPLACEMENTS[type];
-    // Fiche d'information (LEDCAST) reprise par l'utilisateur : complète (dimensions et pixels), elle devient une dalle ;
-    // sinon elle reste une fiche d'information, en version modifiée.
-    const infos = type === 'dalle' ? resultat.dalles.informations : [];
+    // Fiche d'information reprise par l'utilisateur : complète (dalle : dimensions et pixels ; processeur : champs
+    // obligatoires du calcul), elle rejoint les fiches calculées ; sinon elle reste une fiche d'information, modifiée.
+    const infos = { dalle: resultat.dalles.informations, processeur: resultat.processeurs.informations }[type] ?? [];
     const j = infos.findIndex((f) => f.id === fiche.id);
     if (j >= 0) {
-      const complete = ['largeurMm', 'hauteurMm', 'pxH', 'pxV'].every((c) => !vide(fiche[c]));
+      const complete = type === 'dalle'
+        ? ['largeurMm', 'hauteurMm', 'pxH', 'pxV'].every((c) => !vide(fiche[c]))
+        : champsManquants(resoudreFiche(fiche, resultat.processeurs.sources)).length === 0;
       if (complete) {
         infos.splice(j, 1);
-        const dalle = { ...fiche, statutBase: 'modifiee' };
-        if (dalle.statut === 'information') delete dalle.statut;
-        resultat.dalles.dalles.push(dalle);
+        const calculee = { ...fiche, statutBase: 'modifiee' };
+        if (calculee.statut === 'information') delete calculee.statut;
+        resultat[fichier][nomListe].push(calculee);
       } else {
         infos[j] = { ...fiche, statutBase: 'modifiee' };
       }
@@ -1039,6 +1072,43 @@ export function arbreDalles(dalles, { informations = [], parc = null, recherche 
 }
 
 // ---------------------------------------------------------------------------
+// Choix du processeur (Data) : marque (famille de calcul), gamme, modèle, avec une recherche par nom
+// ---------------------------------------------------------------------------
+
+// Marque affichée : la famille de calcul (COEX est une gamme Novastar).
+export const MARQUES_FAMILLE = { brompton: 'Brompton', novastar: 'Novastar', colorlight: 'Colorlight' };
+const compact = (texte) => sansAccents(texte).replace(/[\s-]+/g, '');
+
+// Processeurs (et fiches d'information, grisées, en dernier) rangés par marque, puis par gamme, du plus petit au plus
+// grand (pixels maxi, puis nom) ; statut « actuel » ou « ancien » dans le libellé ; fiches à compléter signalées.
+// Recherche : modèle, nom, alias ou identifiant, sans tenir compte des espaces, des tirets ni des accents.
+export function arbreProcesseurs(processeurs, { informations = [], recherche = '' } = {}) {
+  const q = compact(recherche);
+  const correspond = (p) => !q || compact(`${p.modele} ${p.nom} ${[].concat(p.alias ?? []).join(' ')} ${p.id}`).includes(q);
+  const marques = new Map();
+  for (const [p, information] of [...processeurs.map((p) => [p, false]), ...informations.map((p) => [p, true])]) {
+    if (!correspond(p)) continue;
+    const marque = MARQUES_FAMILLE[p.famille] ?? p.marque;
+    if (!marques.has(marque)) marques.set(marque, { famille: p.famille, gammes: new Map() });
+    const gammes = marques.get(marque).gammes;
+    const gamme = p.gamme || p.modele;
+    if (!gammes.has(gamme)) gammes.set(gamme, []);
+    gammes.get(gamme).push({
+      id: p.id, modele: p.modele, statut: p.statutCommercial ?? null, libelle: `${p.modele}${p.statutCommercial ? ` (${p.statutCommercial})` : ''}`,
+      information, aCompleter: !information && champsManquants(p).length > 0, pixels: p.pixelsMax ?? null,
+      statutBase: p.statutBase ?? null, calculHorsAppli: p.calculHorsAppli ?? null,
+    });
+  }
+  const parTaille = (a, b) => Number(a.information) - Number(b.information)
+    || (a.pixels ?? Infinity) - (b.pixels ?? Infinity) || comparerNoms(a.modele, b.modele);
+  return [...marques].map(([marque, { famille, gammes }]) => ({
+    marque,
+    famille,
+    gammes: [...gammes].map(([gamme, liste]) => ({ gamme, fiches: liste.sort(parTaille) })).sort((a, b) => comparerNoms(a.gamme, b.gamme)),
+  })).sort((a, b) => comparerNoms(a.marque, b.marque));
+}
+
+// ---------------------------------------------------------------------------
 // Fiches retirées de la base de départ encore citées par un parc (membre, réglage, lots, logiciel)
 // ---------------------------------------------------------------------------
 
@@ -1047,7 +1117,7 @@ export function fichesRetirees(base, depart) {
   const connus = {
     dalle: new Set([...f.dalles.dalles, ...f.dalles.gabarits, ...(f.dalles.informations ?? [])].map((x) => x.id)),
     bumper: new Set(f.dalles.bumpers.map((x) => x.id)),
-    processeur: new Set(f.processeurs.processeurs.map((x) => x.id)),
+    processeur: new Set([...f.processeurs.processeurs, ...(f.processeurs.informations ?? [])].map((x) => x.id)),
     regie: new Set(f.regies.regies.map((x) => x.id)),
   };
   const liste = [];

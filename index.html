@@ -162,24 +162,34 @@
       <h2 id="titre-data" class="cache-visuel">Data et processeur</h2>
 
       <form id="form-data" class="carte formulaire" novalidate>
-        <fieldset class="segmente">
-          <legend>Marque</legend>
-          <div class="segments">
-            <label><input type="radio" name="famille" value="novastar" checked><span>Novastar</span></label>
-            <label><input type="radio" name="famille" value="brompton"><span>Brompton</span></label>
-            <label><input type="radio" name="famille" value="colorlight"><span>Colorlight</span></label>
-          </div>
-        </fieldset>
-
         <div class="champ">
           <label for="parc-data">Parc actif</label>
           <select id="parc-data" name="parc" class="selecteur-parc"></select>
         </div>
 
-        <div class="champ">
-          <label for="processeur">Processeur</label>
-          <select id="processeur" name="processeur"></select>
-        </div>
+        <fieldset class="choix-dalle choix-processeur">
+          <legend>Processeur</legend>
+          <div class="champ">
+            <label for="recherche-processeur">Rechercher un modèle</label>
+            <input id="recherche-processeur" type="search" autocomplete="off" placeholder="VX1000, MX40, S8, H5…">
+          </div>
+          <div class="champ">
+            <label for="processeur-marque">Marque</label>
+            <select id="processeur-marque" disabled></select>
+          </div>
+          <div class="champ">
+            <label for="processeur-gamme">Gamme</label>
+            <select id="processeur-gamme" disabled></select>
+          </div>
+          <div class="champ">
+            <label for="processeur-modele">Modèle</label>
+            <select id="processeur-modele" disabled></select>
+          </div>
+          <p id="etat-choix-processeur" class="note" aria-live="polite"></p>
+          <!-- Valeurs retenues (gardées avec les saisies de Data) : famille de calcul et processeur ou conseil. -->
+          <input type="hidden" name="famille" value="novastar">
+          <select id="processeur" name="processeur" hidden></select>
+        </fieldset>
 
         <div class="paire">
           <div class="champ">
@@ -201,11 +211,27 @@
         <label class="case" data-famille="novastar"><input type="checkbox" name="cartesPro"><span>Cartes A8s Pro ou A10s Pro (MX40 Pro, 10 bits)</span></label>
         <label class="case" data-famille="novastar"><input type="checkbox" name="modeOptique"><span>MX40 Pro : mode 40 ports (sorties optiques et convertisseurs)</span></label>
         <div class="champ" data-famille="novastar">
-          <label for="carte-sortie">MX2000 Pro et MX6000 Pro : cartes de sortie</label>
+          <label for="carte-sortie">Cartes de sortie (MX2000 Pro, MX6000 Pro, série H)</label>
           <select id="carte-sortie" name="carteSortie">
-            <option value="auto" selected>Selon la carte des dalles</option>
-            <option value="4x10g">4x10G (ports 1G, CVT10)</option>
-            <option value="1x40g">1 × 40G (ports 5G, CVT8-5G)</option>
+            <option value="auto" selected>Par défaut (selon la carte des dalles ; H_20xRJ45 sur la série H, 10×1G sur le X100 Pro)</option>
+            <optgroup label="MX2000 Pro et MX6000 Pro">
+              <option value="4x10g">4x10G (ports 1G, CVT10)</option>
+              <option value="1x40g">1 × 40G (ports 5G, CVT8-5G)</option>
+            </optgroup>
+            <optgroup label="Série H (Novastar)">
+              <option value="h-20xrj45">H_20xRJ45 (20 ports 1G)</option>
+              <option value="h-16xrj45">H_16xRJ45+2xfiber (16 ports, fibre en copie)</option>
+              <option value="h-4xfiber">H_4xfiber (4 fibres, CVT10)</option>
+            </optgroup>
+            <optgroup label="X100 Pro (Colorlight)">
+              <option value="x100-10x1g">10×1G (10 ports 1G)</option>
+              <option value="x100-2x10g">2×10G (fibre, un H10FN2 de 10 ports)</option>
+              <option value="x100-4x5g">4×5G (2 ports 5G, ancienne version de fiche)</option>
+            </optgroup>
+            <optgroup label="Z8t (Colorlight)">
+              <option value="z8t-4x5g">4×5G (4 ports 5G)</option>
+              <option value="z8t-4x10g">4×10G (fibre, 2 H10FN2 de 10 ports)</option>
+            </optgroup>
           </select>
         </div>
       </form>

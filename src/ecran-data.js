@@ -2,14 +2,14 @@
 // et chaque résultat affiche la valeur utilisée et sa source.
 
 import {
-  evaluerProcesseur, processeurConseille, entierInferieur, champsManquants,
+  evaluerProcesseur, evaluerToutesMarques, processeurConseille, entierInferieur,
   BIT_DEPTH_PAR_DEFAUT, rappelTessera, gainDixBits, LIBELLES_COIN, ErreurSaisie,
 } from './calculs.js';
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
 import { alertesSansManques, ligneManques } from './manques.js';
-import { resumeData, consommationProcesseur, resumeAvantDePartir } from './resumes.js';
-import { configsDuMur, logicielDuProcesseur, texteLogicielParc, avantDePartir } from './fiches.js';
+import { resumeData, consommationProcesseur, resumeAvantDePartir, texteCapaciteAppareil, texteLatence } from './resumes.js';
+import { configsDuMur, logicielDuProcesseur, texteLogicielParc, avantDePartir, arbreProcesseurs, MARQUES_FAMILLE } from './fiches.js';
 import { listerFichiers } from './stockage.js';
 import { rappelsConfig } from './rappels.js';
 
@@ -17,6 +17,8 @@ const formulaire = document.getElementById('form-data');
 const zone = document.getElementById('resultats-data');
 
 let processeurs = [];
+// Fiches d'information (VX4, MCTRL610) : grisées dans le choix du processeur.
+let informations = [];
 let distributeurs = new Map();
 let sources = {};
 let etatMur = null;
@@ -59,8 +61,9 @@ const LIBELLES_CONTROLE = {
   hauteur: 'Hauteur de canvas',
   ports: 'Ports',
   dalles: 'Dalles',
+  cartes: 'Cartes de sortie',
 };
-const CHAMP_LIMITE = { pixels: 'pixelsMax', largeur: 'largeurMaxPx', hauteur: 'hauteurMaxPx', ports: 'ports', dalles: 'dallesMax' };
+const CHAMP_LIMITE = { pixels: 'pixelsMax', largeur: 'largeurMaxPx', hauteur: 'hauteurMaxPx', ports: 'ports', dalles: 'dallesMax', cartes: 'emplacementsSortie' };
 
 // ---------------------------------------------------------------------------
 // Formulaire
@@ -81,23 +84,114 @@ function lireFormulaire() {
   };
 }
 
-// Change de marque : liste de ses processeurs et bit depth par défaut de la marque.
+// Change de marque : bit depth par défaut de la marque et réglages propres à sa famille (ULL, cartes de sortie…).
 function preparerFamille(famille, garderReglages = false) {
-  const select = formulaire.elements.processeur;
-  const avant = select.value;
-  remplacer(select,
-    el('option', { value: 'conseille' }, 'Conseillé (le moins de processeurs)'),
-    processeurs.filter((p) => p.famille === famille).map((p) => {
-      const manquants = champsManquants(p);
-      const badge = { modifiee: ' (version modifiée)', ajoutee: ' (ma fiche)' }[p.statutBase] ?? '';
-      return el('option', { value: p.id, disabled: manquants.length > 0 ? '' : null },
-        `${p.nom}${badge}${p.calculHorsAppli ? ` (${p.calculHorsAppli})` : (manquants.length > 0 ? ' (à compléter)' : '')}`);
-    }),
-  );
-  if ([...select.options].some((o) => o.value === avant && !o.disabled)) select.value = avant;
   if (!garderReglages) cocherBits(defautBits(famille).bits);
   for (const bloc of formulaire.querySelectorAll('[data-famille]')) bloc.hidden = bloc.dataset.famille !== famille;
   familleAffichee = famille;
+}
+
+// ---------------------------------------------------------------------------
+// Choix du processeur : recherche, marque (famille de calcul), gamme, modèle
+// ---------------------------------------------------------------------------
+
+const $choix = (id) => document.getElementById(id);
+const CONSEILS = [
+  ['conseille', 'Conseillé dans la marque (le moins de processeurs)'],
+  ['conseille-tout', 'Conseillé, toutes marques du parc'],
+];
+const estConseil = (valeur) => CONSEILS.some(([v]) => v === valeur);
+const BADGES = { modifiee: ' (version modifiée)', ajoutee: ' (ma fiche)' };
+const choisissable = (f) => !f.information && !f.aCompleter && !f.calculHorsAppli;
+const libelleModele = (f) => {
+  const precisions = [f.statut, f.information ? 'information à compléter' : null, f.calculHorsAppli, !f.information && f.aCompleter ? 'à compléter' : null].filter(Boolean);
+  return `${f.modele}${BADGES[f.statutBase] ?? ''}${precisions.length ? ` (${precisions.join(', ')})` : ''}`;
+};
+
+// Sélecteur caché « processeur » : les deux conseils et tous les processeurs du parc ; il garde la valeur retenue.
+function remplirCache() {
+  const select = formulaire.elements.processeur;
+  const avant = select.value;
+  remplacer(select, CONSEILS.map(([v, t]) => el('option', { value: v }, t)), processeurs.map((p) => el('option', { value: p.id }, p.nom)));
+  select.value = [...select.options].some((o) => o.value === avant) ? avant : 'conseille';
+}
+
+// Remplit marque, gamme et modèle, et renvoie { id, famille } retenus :
+//   - { marque } : cette marque, sa première gamme ; le conseil reste (conseil dans la marque par défaut) ;
+//   - { marque, gamme } : cette gamme et son premier modèle ;
+//   - { id } : ce modèle ou ce conseil ;
+//   - { recherche: true } : le premier modèle trouvé ;
+//   - rien : l'état des valeurs retenues (saisies gardées, nouveau parc).
+function remplirChoixProcesseur(demande = {}) {
+  const cache = formulaire.elements.processeur;
+  const actuel = { id: cache.value || 'conseille', famille: formulaire.elements.famille.value };
+  const q = $choix('recherche-processeur').value.trim();
+  const arbre = arbreProcesseurs(processeurs, { informations, recherche: q });
+  const etat = $choix('etat-choix-processeur');
+  const [selMarque, selGamme, selModele] = ['processeur-marque', 'processeur-gamme', 'processeur-modele'].map($choix);
+  if (arbre.length === 0) {
+    etat.textContent = `Aucun processeur pour « ${q} » : le choix ne change pas.`;
+    return actuel;
+  }
+  const idVoulu = demande.id ?? actuel.id;
+  const trouver = (pred) => {
+    for (const m of arbre) for (const g of m.gammes) { const f = g.fiches.find(pred); if (f) return { m, g, f }; }
+    return null;
+  };
+  let m = null;
+  let g = null;
+  let id = idVoulu;
+  if (demande.marque) {
+    m = arbre.find((x) => x.marque === demande.marque) ?? arbre[0];
+    g = (demande.gamme && m.gammes.find((x) => x.gamme === demande.gamme)) || m.gammes.find((x) => x.fiches.some(choisissable)) || m.gammes[0];
+    const premier = g.fiches.find(choisissable);
+    if (demande.gamme) id = premier?.id ?? (estConseil(actuel.id) ? actuel.id : 'conseille');
+    else id = estConseil(actuel.id) ? actuel.id : 'conseille';
+  } else if (demande.recherche && q) {
+    const t = trouver(choisissable);
+    if (t) ({ m, g } = t);
+    id = t ? t.f.id : actuel.id;
+  }
+  if (!m && !estConseil(id)) {
+    const t = trouver((f) => f.id === id);
+    if (t) ({ m, g } = t);
+  }
+  // Conseil ou valeurs remises : la marque et la gamme affichées restent quand elles conviennent.
+  if (!m) m = arbre.find((x) => x.marque === selMarque.value && x.famille === actuel.famille) ?? arbre.find((x) => x.famille === actuel.famille) ?? arbre[0];
+  if (!g && estConseil(id)) g = m.gammes.find((x) => x.gamme === selGamme.value) ?? null;
+  if (!g) g = m.gammes.find((x) => x.fiches.some(choisissable)) ?? m.gammes[0];
+  if (!estConseil(id) && !g.fiches.some((f) => f.id === id && choisissable(f))) id = 'conseille';
+  remplacer(selMarque, arbre.map((x) => el('option', { value: x.marque }, x.marque)));
+  remplacer(selGamme, m.gammes.map((x) => el('option', { value: x.gamme }, x.gamme)));
+  remplacer(selModele,
+    el('optgroup', { label: 'Conseil de l\'appli' }, CONSEILS.map(([v, t]) => el('option', { value: v }, v === 'conseille' ? `Conseillé dans ${m.marque}` : t))),
+    el('optgroup', { label: `Gamme ${g.gamme}` }, g.fiches.map((f) => el('option', { value: f.id, disabled: choisissable(f) ? null : '' }, libelleModele(f)))));
+  selMarque.value = m.marque;
+  selGamme.value = g.gamme;
+  selModele.value = id;
+  for (const sel of [selMarque, selGamme, selModele]) sel.disabled = false;
+  etat.textContent = g.fiches.some(choisissable) ? '' : `Gamme ${g.gamme} : aucun modèle calculable (à compléter dans l'onglet Base).`;
+  return { id, famille: m.famille };
+}
+
+// Choix fait dans un des sélecteurs ou par la recherche : valeurs retenues dans les champs cachés. Le calcul suit, par
+// l'écouteur du formulaire (l'évènement remonte jusqu'à lui). Un vrai choix envoie « input » puis « change » : le choix
+// est retenu dès « input », avant le recalcul.
+function retenirChoixProcesseur(demande) {
+  const { id, famille } = remplirChoixProcesseur(demande);
+  const cache = formulaire.elements.processeur;
+  if ([...cache.options].some((o) => o.value === id)) cache.value = id;
+  formulaire.elements.famille.value = famille;
+}
+
+function initialiserChoixProcesseur() {
+  const ecouter = (id, action) => {
+    for (const type of ['input', 'change']) $choix(id).addEventListener(type, (e) => action(e.target.value));
+  };
+  ecouter('processeur-marque', (marque) => retenirChoixProcesseur({ marque }));
+  ecouter('processeur-gamme', (gamme) => retenirChoixProcesseur({ marque: $choix('processeur-marque').value, gamme }));
+  ecouter('processeur-modele', (id) => retenirChoixProcesseur({ id }));
+  $choix('recherche-processeur').addEventListener('input', () => retenirChoixProcesseur({ recherche: true }));
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +260,10 @@ function sectionPorts(e, dalle, r) {
       tuile(`Capacité par port${proc.typePorts ? ` ${proc.typePorts}` : ''}`, `${nombre(entierInferieur(r.capacite))} px`, r.formule,
         `source : ${sourceLimite(proc, champCapacite)}`, qualite ? `valeur ${qualite}` : null,
         `profondeur réseau : ${r.reglages.bits} bits, ${origineBits(proc.famille, r.reglages.bits)}`),
+      r.capaciteAppareil
+        ? tuile('Capacité de l\'appareil', `${nombre(entierInferieur(r.capaciteAppareil.valeur))} px`, texteCapaciteAppareil(r.capaciteAppareil),
+          r.capaciteAppareil.limite === 'ports' ? 'les ports limitent avant le total de la fiche' : 'le total de la fiche limite avant les ports')
+        : null,
       tuile('Pixels par dalle', `${nombre(r.pxParDalle)} px`, compte, demi),
       tuile('Dalles par port', nombre(r.dallesParPort),
         `partie entière de ${nombre(entierInferieur(r.capacite))} / ${nombre(r.pxParDalle)}`,
@@ -191,6 +289,7 @@ function tableControles(r) {
   const proc = r.processeur;
   const valeur = (nom, c) => {
     if (nom === 'pixels') return millions(c.valeur);
+    if (!Number.isFinite(c.valeur)) return '—';
     if (nom === 'largeur' || nom === 'hauteur') return `${nombre(c.valeur)} px`;
     return nombre(c.valeur);
   };
@@ -198,6 +297,7 @@ function tableControles(r) {
     if (nom === 'pixels') return `${millions(c.limite)}${proc.pixelsGamme ? ` (gamme ${proc.pixelsGamme})` : ''}`;
     if (nom === 'largeur') return `${nombre(c.limite)} px${c.format ? ` en ${c.format}` : ''}, soit ${c.colonnesMax} colonnes`;
     if (nom === 'hauteur') return `${nombre(c.limite)} px`;
+    if (nom === 'cartes') return `${nombre(c.limite)}, zone de ${nombre(c.zone.largeurPx)} × ${nombre(c.zone.hauteurPx)} px par carte`;
     return nombre(c.limite);
   };
   const source = (nom, c) => {
@@ -287,7 +387,9 @@ function sectionProcesseur(r, conseil) {
     el('p', { class: 'source' }, [
       proc.entrees ? `Entrées : ${proc.entrees}.` : null,
       proc.sortiesOptiques ? ` Sorties optiques : ${proc.sortiesOptiques}.` : null,
-      proc.latence ? ` Latence : ${proc.latence}.` : null,
+      proc.sortiesFibre === 'aucune' ? ` Sorties fibre : aucune, ${proc.sources?.sortiesFibre?.note ?? 'pas de sortie fibre'}.` : null,
+      texteLatence(proc) ? ` Latence : ${texteLatence(proc)}${proc.latence ? `, ${proc.latence}` : ''}.` : (proc.latence ? ` Latence : ${proc.latence}.` : null),
+      proc.statutCommercial ? ` Statut : ${proc.statutCommercial}${proc.sources?.statutCommercial?.note ? `, ${proc.sources.statutCommercial.note}` : ''}.` : null,
       proc.note ? ` ${proc.note}` : null,
     ].filter(Boolean).join('')),
     consoLigne(r),
@@ -391,13 +493,13 @@ function sectionAutres(e, evaluations, choisie) {
     else if (r.nombre === 1) resultat = '1 suffit';
     else resultat = `${r.nombre} nécessaires (${r.limites.map((l) => LIBELLES_CONTROLE[l].toLowerCase()).join(', ')})`;
     return el('tr', { class: r === choisie ? 'choisi' : (r.aCompleter?.length ? 'a-completer' : null) },
-      el('th', { scope: 'row' }, p.modele),
+      el('th', { scope: 'row' }, e.processeur === 'conseille-tout' ? p.nom : p.modele),
       el('td', {}, p.pixelsGamme ?? (p.pixelsMax ? millions(p.pixelsMax) : '—')),
       el('td', { class: 'nombre' }, p.ports ? `${nombre(p.ports)}${p.typePorts ? ` × ${p.typePorts}` : ''}` : '—'),
       el('td', {}, resultat));
   });
   return el('section', { class: 'bloc-resultats' },
-    el('h3', {}, `Processeurs ${NOMS_FAMILLE[e.famille]}${nomParc ? ` du parc ${nomParc}` : ''}`),
+    el('h3', {}, `Processeurs ${e.processeur === 'conseille-tout' ? 'de toutes les marques' : NOMS_FAMILLE[e.famille]}${nomParc ? ` du parc ${nomParc}` : ''}`),
     el('div', { class: 'tableau-defilant' },
       el('table', { class: 'table-donnees' },
         el('thead', {}, el('tr', {}, el('th', {}, 'Modèle'), el('th', {}, 'Pixels'), el('th', {}, 'Ports'), el('th', {}, 'Pour ce mur'))),
@@ -432,32 +534,42 @@ function calculer(e) {
     departCablage: departData,
   };
 
-  const candidats = processeurs.filter((p) => p.famille === e.famille);
+  const toutes = e.processeur === 'conseille-tout';
+  const candidats = toutes ? processeurs : processeurs.filter((p) => p.famille === e.famille);
   if (candidats.length === 0) {
     remplacer(zone, alerte(`Aucun processeur ${NOMS_FAMILLE[e.famille]} dans le parc ${nomParc ?? 'actif'} : `
       + 'choisis une autre marque, un autre parc, ou « Tous ».', 'alerte-erreur'));
     return null;
   }
+  const bitsParFamille = Object.fromEntries(Object.keys(MARQUES_FAMILLE).map((f) => [f, defautBits(f).bits]));
   let evaluations;
   try {
-    evaluations = candidats.map((p) => evaluerProcesseur(mur, dalle, p, reglages));
+    evaluations = toutes
+      ? evaluerToutesMarques(mur, dalle, candidats, reglages, { famille: e.famille, bitsParFamille })
+      : candidats.map((p) => evaluerProcesseur(mur, dalle, p, reglages));
   } catch (erreur) {
     if (!(erreur instanceof ErreurSaisie)) throw erreur;
     remplacer(zone, alerte(erreur.message, 'alerte-erreur'));
     return null;
   }
   const conseil = processeurConseille(evaluations);
-  const choisie = e.processeur === 'conseille' ? conseil : evaluations.find((r) => r.processeur.id === e.processeur);
+  const choisie = estConseil(e.processeur) ? conseil : evaluations.find((r) => r.processeur.id === e.processeur);
 
   const alertes = [];
+  if (toutes) {
+    alertes.push(alerte(`Conseil toutes marques du parc : ${MARQUES_FAMILLE[e.famille]} à ${e.bits} bits comme réglé, les autres marques à leur `
+      + `profondeur réseau par défaut (${Object.keys(MARQUES_FAMILLE).filter((f) => f !== e.famille).map((f) => `${MARQUES_FAMILLE[f]} ${bitsParFamille[f]} bits`).join(', ')}).`, 'alerte-info'));
+  }
   // Rappel Tessera ; en 12 bits, le même processeur en 10 bits quand cela en économise.
   const gain = choisie ? gainDixBits(mur, dalle, choisie) : null;
-  if (e.famille === 'brompton') {
+  if ((choisie?.processeur.famille ?? e.famille) === 'brompton') {
     alertes.push(alerte([`${rappelTessera({ frequenceHz: e.frequenceHz, ull: e.ull })}.`,
       ...(gain ? [el('br'), `${gain.texte.charAt(0).toUpperCase()}${gain.texte.slice(1)}.`] : [])], 'alerte-info'));
   }
   alertes.push(ligneManques(choisie?.manques));
   for (const texte of alertesSansManques(choisie?.alertes ?? [], choisie?.manques)) alertes.push(alerte(texte));
+  // Informations sans alerte (Colorlight : règle des 1280 px de la fiche S20 sur un autre modèle).
+  for (const texte of choisie?.notes ?? []) alertes.push(alerte(texte, 'alerte-info'));
   if (!choisie) {
     remplacer(zone, ...alertes, alerte('Aucun processeur de cette marque ne convient à ce mur.', 'alerte-erreur'),
       sectionAutres(e, evaluations, null));
@@ -504,6 +616,8 @@ function calculer(e) {
 }
 
 function mettreAJour() {
+  // Listes visibles alignées sur les valeurs retenues (saisies gardées remises, nouveau parc).
+  retenirChoixProcesseur({});
   const e = lireFormulaire();
   if (e.famille !== familleAffichee) preparerFamille(e.famille);
   const choisie = calculer(lireFormulaire());
@@ -526,12 +640,14 @@ export function initialiserData(base, rappel = () => {}) {
   formulaire.addEventListener('input', siPasParc);
   formulaire.addEventListener('change', siPasParc);
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());
+  initialiserChoixProcesseur();
   actualiserData(base, true);
 }
 
 // Nouvelle base ou nouveau parc actif : `base.processeurs` ne contient que les processeurs du parc actif.
 export function actualiserData(base, premiereFois = false) {
   processeurs = base.processeurs;
+  informations = base.informations ?? [];
   distributeurs = new Map(base.distributeurs.map((d) => [d.id, d]));
   sources = base.sources;
   nomParc = base.nomParc ?? null;
@@ -542,7 +658,9 @@ export function actualiserData(base, premiereFois = false) {
   const famille = lireFormulaire().famille;
   const avant = defautBits(famille).bits;
   bitsParDefaut = base.bitsParDefaut ?? {};
-  preparerFamille(famille, !premiereFois);
+  remplirCache();
+  retenirChoixProcesseur({});
+  preparerFamille(lireFormulaire().famille, !premiereFois);
   if (!premiereFois && defautBits(famille).bits !== avant) cocherBits(defautBits(famille).bits);
   if (!premiereFois) mettreAJour();
 }

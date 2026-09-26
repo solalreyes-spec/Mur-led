@@ -41,7 +41,10 @@ function toutesSources() {
 function fichesDuType(type) {
   const f = ctx.fusion;
   // Dalles : aussi les fiches d'information (LEDCAST), à compléter.
-  const brutes = { dalle: [...f.dalles.dalles, ...(f.dalles.informations ?? [])], bumper: f.dalles.bumpers, processeur: f.processeurs.processeurs, regie: f.regies.regies }[type] ?? [];
+  const brutes = {
+    dalle: [...f.dalles.dalles, ...(f.dalles.informations ?? [])], bumper: f.dalles.bumpers,
+    processeur: [...f.processeurs.processeurs, ...(f.processeurs.informations ?? [])], regie: f.regies.regies,
+  }[type] ?? [];
   const sources = { dalle: f.dalles.sources, bumper: f.dalles.sources, processeur: f.processeurs.sources, regie: f.regies.sources }[type];
   return brutes.map((brute) => ({ brute, resolue: resoudreFiche(brute, sources) }));
 }
@@ -684,8 +687,8 @@ function champGuide(type, c) {
     saisie = el('select', { id, name: c.nom }, el('option', { value: '' }, '—'), c.valeurs.map((v) => el('option', { value: v }, v)));
   } else if (c.genre === 'booleen') {
     saisie = el('select', { id, name: c.nom }, el('option', { value: '' }, 'non précisé'), el('option', { value: 'true' }, 'oui'), el('option', { value: 'false' }, 'non'));
-  } else if (c.genre === 'nombre' || c.genre === 'entier' || (type === 'bumper' && c.nom === 'colonnes')) {
-    saisie = el('input', { id, name: c.nom, inputmode: c.genre === 'entier' || c.nom === 'colonnes' ? 'numeric' : 'decimal', autocomplete: 'off' });
+  } else if (c.genre === 'nombre' || c.genre === 'entier' || c.genre === 'entierOuZero' || (type === 'bumper' && c.nom === 'colonnes')) {
+    saisie = el('input', { id, name: c.nom, inputmode: c.genre === 'nombre' ? 'decimal' : 'numeric', autocomplete: 'off' });
   } else {
     saisie = el('input', { id, name: c.nom, type: 'text', autocomplete: 'off',
       placeholder: c.genre === 'liste' ? 'séparés par des virgules' : null });
@@ -733,7 +736,7 @@ function construireGuidee() {
     el('p', { class: 'note' }, '* obligatoire pour enregistrer. Un champ laissé vide reste vide : l\'appli ne devine jamais une valeur.'),
     groupe('Obligatoires pour enregistrer', champs.filter((c) => c.niveau === 'enregistrer')),
     groupe('Pour une fiche complète', champs.filter((c) => c.niveau === 'complet')),
-    type === 'regie' ? el('p', { class: 'note' }, 'Modes de sortie : à ajouter dans le JSON à l\'étape suivante (voir le modèle de régie).') : null,
+    type === 'regie' ? el('p', { class: 'note' }, 'Entrées, sorties (type de liaison, nombre, format maxi, chacune avec sa source) ou modes de sortie : à ajouter dans le JSON à l\'étape suivante (voir le modèle de régie).') : null,
     compatibles,
     facultatifs.length ? el('details', { class: 'fiche' }, el('summary', {}, 'Autres champs'),
       el('div', { class: 'formulaire' }, facultatifs.map((c) => champGuide(type, c)))) : null,
@@ -760,7 +763,7 @@ function preparerJson() {
     const brut = valeurDe(c.nom);
     if (brut === '') continue;
     let valeur = brut;
-    if (c.genre === 'nombre' || c.genre === 'entier' || (type === 'bumper' && c.nom === 'colonnes')) {
+    if (c.genre === 'nombre' || c.genre === 'entier' || c.genre === 'entierOuZero' || (type === 'bumper' && c.nom === 'colonnes')) {
       const n = lireNombre(brut);
       valeur = Number.isFinite(n) ? n : brut;
     } else if (c.genre === 'liste') {

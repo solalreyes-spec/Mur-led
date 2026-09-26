@@ -162,10 +162,19 @@ export const DONNEES = [
         'brompton-t1', 'brompton-s4', 'brompton-m2', 'brompton-s8', 'brompton-sx40',
         'novastar-mctrl300', 'novastar-mctrl660', 'novastar-mctrl660-pro', 'novastar-mctrl-r5', 'novastar-mctrl4k',
         'novastar-vx2u', 'novastar-novapro-hd', 'novastar-vx4s', 'novastar-vx4u', 'novastar-vx6s', 'novastar-novapro-uhd-jr',
+        'novastar-vx400-pro', 'novastar-vx600-pro', 'novastar-vx1000-pro', 'novastar-vx2000-pro', 'novastar-vx1000', 'novastar-vx600', 'novastar-vx400',
+        'novastar-vx16s', 'novastar-vx4s-n', 'novastar-vx400s', 'novastar-vx2', 'novastar-vx2s', 'novastar-novapro-uhd', 'novastar-mctrl500', 'novastar-mctrl600',
+        'novastar-mctrl700', 'novastar-mctrl700-pro', 'novastar-msd300', 'novastar-msd600', 'novastar-h2', 'novastar-h5', 'novastar-h9', 'novastar-h15', 'novastar-h20',
         'coex-mx40-pro', 'coex-mx20', 'coex-mx30', 'coex-cx40-pro', 'coex-ku20', 'coex-mx2000-pro', 'coex-mx6000-pro', 'coex-sp60-pro',
         'colorlight-s6f', 'colorlight-x8e', 'colorlight-x16e', 'colorlight-vx20', 'colorlight-z6', 'colorlight-z8t',
+        'colorlight-s2', 'colorlight-s20', 'colorlight-s20f', 'colorlight-s4', 'colorlight-x1', 'colorlight-x2', 'colorlight-x2s', 'colorlight-x3',
+        'colorlight-x4', 'colorlight-x4s', 'colorlight-x8', 'colorlight-x16', 'colorlight-x12', 'colorlight-x6', 'colorlight-x7', 'colorlight-x20',
+        'colorlight-x2m', 'colorlight-x4m', 'colorlight-x8m', 'colorlight-x12m', 'colorlight-x20m', 'colorlight-x26m', 'colorlight-x40m',
+        'colorlight-vx6', 'colorlight-vx10', 'colorlight-z4-pro', 'colorlight-z5', 'colorlight-z4f', 'colorlight-z6-pro-g2', 'colorlight-z3',
+        'colorlight-x4e', 'colorlight-z4', 'colorlight-x100-pro-2u', 'colorlight-x100-pro-4u', 'colorlight-x100-pro-7u', 'colorlight-x100-pro-11u',
       ]);
-      v.egal('distributeurs', base.distributeurs.map((d) => d.id), ['brompton-xd', 'novastar-cvt10', 'novastar-cvt10-pro', 'coex-cvt8-5g']);
+      v.egal('distributeurs', base.distributeurs.map((d) => d.id), ['brompton-xd', 'novastar-cvt10', 'novastar-cvt10-pro', 'novastar-cvt4k', 'novastar-cvt310', 'novastar-cvt320', 'coex-cvt8-5g',
+        'colorlight-h10fn2', 'colorlight-h10fn', 'colorlight-h10fix', 'colorlight-h10fix-5g', 'colorlight-h2f']);
     },
   },
   {
@@ -186,6 +195,12 @@ export const DONNEES = [
       }
       for (const p of base.processeurs.filter((x) => x.distributeur)) {
         const d = base.distributeurs.find((x) => x.id === p.distributeur);
+        // Exception : le Z3 n'utilise que les 2 premiers ports de ses H10Fix-5G (fiche Z3 V2.0, p. 10).
+        if (p.id === 'colorlight-z3') {
+          v.egal('colorlight-z3 : 2 ports utilisés sur les 4 du H10Fix-5G, avec la note de sa fiche', [p.sortiesParDistributeur?.valeur, d?.sorties.valeur,
+            /2 premiers ports/.test(p.sortiesParDistributeur?.note ?? '')], [2, 4, true]);
+          continue;
+        }
         v.egal(`${p.id} : sorties du ${p.distributeur} identiques à sa fiche`, p.sortiesParDistributeur?.valeur, d?.sorties.valeur);
       }
     },
@@ -399,6 +414,9 @@ export const DONNEES = [
       v.egal('réglés avec NovaLCT (MCTRL, VX, NovaPro)', avec('logiciel', 'NovaLCT'), [
         'novastar-mctrl300', 'novastar-mctrl660', 'novastar-mctrl660-pro', 'novastar-mctrl-r5', 'novastar-mctrl4k',
         'novastar-vx2u', 'novastar-novapro-hd', 'novastar-vx4s', 'novastar-vx4u', 'novastar-vx6s', 'novastar-novapro-uhd-jr',
+        'novastar-vx400-pro', 'novastar-vx600-pro', 'novastar-vx1000-pro', 'novastar-vx2000-pro', 'novastar-vx1000', 'novastar-vx600', 'novastar-vx400',
+        'novastar-vx16s', 'novastar-vx4s-n', 'novastar-vx400s', 'novastar-vx2', 'novastar-vx2s', 'novastar-novapro-uhd', 'novastar-mctrl500', 'novastar-mctrl600',
+        'novastar-mctrl700', 'novastar-mctrl700-pro', 'novastar-msd300', 'novastar-msd600', 'novastar-h2', 'novastar-h5', 'novastar-h9', 'novastar-h15', 'novastar-h20',
       ]);
       v.egal('réglés avec VMP (COEX)', avec('logiciel', 'VMP'), ['coex-mx40-pro', 'coex-mx20', 'coex-mx30', 'coex-cx40-pro', 'coex-ku20', 'coex-mx2000-pro', 'coex-mx6000-pro', 'coex-sp60-pro']);
       v.egal('mapping interpolé : M2 et T1 seulement', base.processeurs.filter((p) => p.mappingInterpole?.valeur === true).map((p) => p.id), ['brompton-t1', 'brompton-m2']);
@@ -673,9 +691,9 @@ export const DONNEES = [
       }).map(([id, champ]) => `${id}.${champ}`);
       v.egal('processeurs : valeurs confirmées, source constructeur', fautesP, []);
       v.egal('T1 : 525 000 de la fiche de septembre 2024 visible, 500 000 retenu', p('brompton-t1').sources.pixelsMax.autres.map((x) => [x.valeur, ids(x)]), [[525000, ['brompton-fiche-t1-2024-09']]]);
-      v.egal('MX40 Pro : 659 722, 494 791 (fiche 494 792 arrondi) et 329 861 px en 8, 10 (cartes Pro) et 12 bits',
+      v.egal('MX40 Pro : 659 722, 480 000 (catalogue 2022, A10s Pro ; formule 494 791 visible) et 329 861 px en 8, 10 (cartes Pro) et 12 bits',
         [[8, false], [10, true], [12, false]].map(([bits, cartesPro]) => calculs.entierInferieur(calculs.capacitePortProcesseur(p('coex-mx40-pro'), { frequenceHz: 60, bits, cartesPro }).capacite)),
-        [659722, 494791, 329861]);
+        [659722, 480000, 329861]);
       v.vrai('MCTRL4K : 8,3 M px en DVI signalé', /8,3 M/.test(p('novastar-mctrl4k').note ?? ''));
       v.egal('MCTRL660 : entrées confirmées par la fiche V1.4.4, entrée personnalisée 3840 × 600 ou 548 × 3840 signalée',
         [p('novastar-mctrl660').sources.entreesTypes.source.id, /3840 × 600/.test(p('novastar-mctrl660').note ?? '') && /548 × 3840/.test(p('novastar-mctrl660').note ?? '')], ['novastar-mctrl660-v1-4-4', true]);
@@ -1000,6 +1018,213 @@ export const DONNEES = [
       v.egal('Smart : poids de la fiche', ['ledeca-ldsosp03-9st-500x500', 'ledeca-ldsosp03-9st-500x1000', 'ledeca-ldsisp03-9st-500x1000', 'ledeca-ldsisp02-9st-500x500', 'ledeca-ldsisp02-6st']
         .map((id) => ledeca.find((d) => d.id === id).poidsKg), [8.5, 13.9, 13, 7.9, 7.9]);
       v.egal('P max et P moyenne : plafond pour les 17 dalles LEDECA', [ledeca.length, ledeca.every((d) => d.sources.pMaxW.type === 'plafond constructeur' && d.sources.pMoyW.type === 'plafond constructeur')], [17, true]);
+    },
+  },
+  {
+    id: 'D40',
+    titre: 'Processeurs Novastar du relevé du 26/09/2026 (VX Pro, VX classiques, NovaPro UHD, MCTRL500 à 700 Pro, MSD, série H) : valeurs des fiches avec leurs sources, fiches d\'information et corrections',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const brute = (id) => bp.processeurs.find((x) => x.id === id) ?? (bp.informations ?? []).find((x) => x.id === id);
+      const p = (id) => calculs.resoudreFiche(brute(id), bp.sources);
+      const ids = (x) => (x?.sources ?? []).map((s) => s.id);
+      const nouveaux = ['novastar-vx400-pro', 'novastar-vx600-pro', 'novastar-vx1000-pro', 'novastar-vx2000-pro', 'novastar-vx1000', 'novastar-vx600', 'novastar-vx400',
+        'novastar-vx16s', 'novastar-vx4s-n', 'novastar-vx400s', 'novastar-vx2', 'novastar-vx2s', 'novastar-vx4', 'novastar-novapro-uhd', 'novastar-mctrl500', 'novastar-mctrl600',
+        'novastar-mctrl700', 'novastar-mctrl700-pro', 'novastar-mctrl610', 'novastar-msd300', 'novastar-msd600', 'novastar-h2', 'novastar-h5', 'novastar-h9', 'novastar-h15', 'novastar-h20'];
+      v.egal('nouveaux modèles présents', nouveaux.filter((id) => !brute(id)), []);
+      const valeurs = [
+        ['novastar-vx400-pro', 2600000, 4, 10240, 8192, 42, 3.8, 'novastar-vx400-pro-v1-4-0'],
+        ['novastar-vx600-pro', 3900000, 6, 10240, 8192, 43, 3.9, 'novastar-vx600-pro-v1-4-0'],
+        ['novastar-vx1000-pro', 6500000, 10, 10240, 8192, 44, 3.9, 'novastar-vx1000-pro-v1-4-0'],
+        ['novastar-vx2000-pro', 13000000, 20, 16384, 8192, 83, 7.4, 'novastar-vx2000-pro-v1-4-0'],
+        ['novastar-vx1000', 6500000, 10, 10240, 8192, 35, 4, 'novastar-vx1000-v1-6-0'],
+        ['novastar-vx600', 3900000, 6, 10240, 8192, 35, 4, 'novastar-vx600-v1-7-1'],
+        ['novastar-vx400', 2600000, 4, 10240, 8192, 28, 4, 'novastar-vx400-v1-0-0'],
+        ['novastar-vx16s', 10400000, 16, 16384, 8192, 70, 6.22, 'novastar-vx16s-v1-3-0-copie'],
+        ['novastar-vx4s-n', 2300000, 4, 3840, 1920, 25, 2.55, 'novastar-vx4s-n-v1-0-1'],
+        ['novastar-mctrl500', 2304000, 4, 3840, 2560, 10, 2.9, 'novastar-mctrl500-v2-3-2'],
+        ['novastar-mctrl600', 2304000, 4, 3840, 3840, 6.6, 2.5, 'novastar-page-mctrl600'],
+        ['novastar-mctrl700', 2304000, 6, 3840, 3840, 12, 2.6, 'novastar-mctrl700-v1-2-2'],
+        ['novastar-mctrl700-pro', 2304000, 6, 3840, 3840, 17, 2.6, 'novastar-mctrl700-pro-v1-0-0'],
+        ['novastar-msd300', 1300000, 2, 3840, 3840, 3, 0.1043, 'novastar-msd300-1-copie'],
+        ['novastar-msd600', 2304000, 4, 3840, 3840, 6.6, 0.1253, 'novastar-msd600-v2-4-0'],
+      ];
+      for (const [id, pixels, ports, largeur, hauteur, w, kg, source] of valeurs) {
+        const x = p(id);
+        v.egal(`${id} : pixels, ports, largeur, hauteur, W, kg`, [x.pixelsMax, x.ports, x.largeurMaxPx, x.hauteurMaxPx, x.puissanceW, x.poidsKg], [pixels, ports, largeur, hauteur, w, kg]);
+        v.vrai(`${id} : pixels maxi sourcés par ${source}`, ids(x.sources.pixelsMax).includes(source));
+      }
+      v.egal('MSD300 et MSD600 : noms alternatifs', [brute('novastar-msd300').alias, brute('novastar-msd600').alias], [['MSD300-1'], ['MSD600-1']]);
+      const uhd = p('novastar-novapro-uhd');
+      v.egal('NovaPro UHD : 8,8 M retenus (entrée 4K), 10,4 M visibles ; 8192 px de large retenus, 16 384 visibles',
+        [uhd.pixelsMax, uhd.sources.pixelsMax.autres.map((x) => x.valeur), uhd.largeurMaxPx, uhd.sources.largeurMaxPx.autres.map((x) => x.valeur)], [8800000, [10400000], 8192, [16384]]);
+      v.vrai('NovaPro UHD : note, 8,8 M = entrée 4K, 10,4 M = 16 × 650 000', /4096 × 2160/.test(uhd.note ?? '') && /16 × 650 000/.test(uhd.note ?? ''));
+      const h = ['novastar-h2', 'novastar-h5', 'novastar-h9', 'novastar-h15', 'novastar-h20'].map(p);
+      v.egal('série H : emplacements de sortie LED, W, U', [h.map((x) => x.emplacementsSortie), h.map((x) => x.puissanceW), h.map((x) => x.hauteurU)],
+        [[2, 3, 5, 10, 20], [210, 400, 450, 900, 1800], [2, 5, 9, 15, 20]]);
+      v.egal('série H : cartes d\'envoi LED (ports, pixels, largeur maxi)', h[0].cartesSortieLED.map((c) => [c.id, c.ports, c.pixelsMax, c.largeurMaxPx]),
+        [['h-20xrj45', 20, 13000000, 10752], ['h-16xrj45', 16, 10400000, 10240], ['h-4xfiber', 32, 20800000, 16384]]);
+      v.egal('fiches d\'information à part (comme les dalles), VX400s à compléter', [(bp.informations ?? []).map((x) => [x.id, x.statut]), brute('novastar-vx400s').statut],
+        [[['novastar-vx4', 'information'], ['novastar-mctrl610', 'information'], ['colorlight-s6', 'information'], ['colorlight-z6-pro', 'information']], 'à compléter']);
+      v.egal('VX2 et VX2S : page revendeur, confiance revendeur', ['novastar-vx2', 'novastar-vx2s'].map((id) => p(id).sources.pixelsMax.source.confiance), ['revendeur', 'revendeur']);
+      const nouvellesSources = ['novastar-page-processeurs', 'novastar-page-controleurs', 'eagerled-novastar-discontinued', 'novastar-vx-pro-manuel-v1-4-1', 'novastar-vx400-pro-v1-4-0',
+        'novastar-vx600-pro-v1-4-0', 'novastar-vx1000-pro-v1-4-0', 'novastar-vx2000-pro-v1-4-0', 'novastar-vx1000-manuel-v1-3-0', 'novastar-vx1000-v1-6-0', 'novastar-vx600-v1-7-1',
+        'novastar-vx400-v1-0-0', 'novastar-vx16s-v1-3-0-copie', 'novastar-vx16s-manuel-v1-0-0', 'novastar-vx6s-v1-3-0', 'novastar-vx4s-v1-1-3', 'novastar-vx4s-n-v1-0-1',
+        'novastar-vx400s-rev-1-4-0', 'novastar-vx4u-v1-0-6-copie', 'ledscreenparts-vx2-vx2s', 'novastar-manuel-vx-rev-1-0-0-copie', 'novastar-novapro-uhd-v1-2-0',
+        'novastar-novapro-uhd-manuel-v1-2-0', 'novastar-catalogue-2020', 'novastar-novapro-uhd-jr-v1-5-1', 'novastar-novapro-hd-v1-4-5', 'novastar-mctrl500-v2-3-2',
+        'novastar-mctrl600-v2-3-1', 'novastar-page-mctrl600', 'novastar-mctrl660-v1-4-3', 'novastar-mctrl660-pro-v1-4-1', 'novastar-mctrl700-v1-2-2', 'novastar-mctrl700-pro-v1-0-0',
+        'olympianled-mctrl610', 'novastar-msd300-v2-4-2', 'novastar-msd300-1-copie', 'novastar-msd600-v2-4-0', 'novastar-msd600-1-copie', 'novastar-h2-v1-15-0', 'novastar-h5-v1-15-0',
+        'novastar-h9-v1-8-0', 'novastar-h15-v1-6-0', 'novastar-h20-v1-3-0', 'novastar-h20-v1-6-0', 'novastar-cvt310-v2-3-4', 'novastar-cvt320-v2-3-3', 'novastar-cvt4k-s-v1-0-6',
+        'novastar-cvt4k-m-v1-0-3', 'novastar-cvt10-v1-3-2'];
+      v.egal('sources nouvelles : adresse et date (ou date non indiquée expliquée)',
+        nouvellesSources.filter((id) => !bp.sources[id]?.url || !(bp.sources[id].date || bp.sources[id].dateTexte)), []);
+      v.vrai('MCTRL300 : 1,3 M de la fiche MSD300-1 (copie), la fiche V2.4.1 ne donne pas de total', ids(p('novastar-mctrl300').sources.pixelsMax).includes('novastar-msd300-1-copie'));
+      v.vrai('VX4U : fiche V1.0.6 (copie eagerled) ajoutée', ids(p('novastar-vx4u').sources.pixelsMax).includes('novastar-vx4u-v1-0-6-copie'));
+      v.vrai('NovaPro HD : 3840 × 1920 confirmés par la fiche V1.4.5', ids(p('novastar-novapro-hd').sources.largeurMaxPx).includes('novastar-novapro-hd-v1-4-5'));
+      v.vrai('fiches récentes ajoutées : MCTRL660 V1.4.3, MCTRL660 Pro V1.4.1, VX6s V1.3.0, VX4S V1.1.3, UHD Jr V1.5.1',
+        ids(p('novastar-mctrl660').sources.ports).includes('novastar-mctrl660-v1-4-3') && ids(p('novastar-mctrl660-pro').sources.ports).includes('novastar-mctrl660-pro-v1-4-1')
+        && ids(p('novastar-vx6s').sources.pixelsMax).includes('novastar-vx6s-v1-3-0') && ids(p('novastar-vx4s').sources.pixelsMax).includes('novastar-vx4s-v1-1-3')
+        && ids(p('novastar-novapro-uhd-jr').sources.pixelsMax).includes('novastar-novapro-uhd-jr-v1-5-1'));
+    },
+  },
+  {
+    id: 'D41',
+    titre: 'PDF officiels relus le 26/09/2026 : latence des VX Pro, fibre en copie, VX16s, UHD Jr, E2 Gen 2, VX20 et S6F sur leurs fiches ; Colorlight à 650 000 px par port',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const p = (id) => calculs.resoudreFiche(bp.processeurs.find((x) => x.id === id), bp.sources);
+      const ids = (x) => (x?.sources ?? []).map((s) => s.id);
+      for (const id of ['novastar-vx400-pro', 'novastar-vx600-pro', 'novastar-vx1000-pro']) {
+        v.egal(`${id} : 0 à 3 images, tableau 4-2 de la fiche`, [p(id).latenceMinImages, p(id).latenceMaxImages, /p\. 8/.test(p(id).sources.latenceMaxImages.note ?? '')], [0, 3, true]);
+      }
+      const copies = ['novastar-vx400', 'novastar-vx600', 'novastar-vx400-pro', 'novastar-vx600-pro', 'novastar-vx1000-pro', 'novastar-vx2000-pro', 'novastar-novapro-uhd-jr', 'colorlight-vx20'];
+      v.egal('fibre en copie des ports Ethernet', copies.filter((id) => p(id).sortiesFibre !== 'copie'), []);
+      v.egal('VX16s : fiche officielle V1.0.0 en tête', [p('novastar-vx16s').sources.pixelsMax.source.id, p('novastar-vx16s').sources.ports.source.id], ['novastar-vx16s-v1-0-0', 'novastar-vx16s-v1-0-0']);
+      const jr = p('novastar-novapro-uhd-jr');
+      v.egal('UHD Jr : latence de la fiche V1.5.1 (constructeur), cartes Armor nommées', [jr.latenceMinImages, jr.sources.latenceMinImages.source.id, jr.sources.latenceMinImages.source.confiance,
+        /A8, A8s, A9s, A10s Plus/.test(jr.sources.latenceMinImages.note ?? '')], [2, 'novastar-novapro-uhd-jr-v1-5-1', 'constructeur', true]);
+      const e2 = baseRegies(contexte).regies.find((r) => r.id === 'barco-e2-gen2');
+      v.egal('E2 Gen 2 : modes et sorties sourcés par la fiche Barco du 27/11/2025', [...e2.modesSortie.map((m) => m.source), e2.sortiesTypes.source],
+        ['barco-e2-gen2-fiche-2025-11-27', 'barco-e2-gen2-fiche-2025-11-27', 'barco-e2-gen2-fiche-2025-11-27']);
+      v.vrai('E2 Gen 2 : 16 sorties Program en 2048 × 1200, note « 18 = sorties Aux »', e2.modesSortie[1].sorties === 16 && /18 = sorties Aux/.test(e2.modesSortie[1].note ?? ''));
+      const vx20 = p('colorlight-vx20');
+      v.egal('VX20 : calculable, 16 384 × 8192, 650 000 et 487 500 px par port (fiche V1.20)', [calculs.champsManquants(vx20), vx20.largeurMaxPx, vx20.hauteurMaxPx, vx20.capacitePort60Hz8bits,
+        vx20.capacitePort60Hz10bits, vx20.sources.capacitePort60Hz8bits.source.id], [[], 16384, 8192, 650000, 487500, 'colorlight-vx20-v1-20']);
+      v.egal('VX20 : 0 à 1 image, 92 W, 5,65 kg, 2U', [vx20.latenceMinImages, vx20.latenceMaxImages, vx20.puissanceW, vx20.poidsKg, vx20.hauteurU], [0, 1, 92, 5.65, 2]);
+      const s6f = p('colorlight-s6f');
+      v.egal('S6F : fiche V1.2 en tête, 20 W, 2 kg, 1U', [s6f.sources.pixelsMax.source.id, s6f.sources.largeurMaxPx.source.id, s6f.puissanceW, s6f.poidsKg, s6f.hauteurU],
+        ['colorlight-s6f-v1-2', 'colorlight-s6f-v1-2', 20, 2, 1]);
+      for (const id of ['colorlight-s6f', 'colorlight-x8e', 'colorlight-x16e']) {
+        const x = p(id);
+        v.egal(`${id} : 650 000 retenus (fiches X20 et VX20), 325 000 en 10 bits`, [x.capacitePort60Hz8bits, ids(x.sources.capacitePort60Hz8bits), x.capacitePort60Hz10bits],
+          [650000, ['colorlight-x20-v2-0', 'colorlight-vx20-v1-20'], 325000]);
+      }
+      v.egal('sources des fiches relues : adresse et date', ['novastar-vx16s-v1-0-0', 'colorlight-x20-v2-0', 'colorlight-vx20-v1-20', 'colorlight-s6f-v1-2']
+        .filter((id) => !bp.sources[id]?.url || !(bp.sources[id].date || bp.sources[id].dateTexte)), []);
+    },
+  },
+  {
+    id: 'D42',
+    titre: 'Colorlight relu le 26/09/2026 : ports, pixels, largeur et hauteur de chaque fiche (officielle, copie ou page revendeur), cartes du X100 Pro et du Z8t, statut du menu Produits, convertisseurs H10FN2, H10FN, H10Fix, H10Fix-5G et H2F',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const p = (id) => calculs.resoudreFiche(bp.processeurs.find((x) => x.id === id), bp.sources);
+      const ids = (x) => (x?.sources ?? []).map((s) => s.id);
+      // [ports, pixels maxi, largeur, hauteur, source des pixels]
+      const attendus = {
+        'colorlight-s2': [2, 1310000, 2560, 2560, 'colorlight-s2-v3-2'],
+        'colorlight-s4': [4, 2300000, 4096, 2560, 'colorlight-s4-v2-3'],
+        'colorlight-s20': [20, 8850000, 8192, 8192, 'colorlight-s20-v2-1'],
+        'colorlight-s20f': [20, 8850000, 8192, 8192, 'colorlight-s20f-v1-1'],
+        'colorlight-x1': [2, 1310000, 4096, 2560, 'colorlight-x1-v1-3-copie'],
+        'colorlight-x2': [2, 1300000, 2560, 2560, 'colorlight-x2-v1-2-copie'],
+        'colorlight-x2s': [2, 1310000, 4096, 2560, 'colorlight-x2s-v1-3-copie'],
+        'colorlight-x3': [4, 2600000, 4096, 2560, 'colorlight-x3-v1-0-copie'],
+        'colorlight-x4': [4, 2300000, 4096, 2560, 'colorlight-x4-v1-2-copie'],
+        'colorlight-x4s': [4, 2600000, 4096, 2560, 'colorlight-x4s-v1-3-copie'],
+        'colorlight-x6': [6, 3900000, 8192, 4096, 'colorlight-x6-v1-6'],
+        'colorlight-x7': [8, 5200000, 8192, 4096, 'colorlight-x7-v1-6'],
+        'colorlight-x8': [8, 5000000, 8192, 8192, 'colorlight-x8-v1-0-copie'],
+        'colorlight-x12': [12, 7800000, 8192, 4096, 'colorlight-x12-v1-2-copie'],
+        'colorlight-x16': [16, 8880000, 8192, 8192, 'colorlight-x16-v1-0-copie'],
+        'colorlight-x16e': [16, 10480000, 16384, 8192, 'colorlight-x16e-v1-1-copie'],
+        'colorlight-x20': [20, 13000000, 16384, 8192, 'colorlight-x20-v2-0'],
+        'colorlight-x2m': [2, 1300000, 3840, 2000, 'colorlight-x2m-v1-5'],
+        'colorlight-x4m': [4, 2600000, 3840, 2000, 'colorlight-x4m-v1-5'],
+        'colorlight-x8m': [8, 5240000, 16384, 8192, 'colorlight-x8m-v1-0'],
+        'colorlight-x12m': [12, 7860000, 16384, 8192, 'colorlight-x12m-v1-0'],
+        'colorlight-x20m': [20, 13100000, 16384, 8192, 'colorlight-x20m-v1-0'],
+        'colorlight-x26m': [26, 17030000, 16384, 8192, 'colorlight-x26m-v1-2'],
+        'colorlight-x40m': [40, 26210000, 16384, 8192, 'colorlight-x40m-v1-1'],
+        'colorlight-vx6': [6, 3930000, 16384, 8192, 'colorlight-vx6-v1-0'],
+        'colorlight-vx10': [10, 6500000, 16384, 8192, 'colorlight-vx10-v1-1'],
+        'colorlight-z3': [6, 8840000, 16384, 8192, 'colorlight-z3-v2-0'],
+        'colorlight-z4-pro': [10, 6550000, 8192, 8192, 'colorlight-z4-pro-v1-0-copie'],
+        'colorlight-z5': [20, 13100000, 8192, 8192, 'colorlight-z5-v1-0-copie'],
+        'colorlight-z4f': [4, 2600000, 4096, 4096, 'colorlight-z4f-v2-1-copie'],
+        'colorlight-z6': [16, 8300000, 8192, 4096, 'colorlight-z6-v2-2-copie'],
+        'colorlight-z6-pro-g2': [20, 8800000, 8192, 8192, 'colorlight-z6-pro-g2-v1-4'],
+        'colorlight-x4e': [4, 2600000, 4096, 4096, 'led-card-colorlight-x4e'],
+        'colorlight-z4': [4, 2300000, 4096, 4096, 'finepixelled-colorlight-z4'],
+        'colorlight-x8e': [8, 5240000, 16384, 8192, 'colorlit-colorlight-x8e'],
+      };
+      for (const [id, attendu] of Object.entries(attendus)) {
+        const x = p(id);
+        v.egal(`${id} : ports, pixels, largeur, hauteur de la fiche`, [x.ports, x.pixelsMax, x.largeurMaxPx, x.hauteurMaxPx, ids(x.sources.pixelsMax)[0]], attendu);
+      }
+      v.egal('Z4 Pro et Z5 : 8192 px de large retenus (« Maximum width or height is 8192 pixels », p. 5), 16 384 visibles',
+        [p('colorlight-z4-pro').sources.largeurMaxPx.valeurs?.map((x) => x.valeur) ?? bp.processeurs.find((x) => x.id === 'colorlight-z4-pro').largeurMaxPx.valeurs.map((x) => x.valeur)], [[16384, 8192]]);
+      const cartes = (id) => { const x = p(id); return [x.emplacementsSortie, x.pixelsMax, x.cartesSortieLED.map((c) => [c.id, c.ports, c.pixelsMax])]; };
+      v.egal('X100 Pro-4U : 4 cartes, 26 M px, cartes 10 × 1G, 2 × 10G et 4 × 5G', cartes('colorlight-x100-pro-4u'),
+        [4, 26000000, [['x100-10x1g', 10, 6550000], ['x100-2x10g', 10, 6550000], ['x100-4x5g', 2, 5890000]]]);
+      v.egal('X100 Pro-2U, 7U, 11U : 4, 8 et 18 cartes ; 26, 52 et 117,96 M px', ['2u', '7u', '11u'].map((u) => cartes(`colorlight-x100-pro-${u}`).slice(0, 2)),
+        [[4, 26000000], [8, 52000000], [18, 117960000]]);
+      v.egal('Z8t : 2 cartes, 23,59 M px, cartes 4 × 5G et 4 × 10G', cartes('colorlight-z8t'), [2, 23590000, [['z8t-4x5g', 4, 11790000], ['z8t-4x10g', 20, 13100000]]]);
+      v.egal('Z8t : 17,69 M px (aimsalliance) non retenu', bp.processeurs.find((x) => x.id === 'colorlight-z8t').pixelsMax.valeurs.map((x) => [x.valeur, Boolean(x.nonRetenue)]), [[23590000, false], [17690000, true]]);
+      const physique = (id) => { const x = p(id); return [x.puissanceW, x.poidsKg, x.hauteurU ?? null]; };
+      v.egal('conso, poids, hauteur : S20, X20m, Z3, Z8t, X100 Pro-4U', ['colorlight-s20', 'colorlight-x20m', 'colorlight-z3', 'colorlight-z8t', 'colorlight-x100-pro-4u'].map(physique),
+        [[40, 5.1, 2], [80, 6.2, null], [50, 2.96, 1], [130, 12.7, 2.5], [120, 11.55, 4]]);
+      v.egal('règle des 1280 px : S20 et S20F seulement', bp.processeurs.filter((x) => x.hauteurReduitePortPx).map((x) => x.id), ['colorlight-s20', 'colorlight-s20f']);
+      v.egal('4096 px par port : constructeur sur S20 et S20F, déduit ailleurs, absent en 5G', [p('colorlight-s20').sources.dimensionMaxPortPx.source.confiance,
+        p('colorlight-x20').sources.dimensionMaxPortPx.source.confiance, p('colorlight-z3').dimensionMaxPortPx], ['constructeur', 'déduit', undefined]);
+      const actuels = ['colorlight-s2', 'colorlight-s4', 'colorlight-s6f', 'colorlight-s20', 'colorlight-s20f', 'colorlight-x6', 'colorlight-x7', 'colorlight-x20', 'colorlight-x2m',
+        'colorlight-x4m', 'colorlight-x8m', 'colorlight-x12m', 'colorlight-x20m', 'colorlight-x26m', 'colorlight-x40m', 'colorlight-vx6', 'colorlight-vx10', 'colorlight-vx20',
+        'colorlight-z3', 'colorlight-z4-pro', 'colorlight-z5', 'colorlight-z6-pro-g2', 'colorlight-z8t', 'colorlight-x100-pro-2u', 'colorlight-x100-pro-4u', 'colorlight-x100-pro-7u'];
+      const colorlight = bp.processeurs.filter((x) => x.famille === 'colorlight').map((x) => p(x.id));
+      v.egal('statut : actuel si listé au menu Produits, ancien sinon ; 11U non renseigné',
+        [colorlight.filter((x) => x.statutCommercial === 'actuel').map((x) => x.id).sort(), colorlight.filter((x) => !x.statutCommercial).map((x) => x.id)],
+        [[...actuels].sort(), ['colorlight-x100-pro-11u']]);
+      v.egal('statut : source du menu Produits', [...new Set(colorlight.filter((x) => x.statutCommercial).map((x) => x.sources.statutCommercial.source.id))], ['colorlight-menu-produits']);
+      const d = (id) => calculs.resoudreFiche(bp.distributeurs.find((x) => x.id === id), bp.sources);
+      v.egal('convertisseurs : sorties, conso, poids', ['colorlight-h10fn2', 'colorlight-h10fn', 'colorlight-h10fix', 'colorlight-h10fix-5g', 'colorlight-h2f']
+        .map((id) => [d(id).sorties, d(id).typeSorties, d(id).puissanceW ?? null, d(id).poidsKg ?? null]),
+      [[10, '1G', null, null], [10, '1G', 30, 3.2], [10, '1G', 20, 0.5], [4, '5G', 15, 0.6], [2, '1G', null, null]]);
+      const nouvelles = Object.keys(bp.sources).filter((id) => /^colorlight-|^led-card-|^finepixelled-|^colorlit-|^coex-wiki-product-menu$/.test(id)
+        && !['colorlight-12-bits-non-publie', 'colorlight-fibres-secours', 'colorlight-sans-fibre', 'choix-conception-colorlight', 'colorlight-frequences-deduit'].includes(id));
+      v.egal('sources relues : adresse et date (ou date non indiquée avec la date de mise en ligne ou de consultation)',
+        nouvelles.filter((id) => !bp.sources[id].url || !(bp.sources[id].date || bp.sources[id].dateTexte)), []);
+      v.egal('pages revendeur en confiance « revendeur »', ['led-card-colorlight-x4e', 'finepixelled-colorlight-z4', 'colorlit-colorlight-x8e', 'colorlit-colorlight-s6', 'finepixelled-colorlight-z6-pro']
+        .map((id) => bp.sources[id].confiance), ['revendeur', 'revendeur', 'revendeur', 'revendeur', 'revendeur']);
+    },
+  },
+  {
+    id: 'D43',
+    titre: 'COEX : latence chiffrée de leurs fiches (0 image au mieux ; 1 en tout-en-un sur MX20, MX30 et CX40 Pro ; maximum non publié ailleurs) et statut « actuel » du Product Menu du wiki COEX (SP60 Pro absent, non renseigné)',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const p = (id) => calculs.resoudreFiche(bp.processeurs.find((x) => x.id === id), bp.sources);
+      const coex = ['coex-mx40-pro', 'coex-mx20', 'coex-mx30', 'coex-cx40-pro', 'coex-ku20', 'coex-mx2000-pro', 'coex-mx6000-pro'];
+      v.egal('latence mini et maxi', coex.map((id) => [p(id).latenceMinImages, p(id).latenceMaxImages ?? null]),
+        [[0, null], [0, 1], [0, 1], [0, 1], [0, null], [0, null], [0, null]]);
+      v.egal('latence : fiches du constructeur (MX2000 Pro : copie de sa fiche)', coex.map((id) => /^constructeur/.test(p(id).sources.latenceMinImages.source.confiance)), coex.map(() => true));
+      v.egal('statut : actuel, wiki COEX', coex.map((id) => [p(id).statutCommercial, p(id).sources.statutCommercial.source.id]), coex.map(() => ['actuel', 'coex-wiki-product-menu']));
+      v.egal('SP60 Pro : statut non renseigné', p('coex-sp60-pro').statutCommercial, undefined);
+      v.egal('textes de latence déjà relevés gardés (MX30 complété)', [p('coex-mx20').latence, p('coex-ku20').latence, p('coex-mx30').latence],
+        ['0 trame en envoi seul, 1 en tout en un', '0 trame', '0 trame en envoi seul, 1 en tout en un']);
     },
   },
 ];

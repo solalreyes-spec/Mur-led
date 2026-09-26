@@ -37,6 +37,11 @@ const TABLEAU_BROMPTON = {
 
 const BROMPTON_60_10 = { frequenceHz: 60, bits: 10 };
 const NOVASTAR_60_8 = { frequenceHz: 60, bits: 8 };
+const COLORLIGHT_60_8 = { frequenceHz: 60, bits: 8 };
+// Dalles des tests Colorlight (étape Pb) : carte 1G i5A, carte 5G HC5, dalle haute de 128 × 256 px.
+const DALLE_I5A = { ...DALLE_CAS_7, id: 'fictive-carte-i5a', nom: 'Dalle à carte i5A', carteReceptionMarque: 'Colorlight', carteReceptionModele: 'i5A' };
+const DALLE_HC5 = { ...DALLE_CAS_7, id: 'fictive-carte-hc5', nom: 'Dalle à carte HC5', carteReceptionMarque: 'Colorlight', carteReceptionModele: 'HC5' };
+const DALLE_128X256 = { id: 'fictive-128x256', nom: 'Dalle 128 × 256 px', fictive: true, largeurMm: 500, hauteurMm: 1000, pxH: 128, pxV: 256 };
 
 export const REGLES = [
   {
@@ -492,16 +497,16 @@ export const REGLES = [
   },
   {
     id: 'R34',
-    titre: 'Colorlight : 655 360 px à 60 Hz en 8 bits, la moitié en 10 et 12 bits (déduit, à confirmer)',
+    titre: 'Colorlight : 650 000 px à 60 Hz en 8 bits (fiches X20 et VX20), la moitié en 10 bits (déduit, à confirmer), 12 bits refusé',
     etape: '2b',
     verifier(v, contexte) {
       const s6f = processeurDeBase(contexte, 'colorlight-s6f');
       const c = (frequenceHz, bits) => calculs.capacitePortProcesseur(s6f, { frequenceHz, bits });
-      v.egal('60 Hz, 8 bits', calculs.entierInferieur(c(60, 8).capacite), 655360);
-      v.egal('60 Hz, 8 bits : hypothèse à confirmer, pas déduite', [c(60, 8).deduit, c(60, 8).aConfirmer], [false, true]);
-      v.egal('60 Hz, 10 et 12 bits : moitié', [c(60, 10), c(60, 12)].map((x) => calculs.entierInferieur(x.capacite)), [327680, 327680]);
+      v.egal('60 Hz, 8 bits', calculs.entierInferieur(c(60, 8).capacite), 650000);
+      v.egal('60 Hz, 8 bits : ni déduit ni à confirmer (fiches constructeur)', [c(60, 8).deduit, c(60, 8).aConfirmer], [false, false]);
+      v.egal('60 Hz, 10 bits : moitié ; 12 bits : non publié, pas de calcul', [calculs.entierInferieur(c(60, 10).capacite), s6f.bitsReseauPossibles], [325000, [8, 10]]);
       v.egal('10 bits : déduit et à confirmer', [c(60, 10).deduit, c(60, 10).aConfirmer], [true, true]);
-      v.egal('50 Hz, 8 bits : 655 360 × 60 / 50, déduit', [calculs.entierInferieur(c(50, 8).capacite), c(50, 8).deduit], [786432, true]);
+      v.egal('50 Hz, 8 bits : 650 000 × 60 / 50, déduit', [calculs.entierInferieur(c(50, 8).capacite), c(50, 8).deduit], [780000, true]);
       v.egal('8 bits par défaut', calculs.BIT_DEPTH_PAR_DEFAUT.colorlight, 8);
     },
   },
@@ -526,15 +531,15 @@ export const REGLES = [
     verifier(v, contexte) {
       const manquants = (id) => calculs.champsManquants(processeurDeBase(contexte, id));
       v.egal('MX30 : complet', manquants('coex-mx30'), []);
-      v.egal('X16E', manquants('colorlight-x16e'), ['pixelsMax', 'largeurMaxPx', 'hauteurMaxPx']);
-      v.egal('VX20', manquants('colorlight-vx20'), ['largeurMaxPx', 'hauteurMaxPx']);
-      v.egal('Z6', manquants('colorlight-z6'), ['capacite', 'ports']);
-      v.egal('Z8t', manquants('colorlight-z8t'), ['capacite', 'ports', 'hauteurMaxPx']);
+      v.egal('X16E : complet (fiche V1.1, copie)', manquants('colorlight-x16e'), []);
+      v.egal('VX20 : complet (fiche V1.20)', manquants('colorlight-vx20'), []);
+      v.egal('Z6 : complet (fiche V2.2, copie)', manquants('colorlight-z6'), []);
+      v.egal('Z8t : complet (fiche V2.1, cartes de sortie)', manquants('colorlight-z8t'), []);
       v.egal('S6F et X8E complets', [manquants('colorlight-s6f'), manquants('colorlight-x8e')], [[], []]);
       const m = calculs.mur(DALLE_CAS_7, 12, 6);
-      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'colorlight-vx20'), NOVASTAR_60_8);
-      v.egal('VX20 : aucun calcul, champs à compléter', [e.nombre, e.aCompleter], [null, ['largeurMaxPx', 'hauteurMaxPx']]);
-      v.egal('VX20 : pas de ports calculés', e.global, null);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-vx400s'), NOVASTAR_60_8);
+      v.egal('VX400s : aucun calcul, champs à compléter', [e.nombre, e.aCompleter], [null, ['largeurMaxPx', 'hauteurMaxPx']]);
+      v.egal('VX400s : pas de ports calculés', e.global, null);
       const conseil = calculs.processeurConseille([e]);
       v.egal('jamais conseillé', conseil, null);
     },
@@ -571,7 +576,7 @@ export const REGLES = [
       const nombre = (id) => colorlight.find((e) => e.processeur.id === id).nombre;
       v.egal('S6F (2,3 M px) : 2 ; X8E (5,24 M px) : 1', [nombre('colorlight-s6f'), nombre('colorlight-x8e')], [2, 1]);
       v.egal('X8E : dalles par port', colorlight.find((e) => e.processeur.id === 'colorlight-x8e').dallesParPort, 17);
-      v.egal('conseillé : X8E', calculs.processeurConseille(colorlight).processeur.id, 'colorlight-x8e');
+      v.egal('conseillé : X6 (3,9 M px, le plus petit qui suffit)', calculs.processeurConseille(colorlight).processeur.id, 'colorlight-x6');
     },
   },
   {
@@ -842,8 +847,8 @@ export const REGLES = [
       v.egal('7 processeurs avec multiviewer : 7 sorties pour 6, refusé', controle(sept, source(3840, 2160), true).ok, false);
       const dix = { ...cas7, nombre: 10 };
       const hd = controle(dix, source(1920, 1080));
-      v.egal('10 processeurs en 1920 × 1080 : mode 18 sorties 2048 × 1200', [hd.ok, hd.sortiesDisponibles], [true, 18]);
-      v.egal('mode 18 sorties avec multiviewer : non retenu (à confirmer), refusé', controle(dix, source(1920, 1080), true).ok, false);
+      v.egal('10 processeurs en 1920 × 1080 : mode 16 sorties Program 2048 × 1200', [hd.ok, hd.sortiesDisponibles], [true, 16]);
+      v.egal('mode 16 sorties avec multiviewer : non retenu (à confirmer), refusé', controle(dix, source(1920, 1080), true).ok, false);
       v.egal('liaison DVI : la E2 n\'a pas de sortie DVI', controle(cas7, source(1920, 1080, 'dvi-single')).ok, false);
       v.egal('liaison 3G-SDI : sortie 12G-SDI', controle(cas7, source(1920, 1080, '3g-sdi')).ok, true);
     },
@@ -1697,7 +1702,8 @@ export const REGLES = [
       const ports = col.processeurs.flatMap((p) => p.ports);
       v.proche('port 1 : (90 m + trajet jusqu\'au centre de C1 R1, 0,5 m) × 1,10 de mou par défaut', ports[0].longueurCuivreM, 99.55, 0.001);
       v.proche('port depuis C5 R1 : (90 + 2,5 m) × 1,10', ports.find((p) => p.dalles[0] === 'C5 R1').longueurCuivreM, 101.75, 0.001);
-      v.vrai('mou compté dans le contrôle : au-delà de 100 m en cuivre, alerte, passer en fibre (CVT10)', col.alertes.some((a) => /100 m/.test(a) && /fibre/.test(a) && /CVT10/.test(a)));
+      v.vrai('mou compté dans le contrôle : au-delà de 100 m en cuivre, alerte ; MCTRL660 sans sortie fibre : une paire de CVT310 ou CVT320 par port',
+        col.alertes.some((a) => /100 m/.test(a) && /pas de sortie fibre/.test(a) && /CVT310/.test(a) && /CVT320/.test(a)));
       const sansMou = calculs.cablageData(m, DALLE_CAS_13, e, { depart: 'haut-gauche', distanceRegieM: 90, margeMou: 0 }).variantes.find((x) => x.mode === 'colonnes');
       v.proche('marge de mou réglable : à 0 %, 90,5 m', sansMou.processeurs[0].ports[0].longueurCuivreM, 90.5, 0.001);
       v.vrai('à 0 % de mou : plus d\'alerte', !sansMou.alertes.some((a) => /100 m/.test(a)));
@@ -1778,8 +1784,8 @@ export const REGLES = [
     etape: '8a',
     verifier(v, contexte) {
       const md = calculs.mur(CB5, 10, 4, { demi: CB5_DEMI, rangeeDemi: true, positionDemi: 'haut' });
-      const e = calculs.evaluerProcesseur(md, CB5, processeurDeBase(contexte, 'novastar-vx6s'), { frequenceHz: 60, bits: 10, departCablage: 'haut-gauche' });
-      v.egal('VX6s : décompte théorique 3 ports, serpentin 4', [e.global.auPlusJuste, e.global.serpentin.ports], [3, 4]);
+      const e = calculs.evaluerProcesseur(md, CB5, processeurDeBase(contexte, 'novastar-mctrl660-pro'), { frequenceHz: 60, bits: 10, departCablage: 'haut-gauche' });
+      v.egal('MCTRL660 Pro : décompte théorique 3 ports, serpentin 4', [e.global.auPlusJuste, e.global.serpentin.ports], [3, 4]);
       v.egal('serpentin par processeur et au total', [e.groupes.map((g) => g.ports.auPlusJusteSerpentin), e.totaux.ports.auPlusJusteSerpentin], [[4], 4]);
       v.vrai('raison de l\'écart donnée', /serpentin/.test(e.global.serpentin.ecart ?? ''));
       v.egal('même nombre que le schéma de câblage', calculs.cablageData(md, CB5, e, { depart: 'haut-gauche' }).variantes
@@ -2845,6 +2851,519 @@ export const REGLES = [
       v.egal('dalles à pitch nominal', nominaux, ['roe-bq4-6', 'roe-bq4-6-demi', 'roe-v4st', 'unilumin-urmiii2-500x1000', 'unilumin-urmiii2-500x500',
         'unilumin-upad-iv-1-9-pro-f', 'unilumin-upad-iv-1-9-pro-xr', 'unilumin-upad-iv-1-5-mip', 'ledeca-ldaisp02-9st', 'ledeca-ldaisp01-9stq']);
       v.vrai('type de valeur accepté dans une fiche', fiches.TYPES_VALEUR.includes('nominal'));
+    },
+  },
+  {
+    id: 'R150',
+    titre: 'Capacité de l\'appareil = min(ports × capacité d\'un port, capacité totale de la fiche), affichée et reprise dans le texte copié',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const vx4s = processeurDeBase(contexte, 'novastar-vx4s');
+      const e = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 10, 5), DALLE_CAS_7, vx4s, NOVASTAR_60_8);
+      const c = e.capaciteAppareil;
+      v.egal('VX4S : 4 ports × 650 000 = 2,6 M, mais 2,3 M au total', [c.ports, calculs.entierInferieur(c.capacitePort), calculs.entierInferieur(c.sommePorts), c.pixelsMax, calculs.entierInferieur(c.valeur), c.limite],
+        [4, 650000, 2600000, 2300000, 2300000, 'total']);
+      v.vrai('texte copié : la ligne « Capacité de l\'appareil »', /Capacité de l'appareil : min\(4 ports × 650.000 = 2.600.000 px ; total de la fiche 2.300.000 px\) = 2.300.000 px/.test(resumes.resumeData(e)));
+      const t1 = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 2, 2), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-t1'), { frequenceHz: 60, bits: 12 });
+      v.egal('T1 en 12 bits : un port de 350 000 px limite avant le total (500 000)', [calculs.entierInferieur(t1.capaciteAppareil.valeur), t1.capaciteAppareil.limite], [350000, 'ports']);
+    },
+  },
+  {
+    id: 'R151',
+    titre: 'Colorlight : zone d\'un port limitée à 4096 px de large ou de haut (fiche S20) ; colonnes par port réduites, colonne trop haute coupée en segments ; découpage sur plusieurs processeurs gardé (D30)',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const x8e = processeurDeBase(contexte, 'colorlight-x8e');
+      v.egal('X8E : 4096 px par port, par analogie avec la fiche S20', [x8e.dimensionMaxPortPx, x8e.sources.dimensionMaxPortPx.source.confiance], [4096, 'déduit']);
+      const large = { id: 'test-256x64', nom: 'Test 256 × 64 px', largeurMm: 500, hauteurMm: 125, pxH: 256, pxV: 64 };
+      const e1 = calculs.evaluerProcesseur(calculs.mur(large, 19, 2), large, x8e, { frequenceHz: 60, bits: 8 });
+      v.egal('19 colonnes de 256 px : 16 colonnes par port (4096 px), 2 ports, alors que la capacité en permettait 19', [e1.global.colonnes.colonnesParPort, e1.global.colonnes.ports], [16, 2]);
+      v.vrai('alerte chiffrée', e1.alertes.some((a) => a.includes('4096 px') && a.includes('2 ports') && a.includes('1 port')));
+      const haute = { id: 'test-128x256', nom: 'Test 128 × 256 px', largeurMm: 500, hauteurMm: 1000, pxH: 128, pxV: 256 };
+      const e2 = calculs.evaluerProcesseur(calculs.mur(haute, 2, 20), haute, x8e, { frequenceHz: 60, bits: 8 });
+      v.egal('colonne de 5120 px : 2 segments de 10 dalles (2560 px), 4 ports au lieu de 2', [e2.global.colonnes.segments, e2.global.colonnes.ports], [[10, 10], 4]);
+      const sansLimite = calculs.evaluerProcesseur(calculs.mur(large, 20, 2), large, processeurDeBase(contexte, 'novastar-mctrl4k'), NOVASTAR_60_8);
+      v.egal('Novastar : pas de limite par port en pixels, seulement la capacité', sansLimite.global.colonnes.colonnesParPort, 19);
+    },
+  },
+  {
+    id: 'R152',
+    titre: 'Novastar, 10 bits propre à chaque modèle : valeur de la fiche (320 000 ou 325 000), sinon 320 000 « déduit, à confirmer » (la plus petite publiée) ; modèles sans entrée 10 bits : 10 bits refusé',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const port = (id, bits) => calculs.capacitePortProcesseur(processeurDeBase(contexte, id), { frequenceHz: 60, bits });
+      const e = (x) => [calculs.entierInferieur(x.capacite), x.deduit, x.aConfirmer];
+      v.egal('MCTRL4K et NovaPro UHD Jr : 320 000 (fiches)', [e(port('novastar-mctrl4k', 10)), e(port('novastar-novapro-uhd-jr', 10))], [[320000, false, false], [320000, false, false]]);
+      v.egal('MCTRL660 Pro et MCTRL R5 : 325 000 (fiches)', [e(port('novastar-mctrl660-pro', 10)), e(port('novastar-mctrl-r5', 10))], [[325000, false, false], [325000, false, false]]);
+      for (const id of ['novastar-mctrl660', 'novastar-vx4s', 'novastar-vx4u', 'novastar-vx2u', 'novastar-novapro-hd', 'novastar-vx6s']) {
+        v.egal(`${id} : 320 000 en 10 et 12 bits, déduit et à confirmer`, [e(port(id, 10)), e(port(id, 12))], [[320000, true, true], [320000, true, true]]);
+      }
+      v.egal('8 bits : toujours 650 000', calculs.entierInferieur(port('novastar-mctrl660', 8).capacite), 650000);
+      const mctrl300 = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 4, 3), DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl300'), { frequenceHz: 60, bits: 10 });
+      v.vrai('MCTRL300 : pas d\'entrée 10 bits, refus avec la raison', mctrl300.nombre === null && /8 bits/.test(mctrl300.impossible ?? '') && /pas d'entrée 10 bits/.test(mctrl300.impossible ?? ''));
+      v.egal('MX40 Pro, 10 bits avec cartes Pro : 480 000 (catalogue 2022, A10s Pro), la formule (494 791) visible dans la note',
+        [calculs.entierInferieur(calculs.capacitePortProcesseur(processeurDeBase(contexte, 'coex-mx40-pro'), { frequenceHz: 60, bits: 10, cartesPro: true }).capacite),
+          /494.791/.test(calculs.capacitePortProcesseur(processeurDeBase(contexte, 'coex-mx40-pro'), { frequenceHz: 60, bits: 10, cartesPro: true }).notes.join(' '))], [480000, true]);
+      v.egal('MX40 Pro, 10 bits sans cartes Pro : formule inchangée', calculs.entierInferieur(calculs.capacitePortProcesseur(processeurDeBase(contexte, 'coex-mx40-pro'), { frequenceHz: 60, bits: 10 }).capacite), 329861);
+    },
+  },
+  {
+    id: 'R153',
+    titre: 'Colorlight : 650 000 px par port 1G à 60 Hz en 8 bits (fiches X20 et VX20), 655 360 (X100 Pro) visible non retenu, proportionnel à la fréquence ; 10 bits ÷ 2 « déduit, à confirmer » sauf fiche ×0,75 ; 12 bits refusé (non publié)',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const s6f = processeurDeBase(contexte, 'colorlight-s6f');
+      const c = (frequenceHz, bits) => calculs.capacitePortProcesseur(s6f, { frequenceHz, bits });
+      v.egal('8 bits à 60 Hz : 650 000, source constructeur, plus « à confirmer »', [calculs.entierInferieur(c(60, 8).capacite), c(60, 8).aConfirmer, s6f.sources.capacitePort60Hz8bits.source.confiance],
+        [650000, false, 'constructeur']);
+      v.egal('655 360 (fiches X100 Pro) visible, non retenu', s6f.sources.capacitePort60Hz8bits.autres.filter((x) => x.nonRetenue).map((x) => x.valeur), [655360]);
+      v.egal('120 Hz : 320 000, déduit des fiches X8m, X12m… (R172)', [calculs.entierInferieur(c(120, 8).capacite), c(120, 8).deduit], [320000, true]);
+      v.egal('10 bits : ÷ 2, déduit et à confirmer', [calculs.entierInferieur(c(60, 10).capacite), c(60, 10).deduit, c(60, 10).aConfirmer], [325000, true, true]);
+      const e12 = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 4, 3), DALLE_CAS_7, s6f, { frequenceHz: 60, bits: 12 });
+      v.vrai('12 bits refusé : « capacité 12 bits non publiée par Colorlight »', e12.nombre === null && /capacité 12 bits non publiée par Colorlight/.test(e12.impossible ?? ''));
+      v.egal('fiche complète sans valeur 12 bits', calculs.champsManquants(s6f), []);
+    },
+  },
+  {
+    id: 'R154',
+    titre: 'Sorties fibre qui copient ou secourent les ports Ethernet : aucune capacité ajoutée ; le MX40 Pro garde son mode 40 ports',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_7, 60, 20);
+      const e4k = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl4k'), NOVASTAR_60_8);
+      v.egal('MCTRL4K : fibre en copie, 16 ports seulement', [e4k.processeur.sortiesFibre, e4k.controles.ports.limite], ['copie', 16]);
+      v.vrai('MCTRL4K : note affichée', e4k.alertes.some((a) => /fibre/i.test(a) && /aucune capacité/.test(a)));
+      const mx40 = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'coex-mx40-pro'), { ...NOVASTAR_60_8, modeOptique: true });
+      v.egal('MX40 Pro, mode optique : 40 ports', [mx40.processeur.sortiesFibre, mx40.controles.ports.limite], ['ports en plus', 40]);
+    },
+  },
+  {
+    id: 'R155',
+    titre: 'Relevé des sources : les valeurs en conflit, la plus défavorable retenue et les autres visibles avec leurs sources',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const conflits = calculs.valeursEnConflit(contexte.dalles.dalles, contexte.dalles.sources, calculs.PLUS_DEFAVORABLE);
+      const bp2 = conflits.find((x) => x.id === 'roe-bp2-v2' && x.champ === 'pMaxW');
+      v.egal('BP2 V2 : P max 190 W retenus, 160 et 185 W visibles', [bp2?.retenue.valeur, bp2?.autres.map((x) => x.valeur)], [190, [160, 185]]);
+      v.vrai('chaque conflit porte ses sources', conflits.every((x) => x.retenue.sources.length > 0 && x.autres.every((a) => a.sources.length > 0)));
+      v.egal('une valeur « non retenue » (corrigée par le constructeur) n\'est pas un conflit', conflits.some((x) => x.id === 'roe-cb5-mkii-demi' && x.champ === 'poidsKg'), false);
+    },
+  },
+  {
+    id: 'R156',
+    titre: 'Régies, switchers, scalers : modèle générique (entrées et sorties par type et nombre, format maxi, couches, latence, bits, emplacements, U, poids, conso, statut) ; modes de sortie déduits pour le contrôle du Canvas',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const sources = { t: { titre: 'Fiche test', court: 'Test', date: '2026-09-26', confiance: 'constructeur' } };
+      const regie = {
+        marque: 'Test', modele: 'Switcher 8', role: 'switcher', position: 'amont',
+        entrees: [{ type: 'hdmi-2.0', nombre: 4, largeurMaxPx: 4096, hauteurMaxPx: 2160, frequenceMaxHz: 60, source: 't' }],
+        sorties: [{ type: 'dvi-single', nombre: 8, largeurMaxPx: 1920, hauteurMaxPx: 1200, frequenceMaxHz: 60, source: 't' }],
+        couches: { valeur: 6, source: 't' }, latence: { valeur: '1 image', source: 't' }, bitsParCouleur: { valeur: 10, source: 't' },
+        emplacements: [{ role: 'sortie', nombre: 4, source: 't' }], hauteurU: { valeur: 2, source: 't' }, poidsKg: { valeur: 5.3, source: 't' },
+        puissanceW: { valeur: 50, source: 't' }, statutCommercial: { valeur: 'ancien', source: 't' },
+      };
+      const r = fiches.validerFiche('regie', regie, sources);
+      v.egal('fiche générique enregistrable et complète', [r.enregistrable, r.erreurs, r.manquants], [true, [], []]);
+      const resolue = calculs.resoudreFiche(r.fiche, sources);
+      v.egal('modes de sortie déduits des sorties', calculs.modesSortieRegie(resolue, liaisonsDeBase(contexte)).map((m) => [m.nom, m.sorties, m.largeurMaxPx, m.hauteurMaxPx, m.frequenceHz]), [['8 × DVI single link', 8, 1920, 1200, 60]]);
+      v.egal('types de sortie déduits', calculs.sortiesTypesRegie(resolue), ['dvi-single']);
+      const controle = calculs.controleRegie(resolue, { nombre: 2 }, { largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60, liaison: 'dvi-single' }, liaisonsDeBase(contexte));
+      v.egal('contrôle Canvas : 8 sorties DVI pour 2 processeurs', [controle.ok, controle.sortiesDisponibles], [true, 8]);
+      const sansSource = fiches.validerFiche('regie', { ...regie, sorties: [{ ...regie.sorties[0], source: undefined }] }, sources);
+      v.egal('chaque entrée ou sortie a sa source', sansSource.enregistrable, false);
+    },
+  },
+  {
+    id: 'R157',
+    titre: 'Novastar série H : cartes d\'envoi LED par emplacement (H_20xRJ45, H_16xRJ45+2xfiber, H_4xfiber), comme les MX6000 Pro ; ports, capacité et convertisseurs comptés par carte',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const h5 = processeurDeBase(contexte, 'novastar-h5');
+      const m = calculs.mur(DALLE_CAS_7, 30, 10);
+      const e = (proc, reglages = {}) => calculs.evaluerProcesseur(m, DALLE_CAS_7, proc, { ...NOVASTAR_60_8, ...reglages });
+      const rj = e(h5);
+      v.egal('par défaut H_20xRJ45 : 30 ports, 2 cartes, 1 processeur', [rj.nombre, rj.totaux.ports.colonnes, rj.configuration], [1, 30, 'H5 + 2 cartes H_20xRJ45']);
+      v.egal('H5 : 3 emplacements, 60 ports, 39 M px, 32 256 px (3 cartes de 10 752 px côte à côte)', [rj.controles.ports.limite, rj.controles.pixels.limite, rj.controles.largeur.limite], [60, 39000000, 32256]);
+      v.vrai('H5 : largeur de l\'appareil marquée « déduit : cartes côte à côte »', /déduit : cartes côte à côte/.test(rj.processeur.sources.largeurMaxPx.source.court)
+        && rj.processeur.sources.largeurMaxPx.source.confiance === 'déduit');
+      const dix = e(h5, { bits: 10 });
+      v.egal('10 bits : 320 000 px par port (fiche)', [calculs.entierInferieur(dix.capacite), dix.capaciteDeduite], [320000, false]);
+      const fibre = e(h5, { carteSortie: 'h-4xfiber' });
+      v.egal('H_4xfiber : 1 carte, un CVT10 par fibre, obligatoires', [fibre.configuration, fibre.distributeurObligatoire, fibre.totaux.distributeurs.colonnes], ['H5 + 1 carte H_4xfiber + 4 CVT10', true, 4]);
+      v.vrai('H_4xfiber : 8 ports utilisés sur 10 par CVT10, déduit', fibre.alertes.some((a) => /8 ports utilisés sur 10/.test(a) && /déduit/.test(a)));
+      const fibreDix = e(h5, { carteSortie: 'h-4xfiber', bits: 10 });
+      v.egal('H_4xfiber : 10 bits 320 000, déduit', [calculs.entierInferieur(fibreDix.capacite), fibreDix.capaciteDeduite], [320000, true]);
+      const copie = e(h5, { carteSortie: 'h-16xrj45' });
+      v.egal('H_16xRJ45+2xfiber : 2 cartes, fibre en copie, CVT4K seulement si fibre', [copie.configuration, copie.processeur.sortiesFibre, copie.distributeurObligatoire, copie.processeur.distributeur],
+        ['H5 + 2 cartes H_16xRJ45+2xfiber', 'copie', false, 'novastar-cvt4k']);
+      const h2 = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 50, 10), DALLE_CAS_7, processeurDeBase(contexte, 'novastar-h2'), NOVASTAR_60_8);
+      v.egal('H2 : 2 emplacements, 40 ports ; 50 ports demandent 2 × H2', [h2.controles.ports.limite, h2.nombre], [40, 2]);
+    },
+  },
+  {
+    id: 'R158',
+    titre: 'Novastar, 10 bits des nouveaux modèles : VX400, VX600 et VX1000 Pro à 325 000 « déduit » (règle du VX2000 Pro) avec la note HDR ; VX2000 Pro à 480 000 avec l\'A10s Pro (par analogie) ; 320 000 « déduit, à confirmer » quand l\'entrée accepte le 10 bits ; refus sans entrée 10 bits',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const port = (id, bits, carte = null) => calculs.capacitePortProcesseur(processeurDeBase(contexte, id), { frequenceHz: 60, bits, carte });
+      const e = (x) => [calculs.entierInferieur(x.capacite), x.deduit];
+      for (const id of ['novastar-vx400-pro', 'novastar-vx600-pro', 'novastar-vx1000-pro']) {
+        v.egal(`${id} : 325 000 en 10 bits, déduit`, e(port(id, 10)), [325000, true]);
+        v.vrai(`${id} : note HDR (÷ 4, 162 500 px)`, port(id, 10).notes.some((n) => /HDR/.test(n) && /162.500/.test(n)));
+      }
+      v.egal('VX2000 Pro, carte inconnue : 325 000 (fiche)', e(port('novastar-vx2000-pro', 10)), [325000, false]);
+      v.egal('VX2000 Pro avec l\'A10s Pro : 480 000, déduit par analogie', e(port('novastar-vx2000-pro', 10, 'A10s Pro')), [480000, true]);
+      v.egal('VX2000 Pro avec l\'A8s Pro : 325 000 (seule l\'A10s Pro est citée)', e(port('novastar-vx2000-pro', 10, 'A8s Pro')), [325000, false]);
+      v.egal('VX2000 Pro en 8 bits : 650 000, sans note de carte', [calculs.entierInferieur(port('novastar-vx2000-pro', 8).capacite), port('novastar-vx2000-pro', 8).notes], [650000, []]);
+      for (const id of ['novastar-mctrl500', 'novastar-mctrl600', 'novastar-msd600', 'novastar-vx16s', 'novastar-novapro-uhd', 'novastar-vx4s-n']) {
+        const x = port(id, 10);
+        v.egal(`${id} : 320 000 en 10 bits, déduit et à confirmer`, [calculs.entierInferieur(x.capacite), x.deduit, x.aConfirmer], [320000, true, true]);
+      }
+      for (const id of ['novastar-vx1000', 'novastar-vx600', 'novastar-vx400', 'novastar-mctrl700', 'novastar-mctrl700-pro', 'novastar-msd300']) {
+        const r = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 4, 3), DALLE_CAS_7, processeurDeBase(contexte, id), { frequenceHz: 60, bits: 10 });
+        v.vrai(`${id} : 10 bits refusé avec la raison`, r.nombre === null && /travaille en 8 bits/.test(r.impossible ?? ''));
+      }
+    },
+  },
+  {
+    id: 'R159',
+    titre: 'Convertisseurs Novastar : CVT4K (MCTRL4K, NovaPro UHD et UHD Jr, 16 ports), CVT310 ou CVT320 un par port (MCTRL500), CVT10 (VX Pro) avec les ports non utilisés signalés ; CVT10 : 22 W retenus, 18 W de la fiche visibles',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const d = (id) => calculs.resoudreFiche(bp.distributeurs.find((x) => x.id === id), bp.sources);
+      for (const id of ['novastar-mctrl4k', 'novastar-novapro-uhd', 'novastar-novapro-uhd-jr']) {
+        const p = processeurDeBase(contexte, id);
+        v.egal(`${id} : CVT4K, 16 ports`, [p.distributeur, p.sortiesParDistributeur], ['novastar-cvt4k', 16]);
+      }
+      const cvt4k = d('novastar-cvt4k');
+      v.egal('CVT4K : 16 ports 1G, 21 W retenus (version S), 10 W (M) visibles, 4,6 kg, 2U',
+        [cvt4k.sorties, cvt4k.puissanceW, cvt4k.sources.puissanceW.autres.map((x) => x.valeur), cvt4k.poidsKg, cvt4k.hauteurU], [16, 21, [10], 4.6, 2]);
+      const cvt10 = d('novastar-cvt10');
+      v.egal('CVT10 : 22 W retenus (wiki COEX), 18 W de la fiche V1.3.2 visibles, 2,1 kg', [cvt10.puissanceW, cvt10.sources.puissanceW.autres.map((x) => x.valeur), cvt10.poidsKg], [22, [18], 2.1]);
+      v.egal('CVT310 et CVT320 : un port 1G chacun, multimode 550 m ou monomode 20 km', [d('novastar-cvt310').sorties, d('novastar-cvt320').sorties, /550 m/.test(d('novastar-cvt310').fibre), /20 km/.test(d('novastar-cvt320').fibre)], [1, 1, true, true]);
+      const m = calculs.mur(DALLE_CAS_7, 16, 3);
+      const m500 = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl500'), NOVASTAR_60_8);
+      v.egal('MCTRL500 : un CVT310 par port', [m500.processeur.distributeur, m500.totaux.ports.colonnes, m500.totaux.distributeurs.colonnes], ['novastar-cvt310', 4, 4]);
+      const vx = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-vx400-pro'), NOVASTAR_60_8);
+      v.egal('VX400 Pro : 4 ports, 1 CVT10, 6 ports du CVT10 non utilisés', [vx.totaux.ports.colonnes, vx.totaux.distributeurs.colonnes, vx.totaux.distributeurs.portsNonUtilises], [4, 1, 6]);
+      v.vrai('texte copié : ports non utilisés', resumes.resumeData(vx, { distributeur: 'CVT10' }).split('\n').includes('CVT10 : 1, 6 ports non utilisés'));
+    },
+  },
+  {
+    id: 'R160',
+    titre: 'Sorties fibre en copie ou secours des ports Ethernet (VX1000, NovaPro UHD, MCTRL500, carte H_16xRJ45+2xfiber) : aucune capacité ajoutée ; la carte H_4xfiber est une vraie sortie',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_7, 60, 20);
+      for (const [id, ports] of [['novastar-vx1000', 10], ['novastar-novapro-uhd', 16], ['novastar-mctrl500', 4]]) {
+        const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, id), NOVASTAR_60_8);
+        v.egal(`${id} : fibre en copie, ${ports} ports au plus`, [e.processeur.sortiesFibre, e.controles.ports.limite], ['copie', ports]);
+        v.vrai(`${id} : alerte « aucune capacité ajoutée »`, e.alertes.some((a) => /aucune capacité ajoutée/.test(a)));
+      }
+      const h5 = processeurDeBase(contexte, 'novastar-h5');
+      const copie = calculs.evaluerProcesseur(m, DALLE_CAS_7, h5, { ...NOVASTAR_60_8, carteSortie: 'h-16xrj45' });
+      v.vrai('carte H_16xRJ45+2xfiber : alerte « aucune capacité ajoutée »', copie.alertes.some((a) => /aucune capacité ajoutée/.test(a)));
+      const fibre = calculs.evaluerProcesseur(m, DALLE_CAS_7, h5, { ...NOVASTAR_60_8, carteSortie: 'h-4xfiber' });
+      v.egal('carte H_4xfiber : vraie sortie, 96 ports (3 cartes × 4 fibres × 8 ports)', [fibre.alertes.some((a) => /aucune capacité ajoutée/.test(a)), fibre.controles.ports.limite], [false, 96]);
+    },
+  },
+  {
+    id: 'R161',
+    titre: 'Processeurs Novastar : statut commercial (actuel ou ancien) et latence chiffrée en images, avec leurs sources ; ligne « Latence » du texte copié de Data',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const p = (id) => processeurDeBase(contexte, id);
+      v.egal('statuts', ['novastar-vx2000-pro', 'novastar-mctrl4k', 'novastar-novapro-uhd', 'novastar-vx4u'].map((id) => p(id).statutCommercial), ['actuel', 'actuel', 'ancien', 'ancien']);
+      v.egal('VX4U : « discontinued » selon un revendeur, confiance revendeur', p('novastar-vx4u').sources.statutCommercial.source.confiance, 'revendeur');
+      const vx = p('novastar-vx2000-pro');
+      v.egal('VX2000 Pro : de 0 à 3 images (fiche V1.4.0)', [vx.latenceMinImages, vx.latenceMaxImages, vx.sources.latenceMinImages.source.id], [0, 3, 'novastar-vx2000-pro-v1-4-0']);
+      v.egal('NovaPro UHD : au moins 1 image (« as low as »), maximum non publié', [p('novastar-novapro-uhd').latenceMinImages, p('novastar-novapro-uhd').latenceMaxImages], [1, undefined]);
+      const m = calculs.mur(DALLE_CAS_7, 10, 5);
+      v.vrai('texte copié : latence de 0 à 3 images', /Latence : 0 à 3 images/.test(resumes.resumeData(calculs.evaluerProcesseur(m, DALLE_CAS_7, vx, NOVASTAR_60_8))));
+      v.vrai('texte copié : au moins 1 image, maximum non publié',
+        /Latence : au moins 1 image, maximum non publié/.test(resumes.resumeData(calculs.evaluerProcesseur(m, DALLE_CAS_7, p('novastar-novapro-uhd'), NOVASTAR_60_8))));
+    },
+  },
+  {
+    id: 'R162',
+    titre: 'Sélecteur de processeur (Data) : marque (famille de calcul, COEX dans Novastar), gamme, modèle du plus petit au plus grand avec « actuel » ou « ancien » ; fiches à compléter et d\'information grisées ; recherche par nom ou alias',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const procs = bp.processeurs.map((x) => calculs.resoudreFiche(x, bp.sources));
+      const infos = (bp.informations ?? []).map((x) => calculs.resoudreFiche(x, bp.sources));
+      const arbre = fiches.arbreProcesseurs(procs, { informations: infos });
+      v.egal('marques et famille de calcul', arbre.map((m) => [m.marque, m.famille]), [['Brompton', 'brompton'], ['Colorlight', 'colorlight'], ['Novastar', 'novastar']]);
+      const gammes = (marque) => arbre.find((m) => m.marque === marque).gammes;
+      v.egal('gammes Novastar, COEX compris', gammes('Novastar').map((g) => g.gamme), ['COEX', 'MCTRL', 'MSD (cartes d\'envoi)', 'NovaPro', 'Série H', 'VX', 'VX Pro']);
+      const fichesDe = (marque, gamme) => gammes(marque).find((g) => g.gamme === gamme).fiches;
+      v.egal('VX Pro : du plus petit au plus grand, statut dans le libellé', fichesDe('Novastar', 'VX Pro').map((x) => x.libelle),
+        ['VX400 Pro (actuel)', 'VX600 Pro (actuel)', 'VX1000 Pro (actuel)', 'VX2000 Pro (actuel)']);
+      v.egal('MCTRL : par capacité ; MCTRL610, fiche d\'information, en dernier et grisé', fichesDe('Novastar', 'MCTRL').map((x) => [x.libelle, x.information]),
+        [['MCTRL300 (actuel)', false], ['MCTRL660 (actuel)', false], ['MCTRL660 Pro (actuel)', false], ['MCTRL500 (ancien)', false], ['MCTRL600 (actuel)', false],
+          ['MCTRL700 (actuel)', false], ['MCTRL700 Pro (actuel)', false], ['MCTRL R5 (actuel)', false], ['MCTRL4K (actuel)', false], ['MCTRL610 (ancien)', true]]);
+      v.vrai('VX400s : à compléter, grisé', fichesDe('Novastar', 'VX').find((x) => x.id === 'novastar-vx400s').aCompleter);
+      const cherche = (q) => fiches.arbreProcesseurs(procs, { informations: infos, recherche: q }).map((m) => [m.marque, m.gammes.map((g) => [g.gamme, g.fiches.map((x) => x.id)])]);
+      v.egal('recherche « vx1000 »', cherche('vx1000'), [['Novastar', [['VX', ['novastar-vx1000']], ['VX Pro', ['novastar-vx1000-pro']]]]]);
+      v.egal('recherche sans espace ni tiret : « mctrl 4k », « MX40 », alias « MSD300-1 »', [cherche('mctrl 4k'), cherche('MX40'), cherche('msd300-1')],
+        [[['Novastar', [['MCTRL', ['novastar-mctrl4k']]]]], [['Novastar', [['COEX', ['coex-mx40-pro']]]]], [['Novastar', [['MSD (cartes d\'envoi)', ['novastar-msd300']]]]]]);
+    },
+  },
+  {
+    id: 'R163',
+    titre: 'Conseil « toutes marques du parc » : chaque marque à sa profondeur réseau par défaut (réglage du parc compris), la marque choisie à celle du formulaire ; le moins de processeurs, puis la plus petite capacité',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const procs = bp.processeurs.map((x) => calculs.resoudreFiche(x, bp.sources));
+      const m = calculs.mur(DALLE_CAS_13, 12, 5);
+      const evals = calculs.evaluerToutesMarques(m, DALLE_CAS_13, procs, { frequenceHz: 60, bits: 10 }, { famille: 'novastar', bitsParFamille: { brompton: 12 } });
+      const bits = (id) => evals.find((e) => e.processeur.id === id).reglages.bits;
+      v.egal('Novastar au formulaire (10 bits), Brompton au réglage du parc (12), Colorlight au défaut (8)', [bits('novastar-mctrl4k'), bits('brompton-s8'), bits('colorlight-s6f')], [10, 12, 8]);
+      const conseil = calculs.processeurConseille(evals);
+      const seuls = evals.filter((e) => e.nombre === 1);
+      v.egal('un seul processeur, la plus petite capacité parmi ceux qui suffisent seuls', [conseil.nombre, conseil.processeur.pixelsMax], [1, Math.min(...seuls.map((e) => e.processeur.pixelsMax))]);
+      v.vrai('plusieurs marques parmi les candidats', new Set(seuls.map((e) => e.processeur.famille)).size > 1);
+    },
+  },
+  {
+    id: 'R164',
+    titre: 'Formats d\'entrée des fiches Novastar (PDF relus le 26/09/2026) : VX400 et VX600 en format personnalisé, VX Pro, et limite de 3840 × 1080 à 60 Hz en 10 ou 12 bits (VX16s, UHD Jr)',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      const entree = (id, largeurPx, hauteurPx, liaison, bits = 8, frequenceHz = 60) => calculs.controleEntree(processeurDeBase(contexte, id), { largeurPx, hauteurPx, frequenceHz, liaison, bits }, liaisons);
+      v.egal('VX16s, HDMI 2.0 : 3840 × 2160 en 8 bits, 3840 × 1080 au plus en 10 bits', [entree('novastar-vx16s', 3840, 2160, 'hdmi-2.0').ok, entree('novastar-vx16s', 3840, 2160, 'hdmi-2.0', 10).ok,
+        entree('novastar-vx16s', 3840, 1080, 'hdmi-2.0', 10).ok], [true, false, true]);
+      v.vrai('VX16s en 10 bits : refus chiffré avec la condition', /3840 × 1080/.test(entree('novastar-vx16s', 3840, 2160, 'hdmi-2.0', 12).refus ?? ''));
+      v.egal('UHD Jr, DP 1.2 : 3840 × 2160 en 8 bits, pas en 10 bits', [entree('novastar-novapro-uhd-jr', 3840, 2160, 'dp-1.2').ok, entree('novastar-novapro-uhd-jr', 3840, 2160, 'dp-1.2', 10).ok], [true, false]);
+      v.egal('VX400, DVI : 3840 × 648 et 800 × 2784 en format personnalisé ; pas 3840 × 700 ni 600 × 3840',
+        [entree('novastar-vx400', 3840, 648, 'dvi-single').ok, entree('novastar-vx400', 800, 2784, 'dvi-single').ok, entree('novastar-vx400', 3840, 700, 'dvi-single').ok,
+          entree('novastar-vx400', 600, 3840, 'dvi-single').ok], [true, true, false, false]);
+      v.egal('la norme DVI seule refusait 3840 × 648', calculs.controleLiaison(liaisons.find((l) => l.id === 'dvi-single'), { largeurPx: 3840, hauteurPx: 648, frequenceHz: 60 }).ok, false);
+      v.egal('VX400 Pro, HDMI 1.3 : 2048 px de large au plus, 8 bits seulement', [entree('novastar-vx400-pro', 2048, 1080, 'hdmi-1.3').ok, entree('novastar-vx400-pro', 2560, 1080, 'hdmi-1.3').ok,
+        entree('novastar-vx400-pro', 1920, 1080, 'hdmi-1.3', 10).ok], [true, false, false]);
+      v.vrai('VX400 Pro, HDMI 1.3 en 10 bits : refus avec la raison', /8 bits/.test(entree('novastar-vx400-pro', 1920, 1080, 'hdmi-1.3', 10).refus ?? ''));
+      v.egal('VX400 Pro, HDMI 2.0 : 8192 × 1080 à 60 Hz, mais pas 1080 × 8192 (8188 au plus)', [entree('novastar-vx400-pro', 8192, 1080, 'hdmi-2.0').ok, entree('novastar-vx400-pro', 1080, 8192, 'hdmi-2.0').ok], [true, false]);
+    },
+  },
+  {
+    id: 'R165',
+    titre: 'Colorlight, port de plus de 1280 px de haut : alerte « constructeur » sur S20 et S20F (fiche S20 V2.1) ; simple note d\'information sur les autres Colorlight 1G ; rien à 1280 px pile ni en 5G',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const texte = 'capacité réduite au-delà de 1280 px de haut, valeur non publiée : vérifie dans LEDVISION';
+      const evalue = (id, rangees, dalle = DALLE_128X256) => calculs.evaluerProcesseur(calculs.mur(dalle, 4, rangees), dalle, processeurDeBase(contexte, id), COLORLIGHT_60_8);
+      for (const id of ['colorlight-s20', 'colorlight-s20f']) {
+        const p = processeurDeBase(contexte, id);
+        v.egal(`${id} : 1280 px, source constructeur (fiche S20 V2.1)`, [p.hauteurReduitePortPx, p.sources.hauteurReduitePortPx.source.confiance, p.sources.hauteurReduitePortPx.source.court],
+          [1280, 'constructeur', 'Fiche S20 V2.1']);
+        const e = evalue(id, 6);
+        v.vrai(`${id}, colonne de 1536 px : alerte avec la hauteur chargée et la fiche`, e.alertes.some((a) => a.includes(texte) && a.includes('1536 px') && a.includes('Fiche S20 V2.1')));
+        v.egal(`${id} : aucune note en plus de l'alerte`, e.notes.filter((n) => n.includes('1280')).length, 0);
+        const pile = evalue(id, 5);
+        v.vrai(`${id}, colonne de 1280 px pile : rien`, !pile.alertes.some((a) => a.includes('1280')));
+      }
+      const x20 = evalue('colorlight-x20', 6);
+      v.vrai('X20 : note d\'information, sans alerte', x20.notes.some((n) => n.includes('règle écrite sur la fiche S20, non confirmée pour ce modèle') && n.includes('1536 px'))
+        && !x20.alertes.some((a) => a.includes('1280')));
+      v.egal('X20 : pas de champ 1280 sur sa fiche', processeurDeBase(contexte, 'colorlight-x20').hauteurReduitePortPx, undefined);
+      const z3 = evalue('colorlight-z3', 6, { ...DALLE_128X256, carteReceptionMarque: 'Colorlight', carteReceptionModele: 'HC5' });
+      v.vrai('Z3 (ports 5G) : ni alerte ni note', z3.nombre === 1 && !z3.alertes.some((a) => a.includes('1280')) && !z3.notes.some((n) => n.includes('1280')));
+      const novastar = calculs.evaluerProcesseur(calculs.mur(DALLE_128X256, 4, 6), DALLE_128X256, processeurDeBase(contexte, 'novastar-mctrl4k'), NOVASTAR_60_8);
+      v.egal('Novastar : aucune note', novastar.notes.length, 0);
+    },
+  },
+  {
+    id: 'R166',
+    titre: 'Colorlight, fibre : copie des ports (X20), H10FN2 conseillé au-delà de 100 m (H10FN, H10Fix en note) ; sans sortie fibre (X4m) : convertisseurs par port ; fibre seule : H10FN2 obligatoires (S20F) ou H2F (Z4F)',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_7, 12, 5);
+      const x20 = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'colorlight-x20'), COLORLIGHT_60_8);
+      v.vrai('X20 : fibre en copie, aucune capacité ajoutée', x20.alertes.some((a) => a.includes('Sorties fibre du Colorlight X20') && a.includes('aucune capacité ajoutée') && a.includes('20 ports au plus')));
+      const cx20 = calculs.cablageData(m, DALLE_CAS_7, x20, { depart: 'bas-gauche', distanceRegieM: 150 });
+      v.vrai('X20 à 150 m : fibre avec des H10FN2 au pied du mur, H10FN ou H10Fix possibles', cx20.variantes.find((x) => x.mode === 'colonnes').alertes.some((a) => a.includes('H10FN2 au pied du mur') && a.includes('H10FN ou H10Fix')));
+      const x4m = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 6, 5), DALLE_CAS_7, processeurDeBase(contexte, 'colorlight-x4m'), COLORLIGHT_60_8);
+      const cx4m = calculs.cablageData(calculs.mur(DALLE_CAS_7, 6, 5), DALLE_CAS_7, x4m, { depart: 'bas-gauche', distanceRegieM: 150 });
+      v.vrai('X4m à 150 m : pas de sortie fibre, une paire de convertisseurs Ethernet-fibre par port', cx4m.variantes.find((x) => x.mode === 'colonnes').alertes.some((a) => a.includes('pas de sortie fibre') && a.includes('Ethernet-fibre')));
+      v.vrai('X4m : pas de CVT310 (Novastar)', !cx4m.variantes.find((x) => x.mode === 'colonnes').alertes.some((a) => a.includes('CVT310')));
+      // S20F : fibre seule, 2 fibres actives et 2 de secours ; 36 colonnes de 192 × 960 px : 3 colonnes par port, 12 ports.
+      const grand = calculs.mur(DALLE_CAS_7, 36, 5);
+      const s20f = processeurDeBase(contexte, 'colorlight-s20f');
+      const e = calculs.evaluerProcesseur(grand, DALLE_CAS_7, s20f, COLORLIGHT_60_8);
+      v.egal('S20F : 1 processeur, 12 ports, 2 H10FN2 obligatoires', [e.nombre, e.totaux.ports.colonnes, e.distributeurObligatoire, e.totaux.distributeurs.colonnes], [1, 12, true, 2]);
+      const cs20f = calculs.cablageData(grand, DALLE_CAS_7, e, { depart: 'bas-gauche' });
+      v.egal('S20F : ports nommés sur leur H10FN2', cs20f.variantes.find((x) => x.mode === 'colonnes').processeurs[0].ports[10].libelle, 'H10FN2 2, port 1');
+      const r = calculs.evaluerProcesseur(grand, DALLE_CAS_7, s20f, { ...COLORLIGHT_60_8, redondance: true });
+      v.egal('S20F en redondance : 20 ports principaux au plus, H10FN2 miroirs sur les fibres de secours', [s20f.portsRedondance, r.nombre, r.totaux.distributeurs.redondance], [20, 1, 4]);
+      // Z4F : 2 fibres 2,5G, chacune vers un H2F de 2 ports.
+      const z4f = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 8, 5), DALLE_CAS_7, processeurDeBase(contexte, 'colorlight-z4f'), COLORLIGHT_60_8);
+      v.egal('Z4F : 3 ports, 2 H2F obligatoires', [z4f.totaux.ports.colonnes, z4f.distributeurObligatoire, z4f.totaux.distributeurs.colonnes, calculs.MODELES_DISTRIBUTEUR[z4f.processeur.distributeur]], [3, true, 2, 'H2F']);
+    },
+  },
+  {
+    id: 'R167',
+    titre: 'Colorlight, ports 5G : capacité de la fiche (Z3 : 2,8 M et 2,1 M px), cartes de réception 5G seulement (HC5, RV5000), câble blindé Cat6 ou mieux, 80 m au plus (constructeur sur Z3 et Z8t, déduit de la fiche Z8t ailleurs)',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const z3 = processeurDeBase(contexte, 'colorlight-z3');
+      const port = (bits) => calculs.entierInferieur(calculs.capacitePortProcesseur(z3, { frequenceHz: 60, bits }).capacite);
+      v.egal('Z3 : 6 ports 5G, 2 800 000 px en 8 bits, 2 100 000 en 10 bits', [z3.ports, z3.typePorts, port(8), port(10)], [6, '5G', 2800000, 2100000]);
+      const m = calculs.mur(DALLE_HC5, 10, 5);
+      const e = calculs.evaluerProcesseur(m, DALLE_HC5, z3, COLORLIGHT_60_8);
+      v.vrai('Z3 avec HC5 : calcul, alerte câble 80 m, fiche Z3', e.nombre === 1 && e.alertes.some((a) => a.includes('câble blindé Cat6 ou mieux, 80 m au plus') && a.includes('Fiche Z3 V2.0')));
+      const c = calculs.cablageData(m, DALLE_HC5, e, { depart: 'bas-gauche', distanceRegieM: 75 });
+      v.vrai('Z3 à 75 m (plus le trajet et 10 % de mou) : au-delà de 80 m', c.variantes.find((x) => x.mode === 'colonnes').alertes.some((a) => a.includes('au-delà de 80 m')));
+      const i5a = calculs.evaluerProcesseur(m, DALLE_I5A, z3, COLORLIGHT_60_8);
+      v.vrai('Z3 avec une carte i5A (1G) : refus, cartes 5G acceptées citées', i5a.nombre === null && /HC5, RV5000/.test(i5a.impossible ?? ''));
+      const inconnue = calculs.evaluerProcesseur(m, DALLE_CAS_7, z3, COLORLIGHT_60_8);
+      v.vrai('Z3, carte inconnue : alerte de compatibilité', inconnue.nombre === 1 && inconnue.manques.some((x) => x.champ === 'carteReceptionModele' && x.texte.includes('cartes 5G')));
+      const z8t = calculs.evaluerProcesseur(m, DALLE_HC5, processeurDeBase(contexte, 'colorlight-z8t'), COLORLIGHT_60_8);
+      v.vrai('Z8t, carte 4 × 5G : 80 m, fiche Z8t', z8t.alertes.some((a) => a.includes('80 m au plus') && a.includes('Fiche Z8t V2.1')));
+      const x100 = calculs.evaluerProcesseur(m, DALLE_HC5, processeurDeBase(contexte, 'colorlight-x100-pro-4u'), { ...COLORLIGHT_60_8, carteSortie: 'x100-4x5g' });
+      v.vrai('X100 Pro, carte 4 × 5G : 80 m déduit de la fiche Z8t', x100.alertes.some((a) => a.includes('80 m au plus') && a.includes('déduit de la fiche Z8t')));
+      v.vrai('COEX inchangé : Cat6A, 100 m', calculs.evaluerProcesseur(calculs.mur(DALLE_CARTE_CA50E, 10, 5), DALLE_CARTE_CA50E, processeurDeBase(contexte, 'coex-cx40-pro'), NOVASTAR_60_8)
+        .alertes.some((a) => a.includes('Cat6A obligatoire')));
+    },
+  },
+  {
+    id: 'R168',
+    titre: 'X100 Pro et Z8t par cartes de sortie : 10 × 1G, 2 × 10G fibre (H10FN2), 4 × 5G (X100 Pro : ancienne version de fiche) ; pixels plafonnés par l\'appareil ; carte par défaut selon la carte de réception des dalles',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_I5A, 36, 5);
+      const x4u = processeurDeBase(contexte, 'colorlight-x100-pro-4u');
+      const e1 = calculs.evaluerProcesseur(m, DALLE_I5A, x4u, COLORLIGHT_60_8);
+      v.egal('4U, carte i5A : cartes 10 × 1G par défaut, 40 ports, 26 M px (4 × 6,55 M plafonnés par l\'appareil)',
+        [e1.processeur.carteSortie.id, e1.processeur.ports, e1.processeur.pixelsMax, e1.configuration], ['x100-10x1g', 40, 26000000, 'X100 Pro-4U + 2 cartes 10×1G']);
+      const e2 = calculs.evaluerProcesseur(m, DALLE_I5A, x4u, { ...COLORLIGHT_60_8, carteSortie: 'x100-2x10g' });
+      v.egal('4U, cartes fibre 2 × 10G : un H10FN2 par carte, obligatoire', [e2.distributeurObligatoire, e2.configuration], [true, 'X100 Pro-4U + 2 cartes 2×10G + 2 H10FN2']);
+      const e3 = calculs.evaluerProcesseur(calculs.mur(DALLE_HC5, 36, 5), DALLE_HC5, x4u, { ...COLORLIGHT_60_8, carteSortie: 'x100-4x5g' });
+      v.egal('4U, cartes 4 × 5G : 2 ports actifs par carte, 2 940 000 px par port, 4 × 5,89 M px',
+        [e3.processeur.ports, calculs.entierInferieur(e3.capacite), e3.processeur.pixelsMax, e3.configuration], [8, 2940000, 23560000, 'X100 Pro-4U + 2 cartes 4×5G']);
+      v.vrai('4U, cartes 4 × 5G : ancienne version de fiche signalée', e3.alertes.some((a) => a.includes('ancienne version de fiche')));
+      const auto5G = calculs.evaluerProcesseur(calculs.mur(DALLE_HC5, 36, 5), DALLE_HC5, x4u, COLORLIGHT_60_8);
+      v.egal('4U, carte HC5 et choix par défaut : cartes 4 × 5G', auto5G.processeur.carteSortie.id, 'x100-4x5g');
+      const x7u = calculs.evaluerProcesseur(m, DALLE_I5A, processeurDeBase(contexte, 'colorlight-x100-pro-7u'), COLORLIGHT_60_8);
+      v.egal('7U : 8 cartes, 80 ports, 52 M px', [x7u.processeur.ports, x7u.processeur.pixelsMax], [80, 52000000]);
+      const z8t = processeurDeBase(contexte, 'colorlight-z8t');
+      const z1 = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 36, 5), DALLE_CAS_7, z8t, COLORLIGHT_60_8);
+      v.egal('Z8t, carte de réception inconnue : cartes 4 × 5G par défaut, 8 ports', [z1.processeur.carteSortie.id, z1.processeur.ports], ['z8t-4x5g', 8]);
+      v.vrai('Z8t, carte inconnue : alerte qui propose la carte fibre', z1.alertes.some((a) => a.includes('Carte de réception inconnue') && a.includes('4×10G')));
+      const z2 = calculs.evaluerProcesseur(m, DALLE_I5A, z8t, COLORLIGHT_60_8);
+      v.egal('Z8t, carte i5A (1G) : cartes fibre 4 × 10G, 40 ports par H10FN2, 23,59 M px (plafond de l\'appareil)',
+        [z2.processeur.carteSortie.id, z2.processeur.ports, z2.processeur.pixelsMax, z2.distributeurObligatoire, z2.configuration],
+        ['z8t-4x10g', 40, 23590000, true, 'Z8t + 1 carte 4×10G + 2 H10FN2']);
+      v.egal('Z8t : 16 384 × 8192 pour l\'appareil (fiche), zone de 8192 px par carte', [z2.processeur.largeurMaxPx, z2.processeur.hauteurMaxPx, z2.controles.cartes.zone.largeurPx], [16384, 8192, 8192]);
+    },
+  },
+  {
+    id: 'R169',
+    titre: 'Colorlight, périmètre : fiche officielle ou copie calculable ; page revendeur seule calculable en confiance « revendeur » si elle donne ports, capacité totale, largeur et hauteur (X4e, Z4, X8E), sinon fiche d\'information (S6, Z6 Pro)',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      for (const id of ['colorlight-x4e', 'colorlight-z4', 'colorlight-x8e']) {
+        const p = processeurDeBase(contexte, id);
+        v.egal(`${id} : calculable`, calculs.champsManquants(p), []);
+        v.egal(`${id} : ports et capacité totale en confiance revendeur`, [p.sources.ports.source.confiance, p.sources.pixelsMax.source.confiance], ['revendeur', 'revendeur']);
+      }
+      const base = baseProcesseurs(contexte);
+      for (const id of ['colorlight-s6', 'colorlight-z6-pro']) {
+        const f = base.informations.find((x) => x.id === id);
+        v.egal(`${id} : fiche d'information`, f?.statut, 'information');
+        v.vrai(`${id} : absent des processeurs calculables`, !base.processeurs.some((x) => x.id === id));
+      }
+      for (const id of ['colorlight-x16e', 'colorlight-z6']) {
+        v.egal(`${id} : complété par sa fiche (copie)`, calculs.champsManquants(processeurDeBase(contexte, id)), []);
+      }
+    },
+  },
+  {
+    id: 'R170',
+    titre: 'Colorlight, 10 bits : × 0,75 quand la fiche le montre (487 500, la valeur arrondie de la fiche visible), 5G selon la fiche, sinon 325 000 « déduit, à confirmer »',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const port = (id, bits = 10) => calculs.capacitePortProcesseur(processeurDeBase(contexte, id), { frequenceHz: 60, bits });
+      for (const id of ['colorlight-vx6', 'colorlight-vx10', 'colorlight-z4-pro', 'colorlight-z5', 'colorlight-x100-pro-4u']) {
+        v.egal(`${id} : 487 500 en 10 bits, de la fiche`, [calculs.entierInferieur(port(id).capacite), port(id).deduit], [487500, false]);
+      }
+      const conflits = calculs.valeursEnConflit(baseProcesseurs(contexte).processeurs, baseProcesseurs(contexte).sources);
+      const vx6 = conflits.find((x) => x.id === 'colorlight-vx6' && x.champ === 'capacitePort60Hz10bits');
+      v.egal('VX6 : 490 000 de la fiche, arrondi, visible', vx6?.autres.map((a) => a.valeur), [490000]);
+      v.egal('Z3 (5G) : 2 100 000', calculs.entierInferieur(port('colorlight-z3').capacite), 2100000);
+      v.egal('X4m : 325 000, déduit', [calculs.entierInferieur(port('colorlight-x4m').capacite), port('colorlight-x4m').deduit], [325000, true]);
+    },
+  },
+  {
+    id: 'R171',
+    titre: 'Colorlight, fibres de secours : redondance par convertisseurs miroirs (S20F, cartes fibre du X100 Pro) ; ports principaux comptés, cartes non doublées',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_I5A, 36, 5);
+      const e = calculs.evaluerProcesseur(m, DALLE_I5A, processeurDeBase(contexte, 'colorlight-x100-pro-4u'), { ...COLORLIGHT_60_8, carteSortie: 'x100-2x10g', redondance: true });
+      v.egal('X100 Pro-4U, cartes 2 × 10G en redondance : 18 ports principaux (colonnes paires), 2 cartes, 2 H10FN2 et 2 miroirs',
+        [e.totaux.ports.colonnes, e.totaux.cartesSortie, e.configuration], [18, 2, 'X100 Pro-4U + 2 cartes 2×10G + 4 H10FN2']);
+      const s20f = processeurDeBase(contexte, 'colorlight-s20f');
+      v.egal('S20F : secours par les fibres FIBER 1 et 2 BACKUP, déduit', [s20f.portsRedondance, s20f.sources.portsRedondance.source.confiance], [20, 'déduit']);
+    },
+  },
+  {
+    id: 'R172',
+    titre: 'Colorlight, 120 et 240 Hz : valeur de la fiche quand elle existe (320 000 et 160 000 px par port 1G en 8 bits), sinon 320 000 et 160 000 « déduit des fiches X8m, X12m… » ; entre deux fréquences publiées, la plus défavorable des deux proportions',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const port = (id, frequenceHz, bits = 8, reglages = {}) => calculs.capacitePortProcesseur(processeurDeBase(contexte, id), { frequenceHz, bits, ...reglages });
+      const e = (x) => [calculs.entierInferieur(x.capacite), x.deduit];
+      v.egal('X8m, fiche : 320 000 à 120 Hz, 160 000 à 240 Hz, non déduits', [e(port('colorlight-x8m', 120)), e(port('colorlight-x8m', 240))], [[320000, false], [160000, false]]);
+      v.egal('VX6, fiche en 10 bits : 240 000 à 120 Hz, 120 000 à 240 Hz', [e(port('colorlight-vx6', 120, 10)), e(port('colorlight-vx6', 240, 10))], [[240000, false], [120000, false]]);
+      const x6 = port('colorlight-x6', 120);
+      v.egal('X6, sans valeur publiée : 320 000 à 120 Hz, déduit', e(x6), [320000, true]);
+      v.vrai('X6 : source « déduit des fiches X8m, X12m… » citée', /déduit des fiches X8m, X12m/.test(x6.formule + x6.notes.join(' ')));
+      v.egal('X6 à 240 Hz : 160 000, déduit', e(port('colorlight-x6', 240)), [160000, true]);
+      v.egal('X6 à 100 Hz : la plus défavorable de 650 000 × 60/100 et 320 000 × 120/100 (384 000)', e(port('colorlight-x6', 100)), [384000, true]);
+      v.egal('X6 à 50 Hz : proportionnel depuis 60 Hz (780 000)', e(port('colorlight-x6', 50)), [780000, true]);
+      v.vrai('50 Hz : note « capacité à 50 Hz déduite du débit, aucune fiche Colorlight ne la publie »',
+        port('colorlight-x6', 50).notes.some((n) => n.includes('capacité à 50 Hz déduite du débit, aucune fiche Colorlight ne la publie')));
+      v.egal('X6 à 60 Hz : inchangé, 650 000', e(port('colorlight-x6', 60)), [650000, false]);
+      v.egal('X6 en 10 bits (moitié) : 160 000 à 120 Hz, 80 000 à 240 Hz, déduits', [e(port('colorlight-x6', 120, 10)), e(port('colorlight-x6', 240, 10))], [[160000, true], [80000, true]]);
+      v.egal('Z4 Pro, 10 bits : 240 000 à 120 Hz (fiche), 120 000 à 240 Hz (déduit des fiches VX6…)', [e(port('colorlight-z4-pro', 120, 10)), e(port('colorlight-z4-pro', 240, 10))], [[240000, false], [120000, true]]);
+      v.egal('Z3 (5G), fiche : 1 400 000 à 120 Hz en 8 bits, 520 000 à 240 Hz en 10 bits (sous la proportion, 525 000)',
+        [e(port('colorlight-z3', 120)), e(port('colorlight-z3', 240, 10))], [[1400000, false], [520000, false]]);
+      const z8t = (f, bits = 8) => calculs.evaluerProcesseur(calculs.mur(DALLE_HC5, 4, 2), DALLE_HC5, processeurDeBase(contexte, 'colorlight-z8t'), { frequenceHz: f, bits });
+      v.egal('Z8t, carte 4 × 5G : 1 470 000 à 120 Hz (fiche), 735 000 à 240 Hz (proportionnel depuis 120 Hz, déduit)',
+        [[calculs.entierInferieur(z8t(120).capacite), z8t(120).capaciteDeduite], [calculs.entierInferieur(z8t(240).capacite), z8t(240).capaciteDeduite]], [[1470000, false], [735000, true]]);
+      v.egal('Novastar inchangé (formule) : MCTRL4K à 120 Hz, 325 000', calculs.entierInferieur(calculs.capacitePortProcesseur(processeurDeBase(contexte, 'novastar-mctrl4k'), { frequenceHz: 120, bits: 8 }).capacite), 325000);
+    },
+  },
+  {
+    id: 'R173',
+    titre: 'Cartes de sortie à zone limitée (Z8t 8192 px, série H 10 752 px…) : la limite vaut pour la zone de chaque carte, le mur se répartit entre les cartes comme entre les ports ; un appareil de plus seulement quand ses cartes ne suffisent pas',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const z8t = processeurDeBase(contexte, 'colorlight-z8t');
+      // 50 colonnes de 192 px (9600 px) sur 5 rangées : 15 colonnes par port 5G, 4 ports ; 2 ports par carte (45 colonnes = 8640 px > 8192).
+      const e1 = calculs.evaluerProcesseur(calculs.mur(DALLE_HC5, 50, 5), DALLE_HC5, z8t, COLORLIGHT_60_8);
+      v.egal('Z8t, mur de 9600 px : 1 appareil, 4 ports, 2 cartes 4×5G', [e1.nombre, e1.totaux.ports.colonnes, e1.totaux.cartesSortie, e1.configuration], [1, 4, 2, 'Z8t + 2 cartes 4×5G']);
+      v.egal('Z8t : contrôle des cartes, 2 sur 2', [e1.controles.cartes.valeur, e1.controles.cartes.limite, e1.controles.cartes.depasse], [2, 2, false]);
+      const e2 = calculs.evaluerProcesseur(calculs.mur(DALLE_HC5, 90, 5), DALLE_HC5, z8t, COLORLIGHT_60_8);
+      v.egal('Z8t, mur de 17 280 px (au-delà de 16 384) : 2 appareils', e2.nombre, 2);
+      // 45 colonnes, 1 rangée : un port 5G prendrait 79 colonnes (15 168 px) ; il reste dans la zone de sa carte (42 colonnes, 8064 px).
+      const e3 = calculs.evaluerProcesseur(calculs.mur(DALLE_HC5, 45, 1), DALLE_HC5, z8t, COLORLIGHT_60_8);
+      v.egal('Z8t : un port ne dépasse pas la zone de sa carte (42 colonnes au plus)', [e3.nombre, e3.global.colonnes.colonnesParPort, e3.totaux.ports.colonnes], [1, 42, 2]);
+      // Carte fibre 4×10G : 17 colonnes de 192 px par port 1G (3264 px), 2 ports par zone de 8192 px ; 68 colonnes, 4 ports, 2 cartes, un H10FN2 par carte.
+      const e4 = calculs.evaluerProcesseur(calculs.mur(DALLE_I5A, 68, 1), DALLE_I5A, z8t, COLORLIGHT_60_8);
+      v.egal('Z8t, cartes fibre : convertisseurs comptés carte par carte', [e4.nombre, e4.totaux.ports.colonnes, e4.configuration], [1, 4, 'Z8t + 2 cartes 4×10G + 2 H10FN2']);
+      // Série H : H5, 3 cartes H_20xRJ45 de 10 752 px ; 60 colonnes de 192 px (11 520 px), 3 colonnes par port, 20 ports.
+      const h5 = processeurDeBase(contexte, 'novastar-h5');
+      const h = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 60, 5), DALLE_CAS_7, h5, NOVASTAR_60_8);
+      v.egal('H5, mur de 11 520 px : 1 châssis, 2 cartes (18 ports dans 10 368 px, puis 2)', [h.nombre, h.totaux.ports.colonnes, h.totaux.cartesSortie, h.configuration],
+        [1, 20, 2, 'H5 + 2 cartes H_20xRJ45']);
+      v.egal('H5 : largeur de l\'appareil, 3 cartes de 10 752 px côte à côte', h.controles.largeur.limite, 32256);
+      const h2 = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 170, 1), DALLE_CAS_7, processeurDeBase(contexte, 'novastar-h2'), NOVASTAR_60_8);
+      v.vrai('H2, mur de 32 640 px (au-delà de 2 × 10 752) : plusieurs châssis, alerte des cartes', h2.nombre >= 2 && h2.alertes.some((a) => a.includes('cartes H_20xRJ45') && /10.752 × 10.752 px/.test(a)));
     },
   },
 ];

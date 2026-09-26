@@ -131,6 +131,7 @@ function construire() {
     informations: resoudre(f.dalles.informations, f.dalles.sources),
     bumpers: resoudre(f.dalles.bumpers, f.dalles.sources),
     processeurs: resoudre(f.processeurs.processeurs, f.processeurs.sources),
+    informationsProcesseurs: resoudre(f.processeurs.informations, f.processeurs.sources),
     cartesReception: resoudre(f.processeurs.cartesReception, f.processeurs.sources),
     distributeurs: resoudre(f.processeurs.distributeurs, f.processeurs.sources),
     sourcesProcesseurs: f.processeurs.sources,
@@ -163,6 +164,8 @@ const pourMur = () => {
 };
 const pourData = () => ({
   processeurs: filtrerParParc(courant.processeurs, base, parcActif, 'processeur'),
+  // Fiches d'information (VX4, MCTRL610) : visibles et grisées dans le choix du processeur, hors parc actif.
+  informations: parcActif ? [] : courant.informationsProcesseurs,
   distributeurs: courant.distributeurs,
   sources: courant.sourcesProcesseurs,
   nomParc: nomParc(),

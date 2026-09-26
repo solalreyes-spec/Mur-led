@@ -14,6 +14,13 @@
       "court": "Nationwide Video, Rentex",
       "date": null,
       "confiance": "loueurs"
+    },
+    "barco-e2-gen2-fiche-2025-11-27": {
+      "titre": "Fiche Barco E2 Gen 2 (NGS-4U-V2), mise à jour le 27/11/2025, p. 3 : « Configurable for up to 16x 2048X1200@60 or up to 8x 4096x2400@60 » ; « NO MVR: Up to 8 x 4K60p outputs », « WITH MVR: Up to 6x 4K60p outputs » ; « Scaled AUX outputs … up to 18x 2048x1200@60 » ; sorties 4 × SDI (12G), 13 × HDMI (600 MHz), 1 × DisplayPort (660 MHz)",
+      "court": "Fiche Barco E2 Gen 2",
+      "date": "2025-11-27",
+      "url": "https://assets.barco.com/m/1da1a218bfbbede6/original/E2-Gen-2-en-Spec-sheet.pdf",
+      "confiance": "constructeur"
     }
   },
   "regies": [
@@ -31,17 +38,18 @@
           "largeurMaxPx": 4096,
           "hauteurMaxPx": 2400,
           "frequenceHz": 60,
-          "source": "nationwide-e2-gen2"
+          "source": "barco-e2-gen2-fiche-2025-11-27",
+          "note": "8 sorties 4K60 sans multiviewer, 6 avec (p. 3)."
         },
         {
           "nom": "2048 × 1200",
-          "sorties": 18,
+          "sorties": 16,
           "sortiesAvecMultiviewer": null,
           "largeurMaxPx": 2048,
           "hauteurMaxPx": 1200,
           "frequenceHz": 60,
-          "source": "nationwide-rentex-e2",
-          "note": "Nombre de sorties avec le multiviewer non précisé : mode non retenu quand le multiviewer est coché."
+          "source": "barco-e2-gen2-fiche-2025-11-27",
+          "note": "16 sorties Program (« up to 16x 2048X1200@60 », p. 3). 18 = sorties Aux (« Scaled AUX outputs … up to 18x 2048x1200@60 », p. 3), non retenues : une sortie Program par processeur. Nombre de sorties avec le multiviewer non précisé : mode non retenu quand le multiviewer est coché."
         }
       ],
       "sortiesTypes": {
@@ -50,7 +58,7 @@
           "12g-sdi",
           "dp-1.2"
         ],
-        "source": "nationwide-rentex-e2"
+        "source": "barco-e2-gen2-fiche-2025-11-27"
       }
     },
     {
