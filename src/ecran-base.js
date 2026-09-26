@@ -38,8 +38,15 @@ function toutesSources() {
 }
 
 // Fiches brutes d'un type (gabarits exclus : génériques, non sourcés) et leur version résolue.
+// Appareils en amont et en aval (étape Pf3) : base de départ, en lecture.
+const FICHIERS_FAMILLE = { melangeur: 'melangeurs', convertisseur: 'convertisseurs', serveur: 'serveurs', switch: 'switches' };
+
 function fichesDuType(type) {
   const f = ctx.fusion;
+  if (FICHIERS_FAMILLE[type]) {
+    const b = ctx.depart.appareils?.[FICHIERS_FAMILLE[type]];
+    return [...(b?.appareils ?? []), ...(b?.informations ?? [])].map((brute) => ({ brute: { ...brute, statutBase: 'depart' }, resolue: resoudreFiche(brute, b.sources) }));
+  }
   // Dalles : aussi les fiches d'information (LEDCAST), à compléter.
   const brutes = {
     dalle: [...f.dalles.dalles, ...(f.dalles.informations ?? [])], bumper: f.dalles.bumpers,
@@ -670,6 +677,17 @@ function afficherFiches() {
   const texte = normaliser($('filtre-texte').value.trim());
   const liste = fichesDuType(type).filter(({ brute, resolue }) => !texte
     || normaliser(`${resolue.nom} ${[].concat(resolue.alias ?? []).join(' ')} ${brute.id}`).includes(texte));
+  if (FICHIERS_FAMILLE[type]) {
+    remplacer($('liste-fiches'), liste.length
+      ? liste.map(({ brute, resolue }) => el('li', {}, el('strong', {}, resolue.nom),
+        brute.statut === 'information' ? el('span', { class: 'badge' }, ' fiche d\'information') : null,
+        resolue.statutCommercial ? el('span', { class: 'note' }, ` (${resolue.statutCommercial})`) : null,
+        resolue.note ? el('p', { class: 'note' }, resolue.note) : null))
+      : el('li', { class: 'compte' }, type === 'melangeur'
+        ? 'Aucune fiche pour l\'instant : les mélangeurs qui gèrent aussi l\'écran (E2, Aquilon, PixelHue…) sont dans « Régies et scalers ».'
+        : 'Aucune fiche pour l\'instant.'));
+    return;
+  }
   remplacer($('liste-fiches'), liste.length
     ? liste.map((f) => elementFiche(type, f))
     : el('li', { class: 'compte' }, 'Aucune fiche.'));

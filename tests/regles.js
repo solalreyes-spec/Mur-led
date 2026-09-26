@@ -639,7 +639,7 @@ export const REGLES = [
   },
   {
     id: 'R43',
-    titre: 'Liaisons : débit de pixels actifs comparé au format maxi (approximation)',
+    titre: 'Liaisons : fréquence pixel (HDMI 1.4, HDMI 2.0, DP 1.2) ou débit de pixels actifs comparé au format maxi ; format standard exact (CTA-861), format personnalisé en approximation',
     etape: '3a',
     verifier(v, contexte) {
       const liaisons = liaisonsDeBase(contexte);
@@ -658,7 +658,7 @@ export const REGLES = [
       v.egal('6G-SDI : UHD à 60 i/s refusé', ok('6g-sdi', 3840, 2160, 60), false);
       const dp = controle('dp-1.2', 4096, 2160, 60);
       v.egal('DisplayPort 1.2 : 4096 × 2160 à 60 Hz, à confirmer', [dp.ok, dp.aConfirmer], [true, true]);
-      v.egal('toujours marqué « approximation »', dp.approximation, true);
+      v.egal('format standard exact (timings CTA-861), format personnalisé en approximation', [dp.approximation, controle('dp-1.2', 4096, 2400, 60).approximation], [false, true]);
     },
   },
   {
@@ -837,11 +837,12 @@ export const REGLES = [
       const e2 = regieDeBase(contexte, 'barco-e2-gen2');
       const cas7 = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 44, 10), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
       const source = (largeurPx, hauteurPx, liaison = 'hdmi-2.0') => ({ largeurPx, hauteurPx, frequenceHz: 60, liaison });
-      const controle = (evaluation, s, multiviewer = false) => calculs.controleRegie(e2, evaluation, s, liaisons, { multiviewer });
+      // Program seul : le budget de 20 MP avec prévisualisation est testé à part (R175).
+      const controle = (evaluation, s, multiviewer = false) => calculs.controleRegie(e2, evaluation, s, liaisons, { multiviewer, programSeul: true });
       const r = controle(cas7, source(3840, 2160));
       v.egal('cas 7 : 3 sorties nécessaires sur 8', [r.sortiesNecessaires, r.sortiesDisponibles, r.ok], [3, 8, true]);
       v.egal('multiviewer : 6 sorties 4K60', controle(cas7, source(3840, 2160), true).sortiesDisponibles, 6);
-      v.egal('4096 × 2400 à 60 Hz : passe', controle(cas7, source(4096, 2400)).ok, true);
+      v.egal('4096 × 2400 à 60 Hz : refusé en HDMI 2.0 (630,25 MHz pour 600), accepté en DP 1.2 (660 MHz)', [controle(cas7, source(4096, 2400)).ok, controle(cas7, source(4096, 2400, 'dp-1.2')).ok], [false, true]);
       v.egal('4096 × 2560 : trop haut pour une sortie', controle(cas7, source(4096, 2560)).ok, false);
       const sept = { ...cas7, nombre: 7 };
       v.egal('7 processeurs avec multiviewer : 7 sorties pour 6, refusé', controle(sept, source(3840, 2160), true).ok, false);
@@ -2128,8 +2129,8 @@ export const REGLES = [
       v.egal('entrées structurées, source fiche MX30 V1.0.1', [mx30.entreesTypes, mx30.sources.entreesTypes.source.id], [['hdmi-2.0', 'hdmi-1.4', 'dp', '3g-sdi'], 'coex-mx30-v1-0-1']);
       const entree = (largeurPx, hauteurPx, frequenceHz, liaison) => calculs.controleEntree(mx30, { largeurPx, hauteurPx, frequenceHz, liaison }, liaisons);
       const hdmi14 = liaisons.find((l) => l.id === 'hdmi-1.4');
-      v.egal('HDMI 1.4 : 4096 × 1080 à 60 Hz refusé par la norme de la base, accepté par la fiche du MX30',
-        [calculs.controleLiaison(hdmi14, { largeurPx: 4096, hauteurPx: 1080, frequenceHz: 60 }).ok, entree(4096, 1080, 60, 'hdmi-1.4').ok], [false, true]);
+      v.egal('HDMI 1.4 : 4096 × 1080 à 60 Hz accepté par la norme (283,5 MHz pour 297) et par la fiche du MX30',
+        [calculs.controleLiaison(hdmi14, { largeurPx: 4096, hauteurPx: 1080, frequenceHz: 60 }).ok, entree(4096, 1080, 60, 'hdmi-1.4').ok], [true, true]);
       v.egal('HDMI 1.4 : 4096 px de large au plus', entree(4608, 960, 60, 'hdmi-1.4').ok, false);
       const dp = entree(4096, 1080, 60, 'dp-1.2');
       v.egal('DisplayPort : contrôle sur l\'entrée DP 1.1 de la fiche, 4096 × 1080 à 60 Hz', [dp.ok, dp.alertes.some((a) => a.includes('DP 1.1'))], [true, true]);
@@ -2335,7 +2336,8 @@ export const REGLES = [
       const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, mx6000, NOVASTAR_60_8);
       v.egal('mur de 11 520 × 1920 px : un seul MX6000 Pro', e.nombre, 1);
       v.vrai('alerte : plusieurs sources nécessaires, 8192 px maxi par entrée', e.alertes.some((a) => a.includes('plusieurs sources nécessaires') && a.includes('8192')));
-      v.egal('au-delà de 16 384 px de large : deux MX6000 Pro', calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 86, 2), DALLE_CAS_7, mx6000, NOVASTAR_60_8).nombre, 2);
+      const large = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 86, 2), DALLE_CAS_7, mx6000, NOVASTAR_60_8);
+      v.egal('16 512 px de large : un seul MX6000 Pro, 2 cartes de sortie (16 384 px par carte)', [large.nombre, large.totaux.cartesSortie], [1, 2]);
       v.vrai('sous 8192 px : pas d\'alerte de sources', !calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 42, 10), DALLE_CAS_7, mx6000, NOVASTAR_60_8).alertes.some((a) => a.includes('plusieurs sources')));
       v.egal('MX2000 Pro : 8192 px pour le mur, deux processeurs à 11 520 px', calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'coex-mx2000-pro'), NOVASTAR_60_8).nombre, 2);
     },
@@ -3364,6 +3366,512 @@ export const REGLES = [
       v.egal('H5 : largeur de l\'appareil, 3 cartes de 10 752 px côte à côte', h.controles.largeur.limite, 32256);
       const h2 = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 170, 1), DALLE_CAS_7, processeurDeBase(contexte, 'novastar-h2'), NOVASTAR_60_8);
       v.vrai('H2, mur de 32 640 px (au-delà de 2 × 10 752) : plusieurs châssis, alerte des cartes', h2.nombre >= 2 && h2.alertes.some((a) => a.includes('cartes H_20xRJ45') && /10.752 × 10.752 px/.test(a)));
+    },
+  },
+  {
+    id: 'R174',
+    titre: 'Fréquence pixel par connecteur : timings CTA-861 pour les formats standard, CVT à blanking réduit (approximation) pour les formats personnalisés ; HDMI 1.4 297 MHz, HDMI 2.0 600 MHz, DP 1.2 660 MHz',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const f = (largeurPx, hauteurPx, frequenceHz) => calculs.frequencePixel({ largeurPx, hauteurPx, frequenceHz });
+      v.egal('CTA-861 : 1920 × 1080 à 60 Hz, 3840 × 2160 à 60 et 30 Hz', [f(1920, 1080, 60).mhz, f(3840, 2160, 60).mhz, f(3840, 2160, 30).mhz, f(3840, 2160, 60).methode], [148.5, 594, 297, 'CTA-861']);
+      v.egal('CVT à blanking réduit : 4096 × 1080, 8192 × 1080, 4096 × 2400, 1920 × 1200 à 60 Hz',
+        [f(4096, 1080, 60).mhz, f(8192, 1080, 60).mhz, f(4096, 2400, 60).mhz, f(1920, 1200, 60).mhz, f(4096, 1080, 60).methode], [283.5, 556.5, 630.25, 154, 'CVT-RB']);
+      const liaisons = liaisonsDeBase(contexte);
+      const l = (id) => liaisons.find((x) => x.id === id);
+      const c = (id, largeurPx, hauteurPx, frequenceHz) => calculs.controleLiaison(l(id), { largeurPx, hauteurPx, frequenceHz });
+      v.egal('limites en MHz : HDMI 1.4, HDMI 2.0, DP 1.2', [l('hdmi-1.4').frequencePixelMaxMHz, l('hdmi-2.0').frequencePixelMaxMHz, l('dp-1.2').frequencePixelMaxMHz], [297, 600, 660]);
+      v.egal('HDMI 1.4 : 3840 × 2160 à 30 Hz passe, à 60 Hz non ; 4096 × 1080 à 60 Hz passe (283,5 MHz)', [c('hdmi-1.4', 3840, 2160, 30).ok, c('hdmi-1.4', 3840, 2160, 60).ok, c('hdmi-1.4', 4096, 1080, 60).ok], [true, false, true]);
+      v.egal('HDMI 2.0 : 8192 × 1080 à 60 Hz passe (556,5 MHz), 4096 × 2400 à 60 Hz non (630,25 MHz) ; DP 1.2 l\'accepte', [c('hdmi-2.0', 8192, 1080, 60).ok, c('hdmi-2.0', 4096, 2400, 60).ok, c('dp-1.2', 4096, 2400, 60).ok], [true, false, true]);
+      const perso = c('hdmi-2.0', 4096, 2400, 60);
+      v.egal('format personnalisé : approximation, fréquence et limite données', [perso.approximation, perso.frequencePixelMHz, perso.frequencePixelMaxMHz], [true, 630.25, 600]);
+      v.egal('format standard : pas d\'approximation', c('hdmi-2.0', 3840, 2160, 60).approximation, false);
+      v.egal('sources : fiche Barco E2 Gen 2 (HDMI 2.0, DP 1.2), page Datapath Fx4 (HDMI 1.4, 297 Mpx/s)',
+        [l('hdmi-2.0').sources.frequencePixelMaxMHz.source.id, l('dp-1.2').sources.frequencePixelMaxMHz.source.id, l('hdmi-1.4').sources.frequencePixelMaxMHz.source.id],
+        ['barco-e2-gen2-fiche-2025-11-27', 'barco-e2-gen2-fiche-2025-11-27', 'datapath-page-fx4']);
+      v.vrai('HDMI 1.4 : note « la norme autorise 340 MHz »', /340 MHz/.test(l('hdmi-1.4').sources.frequencePixelMaxMHz.note ?? ''));
+    },
+  },
+  {
+    id: 'R175',
+    titre: 'Régie : nombre de sorties ET budget en mégapixels ; RS1 40 MP sur le Program ; E2 Gen 2 20 MP avec prévisualisation, 40 MP en Program seul, 80 MP à 30 Hz en Program seul ; dépassé : refus, « Program seul » proposé quand il suffit',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const rs1 = regieDeBase(contexte, 'analogway-aquilon-rs1');
+      const e2 = regieDeBase(contexte, 'barco-e2-gen2');
+      const uhd = 3840 * 2160;
+      const b = (regie, n, reglages = {}) => calculs.budgetRegie(regie, n * uhd, { frequenceHz: 60, ...reglages });
+      v.egal('RS1 : 4 × 3840 × 2160 (33,2 MP) passent, 5 × (41,5 MP) refusés', [b(rs1, 4).ok, b(rs1, 5).ok], [true, false]);
+      const trois = b(e2, 3);
+      v.egal('E2 : 3 × 3840 × 2160 (24,9 MP) refusés avec la prévisualisation (20 MP), Program seul proposé', [trois.ok, trois.budget.mpx, trois.programSeulSuffit], [false, 20000000, true]);
+      v.egal('E2 : accepté en Program seul (40 MP)', [b(e2, 3, { programSeul: true }).ok, b(e2, 3, { programSeul: true }).budget.mpx], [true, 40000000]);
+      v.egal('E2 : 6 × 3840 × 2160 (49,8 MP) refusés à 60 Hz, même en Program seul ; acceptés à 30 Hz (80 MP)',
+        [b(e2, 6, { programSeul: true }).ok, b(e2, 6, { programSeul: true, frequenceHz: 30 }).ok, b(e2, 6, { programSeul: true, frequenceHz: 30 }).budget.mpx], [false, true, 80000000]);
+      v.egal('E2 : sources des budgets, fiche Barco (p. 3)', [...new Set(e2.budgetsMP.map((x) => x.source))], ['barco-e2-gen2-fiche-2025-11-27']);
+      const liaisons = liaisonsDeBase(contexte);
+      const evaluation = { nombre: 3, groupes: [] };
+      const r = calculs.controleRegie(e2, evaluation, { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60, liaison: 'hdmi-2.0' }, liaisons);
+      v.vrai('controleRegie : refus du budget et « Program seul » proposé', !r.ok && r.refus.some((x) => x.includes('20 MP') && x.includes('Program seul')));
+      v.egal('controleRegie en Program seul : accepté', calculs.controleRegie(e2, evaluation, { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60, liaison: 'hdmi-2.0' }, liaisons, { programSeul: true }).ok, true);
+    },
+  },
+  {
+    id: 'R176',
+    titre: 'Sortie de régie plafonnée en fréquence pixel (Datapath Fx4 : 165 Mpx/s par sortie) : 1920 × 1200 à 60 Hz passe, 2560 × 1080 à 60 Hz et une sortie 4K refusés avec la note de la fiche',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      // Régie fictive aux sorties du Fx4 (fiche à relire avant la saisie).
+      const fictive = {
+        id: 'fictive-165', nom: 'Régie fictive à 4 sorties de 165 MHz',
+        sorties: [{ type: 'hdmi-1.3', nombre: 4, largeurMaxPx: 4096, hauteurMaxPx: 4096, frequenceMaxHz: 60, frequencePixelMaxMHz: 165, note: 'une entrée 4K se découpe en quatre sorties', source: 'x' }],
+        sources: {},
+      };
+      const r = (largeurPx, hauteurPx, frequenceHz = 60) => calculs.controleRegie(fictive, { nombre: 1, groupes: [] }, { largeurPx, hauteurPx, frequenceHz, liaison: 'hdmi-1.3' }, liaisons);
+      v.egal('1920 × 1200 à 60 Hz (154 MHz) passe ; 2560 × 1080 à 60 Hz (181,25 MHz) refusé', [r(1920, 1200).ok, r(2560, 1080).ok], [true, false]);
+      v.vrai('3840 × 2160 à 30 Hz (297 MHz) refusé, avec la note de la sortie', !r(3840, 2160, 30).ok && r(3840, 2160, 30).refus.some((x) => x.includes('165 MHz') && x.includes('quatre sorties')));
+    },
+  },
+  {
+    id: 'R177',
+    titre: 'Couches PixelHue : 1 × 4K = 2 DL = 4 SL, unité déduite de la taille de la sortie ; capacité d\'une carte de sortie ; sorties OPT en copie jamais comptées ; 8192 px de large au plus',
+    etape: 'amont',
+    verifier(v, contexte) {
+      v.egal('unités : 1920 × 1080 = 1 SL, 3840 × 1080 = 2 (DL), 3840 × 2160 = 4 (4K)',
+        [calculs.uniteCouche({ largeurPx: 1920, hauteurPx: 1080 }), calculs.uniteCouche({ largeurPx: 3840, hauteurPx: 1080 }), calculs.uniteCouche({ largeurPx: 3840, hauteurPx: 2160 })],
+        [{ unites: 1, nom: 'SL' }, { unites: 2, nom: 'DL' }, { unites: 4, nom: '4K' }]);
+      const liaisons = liaisonsDeBase(contexte);
+      // Régie fictive : cartes de 4 sorties HDMI 2.0 (8192 px de large au plus) et 8 SL de couches par carte ; 4 sorties OPT en copie.
+      const fictive = {
+        id: 'fictive-couches', nom: 'Régie fictive à couches',
+        sorties: [{ type: 'hdmi-2.0', nombre: 4, largeurMaxPx: 8192, hauteurMaxPx: 8192, frequenceMaxHz: 60, source: 'x' }, { type: 'hdmi-2.0', nombre: 4, copie: true, source: 'x' }],
+        couchesParCarteSL: 8, sortiesParCarte: 4, sources: {},
+      };
+      const r = (couches, largeurPx = 3840, hauteurPx = 2160) => calculs.controleRegie(fictive, { nombre: 1, groupes: [] }, { largeurPx, hauteurPx, frequenceHz: 60, liaison: 'hdmi-2.0' }, liaisons, { couchesParSortie: couches });
+      v.egal('4K : 2 couches passent, 3 refusées', [r(2).ok, r(3).ok], [true, false]);
+      v.vrai('refus chiffré en SL', r(3).refus.some((x) => x.includes('12 SL') && x.includes('8 SL')));
+      v.egal('sorties OPT en copie non comptées : 4 sorties', calculs.controleRegie(fictive, { nombre: 5, groupes: [] }, { largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60, liaison: 'hdmi-2.0' }, liaisons).sortiesDisponibles, 4);
+      v.egal('8200 px de large refusés (8192 au plus)', r(1, 8200, 1000).ok, false);
+    },
+  },
+  {
+    id: 'R178',
+    titre: 'Latence cumulée de la chaîne, en images (indicative) : millisecondes converties à la fréquence, maillon non chiffré signalé',
+    etape: 'amont',
+    verifier(v) {
+      const vx = { nom: 'vx 4+', latenceMinImages: 3, latenceMaxImages: 5 };
+      const midra = { nom: 'Midra 4K', latenceMinMs: 16, latenceMaxMs: 16 };
+      const sx40 = { nom: 'SX40', latenceMinImages: 1, latenceMaxImages: 2 };
+      const l = calculs.latenceChaine([vx, midra, sx40], 60);
+      v.egal('5 à 8 images, 83 à 133 ms à 60 Hz', [l.minImages, l.maxImages, Math.round(l.minMs), Math.round(l.maxMs)], [5, 8, 83, 133]);
+      const atem = calculs.latenceChaine([vx, { nom: 'ATEM' }, sx40], 60);
+      v.egal('ATEM sans latence publiée : au moins 4 images, maximum inconnu', [atem.minImages, atem.maxImages, atem.nonChiffres], [4, null, ['ATEM']]);
+      v.vrai('texte : « au moins », maillon non chiffré nommé', /au moins 4 images/.test(atem.texte) && /ATEM non chiffré/.test(atem.texte));
+      v.egal('maximum non publié (« as low as ») : au moins', calculs.latenceChaine([{ nom: 'RS1', latenceMinImages: 1 }, sx40], 60).maxImages, null);
+    },
+  },
+  {
+    id: 'R179',
+    titre: 'Cadence : alerte dès que la source diffère du calcul data (59,94 contre 60 Hz : une image saute ou se double toutes les 17 s environ, genlock conseillé) ; appareil qui n\'accepte que 59,94 ou 50 Hz',
+    etape: 'amont',
+    verifier(v) {
+      v.egal('60 contre 60 : rien', calculs.controleCadence(60, 60).length, 0);
+      const a = calculs.controleCadence(59.94, 60);
+      v.vrai('59,94 contre 60 : alerte, 17 s, genlock', a.length === 1 && /17 s/.test(a[0]) && /genlock/i.test(a[0]));
+      const v1 = calculs.controleCadence(60, 60, { appareil: { nom: 'V-1HD', cadences: [59.94, 50] } });
+      v.vrai('V-1HD : 59,94 ou 50 Hz seulement', v1.some((x) => x.includes('V-1HD') && x.includes('59,94 ou 50 Hz')));
+    },
+  },
+  {
+    id: 'R180',
+    titre: 'Réseau Brompton : switches non manageables en 1G seulement, 5 au plus entre le processeur et la dalle (XD et convertisseurs fibre compris), aucun switch en 10G ; cuivre 10G 60 m en Cat6A et 30 m en Cat5e (alerte) ; fibre monomode PC ou UPC, jamais APC ni multimode (refus)',
+    etape: 'amont',
+    verifier(v) {
+      const r = (x) => calculs.reseauBrompton(x);
+      v.egal('XD + 4 switches = 5 : passe ; XD + 5 switches = 6 : refusé', [r({ xd: 1, switches: 4 }).refus.length, r({ xd: 1, switches: 5 }).refus.length], [0, 1]);
+      v.vrai('convertisseurs fibre comptés', r({ xd: 0, switches: 4, convertisseursFibre: 2 }).refus.some((x) => x.includes('6')));
+      v.vrai('switch manageable : refusé', r({ switches: 1, switchManageable: true }).refus.some((x) => x.includes('ONLY with unmanaged switches')));
+      v.vrai('switch en 10G : refusé', r({ switch10G: true }).refus.some((x) => x.includes('10G')));
+      v.vrai('fibre APC : refusée ; multimode : refusée', r({ fibre: { mode: 'monomode', connecteur: 'APC' } }).refus.some((x) => x.includes('APC'))
+        && r({ fibre: { mode: 'multimode', connecteur: 'PC' } }).refus.some((x) => x.includes('multimode')));
+      v.egal('fibre monomode UPC : rien', [r({ fibre: { mode: 'monomode', connecteur: 'UPC' } }).refus.length, r({ fibre: { mode: 'monomode', connecteur: 'UPC' } }).alertes.length], [0, 0]);
+      v.egal('cuivre 10G : Cat6A à 70 m, alerte ; Cat5e à 25 m, rien ; à 35 m, alerte',
+        [r({ cuivre10G: { categorie: 'Cat6A', longueurM: 70 } }).alertes.length, r({ cuivre10G: { categorie: 'Cat5e', longueurM: 25 } }).alertes.length, r({ cuivre10G: { categorie: 'Cat5e', longueurM: 35 } }).alertes.length], [1, 0, 1]);
+      v.vrai('sources : aide en ligne Brompton', r({ switch10G: true }).refus.some((x) => x.includes('aide en ligne Tessera')));
+    },
+  },
+  {
+    id: 'R181',
+    titre: 'Longueurs de câble vidéo : seuils réglables, « choix de conception » ; 12G-SDI alerte à 30 m, forte à 90 m ; 6G 50 et 95 m ; 3G et HD 70 et 100 m ; HDMI cuivre passif : 4K60 au-delà de 5 m, 1080p au-delà de 10 m, conseil actif ou fibre au-delà de 15 m',
+    etape: 'amont',
+    verifier(v) {
+      const n = (liaison, longueurM, reglages = {}) => calculs.controleLongueur(liaison, longueurM, reglages).niveau;
+      v.egal('12G-SDI : 25 m ok, 40 m alerte, 95 m forte ; seuil réglé à 50 m : 40 m ok', [n('12g-sdi', 25), n('12g-sdi', 40), n('12g-sdi', 95), n('12g-sdi', 40, { seuils: { '12g-sdi': [50, 90] } })], ['ok', 'alerte', 'forte', 'ok']);
+      v.egal('6G-SDI 60 m, 3G-SDI 80 m : alertes', [n('6g-sdi', 60), n('3g-sdi', 80)], ['alerte', 'alerte']);
+      const uhd = { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60 };
+      const hd = { largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60 };
+      v.egal('HDMI 2.0 : 4K60 à 6 m alerte ; 1080p à 8 m ok, 12 m alerte, 16 m conseil', [n('hdmi-2.0', 6, { format: uhd }), n('hdmi-2.0', 8, { format: hd }), n('hdmi-2.0', 12, { format: hd }), n('hdmi-2.0', 16, { format: hd })],
+        ['alerte', 'ok', 'alerte', 'conseil']);
+      v.vrai('source : choix de conception du projet', /choix de conception du projet/i.test(calculs.controleLongueur('12g-sdi', 40).texte));
+    },
+  },
+  {
+    id: 'R182',
+    titre: 'SDI : formats broadcast seulement (1920 × 1080, 2048 × 1080, 3840 × 2160, 4096 × 2160 aux cadences normalisées) ; canvas personnalisé placé dans le format standard qui le contient (zone utile et noir) ; refus si aucun ne le contient ; 12G-SDI jusqu\'à 4096 × 2160 à 60 Hz',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      const l = (id) => liaisons.find((x) => x.id === id);
+      const c = (id, largeurPx, hauteurPx, frequenceHz = 60) => calculs.controleLiaison(l(id), { largeurPx, hauteurPx, frequenceHz });
+      v.egal('12G-SDI : 4096 × 2160 à 60 Hz passe', c('12g-sdi', 4096, 2160).ok, true);
+      const perso = c('3g-sdi', 1600, 900);
+      v.vrai('3G-SDI, 1600 × 900 : dans un 1920 × 1080, alerte zone utile et noir', perso.ok && perso.conteneur?.largeurPx === 1920 && perso.alertes.some((x) => x.includes('1920 × 1080') && x.includes('noir')));
+      v.egal('12G-SDI, 3840 × 2400 : aucun format broadcast ne le contient, refus', c('12g-sdi', 3840, 2400).ok, false);
+      v.egal('SDI à 55 Hz (cadence non normalisée) : refus', c('3g-sdi', 1920, 1080, 55).ok, false);
+      v.egal('1920 × 1080 à 50 Hz : format broadcast, sans conteneur', [c('3g-sdi', 1920, 1080, 50).ok, c('3g-sdi', 1920, 1080, 50).conteneur ?? null], [true, null]);
+    },
+  },
+  {
+    id: 'R183',
+    titre: 'Schéma : convertisseurs numérotés carte par carte (une carte fibre à moitié remplie garde son convertisseur) ; libellés comme le décompte de Data',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const z8t = processeurDeBase(contexte, 'colorlight-z8t');
+      const m = calculs.mur(DALLE_I5A, 68, 1);
+      const e = calculs.evaluerProcesseur(m, DALLE_I5A, z8t, COLORLIGHT_60_8);
+      const libelles = (depart) => calculs.cablageData(m, DALLE_I5A, e, { depart }).variantes.find((x) => x.mode === 'colonnes').processeurs[0].ports.map((p) => p.libelle);
+      v.egal('4 ports sur 2 cartes : 2 H10FN2, 2 ports chacun', libelles('bas-gauche'), ['H10FN2 1, port 1', 'H10FN2 1, port 2', 'H10FN2 2, port 1', 'H10FN2 2, port 2']);
+      v.egal('départ à droite : même découpage, dans l\'ordre des ports', libelles('bas-droite'), ['H10FN2 1, port 1', 'H10FN2 1, port 2', 'H10FN2 2, port 1', 'H10FN2 2, port 2']);
+      const s20f = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 36, 5), DALLE_CAS_7, processeurDeBase(contexte, 'colorlight-s20f'), COLORLIGHT_60_8);
+      v.egal('sans cartes (S20F) : numérotation par 10 ports, inchangée', calculs.cablageData(calculs.mur(DALLE_CAS_7, 36, 5), DALLE_CAS_7, s20f, { depart: 'bas-gauche' })
+        .variantes.find((x) => x.mode === 'colonnes').processeurs[0].ports[10].libelle, 'H10FN2 2, port 1');
+    },
+  },
+  {
+    id: 'R184',
+    titre: 'Chaîne dans Canvas : source, régie, 0 à 3 convertisseurs, processeur ; contrôle à chaque maillon (format et liaison, cadence, longueurs, latence cumulée)',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      const sx40 = processeurDeBase(contexte, 'brompton-sx40');
+      const evaluation = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 20, 10), DALLE_CAS_7, sx40, BROMPTON_60_10);
+      const source = { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 59.94, nom: 'Serveur média', latenceMinImages: 3, latenceMaxImages: 5 };
+      const chaine = {
+        source, liaison: 'hdmi-2.0', longueurM: 12,
+        convertisseurs: [{ nom: 'Convertisseur HDMI vers 12G-SDI', liaison: '12g-sdi', longueurM: 40, latenceMinImages: 1, latenceMaxImages: 1 }],
+      };
+      const r = calculs.controleChaine(chaine, { evaluation, liaisons, frequenceCalculHz: 60 });
+      v.egal('maillons : source, convertisseur, processeur', r.maillons.map((m) => m.role), ['source', 'convertisseur', 'processeur']);
+      v.egal('liaison d\'entrée du processeur : la sortie du dernier convertisseur', r.liaisonProcesseur, '12g-sdi');
+      v.vrai('HDMI sur 12 m en 4K à 59,94 Hz : alerte (au-delà de 5 m)', r.maillons[0].alertes.some((a) => a.includes('HDMI en cuivre passif sur 12 m')));
+      v.vrai('12G-SDI sur 40 m : alerte', r.maillons[1].alertes.some((a) => a.includes('12G-SDI sur 40 m')));
+      v.vrai('cadence : 59,94 contre 60 Hz', r.alertes.some((a) => a.includes('Cadence') && a.includes('17 s')));
+      v.egal('latence : source 3 à 5, convertisseur 1, SX40 (fiche)', [r.latence.minImages >= 4, r.latence.nonChiffres.includes('Brompton SX40') || r.latence.maxImages !== null], [true, true]);
+      const sans = calculs.controleChaine({ source: { ...source, frequenceHz: 60 }, liaison: '3g-sdi', longueurM: 0, convertisseurs: [] }, { evaluation, liaisons, frequenceCalculHz: 60 });
+      v.egal('3G-SDI pour une source 4K : refus de la liaison', sans.ok, false);
+      const trop = calculs.controleChaine({ ...chaine, convertisseurs: [1, 2, 3, 4].map((i) => ({ nom: `C${i}`, liaison: '12g-sdi', longueurM: 1 })) }, { evaluation, liaisons, frequenceCalculHz: 60 });
+      v.vrai('4 convertisseurs : refusé (3 au plus)', trop.refus.some((x) => x.includes('3 convertisseurs au plus')));
+    },
+  },
+  {
+    id: 'R185',
+    titre: 'MX6000 Pro : zone de 16 384 px de large ou de haut par carte de sortie, jusqu\'à 8 cartes (141 M px) ; un appareil de plus seulement quand ses cartes ne suffisent pas ; 8192 px par entrée, contrôle à part',
+    etape: 'coex',
+    verifier(v, contexte) {
+      const mx6000 = processeurDeBase(contexte, 'coex-mx6000-pro');
+      v.egal('zone de carte sourcée (fiche V1.5.0)', [mx6000.zoneCarteSortiePx, mx6000.sources.zoneCarteSortiePx.source.id], [16384, 'coex-mx6000-pro-v1-5-0']);
+      const e = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 86, 2), DALLE_CAS_7, mx6000, NOVASTAR_60_8);
+      v.egal('16 512 px : 1 MX6000 Pro, largeur de l\'appareil 8 × 16 384 px, déduit (cartes côte à côte)',
+        [e.nombre, e.controles.largeur.limite, e.processeur.sources.largeurMaxPx.source.confiance], [1, 131072, 'déduit']);
+      v.egal('zone de chaque carte : 16 384 px', e.controles.cartes.zone.largeurPx, 16384);
+      v.vrai('au-delà de 8192 px : alerte « plusieurs sources nécessaires » gardée', e.alertes.some((a) => a.includes('plusieurs sources nécessaires')));
+      const mx2000 = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 60, 10), DALLE_CAS_7, processeurDeBase(contexte, 'coex-mx2000-pro'), NOVASTAR_60_8);
+      v.egal('MX2000 Pro inchangé : 8192 px pour le mur, 2 processeurs à 11 520 px', mx2000.nombre, 2);
+    },
+  },
+  {
+    id: 'R186',
+    titre: 'Aquilon RS1 : 8 sorties 4K60, dont 4 sorties Program 4K60 au plus et 4 Aux (manuel v6.2, p. 33) ; les Program d\'abord, puis les Aux avec l\'alerte « fonctions réduites » ; refus au-delà de 8',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const rs1 = regieDeBase(contexte, 'analogway-aquilon-rs1');
+      const liaisons = liaisonsDeBase(contexte);
+      const r = (nombre) => calculs.controleRegie(rs1, { nombre, groupes: [] }, { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60, liaison: 'hdmi-2.0' }, liaisons);
+      v.egal('4 processeurs en 4K60 : 4 sorties Program', [r(4).ok, r(4).sortiesDisponibles], [true, 4]);
+      v.egal('5 processeurs : accepté, 4 sorties Program, 1 des 4 Aux utilisée', [r(5).ok, r(5).sortiesDisponibles, r(5).sortiesAux, r(5).auxUtilisees], [true, 4, 4, 1]);
+      v.egal('budget de 40 MP : les 4 sorties Program seulement (« Aux Screens do not consume processing resources », p. 64)', r(5).budget.pixels, 4 * 3840 * 2160);
+      v.vrai('5 processeurs : alerte Aux, fonctions réduites, manuel Aquilon', r(5).alertes.some((x) => x.includes('sortie Aux') && x.includes('fonctions réduites') && x.includes('Manuel Aquilon v6.2')));
+      v.egal('4 processeurs : pas d\'alerte Aux', r(4).alertes.some((x) => x.includes('sortie Aux')), false);
+      v.vrai('9 processeurs : refusé (4 Program et 4 Aux)', !r(9).ok && r(9).refus.some((x) => x.includes('4 Program') && x.includes('4 Aux')));
+      v.egal('sorties de la fiche : 4 Program en 4K (8 en 2K), 4 Aux, 2 multiviewers', rs1.sorties.map((x) => [x.role ?? 'program', x.nombre]), [['program', 4], ['program', 8], ['aux', 4], ['multiviewer', 2]]);
+      v.egal('source : manuel Aquilon v6.2', rs1.sorties[0].source, 'analogway-aquilon-manuel-v6-2');
+    },
+  },
+  {
+    id: 'R187',
+    titre: 'Chaîne : un maillon pris dans la base (serveur média en source, convertisseur) apporte sa latence, sa liaison de sortie et ses cadences ; la saisie libre reste possible',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const serveur = calculs.resoudreFiche({ id: 'fictif-serveur', marque: 'Fictif', modele: 'Serveur', famille: 'serveur',
+        latenceMinImages: { valeur: 3, source: 'x' }, latenceMaxImages: { valeur: 5, source: 'x' },
+        sorties: [{ type: 'hdmi-2.0', nombre: 4, source: 'x' }], cadences: { valeur: [50, 59.94, 60], source: 'x' } }, { x: { titre: 'Fiche fictive', court: 'Fiche fictive', confiance: 'constructeur' } });
+      const m = calculs.maillonDepuisFiche(serveur);
+      v.egal('serveur : nom, latence, liaison de sortie, cadences', [m.nom, m.latenceMinImages, m.latenceMaxImages, m.liaison, m.cadences], ['Fictif Serveur', 3, 5, 'hdmi-2.0', [50, 59.94, 60]]);
+      const convertisseur = calculs.maillonDepuisFiche(calculs.resoudreFiche({ id: 'fictif-conv', marque: 'Fictif', modele: 'HDMI vers 12G', famille: 'convertisseur',
+        latenceMinMs: { valeur: 10, source: 'x' }, latenceMaxMs: { valeur: 10, source: 'x' }, sorties: [{ type: '12g-sdi', nombre: 1, source: 'x' }] }, { x: { titre: 'Fiche fictive', court: 'Fiche fictive', confiance: 'constructeur' } }));
+      v.egal('convertisseur : liaison de sortie et latence en ms', [convertisseur.liaison, convertisseur.latenceMinMs], ['12g-sdi', 10]);
+      const liaisons = liaisonsDeBase(contexte);
+      const evaluation = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 20, 10), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      const r = calculs.controleChaine({ source: { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60, ...m }, liaison: 'hdmi-2.0', longueurM: 3,
+        convertisseurs: [{ ...convertisseur, longueurM: 20 }] }, { evaluation, liaisons, frequenceCalculHz: 60 });
+      v.egal('chaîne : liaison du processeur, latence du serveur et du convertisseur comptées', [r.liaisonProcesseur, r.latence.minImages, r.latenceSourceComptee], ['12g-sdi', 4, true]);
+      v.egal('familles connues', Object.keys(calculs.FAMILLES_APPAREILS), ['melangeur', 'convertisseur', 'serveur', 'switch']);
+    },
+  },
+  {
+    id: 'R188',
+    titre: 'Sorties Aux de toutes les régies : les sorties Program d\'abord, puis les Aux avec l\'alerte « fonctions réduites (couches, transitions), vérifie dans le manuel » et ce que la fiche en dit ; refus seulement au-delà des Program et des Aux',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      const r = (id, nombre, largeurPx, hauteurPx, liaison = 'hdmi-2.0', options = {}) => calculs.controleRegie(regieDeBase(contexte, id), { nombre, groupes: [] },
+        { largeurPx, hauteurPx, frequenceHz: 60, liaison }, liaisons, { programSeul: true, ...options });
+      const e2 = r('barco-e2-gen2', 17, 1920, 1080);
+      v.egal('E2 Gen 2 en 2048 × 1200 : 16 Program puis 2 Aux ; 17 processeurs acceptés', [e2.ok, e2.sortiesDisponibles, e2.sortiesAux], [true, 16, 2]);
+      v.vrai('E2 Gen 2 : alerte Aux avec « Scaled AUX outputs » de la fiche Barco', e2.alertes.some((x) => x.includes('sortie Aux') && /scaled/i.test(x) && x.includes('Fiche Barco E2 Gen 2')));
+      v.egal('E2 Gen 2 : 19 processeurs refusés', r('barco-e2-gen2', 19, 1920, 1080).ok, false);
+      const s3 = r('barco-s3-4k', 5, 1920, 1080, 'hdmi-1.4');
+      v.egal('S3-4K : 4 Program puis 4 Aux (fiche, p. 1) ; 5 processeurs acceptés, 9 refusés', [s3.ok, s3.sortiesDisponibles, s3.sortiesAux, r('barco-s3-4k', 9, 1920, 1080, 'hdmi-1.4').ok], [true, 4, 4, false]);
+      v.vrai('S3-4K : 12 sorties en 2048 × 1200 visibles dans la note', /12/.test(regieDeBase(contexte, 'barco-s3-4k').sorties[0].note ?? ''));
+      const zenith = r('analogway-zenith-100', 4, 1920, 1080);
+      v.egal('Zenith 100 : 3 Program puis 1 Aux en 1080p', [zenith.ok, zenith.sortiesDisponibles, zenith.sortiesAux], [true, 3, 1]);
+      v.egal('Zenith 100 : Aux limitée à 1080p60, pas en 4K', r('analogway-zenith-100', 4, 3840, 2160).ok, false);
+    },
+  },
+  {
+    id: 'R189',
+    titre: 'Premier lot des régies : budget selon la profondeur (Spyder X80 : 80 MP en 8 bits, 53 MP en 10 et 12 bits), sorties du Fx4 à tester au-delà de 2048 px, PixelHue : sorties OPT réservées aux processeurs Novastar (alerte en fibre, note en HDMI ou DP)',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      const x80 = regieDeBase(contexte, 'christie-spyder-x80');
+      const b = (bits) => calculs.budgetRegie(x80, 60e6, { frequenceHz: 60, bits });
+      v.egal('X80 : 60 MP passent en 8 bits, pas en 12 bits (53 MP) ni en 10 bits (valeur 12 bits retenue)', [b(8).ok, b(12).ok, b(10).ok, b(12).budget.mpx], [true, false, false, 53000000]);
+      const fx4 = regieDeBase(contexte, 'datapath-fx4');
+      const f = (largeurPx, hauteurPx) => calculs.controleRegie(fx4, { nombre: 1, groupes: [] }, { largeurPx, hauteurPx, frequenceHz: 60, liaison: 'hdmi-1.3' }, liaisons);
+      v.egal('Fx4 : 1920 × 1200 passe sans alerte de taille', [f(1920, 1200).ok, f(1920, 1200).alertes.some((x) => x.includes('2048'))], [true, false]);
+      v.vrai('Fx4 : 2560 × 720 (138,6 MHz) passe, avec « au-delà de 2048 px, à tester »', f(2560, 720).ok && f(2560, 720).alertes.some((x) => x.includes('2048 px') && x.includes('à tester')));
+      const p20 = regieDeBase(contexte, 'pixelhue-p20');
+      const brompton = { nombre: 1, groupes: [], processeur: { famille: 'brompton', nom: 'Brompton SX40' } };
+      const novastar = { nombre: 1, groupes: [], processeur: { famille: 'novastar', nom: 'Novastar MCTRL4K' } };
+      const p = (evaluation, liaison) => calculs.controleRegie(p20, evaluation, { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60, liaison }, liaisons);
+      v.vrai('P20 en HDMI vers un Brompton : note d\'information, pas d\'alerte', p(brompton, 'hdmi-2.0').notes.some((x) => x.includes('Novastar')) && !p(brompton, 'hdmi-2.0').alertes.some((x) => x.includes('Novastar')));
+      v.vrai('P20 en fibre OPT vers un Brompton : alerte', p(brompton, 'opt-10g').alertes.some((x) => x.includes('OPT') && x.includes('Novastar')));
+      v.egal('P20 vers un Novastar : rien', [p(novastar, 'hdmi-2.0').notes.length, p(novastar, 'opt-10g').alertes.some((x) => x.includes('OPT'))], [0, false]);
+      v.egal('P20 : 4 sorties Program, 4 Aux HDMI 1.3, copies non comptées', [p(novastar, 'hdmi-2.0').sortiesDisponibles, p20.sorties.filter((x) => x.copie).length > 0], [4, true]);
+    },
+  },
+  {
+    id: 'R190',
+    titre: 'Aquilon en 2K : sorties Program Dual/2K60p des fiches (RS1 et Cmini 8, C 16, C+ 20, Cmax 24 ; manuel v6.2 p. 66 et 71 : 8 sorties par VPU en capacité 1), taille 2560 × 1600 à 60 Hz au plus (capacité 1, « dual-link bandwidth », manuel v6.2 p. 61) ; les connecteurs restants en Aux',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      const r = (id, nombre, largeurPx = 1920, hauteurPx = 1080) => calculs.controleRegie(regieDeBase(contexte, id), { nombre, groupes: [] },
+        { largeurPx, hauteurPx, frequenceHz: 60, liaison: 'hdmi-2.0' }, liaisons);
+      const c = r('analogway-aquilon-c', 16);
+      v.egal('C, 16 processeurs en 1920 × 1080 : 16 Program en 2K, aucune Aux', [c.ok, c.sortiesDisponibles, c.sortiesAux, c.auxUtilisees], [true, 16, 0, 0]);
+      v.egal('C, 17 processeurs en 1920 × 1080 : refusé (16 connecteurs)', r('analogway-aquilon-c', 17).ok, false);
+      v.egal('C, 9 processeurs en 2560 × 1440 : mode 2K, 16 Program, sans Aux', [r('analogway-aquilon-c', 9, 2560, 1440).ok, r('analogway-aquilon-c', 9, 2560, 1440).sortiesDisponibles, r('analogway-aquilon-c', 9, 2560, 1440).auxUtilisees], [true, 16, 0]);
+      v.egal('C, 9 processeurs en 3840 × 2160 : mode 4K, 8 Program et 1 Aux', [r('analogway-aquilon-c', 9, 3840, 2160).ok, r('analogway-aquilon-c', 9, 3840, 2160).sortiesDisponibles, r('analogway-aquilon-c', 9, 3840, 2160).auxUtilisees], [true, 8, 1]);
+      v.egal('RS1 en 2K : 8 Program ; Cmini en 2K : 8 Program et 4 Aux ; C+ 20 ; Cmax 24',
+        [r('analogway-aquilon-rs1', 8).sortiesDisponibles, r('analogway-aquilon-cmini', 10).sortiesDisponibles, r('analogway-aquilon-cmini', 10).sortiesAux, r('analogway-aquilon-cmini', 10).auxUtilisees,
+          r('analogway-aquilon-cplus', 20).sortiesDisponibles, r('analogway-aquilon-cmax', 24).sortiesDisponibles], [8, 8, 4, 2, 20, 24]);
+      const mode2K = regieDeBase(contexte, 'analogway-aquilon-c').sorties.find((x) => x.largeurMaxPx === 2560);
+      v.egal('mode 2K : 2560 × 1600 à 60 Hz, source manuel v6.2 (p. 61), sans « déduit »', [mode2K.largeurMaxPx, mode2K.hauteurMaxPx, mode2K.frequenceMaxHz, mode2K.source, /p\. 61/.test(mode2K.note), /déduit/.test(mode2K.note)],
+        [2560, 1600, 60, 'analogway-aquilon-manuel-v6-2', true, false]);
+    },
+  },
+  {
+    id: 'R191',
+    titre: 'Liaison « OPT 10G (fibre PixelHue) » : choisie dans Canvas, elle déclenche l\'alerte PixelHue vers un processeur d\'une autre marque ; entrée OPT des VX et VX Pro Novastar (« Self-adaptive OPT 1 for either video input »)',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      const opt = liaisons.find((l) => l.id === 'opt-10g');
+      v.egal('liaison OPT 10G : famille opt, 4096 × 2160 à 60 Hz « déduit »', [opt?.nom, opt?.famille, opt?.formatMaxLargeurPx, opt?.formatMaxHauteurPx, opt?.formatMaxFrequenceHz, opt?.sources.formatMaxLargeurPx.source.confiance],
+        ['OPT 10G (fibre PixelHue)', 'opt', 4096, 2160, 60, 'déduit']);
+      const source = { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60, liaison: 'opt-10g' };
+      v.egal('VX1000 Pro : entrée OPT acceptée', calculs.controleEntree(processeurDeBase(contexte, 'novastar-vx1000-pro'), source, liaisons).ok, true);
+      const sx40 = calculs.controleEntree(processeurDeBase(contexte, 'brompton-sx40'), source, liaisons);
+      v.vrai('SX40 : pas d\'entrée OPT, refus', !sx40.ok && /pas d'entrée OPT/.test(sx40.refus));
+      const p20 = regieDeBase(contexte, 'pixelhue-p20');
+      const brompton = { nombre: 1, groupes: [], processeur: { famille: 'brompton', nom: 'Brompton SX40' } };
+      v.vrai('P20 en OPT 10G vers un Brompton : alerte de la fiche', calculs.controleRegie(p20, brompton, source, liaisons).alertes.some((x) => x.includes('OPT') && x.includes('Novastar')));
+      v.egal('VX avec entrée OPT : VX400 Pro, VX600 Pro, VX1000 Pro, VX2000 Pro, VX400, VX600, VX1000',
+        baseProcesseurs(contexte).processeurs.filter((p) => (p.entreesTypes?.valeur ?? []).includes('opt-10g')).map((p) => p.id).sort(),
+        ['novastar-vx1000', 'novastar-vx1000-pro', 'novastar-vx2000-pro', 'novastar-vx400', 'novastar-vx400-pro', 'novastar-vx600', 'novastar-vx600-pro']);
+    },
+  },
+  {
+    id: 'R192',
+    titre: 'Aux Barco : ce que dit le guide Event Master v15 (§7.16 et §7.24 : une source mise à l\'échelle, « single (non-mixing) layer », capacité 2K par défaut, pas d\'écran large, bascule Preview/Program) dans l\'alerte des E2 Gen 2, E2 Gen 1, S3-4K et Ex',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      for (const [id, nombre, liaison] of [['barco-e2-gen2', 17, 'hdmi-2.0'], ['barco-e2-gen1', 1, 'hdmi-1.4'], ['barco-s3-4k', 5, 'hdmi-1.4'], ['barco-ex', 9, 'hdmi-1.4']]) {
+        const regie = regieDeBase(contexte, id);
+        v.vrai(`${id} : note Aux sourcée par le guide Event Master v15, §7.16`, regie.sources.noteAux?.source.id === 'barco-event-master-guide-v15' && /7\.16/.test(regie.sources.noteAux.note));
+        if (id === 'barco-e2-gen1') continue;
+        const r = calculs.controleRegie(regie, { nombre, groupes: [] }, { largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60, liaison }, liaisons, { programSeul: true });
+        v.vrai(`${id} : alerte Aux avec « non-mixing » et le guide v15`, r.alertes.some((x) => x.includes('sortie Aux') && x.includes('non-mixing') && x.includes('Guide Event Master v15')));
+      }
+    },
+  },
+  {
+    id: 'R193',
+    titre: 'Mélangeur en source de la chaîne (ATEM, Roland) : formats broadcast de sa fiche (canvas placé dans le plus petit qui le contient), cadences de sa fiche, sorties qui portent le Program face au nombre de processeurs (sinon « ampli de distribution »)',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const a = contexte.appareils;
+      const m = (famille, id) => calculs.maillonDepuisFiche(calculs.resoudreFiche(a[famille].appareils.find((x) => x.id === id), a[famille].sources));
+      const liaisons = liaisonsDeBase(contexte);
+      const evaluation = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 20, 10), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      const ch = (source, liaison = 'hdmi-2.0', options = {}) => calculs.controleChaine({ source, liaison, longueurM: 3, convertisseurs: [] },
+        { evaluation: options.evaluation ?? evaluation, liaisons, frequenceCalculHz: options.calcul ?? 60 });
+      const s = (x, largeurPx, hauteurPx, frequenceHz = 60) => ({ ...x, largeurPx, hauteurPx, frequenceHz });
+      const mini = m('melangeurs', 'blackmagic-atem-mini-pro');
+      v.vrai('ATEM Mini Pro (1 sortie HDMI) vers 2 processeurs : « ampli de distribution »',
+        ch(s(mini, 1920, 1080), 'hdmi-2.0', { evaluation: { ...evaluation, nombre: 2 } }).alertes.some((x) => x.includes('ampli de distribution')));
+      v.egal('ATEM Mini Pro vers 1 processeur : pas d\'alerte', ch(s(mini, 1920, 1080)).alertes.some((x) => x.includes('ampli de distribution')), false);
+      v.vrai('ATEM Mini Pro, canvas de 1600 × 900 : envoyé dans un 1920 × 1080, zone utile en haut à gauche',
+        ch(s(mini, 1600, 900)).alertes.some((x) => x.includes('ATEM Mini Pro') && x.includes('1920 × 1080') && x.includes('en haut à gauche')));
+      const grand = ch(s(mini, 2560, 1440));
+      v.vrai('ATEM Mini Pro, canvas de 2560 × 1440 : refusé (formats HD seulement)', !grand.ok && grand.refus.some((x) => x.includes('ATEM Mini Pro')));
+      const c4k = m('melangeurs', 'blackmagic-atem-1me-constellation-4k');
+      v.vrai('ATEM 1 M/E Constellation 4K, canvas de 2560 × 1440 : envoyé dans un 3840 × 2160',
+        ch(s(c4k, 2560, 1440), '12g-sdi').alertes.some((x) => x.includes('Constellation 4K') && x.includes('3840 × 2160')));
+      const v1 = m('melangeurs', 'roland-v-1hd');
+      const v160 = ch(s(v1, 1920, 1080, 60));
+      v.vrai('Roland V-1HD : source à 60 Hz refusée (59,94 ou 50 Hz seulement)', !v160.ok && v160.refus.some((x) => x.includes('V-1HD') && x.includes('59,94')));
+      v.vrai('Roland V-1HD à 59,94 Hz, calcul data à 60 Hz : alerte de cadence', ch(s(v1, 1920, 1080, 59.94)).alertes.some((x) => x.includes('Cadence')));
+      v.egal('Roland V-160HD : 6 sorties qui portent le Program (« seven freely assignable outputs », dont l\'USB)', m('melangeurs', 'roland-v-160hd').sortiesVersProcesseurs, 6);
+    },
+  },
+  {
+    id: 'R194',
+    titre: 'Convertisseurs de la chaîne : format maxi de la fiche (6G et Distribution 4K : 2160p30 ; Teranex Mini : 4K DCI jusqu\'à 25p ; UpDownCross : HD seulement), « sans mise à l\'échelle » en note (Micro Converters)',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const a = contexte.appareils;
+      const m = (id) => calculs.maillonDepuisFiche(calculs.resoudreFiche(a.convertisseurs.appareils.find((x) => x.id === id), a.convertisseurs.sources));
+      const liaisons = liaisonsDeBase(contexte);
+      const evaluation = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 20, 10), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      const ch = (id, largeurPx, hauteurPx, frequenceHz, liaison = '12g-sdi') => calculs.controleChaine({ source: { nom: 'Source', largeurPx, hauteurPx, frequenceHz },
+        liaison, longueurM: 2, convertisseurs: [{ ...m(id), liaison: m(id).liaison ?? liaison, longueurM: 2 }] }, { evaluation, liaisons, frequenceCalculHz: frequenceHz });
+      const r6g = ch('blackmagic-mini-sdi-hdmi-6g', 3840, 2160, 60);
+      v.vrai('Mini Converter SDI to HDMI 6G : 3840 × 2160 à 60 Hz refusé', !r6g.ok && r6g.refus.some((x) => x.includes('Mini Converter SDI to HDMI 6G')));
+      v.egal('Mini Converter SDI to HDMI 6G : 3840 × 2160 à 30 Hz accepté', ch('blackmagic-mini-sdi-hdmi-6g', 3840, 2160, 30).ok, true);
+      v.egal('Mini Converter SDI Distribution 4K : 3840 × 2160 à 60 Hz refusé', ch('blackmagic-mini-sdi-distribution-4k', 3840, 2160, 60).ok, false);
+      v.egal('Teranex Mini SDI to HDMI 12G : 4096 × 2160 à 60 Hz refusé, 3840 × 2160 à 60 Hz et 4096 × 2160 à 25 Hz acceptés',
+        [ch('blackmagic-teranex-mini-sdi-hdmi-12g', 4096, 2160, 60).ok, ch('blackmagic-teranex-mini-sdi-hdmi-12g', 3840, 2160, 60).ok, ch('blackmagic-teranex-mini-sdi-hdmi-12g', 4096, 2160, 25).ok], [false, true, true]);
+      v.egal('Mini Converter UpDownCross HD : 3840 × 2160 refusé, 1920 × 1080 à 60 Hz accepté',
+        [ch('blackmagic-mini-updowncross-hd', 3840, 2160, 30).ok, ch('blackmagic-mini-updowncross-hd', 1920, 1080, 60, '3g-sdi').ok], [false, true]);
+      v.vrai('Micro Converter SDI to HDMI 12G : note « sans mise à l\'échelle »', ch('blackmagic-micro-sdi-hdmi-12g', 3840, 2160, 60).notes.some((x) => x.includes('sans mise à l\'échelle')));
+    },
+  },
+  {
+    id: 'R195',
+    titre: 'Liaisons HDBaseT 2.0 et 3.0 (alliance HDBaseT : 100 m au plus, 4K60 en 4:2:0 seulement en 2.0, alerte au-delà de 90 m en Cat5e) et DTP2 (Extron) ; Lightware HDMI-TPS-TX210 : 4K30 au plus, longueurs de sa fiche, 20 % plus court avec alimentation à distance',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      const l = (id) => liaisons.find((x) => x.id === id);
+      v.egal('liaisons HDBaseT 2.0, HDBaseT 3.0 et DTP2 (Extron)', ['hdbaset-2.0', 'hdbaset-3.0', 'dtp2'].map((id) => l(id)?.nom), ['HDBaseT 2.0', 'HDBaseT 3.0', 'DTP2 (Extron)']);
+      const c = calculs.controleLiaison(l('hdbaset-2.0'), { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60 });
+      v.vrai('HDBaseT 2.0 : 3840 × 2160 à 60 Hz passe, en 4:2:0 seulement', c.ok && c.alertes.some((x) => x.includes('4:2:0')));
+      v.egal('HDBaseT 2.0 : 3840 × 2160 à 30 Hz sans alerte', calculs.controleLiaison(l('hdbaset-2.0'), { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 30 }).alertes.length, 0);
+      v.egal('HDBaseT 3.0 : 3840 × 2160 à 60 Hz sans alerte 4:2:0', calculs.controleLiaison(l('hdbaset-3.0'), { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60 }).alertes.some((x) => x.includes('4:2:0')), false);
+      const evaluation = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 20, 10), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      const lg = (id, longueurM) => calculs.controleChaine({ source: { nom: 'Source', largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60 }, liaison: id, longueurM, convertisseurs: [] },
+        { evaluation, liaisons, frequenceCalculHz: 60 });
+      v.vrai('HDBaseT 2.0 sur 95 m : alerte Cat5e', lg('hdbaset-2.0', 95).alertes.some((x) => x.includes('Cat5e')));
+      v.vrai('HDBaseT 2.0, HDBaseT 3.0 et DTP2 sur 110 m : refus (100 m au plus)', ['hdbaset-2.0', 'hdbaset-3.0', 'dtp2'].every((id) => lg(id, 110).refus.some((x) => x.includes('100 m'))));
+      const a = contexte.appareils;
+      const tx = calculs.maillonDepuisFiche(calculs.resoudreFiche(a.convertisseurs.appareils.find((x) => x.id === 'lightware-hdmi-tps-tx210'), a.convertisseurs.sources));
+      const chTx = (largeurPx, hauteurPx, frequenceHz, longueurM) => calculs.controleChaine({ source: { nom: 'Source', largeurPx, hauteurPx, frequenceHz }, liaison: 'hdmi-2.0', longueurM: 2,
+        convertisseurs: [{ ...tx, longueurM }] }, { evaluation, liaisons, frequenceCalculHz: frequenceHz });
+      v.egal('TX210 : 3840 × 2160 à 60 Hz refusé (4K30 au plus)', chTx(3840, 2160, 60, 20).ok, false);
+      v.vrai('TX210 : 3840 × 2160 à 30 Hz sur 80 m, alerte 70 m en Cat5e', chTx(3840, 2160, 30, 80).alertes.some((x) => x.includes('70 m') && x.includes('Cat5e')));
+      v.vrai('TX210 : « 20 % plus court avec alimentation à distance » en note', chTx(1920, 1080, 60, 20).notes.some((x) => x.includes('20 %')));
+    },
+  },
+  {
+    id: 'R196',
+    titre: 'Serveurs média : Pixera et Green Hippo relevés sur leurs pages, Modulo Player sur ses fiches PDF ; Smode et Resolume en fiches d\'information, jamais dans la chaîne',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const sv = contexte.appareils.serveurs;
+      const f = (id) => calculs.resoudreFiche(sv.appareils.find((x) => x.id === id), sv.sources);
+      const octo = f('pixera-two-octo-gen2');
+      v.egal('Pixera two octo Gen.2 : 8 sorties DP 1.4, 5120 × 2880 au plus', [octo.sorties[0].nombre, octo.sorties[0].type, octo.sorties[0].largeurMaxPx, octo.sorties[0].hauteurMaxPx], [8, 'dp-1.4', 5120, 2880]);
+      v.egal('Pixera : latence de capture de 2 à 3 images selon la carte', [octo.latenceMinImages, octo.latenceMaxImages], [2, 3]);
+      v.egal('Green Hippo TAGUS MX : 2 sorties, sans genlock ; MEUSE MX : 4, avec genlock', [f('greenhippo-tagus-mx').sorties[0].nombre, f('greenhippo-tagus-mx').genlock, f('greenhippo-meuse-mx').sorties[0].nombre, f('greenhippo-meuse-mx').genlock], [2, false, 4, true]);
+      const px4 = f('modulopi-mp-pro-4x4k');
+      v.egal('Modulo Player Pro 4x4K : 6 sorties WQXGA ou 4 en 4K', px4.sorties.map((x) => [x.nombre, x.largeurMaxPx, x.hauteurMaxPx]), [[6, 2560, 1600], [4, 4096, 2160]]);
+      v.egal('Smode et Resolume : fiches d\'information, hors de la liste des serveurs', [(sv.informations ?? []).map((x) => [x.id, x.statut]), sv.appareils.some((x) => /smode|resolume/.test(x.id))],
+        [[['smode-media-server', 'information'], ['resolume-arena', 'information']], false]);
+    },
+  },
+  {
+    id: 'R197',
+    titre: 'Novastar VX1000 (fiche V1.6.0) : OPT 1 en entrée vidéo (« When the device is connected with a Pixelhue video processor, the port is used as an input connector »), 1 × 4K×1K à 60 Hz au plus ; formats d\'entrée HDMI 1.4 de la fiche ; même limite OPT sur VX400 et VX600',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      const vx = processeurDeBase(contexte, 'novastar-vx1000');
+      const e = (proc, largeurPx, hauteurPx, frequenceHz, liaison) => calculs.controleEntree(proc, { largeurPx, hauteurPx, frequenceHz, liaison }, liaisons).ok;
+      v.egal('VX1000 : OPT 1 accepte 3840 × 1080 à 60 Hz, refuse 3840 × 2160 à 60 Hz', [e(vx, 3840, 1080, 60, 'opt-10g'), e(vx, 3840, 2160, 60, 'opt-10g')], [true, false]);
+      v.egal('VX1000 : HDMI 1.4 en 3840 × 2160 à 30 Hz et 4096 × 1080 à 60 Hz (forcé) acceptés, 3840 × 2160 à 60 Hz refusé',
+        [e(vx, 3840, 2160, 30, 'hdmi-1.4'), e(vx, 4096, 1080, 60, 'hdmi-1.4'), e(vx, 3840, 2160, 60, 'hdmi-1.4')], [true, true, false]);
+      v.vrai('VX1000 : entrée OPT sourcée par la fiche V1.6.0', vx.entreesTypes.includes('opt-10g') && vx.sources.entreesTypes.source.id === 'novastar-vx1000-v1-6-0');
+      v.egal('VX400 et VX600 : OPT limitée à 4K×1K à 60 Hz', ['novastar-vx400', 'novastar-vx600'].map((id) => e(processeurDeBase(contexte, id), 3840, 2160, 60, 'opt-10g')), [false, false]);
+    },
+  },
+  {
+    id: 'R198',
+    titre: 'Réponses au second lot : HDBaseT 3.0, « 4K » non précisé (4096 × 2160 à 60 Hz en alerte) ; TX210, la fiche passe devant la norme (Long Reach en 1080p jusqu\'à 170 m, 4K30 : 70 m en Cat5e, 100 m en Cat7 AWG23) ; sortie choisie d\'un convertisseur contrôlée ; 12G-CROSS : SDI 3G retenue, 12G visible ; Roland : une sortie Program quand la page ne dit rien ; DVI du VX1000',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const liaisons = liaisonsDeBase(contexte);
+      const l = (id) => liaisons.find((x) => x.id === id);
+      const f = (id, largeurPx, hauteurPx, frequenceHz) => calculs.controleLiaison(l(id), { largeurPx, hauteurPx, frequenceHz });
+      v.egal('HDBaseT 2.0 : 4096 × 2160 à 60 Hz refusé', f('hdbaset-2.0', 4096, 2160, 60).ok, false);
+      const h3 = f('hdbaset-3.0', 4096, 2160, 60);
+      v.vrai('HDBaseT 3.0 : 4096 × 2160 à 60 Hz passe, avec « 4K non précisé par la norme (3840 ou 4096) : vérifie la fiche de l\'extender »',
+        h3.ok && h3.alertes.some((x) => x.includes('4K non précisé par la norme (3840 ou 4096)') && x.includes('vérifie la fiche de l\'extender')));
+      v.egal('HDBaseT 3.0 : 3840 × 2160 à 60 Hz sans cette alerte', f('hdbaset-3.0', 3840, 2160, 60).alertes.length, 0);
+      const evaluation = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 20, 10), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      const a = contexte.appareils;
+      const m = (id) => calculs.maillonDepuisFiche(calculs.resoudreFiche(a.convertisseurs.appareils.find((x) => x.id === id), a.convertisseurs.sources));
+      const ch = (id, largeurPx, hauteurPx, frequenceHz, longueurM, liaison = null) => calculs.controleChaine({ source: { nom: 'Source', largeurPx, hauteurPx, frequenceHz }, liaison: 'hdmi-2.0', longueurM: 2,
+        convertisseurs: [{ ...m(id), liaison: liaison ?? m(id).liaison, longueurM }] }, { evaluation, liaisons, frequenceCalculHz: frequenceHz });
+      const lr = ch('lightware-hdmi-tps-tx210', 1920, 1080, 60, 150);
+      v.vrai('TX210 en 1080p sur 150 m : accepté, note « mode Long Reach (fiche Lightware) », sans le refus de la norme', lr.ok && lr.notes.some((x) => x.includes('mode Long Reach (fiche Lightware)')));
+      v.vrai('TX210 en 1080p sur 180 m : refusé', !ch('lightware-hdmi-tps-tx210', 1920, 1080, 60, 180).ok);
+      v.egal('TX210 en 4K30 : 90 m acceptés (Cat7 AWG23), 110 m refusés', [ch('lightware-hdmi-tps-tx210', 3840, 2160, 30, 90).ok, ch('lightware-hdmi-tps-tx210', 3840, 2160, 30, 110).ok], [true, false]);
+      const x12 = ch('decimator-12g-cross', 3840, 2160, 60, 2, '12g-sdi');
+      v.vrai('12G-CROSS : sortie 12G-SDI refusée (SDI 3G retenue, la plus défavorable)', !x12.ok && x12.refus.some((x) => x.includes('12G-CROSS') && x.includes('12G-SDI')));
+      v.egal('12G-CROSS : sortie HDMI 2.0 en 4K60 acceptée', ch('decimator-12g-cross', 3840, 2160, 60, 2, 'hdmi-2.0').ok, true);
+      const cross = calculs.resoudreFiche(a.convertisseurs.appareils.find((x) => x.id === 'decimator-12g-cross'), a.convertisseurs.sources);
+      v.vrai('12G-CROSS : 12G visible en note de la sortie SDI', cross.sorties.some((x) => x.type === '3g-sdi' && /12G/.test(x.note ?? '')));
+      const mel = (id) => calculs.resoudreFiche(a.melangeurs.appareils.find((x) => x.id === id), a.melangeurs.sources);
+      v.egal('Roland V-8HD, V-80HD, V-600UHD, V-1200HD : une sortie Program, « autres sorties assignables : à vérifier »',
+        ['roland-v-8hd', 'roland-v-80hd', 'roland-v-600uhd', 'roland-v-1200hd'].map((id) => [mel(id).sortiesVersProcesseurs, /autres sorties assignables : à vérifier/.test(mel(id).sources.sortiesVersProcesseurs.note)]),
+        [[1, true], [1, true], [1, true], [1, true]]);
+      const vx = calculs.controleEntree(processeurDeBase(contexte, 'novastar-vx1000'), { largeurPx: 3840, hauteurPx: 1080, frequenceHz: 60, liaison: 'dvi-single' }, liaisons);
+      v.vrai('VX1000 en DVI, 3840 × 1080 à 60 Hz : accepté, avec « demande une source dual link ou un câble HDMI vers DVI »',
+        vx.ok && vx.alertes.some((x) => x.includes('source dual link ou un câble HDMI vers DVI')));
     },
   },
 ];

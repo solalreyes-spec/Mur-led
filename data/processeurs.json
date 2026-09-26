@@ -3091,9 +3091,11 @@
         "valeur": [
           "hdmi-2.0",
           "hdmi-1.3",
-          "3g-sdi"
+          "3g-sdi",
+          "opt-10g"
         ],
-        "source": "novastar-vx400-pro-v1-4-0"
+        "source": "novastar-vx400-pro-v1-4-0",
+        "note": "OPT : « Self-adaptive OPT 1 for either video input or sending card output » (p. 4)"
       },
       "entreesFormats": {
         "valeur": [
@@ -3213,9 +3215,11 @@
         "valeur": [
           "hdmi-2.0",
           "hdmi-1.3",
-          "3g-sdi"
+          "3g-sdi",
+          "opt-10g"
         ],
-        "source": "novastar-vx600-pro-v1-4-0"
+        "source": "novastar-vx600-pro-v1-4-0",
+        "note": "OPT : « Self-adaptive OPT 1 for either video input or sending card output » (p. 4)"
       },
       "entreesFormats": {
         "valeur": [
@@ -3335,9 +3339,11 @@
         "valeur": [
           "hdmi-2.0",
           "hdmi-1.3",
-          "3g-sdi"
+          "3g-sdi",
+          "opt-10g"
         ],
-        "source": "novastar-vx1000-pro-v1-4-0"
+        "source": "novastar-vx1000-pro-v1-4-0",
+        "note": "OPT : « Self-adaptive OPT 1 for either video input or sending card output » (p. 4)"
       },
       "entreesFormats": {
         "valeur": [
@@ -3464,9 +3470,11 @@
           "12g-sdi",
           "dp-1.2",
           "hdmi-2.0",
-          "hdmi-1.3"
+          "hdmi-1.3",
+          "opt-10g"
         ],
-        "source": "novastar-vx2000-pro-v1-4-0"
+        "source": "novastar-vx2000-pro-v1-4-0",
+        "note": "OPT : « Self-adaptive OPT 1/2 for either video input or sending card output » (p. 4)"
       },
       "entreesFormats": {
         "valeur": [
@@ -3587,14 +3595,16 @@
         "source": "novastar-vx1000-manuel-v1-3-0",
         "note": "OPT2 copie ou secourt les 10 ports Ethernet (« OPT 2 copies or backs up the output on 10 Ethernet ports »)"
       },
-      "entrees": "2 × HDMI 1.4 (une entrée et boucle) et 2 × DVI (une entrée et boucle), 3840 × 1080 à 60 Hz ou 3840 × 2160 à 30 Hz ; 1 × 3G-SDI (entrée et boucle) ; 1 × OPT 10G",
+      "entrees": "2 × HDMI 1.4 (une entrée et boucle) et 2 × DVI (HDMI 1.4, une entrée et boucle), 3840 × 1080 à 60 Hz ou 3840 × 2160 à 30 Hz ; 1 × 3G-SDI (entrée et boucle) ; OPT 1 en entrée (4K×1K à 60 Hz) ou en sortie",
       "entreesTypes": {
         "valeur": [
           "hdmi-1.4",
           "dvi-single",
-          "3g-sdi"
+          "3g-sdi",
+          "opt-10g"
         ],
-        "source": "novastar-vx1000-v1-6-0"
+        "source": "novastar-vx1000-v1-6-0",
+        "note": "OPT : « Self-adaptive OPT 1 for either video input or sending card output » (p. 3), « When the device is connected with a Pixelhue video processor, the port is used as an input connector » (p. 8)"
       },
       "latence": "20 lignes avec Low Latency et Bypass",
       "latenceMinImages": {
@@ -3620,7 +3630,83 @@
         "source": "novastar-page-processeurs",
         "note": "absent de la page Processors de novastar.tech en 09/2026, remplacé par le VX1000 Pro"
       },
-      "note": "Contrôleur tout-en-un. 2 sorties fibre : OPT2 copie ou secourt les 10 ports Ethernet. « DVI » sans précision compté en single link (plus prudent)."
+      "note": "Contrôleur tout-en-un. 2 sorties fibre : OPT2 copie ou secourt les 10 ports Ethernet. « DVI » sans précision compté en single link (plus prudent).",
+      "entreesFormats": {
+        "valeur": [
+          {
+            "type": "hdmi-1.4",
+            "nom": "HDMI 1.4",
+            "largeurPx": 3840,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4092,
+            "hauteurMaxPx": 3981,
+            "bits": [
+              8
+            ],
+            "condition": "standard 3840 × 1080 à 60 Hz ou 3840 × 2160 à 30 Hz ; personnalisé jusqu'à 4092 px de large (4092 × 1136) ou 3981 px de haut (1060 × 3981) à 60 Hz ; 8 bits seulement"
+          },
+          {
+            "type": "hdmi-1.4",
+            "nom": "HDMI 1.4 (format forcé)",
+            "largeurPx": 4096,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4096,
+            "hauteurMaxPx": 1080,
+            "bits": [
+              8
+            ],
+            "condition": "format forcé 4096 × 1080 à 60 Hz"
+          },
+          {
+            "type": "dvi-single",
+            "nom": "DVI (HDMI 1.4)",
+            "largeurPx": 3840,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4092,
+            "hauteurMaxPx": 3981,
+            "bits": [
+              8
+            ],
+            "condition": "standard 3840 × 1080 à 60 Hz ou 3840 × 2160 à 30 Hz ; personnalisé jusqu'à 4092 px de large (4092 × 1136) ou 3981 px de haut (1060 × 3981) à 60 Hz ; 8 bits seulement ; en DVI, 3840 × 1080 à 60 Hz demande une source dual link ou un câble HDMI vers DVI"
+          },
+          {
+            "type": "dvi-single",
+            "nom": "DVI (HDMI 1.4, format forcé)",
+            "largeurPx": 4096,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4096,
+            "hauteurMaxPx": 1080,
+            "bits": [
+              8
+            ],
+            "condition": "format forcé 4096 × 1080 à 60 Hz ; en DVI, 3840 × 1080 à 60 Hz demande une source dual link ou un câble HDMI vers DVI"
+          },
+          {
+            "type": "opt-10g",
+            "nom": "OPT 1",
+            "largeurPx": 3840,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "bits": [
+              8
+            ],
+            "condition": "« Max. capacity: 1x 4K×1K@60Hz or 2x 2K×1K@60Hz video inputs »"
+          },
+          {
+            "type": "3g-sdi",
+            "nom": "3G-SDI",
+            "largeurPx": 1920,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "novastar-vx1000-v1-6-0",
+        "note": "p. 5 à 8, 11 et 12"
+      }
     },
     {
       "id": "novastar-vx600",
@@ -3671,9 +3757,11 @@
         "valeur": [
           "hdmi-1.3",
           "dvi-single",
-          "3g-sdi"
+          "3g-sdi",
+          "opt-10g"
         ],
-        "source": "novastar-vx600-v1-7-1"
+        "source": "novastar-vx600-v1-7-1",
+        "note": "OPT : « Self-adaptive OPT 1 for either video input or sending card output » (p. 3)"
       },
       "entreesFormats": {
         "valeur": [
@@ -3703,6 +3791,14 @@
             "largeurPx": 1920,
             "hauteurPx": 1080,
             "frequenceHz": 60
+          },
+          {
+            "type": "opt-10g",
+            "nom": "OPT 1",
+            "largeurPx": 3840,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "condition": "« Max. capacity: 1x 4K×1K@60Hz or 2x 2K×1K@60Hz video inputs » (p. 8)"
           }
         ],
         "source": "novastar-vx600-v1-7-1",
@@ -3783,9 +3879,11 @@
         "valeur": [
           "hdmi-1.3",
           "dvi-single",
-          "3g-sdi"
+          "3g-sdi",
+          "opt-10g"
         ],
-        "source": "novastar-vx400-v1-0-0"
+        "source": "novastar-vx400-v1-0-0",
+        "note": "OPT : « Self-adaptive OPT 1 for either video input or sending card output » (p. 2)"
       },
       "entreesFormats": {
         "valeur": [
@@ -3815,6 +3913,14 @@
             "largeurPx": 1920,
             "hauteurPx": 1080,
             "frequenceHz": 60
+          },
+          {
+            "type": "opt-10g",
+            "nom": "OPT 1",
+            "largeurPx": 3840,
+            "hauteurPx": 1080,
+            "frequenceHz": 60,
+            "condition": "« Max. capacity: 1x 4K×1K@60Hz or 2x 2K×1K@60Hz video inputs » (p. 5)"
           }
         ],
         "source": "novastar-vx400-v1-0-0",
@@ -6234,6 +6340,11 @@
         "valeur": 16384,
         "source": "coex-mx6000-pro-v1-5-0",
         "note": "par carte de sortie"
+      },
+      "zoneCarteSortiePx": {
+        "valeur": 16384,
+        "source": "coex-mx6000-pro-v1-5-0",
+        "note": "16 384 px de large ou de haut par carte de sortie : le mur se répartit entre les cartes"
       },
       "sourceMaxPx": {
         "valeur": 8192,

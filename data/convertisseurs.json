@@ -1,0 +1,1868 @@
+{
+  "format": "appli-mur-led/convertisseurs",
+  "version": 1,
+  "note": "Convertisseurs, extenders et amplis de distribution entre la source et le processeur.",
+  "sources": {
+    "bmd-famille-teranex": {
+      "titre": "Page Teranex de Blackmagic Design, consultée le 26/09/2026 : Teranex AV, Teranex Express",
+      "court": "Page Teranex Blackmagic",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/teranex",
+      "confiance": "constructeur"
+    },
+    "bmd-famille-teranexmini": {
+      "titre": "Page Teranex Mini de Blackmagic Design, consultée le 26/09/2026 : SDI to HDMI 12G, HDMI to SDI 12G, Optical to HDMI 12G, HDMI to Optical 12G, 12G-SDI to Quad SDI, SDI Distribution 12G…",
+      "court": "Page Teranex Mini Blackmagic",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/teranexmini",
+      "confiance": "constructeur"
+    },
+    "bmd-famille-microconverters": {
+      "titre": "Page Micro Converters de Blackmagic Design, consultée le 26/09/2026 : SDI to HDMI, HDMI to SDI et BiDirectional, en 3G et en 12G",
+      "court": "Page Micro Converters Blackmagic",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/microconverters",
+      "confiance": "constructeur"
+    },
+    "bmd-famille-miniconverters": {
+      "titre": "Page Mini Converters de Blackmagic Design, consultée le 26/09/2026 : UpDownCross HD, Optical Fiber 12G, SDI Distribution, SDI to HDMI 6G, HDMI to SDI 6G, SDI Distribution 4K…",
+      "court": "Page Mini Converters Blackmagic",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/miniconverters",
+      "confiance": "constructeur"
+    },
+    "bmd-w-ter-05": {
+      "titre": "Blackmagic Design, Teranex AV, page Tech Specs (W-TER-05), consultée le 26/09/2026 : « 1,089 up, down, cross and standards conversions for all formats up to 2160p60 », « Real time processing with 2 frame latency, available for select format conversions », « Typical Power Consumption 42 watts »",
+      "court": "Tech Specs Teranex AV",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/teranex/techspecs/W-TER-05",
+      "confiance": "constructeur"
+    },
+    "bmd-w-ter-03": {
+      "titre": "Blackmagic Design, Teranex Express, page Tech Specs (W-TER-03), consultée le 26/09/2026 : 12G-SDI et fibre, « SD/HD/UHD standards conversion », Quad SDI « SMPTE 435-1 - Quad HD Split … only », « Typical Power Consumption 42 watts »",
+      "court": "Tech Specs Teranex Express",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/teranex/techspecs/W-TER-03",
+      "confiance": "constructeur"
+    },
+    "bmd-w-teramin-01": {
+      "titre": "Blackmagic Design, Teranex Mini SDI to HDMI 12G, page Tech Specs (W-TERAMIN-01), consultée le 26/09/2026 : « 1 x 12G-SDI » en entrée, « 1 x HDMI 2.0 type A connector with support for 2160p60 », 4K DCI de 23.98 à 25p seulement, « Power Consumption 16 Watts »",
+      "court": "Tech Specs Teranex Mini SDI to HDMI 12G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/teranexmini/techspecs/W-TERAMIN-01",
+      "confiance": "constructeur"
+    },
+    "bmd-w-teramin-02": {
+      "titre": "Blackmagic Design, Teranex Mini HDMI to SDI 12G, page Tech Specs (W-TERAMIN-02), consultée le 26/09/2026 : « 1 x HDMI 2.0 type A », « 2 x 12G SDI outputs », « HD up and down conversion », 4K DCI jusqu'à 25p, « Power Consumption 16 Watts »",
+      "court": "Tech Specs Teranex Mini HDMI to SDI 12G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/teranexmini/techspecs/W-TERAMIN-02",
+      "confiance": "constructeur"
+    },
+    "bmd-w-teramin-07": {
+      "titre": "Blackmagic Design, Teranex Mini Optical to HDMI 12G, page Tech Specs (W-TERAMIN-07), consultée le 26/09/2026 : entrée 12G-SDI ou fibre, « 1 x HDMI 2.0 type A connector with support for 2160p60 », 4K DCI jusqu'à 25p",
+      "court": "Tech Specs Teranex Mini Optical to HDMI 12G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/teranexmini/techspecs/W-TERAMIN-07",
+      "confiance": "constructeur"
+    },
+    "bmd-w-teramin-08": {
+      "titre": "Blackmagic Design, Teranex Mini HDMI to Optical 12G, page Tech Specs (W-TERAMIN-08), consultée le 26/09/2026 : « 1 x HDMI 2.0 type A connector with support for 2160p60 », « 1 x 12G‑SDI » et fibre (SFP en option), 4K DCI jusqu'à 25p",
+      "court": "Tech Specs Teranex Mini HDMI to Optical 12G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/teranexmini/techspecs/W-TERAMIN-08",
+      "confiance": "constructeur"
+    },
+    "bmd-w-teramin-29": {
+      "titre": "Blackmagic Design, Teranex Mini SDI Distribution 12G, page Tech Specs (W-TERAMIN-29), consultée le 26/09/2026 : « 1 x 12G-SDI » en entrée, « 8 x 12G-SDI automatically matches the SD/HD/2K/4K 12G-SDI input », « Power Consumption 16 Watts »",
+      "court": "Tech Specs Teranex Mini SDI Distribution 12G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/teranexmini/techspecs/W-TERAMIN-29",
+      "confiance": "constructeur"
+    },
+    "bmd-w-teramin-27": {
+      "titre": "Blackmagic Design, Teranex Mini 12G-SDI to Quad SDI, page Tech Specs (W-TERAMIN-27), consultée le 26/09/2026 : « 1 x 12G-SDI », « 4 x 3G-SDI and 1 x 12G-SDI loop output », « Power Consumption 16 Watts »",
+      "court": "Tech Specs Teranex Mini 12G-SDI to Quad SDI",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/teranexmini/techspecs/W-TERAMIN-27",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conu-18": {
+      "titre": "Blackmagic Design, Micro Converter SDI to HDMI 12G, page Tech Specs (W-CONU-18), consultée le 26/09/2026 : « SDI Video Inputs 1 », « HDMI 2.0 Video Outputs 1 x type A », jusqu'à 2160p60 et 4Kp60 DCI, « Power Consumption 4W max. »",
+      "court": "Tech Specs Micro Converter SDI to HDMI 12G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/microconverters/techspecs/W-CONU-18",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conu-17": {
+      "titre": "Blackmagic Design, Micro Converter HDMI to SDI 12G, page Tech Specs (W-CONU-17), consultée le 26/09/2026 : « HDMI 2.0 Video Inputs 1 x type A », « SDI Video Outputs 2 », jusqu'à 4Kp60 DCI, « Power Consumption 4W max. »",
+      "court": "Tech Specs Micro Converter HDMI to SDI 12G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/microconverters/techspecs/W-CONU-17",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conu-16": {
+      "titre": "Blackmagic Design, Micro Converter BiDirectional SDI/HDMI 12G, page Tech Specs (W-CONU-16), consultée le 26/09/2026 : 12G-SDI et HDMI 2.0 dans les deux sens, jusqu'à 4Kp60 DCI, « Power Consumption 5W max. »",
+      "court": "Tech Specs Micro Converter BiDirectional SDI/HDMI 12G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/microconverters/techspecs/W-CONU-16",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conu-12": {
+      "titre": "Blackmagic Design, Micro Converter SDI to HDMI 3G, page Tech Specs (W-CONU-12), consultée le 26/09/2026 : « 1 x SD, HD or 3G-SDI », « HDMI Type A out », jusqu'à 1080p60, « Power Consumption 1.6 W »",
+      "court": "Tech Specs Micro Converter SDI to HDMI 3G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/microconverters/techspecs/W-CONU-12",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conu-11": {
+      "titre": "Blackmagic Design, Micro Converter HDMI to SDI 3G, page Tech Specs (W-CONU-11), consultée le 26/09/2026 : « HDMI Type A in », « 2 x SD, HD or 3G‑SDI », jusqu'à 1080p60, « Power Consumption 2 W »",
+      "court": "Tech Specs Micro Converter HDMI to SDI 3G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/microconverters/techspecs/W-CONU-11",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conu-09": {
+      "titre": "Blackmagic Design, Micro Converter BiDirectional SDI/HDMI 3G, page Tech Specs (W-CONU-09), consultée le 26/09/2026 : 3G-SDI et HDMI dans les deux sens, jusqu'à 1080p60, « Power Consumption 2.5 W »",
+      "court": "Tech Specs Micro Converter BiDirectional SDI/HDMI 3G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/microconverters/techspecs/W-CONU-09",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conm-26": {
+      "titre": "Blackmagic Design, Mini Converter SDI to HDMI 6G, page Tech Specs (W-CONM-26), consultée le 26/09/2026 : « 1 x SD, HD or 6G‑SDI » et une entrée SDI de secours, « HDMI type A out », Ultra HD jusqu'à 2160p30, 4K DCI jusqu'à 25p, « Power Consumption 5.2 Watts »",
+      "court": "Tech Specs Mini Converter SDI to HDMI 6G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/miniconverters/techspecs/W-CONM-26",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conm-27": {
+      "titre": "Blackmagic Design, Mini Converter HDMI to SDI 6G, page Tech Specs (W-CONM-27), consultée le 26/09/2026 : « HDMI type A in », « 2 x SDI Video Outputs » en 6G, « HD down conversion », Ultra HD jusqu'à 2160p30, « Power Consumption 4.44 Watts »",
+      "court": "Tech Specs Mini Converter HDMI to SDI 6G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/miniconverters/techspecs/W-CONM-27",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conm-21": {
+      "titre": "Blackmagic Design, Mini Converter SDI Distribution 4K, page Tech Specs (W-CONM-21), consultée le 26/09/2026 : entrée « SD, HD and 6G‑SDI », « 8 outputs automatically match the SDI video input », Ultra HD jusqu'à 2160p30, « Power Consumption 4.80 Watts »",
+      "court": "Tech Specs Mini Converter SDI Distribution 4K",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/miniconverters/techspecs/W-CONM-21",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conm-13": {
+      "titre": "Blackmagic Design, Mini Converter SDI Distribution, page Tech Specs (W-CONM-13), consultée le 26/09/2026 : « 1 x SDI Video Input. Switchable between SD, HD and 3G‑SDI », « 8 outputs », jusqu'à 1080p60, « Power Consumption 4.80 Watts »",
+      "court": "Tech Specs Mini Converter SDI Distribution",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/miniconverters/techspecs/W-CONM-13",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conm-29": {
+      "titre": "Blackmagic Design, Mini Converter Optical Fiber 12G, page Tech Specs (W-CONM-29), consultée le 26/09/2026 : 12G-SDI et fibre (« 1 x 10 bit SD/HD/12G-SDI switchable »), Ultra HD jusqu'à 2160p60, 4K DCI jusqu'à 25p, « Power Consumption 2 Watts »",
+      "court": "Tech Specs Mini Converter Optical Fiber 12G",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/miniconverters/techspecs/W-CONM-29",
+      "confiance": "constructeur"
+    },
+    "bmd-w-conm-28": {
+      "titre": "Blackmagic Design, Mini Converter UpDownCross HD, page Tech Specs (W-CONM-28), consultée le 26/09/2026 : « 1 x SD, HD or 3G‑SDI Video Input », « 1 x HDMI type A », « 1 x loop out and 2 x outputs » SDI, « HDMI type A out », « Convert any SD and HD input to … 1080p60 » ; « Power Consumption 5W »",
+      "court": "Tech Specs Mini Converter UpDownCross HD",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/miniconverters/techspecs/W-CONM-28",
+      "confiance": "constructeur"
+    },
+    "decimator-menu-miniconverters": {
+      "titre": "Menu Mini Converters de Decimator Design, consulté le 26/09/2026 : 12G-CROSS, MD-LX, MD-HX, MD-CROSS, Decimator 2, MD-DUCC (hors rubrique OBSOLETE)",
+      "court": "Menu Mini Converters Decimator",
+      "date": "2026-09-26",
+      "url": "https://decimator.com/Products/MiniConverters/MiniConverters.html",
+      "confiance": "constructeur"
+    },
+    "decimator-md-lx-brochure": {
+      "titre": "Brochure Decimator MD-LX : 3G-SDI « 1080p@60/59.94/50Hz », HDMI « 1080p@60/59.94/50/30/29.97/25/24/23.98Hz », « USB Power +4.4V to +5.25V DC », « Uses under 2.5 Watts » ; page produit : quatre modes, « Supports 3G Level A and B »",
+      "court": "Brochure Decimator MD-LX",
+      "date": null,
+      "dateTexte": "non datée",
+      "url": "http://decimator.com/brochures/MD-LX_brochure.pdf",
+      "confiance": "constructeur"
+    },
+    "decimator-md-hx-brochure": {
+      "titre": "Brochure Decimator MD-HX (V1.1, © 2014-2023) : scaler 2K et conversion de fréquence, 3G « 1080p@60/59.94/50Hz », sorties « 1 x HDMI », « 2 x (3G/HD/SD)-SDI Active Loop-through or addition outputs », « 2 x (3G/HD/SD)-SDI outputs », « +5V to +32V DC » ; page produit : sorties « (1920 or 2048) x 1080p50/59.94/60 »",
+      "court": "Brochure Decimator MD-HX V1.1",
+      "date": null,
+      "dateTexte": "© 2014-2023",
+      "url": "http://decimator.com/brochures/MD-HX_brochure.pdf",
+      "confiance": "constructeur"
+    },
+    "decimator-12g-cross-brochure": {
+      "titre": "Brochure Decimator 12G-CROSS (V1.1, © 2019-2025) : « (3840 or 4096) x 2160p@60/59.94/50Hz » en 12G et HDMI, 6G jusqu'à 2160p30, « 1 x Genlock », sorties « 1 x HDMI Type A », « 2 x (12G/6G/3G/HD/SD)-SDI Re-clocked Loop-through », « 2 x (12G/6G/3G/HD/SD)-SDI » (la ligne « Includes 4 x (3G/HD/SD)-SDI outputs » de la même brochure contredit ce tableau), « +5V to +32V DC »",
+      "court": "Brochure Decimator 12G-CROSS V1.1",
+      "date": null,
+      "dateTexte": "© 2019-2025",
+      "url": "http://decimator.com/brochures/12G-CROSS_brochure.pdf",
+      "confiance": "constructeur"
+    },
+    "aja-hi5-12g": {
+      "titre": "AJA, Hi5-12G, onglet Tech Specs, consulté le 26/09/2026 : « 1x 12G-SDI BNC » (fibre LC en -R et -TR), « 1x HDMI Type A connector*, HDMI v2.0b », sorties 4096 et 3840 × 2160p jusqu'à 60, « 11 watts », « 0.3 kg »",
+      "court": "Tech Specs AJA Hi5-12G",
+      "date": "2026-09-26",
+      "url": "https://www.aja.com/products/hi5-12g#techspecs",
+      "confiance": "constructeur"
+    },
+    "aja-roi-hdmi": {
+      "titre": "AJA, ROI-HDMI, onglet Tech Specs, consulté le 26/09/2026 : entrée HDMI « WUXGA (1920 x 1200) 60 Hz max », « 166 mHz max pixel rate of the HDMI receiver », sortie 3G-SDI 1080p50/59.94/60 et boucle HDMI, « Region of Interest scaling », « 0.3 kg »",
+      "court": "Tech Specs AJA ROI-HDMI",
+      "date": "2026-09-26",
+      "url": "https://www.aja.com/products/roi-hdmi#techspecs",
+      "confiance": "constructeur"
+    },
+    "aja-12gda": {
+      "titre": "AJA, 12GDA, onglet Tech Specs, consulté le 26/09/2026 : « 1 x 12G-SDI BNC » en entrée, « 6 x 12G-SDI BNC » en sortie, « 3 watts », « 0.3 kg »",
+      "court": "Tech Specs AJA 12GDA",
+      "date": "2026-09-26",
+      "url": "https://www.aja.com/products/12gda#techspecs",
+      "confiance": "constructeur"
+    },
+    "aja-fido-tr-12g": {
+      "titre": "AJA, FiDO-TR-12G, onglet Tech Specs, consulté le 26/09/2026 : 12G-SDI BNC et fibre monomode LC, « cable runs up to 10 km (32,808 ft) over standard single-mode fiber optic cable », « 0.2 kg », 5-20 VDC",
+      "court": "Tech Specs AJA FiDO-TR-12G",
+      "date": "2026-09-26",
+      "url": "https://www.aja.com/products/fido-tr-12g#techspecs",
+      "confiance": "constructeur"
+    },
+    "aja-fs-hdr": {
+      "titre": "AJA, FS-HDR, onglet Tech Specs, consulté le 26/09/2026 : « 4x 12G-SDI inputs », « 4x 12G-SDI outputs » (SFP fibre ou HD-BNC en option), (4K) 4096x2160p jusqu'à 60, « Nominal video delay HD/SD, 2 frames (LFR), 4 frames (HFR) », conversion « within the same frame rate family », 1RU, « 3.6 kg », « 55W typical; 70W max. »",
+      "court": "Tech Specs AJA FS-HDR",
+      "date": "2026-09-26",
+      "url": "https://www.aja.com/products/fs-hdr#techspecs",
+      "confiance": "constructeur"
+    },
+    "lightware-hdmi-tps-tx210": {
+      "titre": "Lightware HDMI-TPS-TX210, page produit, consultée le 26/09/2026 : « Up to 4K UHD 3840×2160@30Hz, 1600x1200@60Hz, FullHD 1920x1080@60Hz » ; tableau des distances : 1920x1080p@60Hz (148,5 MHz) 100 m en CAT5e AWG24, 120 m en CAT7 AWG23 (130 et 170 m en long reach) ; 3840x2160@30Hz et 4096x2160@30Hz (297 MHz) 70 m en CAT5e AWG24, 100 m en CAT7 AWG23 ; « Distances are 20% shorter if remote powering used » ; « Power consumption: 8W (typ) »",
+      "court": "Page Lightware HDMI-TPS-TX210",
+      "date": "2026-09-26",
+      "url": "https://www.lightware.com/en/products/Extenders/hdmi-tps-tx210",
+      "confiance": "constructeur"
+    }
+  },
+  "appareils": [
+    {
+      "id": "blackmagic-teranex-av",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Teranex AV",
+      "gamme": "Teranex",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-ter-05"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "bmd-w-ter-05"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-ter-05"
+        },
+        {
+          "type": "3g-sdi",
+          "nombre": 4,
+          "note": "Quad SDI",
+          "source": "bmd-w-ter-05"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "bmd-w-ter-05"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "bmd-w-ter-05",
+        "note": "« all formats up to 2160p60 »"
+      },
+      "miseAEchelle": {
+        "valeur": true,
+        "source": "bmd-w-ter-05",
+        "note": "up, down, cross et standards"
+      },
+      "puissanceW": {
+        "valeur": 42,
+        "source": "bmd-w-ter-05",
+        "note": "typique"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-teranex",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      },
+      "sortieAuChoix": true,
+      "latenceMinImages": {
+        "valeur": 2,
+        "source": "bmd-w-ter-05",
+        "note": "« 2 frame latency, available for select format conversions » : au mieux, maximum non publié"
+      },
+      "note": "Mise à l'échelle possible : le contrôle garde le format de la source."
+    },
+    {
+      "id": "blackmagic-teranex-express",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Teranex Express",
+      "gamme": "Teranex",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-ter-03"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-ter-03"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "bmd-w-ter-03",
+        "note": "Ultra HD jusqu'à 2160p60"
+      },
+      "miseAEchelle": {
+        "valeur": true,
+        "source": "bmd-w-ter-03",
+        "note": "up, down, cross et standards"
+      },
+      "puissanceW": {
+        "valeur": 42,
+        "source": "bmd-w-ter-03",
+        "note": "typique"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-teranex",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      },
+      "note": "Mise à l'échelle possible : le contrôle garde le format de la source."
+    },
+    {
+      "id": "blackmagic-teranex-mini-sdi-hdmi-12g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Teranex Mini SDI to HDMI 12G",
+      "gamme": "Teranex Mini",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-teramin-01"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "bmd-w-teramin-01"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          },
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 25
+          }
+        ],
+        "source": "bmd-w-teramin-01",
+        "note": "UHD jusqu'à 2160p60, 4K DCI jusqu'à 25p"
+      },
+      "puissanceW": {
+        "valeur": 16,
+        "source": "bmd-w-teramin-01",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-teranexmini",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      }
+    },
+    {
+      "id": "blackmagic-teranex-mini-hdmi-sdi-12g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Teranex Mini HDMI to SDI 12G",
+      "gamme": "Teranex Mini",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "bmd-w-teramin-02"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 2,
+          "source": "bmd-w-teramin-02"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          },
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 25
+          }
+        ],
+        "source": "bmd-w-teramin-02",
+        "note": "UHD jusqu'à 2160p60, 4K DCI jusqu'à 25p"
+      },
+      "puissanceW": {
+        "valeur": 16,
+        "source": "bmd-w-teramin-02",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-teranexmini",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      },
+      "note": "« HD up and down conversion » : mise à l'échelle en HD seulement."
+    },
+    {
+      "id": "blackmagic-teranex-mini-optique-hdmi-12g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Teranex Mini Optical to HDMI 12G",
+      "gamme": "Teranex Mini",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "note": "ou fibre (SFP)",
+          "source": "bmd-w-teramin-07"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "bmd-w-teramin-07"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          },
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 25
+          }
+        ],
+        "source": "bmd-w-teramin-07",
+        "note": "UHD jusqu'à 2160p60, 4K DCI jusqu'à 25p"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-teranexmini",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      }
+    },
+    {
+      "id": "blackmagic-teranex-mini-hdmi-optique-12g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Teranex Mini HDMI to Optical 12G",
+      "gamme": "Teranex Mini",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "bmd-w-teramin-08"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "note": "et fibre (SFP en option)",
+          "source": "bmd-w-teramin-08"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          },
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 25
+          }
+        ],
+        "source": "bmd-w-teramin-08",
+        "note": "UHD jusqu'à 2160p60, 4K DCI jusqu'à 25p"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-teranexmini",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      }
+    },
+    {
+      "id": "blackmagic-teranex-mini-sdi-distribution-12g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Teranex Mini SDI Distribution 12G",
+      "gamme": "Teranex Mini",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-teramin-29"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 8,
+          "source": "bmd-w-teramin-29"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          },
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 25
+          }
+        ],
+        "source": "bmd-w-teramin-29",
+        "note": "UHD jusqu'à 2160p60, 4K DCI jusqu'à 25p"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "bmd-w-teramin-29",
+        "note": "distribution : les sorties recopient l'entrée"
+      },
+      "puissanceW": {
+        "valeur": 16,
+        "source": "bmd-w-teramin-29",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-teranexmini",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      }
+    },
+    {
+      "id": "blackmagic-teranex-mini-12g-quad-sdi",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Teranex Mini 12G-SDI to Quad SDI",
+      "gamme": "Teranex Mini",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-teramin-27"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 4,
+          "note": "quatre quadrants",
+          "source": "bmd-w-teramin-27"
+        },
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "note": "boucle",
+          "source": "bmd-w-teramin-27"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          },
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 25
+          }
+        ],
+        "source": "bmd-w-teramin-27",
+        "note": "UHD jusqu'à 2160p60, 4K DCI jusqu'à 25p"
+      },
+      "puissanceW": {
+        "valeur": 16,
+        "source": "bmd-w-teramin-27",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-teranexmini",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      },
+      "sortieAuChoix": true,
+      "note": "Quatre sorties 3G-SDI en quadrants : le contrôle garde le format de la source."
+    },
+    {
+      "id": "blackmagic-micro-sdi-hdmi-12g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Micro Converter SDI to HDMI 12G",
+      "gamme": "Micro Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-conu-18"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "bmd-w-conu-18"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "bmd-w-conu-18",
+        "note": "jusqu'à « 4Kp60 DCI »"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "bmd-w-conu-18",
+        "note": "convertisseur de connecteur, aucune mise à l'échelle"
+      },
+      "puissanceW": {
+        "valeur": 4,
+        "source": "bmd-w-conu-18",
+        "note": "max"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-microconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      }
+    },
+    {
+      "id": "blackmagic-micro-hdmi-sdi-12g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Micro Converter HDMI to SDI 12G",
+      "gamme": "Micro Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "bmd-w-conu-17"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 2,
+          "source": "bmd-w-conu-17"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "bmd-w-conu-17",
+        "note": "jusqu'à « 4Kp60 DCI »"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "bmd-w-conu-17",
+        "note": "convertisseur de connecteur, aucune mise à l'échelle"
+      },
+      "puissanceW": {
+        "valeur": 4,
+        "source": "bmd-w-conu-17",
+        "note": "max"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-microconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      }
+    },
+    {
+      "id": "blackmagic-micro-bidir-12g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Micro Converter BiDirectional SDI/HDMI 12G",
+      "gamme": "Micro Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-conu-16"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "bmd-w-conu-16"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "bmd-w-conu-16"
+        },
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-conu-16"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "bmd-w-conu-16",
+        "note": "jusqu'à « 4Kp60 DCI »"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "bmd-w-conu-16",
+        "note": "convertisseur de connecteur, aucune mise à l'échelle"
+      },
+      "puissanceW": {
+        "valeur": 5,
+        "source": "bmd-w-conu-16",
+        "note": "max"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-microconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      },
+      "bidirectionnel": true
+    },
+    {
+      "id": "blackmagic-micro-sdi-hdmi-3g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Micro Converter SDI to HDMI 3G",
+      "gamme": "Micro Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "3g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-conu-12"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "note": "version HDMI non précisée : HDMI 1.3 suffit pour son format maxi (1080p60)",
+          "source": "bmd-w-conu-12"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 1920,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          },
+          {
+            "largeurPx": 2048,
+            "hauteurPx": 1080,
+            "frequenceHz": 30
+          }
+        ],
+        "source": "bmd-w-conu-12",
+        "note": "jusqu'à 1080p60 (2K DCI jusqu'à 30 i/s)"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "bmd-w-conu-12",
+        "note": "convertisseur de connecteur, aucune mise à l'échelle"
+      },
+      "puissanceW": {
+        "valeur": 1.6,
+        "source": "bmd-w-conu-12",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-microconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      }
+    },
+    {
+      "id": "blackmagic-micro-hdmi-sdi-3g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Micro Converter HDMI to SDI 3G",
+      "gamme": "Micro Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "note": "version HDMI non précisée",
+          "source": "bmd-w-conu-11"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 2,
+          "source": "bmd-w-conu-11"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 1920,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "bmd-w-conu-11",
+        "note": "jusqu'à 1080p60"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "bmd-w-conu-11",
+        "note": "convertisseur de connecteur, aucune mise à l'échelle"
+      },
+      "puissanceW": {
+        "valeur": 2,
+        "source": "bmd-w-conu-11",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-microconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      }
+    },
+    {
+      "id": "blackmagic-micro-bidir-3g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Micro Converter BiDirectional SDI/HDMI 3G",
+      "gamme": "Micro Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "3g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-conu-09"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "source": "bmd-w-conu-09"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "source": "bmd-w-conu-09"
+        },
+        {
+          "type": "3g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-conu-09"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 1920,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          },
+          {
+            "largeurPx": 2048,
+            "hauteurPx": 1080,
+            "frequenceHz": 30
+          }
+        ],
+        "source": "bmd-w-conu-09",
+        "note": "jusqu'à 1080p60 (2K DCI jusqu'à 30 i/s)"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "bmd-w-conu-09",
+        "note": "convertisseur de connecteur, aucune mise à l'échelle"
+      },
+      "puissanceW": {
+        "valeur": 2.5,
+        "source": "bmd-w-conu-09",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-microconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      },
+      "bidirectionnel": true
+    },
+    {
+      "id": "blackmagic-mini-sdi-hdmi-6g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Mini Converter SDI to HDMI 6G",
+      "gamme": "Mini Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "6g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-conm-26"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "hdmi-1.4",
+          "nombre": 1,
+          "note": "version HDMI non précisée : HDMI 1.4 porte son format maxi (2160p30)",
+          "source": "bmd-w-conm-26"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 30
+          },
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 25
+          },
+          {
+            "largeurPx": 1920,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "bmd-w-conm-26",
+        "note": "Ultra HD jusqu'à 2160p30, 4K DCI jusqu'à 25p"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "bmd-w-conm-26",
+        "note": "aucune mise à l'échelle"
+      },
+      "puissanceW": {
+        "valeur": 5.2,
+        "source": "bmd-w-conm-26",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-miniconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      }
+    },
+    {
+      "id": "blackmagic-mini-hdmi-sdi-6g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Mini Converter HDMI to SDI 6G",
+      "gamme": "Mini Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "hdmi-1.4",
+          "nombre": 1,
+          "note": "version HDMI non précisée",
+          "source": "bmd-w-conm-27"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "6g-sdi",
+          "nombre": 2,
+          "source": "bmd-w-conm-27"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 30
+          },
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 25
+          },
+          {
+            "largeurPx": 1920,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "bmd-w-conm-27",
+        "note": "Ultra HD jusqu'à 2160p30, 4K DCI jusqu'à 25p"
+      },
+      "puissanceW": {
+        "valeur": 4.44,
+        "source": "bmd-w-conm-27",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-miniconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      },
+      "note": "« HD down conversion » seulement."
+    },
+    {
+      "id": "blackmagic-mini-sdi-distribution-4k",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Mini Converter SDI Distribution 4K",
+      "gamme": "Mini Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "6g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-conm-21"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "6g-sdi",
+          "nombre": 8,
+          "source": "bmd-w-conm-21"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 30
+          },
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 25
+          },
+          {
+            "largeurPx": 1920,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "bmd-w-conm-21",
+        "note": "Ultra HD jusqu'à 2160p30 (6G), 4K DCI jusqu'à 25p"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "bmd-w-conm-21",
+        "note": "distribution"
+      },
+      "puissanceW": {
+        "valeur": 4.8,
+        "source": "bmd-w-conm-21",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-miniconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      }
+    },
+    {
+      "id": "blackmagic-mini-sdi-distribution",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Mini Converter SDI Distribution",
+      "gamme": "Mini Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "3g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-conm-13"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 8,
+          "source": "bmd-w-conm-13"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 1920,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "bmd-w-conm-13",
+        "note": "jusqu'à 1080p60"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "bmd-w-conm-13",
+        "note": "distribution"
+      },
+      "puissanceW": {
+        "valeur": 4.8,
+        "source": "bmd-w-conm-13",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-miniconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      }
+    },
+    {
+      "id": "blackmagic-mini-optique-12g",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Mini Converter Optical Fiber 12G",
+      "gamme": "Mini Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "note": "ou fibre (SFP)",
+          "source": "bmd-w-conm-29"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "note": "et fibre (SFP)",
+          "source": "bmd-w-conm-29"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          },
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 25
+          }
+        ],
+        "source": "bmd-w-conm-29",
+        "note": "Ultra HD jusqu'à 2160p60, 4K DCI jusqu'à 25p"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "bmd-w-conm-29",
+        "note": "aucune mise à l'échelle"
+      },
+      "puissanceW": {
+        "valeur": 2,
+        "source": "bmd-w-conm-29",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-miniconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      },
+      "note": "Paire fibre : une unité à chaque bout ; distance selon le module SFP, non publiée."
+    },
+    {
+      "id": "blackmagic-mini-updowncross-hd",
+      "famille": "convertisseur",
+      "marque": "Blackmagic Design",
+      "modele": "Mini Converter UpDownCross HD",
+      "gamme": "Mini Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "3g-sdi",
+          "nombre": 1,
+          "source": "bmd-w-conm-28"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "note": "version non précisée",
+          "source": "bmd-w-conm-28"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 2,
+          "source": "bmd-w-conm-28"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "note": "version non précisée",
+          "source": "bmd-w-conm-28"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 1920,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "bmd-w-conm-28",
+        "note": "HD seulement (jusqu'à 1080p60)"
+      },
+      "miseAEchelle": {
+        "valeur": true,
+        "source": "bmd-w-conm-28",
+        "note": "up, down et cross en HD seulement"
+      },
+      "puissanceW": {
+        "valeur": 5,
+        "source": "bmd-w-conm-28",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-famille-miniconverters",
+        "note": "sur la page de sa gamme chez Blackmagic (09/2026)"
+      },
+      "sortieAuChoix": true
+    },
+    {
+      "id": "decimator-md-lx",
+      "famille": "convertisseur",
+      "marque": "Decimator",
+      "modele": "MD-LX",
+      "gamme": "MD",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "3g-sdi",
+          "nombre": 1,
+          "source": "decimator-md-lx-brochure"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "note": "version non précisée",
+          "source": "decimator-md-lx-brochure"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 1,
+          "source": "decimator-md-lx-brochure"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "note": "version non précisée",
+          "source": "decimator-md-lx-brochure"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 1920,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "decimator-md-lx-brochure",
+        "note": "jusqu'à 1080p60"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "decimator-md-lx-brochure",
+        "note": "conversion de connecteur"
+      },
+      "puissanceW": {
+        "valeur": 2.5,
+        "source": "decimator-md-lx-brochure",
+        "note": "« Uses under 2.5 Watts » (plafond)"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "decimator-menu-miniconverters",
+        "note": "au menu Mini Converters de Decimator (09/2026)"
+      },
+      "bidirectionnel": true,
+      "note": "Latence non publiée."
+    },
+    {
+      "id": "decimator-md-hx",
+      "famille": "convertisseur",
+      "marque": "Decimator",
+      "modele": "MD-HX",
+      "gamme": "MD",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "3g-sdi",
+          "nombre": 1,
+          "source": "decimator-md-hx-brochure"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "note": "version non précisée",
+          "source": "decimator-md-hx-brochure"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 4,
+          "source": "decimator-md-hx-brochure"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "note": "version non précisée",
+          "source": "decimator-md-hx-brochure"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 2048,
+            "hauteurPx": 1080,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "decimator-md-hx-brochure",
+        "note": "(1920 ou 2048) × 1080p jusqu'à 60 Hz"
+      },
+      "miseAEchelle": {
+        "valeur": true,
+        "source": "decimator-md-hx-brochure",
+        "note": "scaler 2K et conversion de fréquence"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "decimator-menu-miniconverters",
+        "note": "au menu Mini Converters de Decimator (09/2026)"
+      },
+      "sortieAuChoix": true,
+      "note": "Consommation non publiée (alimentation 5 à 32 V DC) ; latence non publiée ; mise à l'échelle possible : le contrôle garde le format de la source."
+    },
+    {
+      "id": "decimator-12g-cross",
+      "famille": "convertisseur",
+      "marque": "Decimator",
+      "modele": "12G-CROSS",
+      "gamme": "CROSS",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "decimator-12g-cross-brochure"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "note": "version non précisée : 4K60 demande HDMI 2.0",
+          "source": "decimator-12g-cross-brochure"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 4,
+          "source": "decimator-12g-cross-brochure",
+          "note": "3G retenue, la plus défavorable : « Includes 4 x (3G/HD/SD)-SDI outputs » (brochure, texte) ; 12G non retenue : « 2 x (12G/6G/3G/HD/SD)-SDI Re-clocked Loop-through » et « 2 x (12G/6G/3G/HD/SD)-SDI » (brochure, tableau), « 4 x (12G/6G/3G/HD/SD)-SDI outputs » (page du site)"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "decimator-12g-cross-brochure",
+          "note": "version non précisée : 4K60 demande HDMI 2.0"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "decimator-12g-cross-brochure",
+        "note": "(3840 ou 4096) × 2160p jusqu'à 60 Hz en 12G et HDMI"
+      },
+      "miseAEchelle": {
+        "valeur": true,
+        "source": "decimator-12g-cross-brochure",
+        "note": "scaler 4K et conversion de fréquence, verrouillage SDI, HDMI ou genlock"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "decimator-menu-miniconverters",
+        "note": "au menu Mini Converters de Decimator (09/2026)"
+      },
+      "sortieAuChoix": true,
+      "note": "Consommation non publiée (alimentation 5 à 32 V DC) ; latence non publiée ; mise à l'échelle possible : le contrôle garde le format de la source."
+    },
+    {
+      "id": "aja-hi5-12g",
+      "famille": "convertisseur",
+      "marque": "AJA",
+      "modele": "Hi5-12G",
+      "gamme": "Mini-Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "aja-hi5-12g"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "source": "aja-hi5-12g"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "aja-hi5-12g",
+        "note": "(4K) 4096x2160p jusqu'à 60"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "aja-hi5-12g",
+        "note": "conversion de connecteur"
+      },
+      "puissanceW": {
+        "valeur": 11,
+        "source": "aja-hi5-12g",
+        "note": null
+      },
+      "poidsKg": {
+        "valeur": 0.3,
+        "source": "aja-hi5-12g"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "aja-hi5-12g",
+        "note": "page produit dans le menu Products d'AJA (09/2026)"
+      },
+      "note": "Latence non publiée."
+    },
+    {
+      "id": "aja-roi-hdmi",
+      "famille": "convertisseur",
+      "marque": "AJA",
+      "modele": "ROI-HDMI",
+      "gamme": "Scan Converters",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "note": "récepteur HDMI à 166 MHz",
+          "source": "aja-roi-hdmi"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 1,
+          "source": "aja-roi-hdmi"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "note": "boucle",
+          "source": "aja-roi-hdmi"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 1920,
+            "hauteurPx": 1200,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "aja-roi-hdmi",
+        "note": "WUXGA 1920 × 1200 à 60 Hz au plus en entrée"
+      },
+      "miseAEchelle": {
+        "valeur": true,
+        "source": "aja-roi-hdmi",
+        "note": "région d'intérêt, up, down, cross, rotation 90°"
+      },
+      "poidsKg": {
+        "valeur": 0.3,
+        "source": "aja-roi-hdmi"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "aja-roi-hdmi",
+        "note": "page produit dans le menu Products d'AJA (09/2026)"
+      },
+      "note": "Alimentation 100-240 V, consommation non publiée."
+    },
+    {
+      "id": "aja-12gda",
+      "famille": "convertisseur",
+      "marque": "AJA",
+      "modele": "12GDA",
+      "gamme": "Infrastructure",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "aja-12gda"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 6,
+          "source": "aja-12gda"
+        }
+      ],
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "aja-12gda",
+        "note": "distribution"
+      },
+      "puissanceW": {
+        "valeur": 3,
+        "source": "aja-12gda",
+        "note": null
+      },
+      "poidsKg": {
+        "valeur": 0.3,
+        "source": "aja-12gda"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "aja-12gda",
+        "note": "page produit dans le menu Products d'AJA (09/2026)"
+      }
+    },
+    {
+      "id": "aja-fido-tr-12g",
+      "famille": "convertisseur",
+      "marque": "AJA",
+      "modele": "FiDO-TR-12G",
+      "gamme": "FiDO",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "aja-fido-tr-12g"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "source": "aja-fido-tr-12g"
+        }
+      ],
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "aja-fido-tr-12g",
+        "note": "transport sur fibre"
+      },
+      "poidsKg": {
+        "valeur": 0.2,
+        "source": "aja-fido-tr-12g"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "aja-fido-tr-12g",
+        "note": "page produit dans le menu Products d'AJA (09/2026)"
+      },
+      "note": "Émetteur-récepteur : une paire compte pour un maillon, fibre monomode jusqu'à 10 km entre les deux."
+    },
+    {
+      "id": "aja-fs-hdr",
+      "famille": "convertisseur",
+      "marque": "AJA",
+      "modele": "FS-HDR",
+      "gamme": "FS",
+      "role": "Convertisseur",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "12g-sdi",
+          "nombre": 4,
+          "source": "aja-fs-hdr"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 4,
+          "source": "aja-fs-hdr"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "aja-fs-hdr",
+        "note": "(4K) 4096x2160p jusqu'à 60"
+      },
+      "miseAEchelle": {
+        "valeur": true,
+        "source": "aja-fs-hdr",
+        "note": "up, down, cross, HDR ; même famille de fréquences seulement (60, 30, 24)"
+      },
+      "puissanceW": {
+        "valeur": 70,
+        "source": "aja-fs-hdr",
+        "note": "« 55W typical; 70W max. » : maximum retenu"
+      },
+      "poidsKg": {
+        "valeur": 3.6,
+        "source": "aja-fs-hdr"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "aja-fs-hdr",
+        "note": "page produit dans le menu Products d'AJA (09/2026)"
+      },
+      "latenceMinImages": {
+        "valeur": 2,
+        "source": "aja-fs-hdr",
+        "note": "« Nominal video delay HD/SD, 2 frames (LFR), 4 frames (HFR) » : en HD à 60 i/s au plus ; UHD non publiée"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "aja-fs-hdr",
+        "note": "« (1RU) »"
+      },
+      "note": "Mise à l'échelle possible : le contrôle garde le format de la source."
+    },
+    {
+      "id": "lightware-hdmi-tps-tx210",
+      "famille": "convertisseur",
+      "marque": "Lightware",
+      "modele": "HDMI-TPS-TX210",
+      "gamme": "TPS",
+      "role": "Extender HDBaseT",
+      "position": "amont",
+      "entrees": [
+        {
+          "type": "hdmi-1.4",
+          "nombre": 1,
+          "source": "lightware-hdmi-tps-tx210"
+        }
+      ],
+      "sorties": [
+        {
+          "type": "hdbaset-2.0",
+          "nombre": 1,
+          "note": "HDBaseT (TPS) vers un récepteur",
+          "source": "lightware-hdmi-tps-tx210"
+        }
+      ],
+      "formatsMax": {
+        "valeur": [
+          {
+            "largeurPx": 3840,
+            "hauteurPx": 2160,
+            "frequenceHz": 30
+          },
+          {
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 30
+          },
+          {
+            "largeurPx": 1920,
+            "hauteurPx": 1200,
+            "frequenceHz": 60
+          }
+        ],
+        "source": "lightware-hdmi-tps-tx210",
+        "note": "« Up to 4K UHD 3840×2160@30Hz, 1600x1200@60Hz, FullHD 1920x1080@60Hz »"
+      },
+      "miseAEchelle": {
+        "valeur": false,
+        "source": "lightware-hdmi-tps-tx210",
+        "note": "transport HDBaseT"
+      },
+      "puissanceW": {
+        "valeur": 8,
+        "source": "lightware-hdmi-tps-tx210",
+        "note": "typique"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "lightware-hdmi-tps-tx210",
+        "note": "page produit au menu Extenders de Lightware (09/2026)"
+      },
+      "longueursMax": {
+        "valeur": [
+          {
+            "frequencePixelMaxMHz": 148.5,
+            "longueurM": 100,
+            "cable": "Cat5e AWG24",
+            "longueurAutreM": 120,
+            "cableAutre": "Cat7 AWG23",
+            "longueurLongReachM": 170,
+            "noteLongReach": "mode Long Reach (fiche Lightware), jusqu'à 130 m en Cat5e AWG24 et 170 m en Cat7 AWG23"
+          },
+          {
+            "frequencePixelMaxMHz": 165,
+            "longueurM": 100,
+            "cable": "Cat5e AWG24",
+            "longueurAutreM": 120,
+            "cableAutre": "Cat7 AWG23"
+          },
+          {
+            "frequencePixelMaxMHz": 297,
+            "longueurM": 70,
+            "cable": "Cat5e AWG24",
+            "longueurAutreM": 100,
+            "cableAutre": "Cat7 AWG23"
+          }
+        ],
+        "source": "lightware-hdmi-tps-tx210",
+        "note": "20 % plus court avec alimentation à distance (« Distances are 20% shorter if remote powering used ») ; la fiche passe devant la norme HDBaseT"
+      },
+      "note": "Émetteur HDBaseT : ajoute le récepteur comme maillon suivant (sortie HDMI)."
+    }
+  ]
+}

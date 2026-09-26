@@ -3,7 +3,7 @@
 
 import {
   evaluerProcesseur, evaluerToutesMarques, processeurConseille, entierInferieur,
-  BIT_DEPTH_PAR_DEFAUT, rappelTessera, gainDixBits, LIBELLES_COIN, ErreurSaisie,
+  BIT_DEPTH_PAR_DEFAUT, rappelTessera, gainDixBits, LIBELLES_COIN, ErreurSaisie, reseauBrompton,
 } from './calculs.js';
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
@@ -81,13 +81,21 @@ function lireFormulaire() {
     cartesPro: d.has('cartesPro'),
     modeOptique: d.has('modeOptique'),
     carteSortie: d.get('carteSortie') || 'auto',
+    reseau: {
+      switches: Math.max(0, Math.floor(lireNombre(d.get('reseauSwitches')) || 0)),
+      convertisseursFibre: Math.max(0, Math.floor(lireNombre(d.get('reseauConvertisseurs')) || 0)),
+      switchManageable: d.has('reseauManageable'),
+      switch10G: d.has('reseau10G'),
+      fibre: d.get('fibreMode') ? { mode: d.get('fibreMode'), connecteur: d.get('fibreConnecteur') } : null,
+      cuivre10G: d.get('cuivreCategorie') ? { categorie: d.get('cuivreCategorie'), longueurM: lireNombre(d.get('cuivreLongueurM')) || 0 } : null,
+    },
   };
 }
 
 // Change de marque : bit depth par défaut de la marque et réglages propres à sa famille (ULL, cartes de sortie…).
 function preparerFamille(famille, garderReglages = false) {
   if (!garderReglages) cocherBits(defautBits(famille).bits);
-  for (const bloc of formulaire.querySelectorAll('[data-famille]')) bloc.hidden = bloc.dataset.famille !== famille;
+  for (const bloc of formulaire.querySelectorAll('[data-famille]')) bloc.hidden = !bloc.dataset.famille.split(' ').includes(famille);
   familleAffichee = famille;
 }
 
@@ -570,6 +578,11 @@ function calculer(e) {
   for (const texte of alertesSansManques(choisie?.alertes ?? [], choisie?.manques)) alertes.push(alerte(texte));
   // Informations sans alerte (Colorlight : règle des 1280 px de la fiche S20 sur un autre modèle).
   for (const texte of choisie?.notes ?? []) alertes.push(alerte(texte, 'alerte-info'));
+  // Réseau Brompton (aide en ligne Tessera) : switches, fibre et cuivre 10G entre le processeur et les dalles.
+  const reseau = choisie?.processeur.famille === 'brompton'
+    ? reseauBrompton({ ...e.reseau, xd: choisie.processeur.distributeur === 'brompton-xd' ? 1 : 0 }) : null;
+  for (const texte of reseau?.refus ?? []) alertes.push(alerte(texte, 'alerte-erreur'));
+  for (const texte of reseau?.alertes ?? []) alertes.push(alerte(texte));
   if (!choisie) {
     remplacer(zone, ...alertes, alerte('Aucun processeur de cette marque ne convient à ce mur.', 'alerte-erreur'),
       sectionAutres(e, evaluations, null));
@@ -604,6 +617,7 @@ function calculer(e) {
     origineBits: origineBits(choisie.processeur.famille, choisie.reglages.bits),
     gainDixBits: gain,
     configs,
+    reseau,
   };
   remplacer(zone, recap,
     ...alertes,

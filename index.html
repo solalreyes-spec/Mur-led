@@ -208,10 +208,58 @@
 
         <label class="case"><input type="checkbox" name="redondance"><span>Redondance (ports doublés)</span></label>
         <label class="case" data-famille="brompton" hidden><input type="checkbox" name="ull"><span>ULL, Ultra Low Latency (capacité divisée par 2)</span></label>
+        <fieldset class="groupe" data-famille="brompton" hidden>
+          <legend>Réseau entre le processeur et les dalles</legend>
+          <div class="paire">
+            <div class="champ">
+              <label for="reseau-switches">Switches 1G</label>
+              <input id="reseau-switches" name="reseauSwitches" inputmode="numeric" autocomplete="off" value="0">
+            </div>
+            <div class="champ">
+              <label for="reseau-convertisseurs">Convertisseurs fibre</label>
+              <input id="reseau-convertisseurs" name="reseauConvertisseurs" inputmode="numeric" autocomplete="off" value="0">
+            </div>
+          </div>
+          <label class="case"><input type="checkbox" name="reseauManageable"><span>Switch manageable</span></label>
+          <label class="case"><input type="checkbox" name="reseau10G"><span>Switch en 10G entre le SX40 et ses XD</span></label>
+          <div class="paire">
+            <div class="champ">
+              <label for="fibre-mode">Fibre SX40 vers XD</label>
+              <select id="fibre-mode" name="fibreMode">
+                <option value="" selected>Pas de fibre</option>
+                <option value="monomode">Monomode</option>
+                <option value="multimode">Multimode</option>
+              </select>
+            </div>
+            <div class="champ">
+              <label for="fibre-connecteur">Connecteurs</label>
+              <select id="fibre-connecteur" name="fibreConnecteur">
+                <option value="PC" selected>PC</option>
+                <option value="UPC">UPC</option>
+                <option value="APC">APC</option>
+              </select>
+            </div>
+          </div>
+          <div class="paire">
+            <div class="champ">
+              <label for="cuivre-categorie">Cuivre 10G SX40 vers XD</label>
+              <select id="cuivre-categorie" name="cuivreCategorie">
+                <option value="" selected>Pas de cuivre 10G</option>
+                <option value="Cat6A">Cat6A</option>
+                <option value="Cat5e">Cat5e</option>
+                <option value="Cat6">Cat6</option>
+              </select>
+            </div>
+            <div class="champ">
+              <label for="cuivre-longueur">Longueur (m)</label>
+              <input id="cuivre-longueur" name="cuivreLongueurM" inputmode="decimal" autocomplete="off" placeholder="facultatif">
+            </div>
+          </div>
+        </fieldset>
         <label class="case" data-famille="novastar"><input type="checkbox" name="cartesPro"><span>Cartes A8s Pro ou A10s Pro (MX40 Pro, 10 bits)</span></label>
         <label class="case" data-famille="novastar"><input type="checkbox" name="modeOptique"><span>MX40 Pro : mode 40 ports (sorties optiques et convertisseurs)</span></label>
-        <div class="champ" data-famille="novastar">
-          <label for="carte-sortie">Cartes de sortie (MX2000 Pro, MX6000 Pro, série H)</label>
+        <div class="champ" data-famille="novastar colorlight">
+          <label for="carte-sortie">Cartes de sortie (MX2000 Pro, MX6000 Pro, série H, X100 Pro, Z8t)</label>
           <select id="carte-sortie" name="carteSortie">
             <option value="auto" selected>Par défaut (selon la carte des dalles ; H_20xRJ45 sur la série H, 10×1G sur le X100 Pro)</option>
             <optgroup label="MX2000 Pro et MX6000 Pro">
@@ -286,8 +334,22 @@
           </fieldset>
         </div>
         <div class="champ">
-          <label for="source-liaison">Liaison vers le processeur</label>
+          <label for="source-liaison">Liaison en sortie de la source ou de la régie</label>
           <select id="source-liaison" name="liaison"></select>
+        </div>
+        <div id="bloc-source-appareil" class="champ" hidden>
+          <label for="source-appareil">Source</label>
+          <select id="source-appareil" name="sourceAppareil"></select>
+        </div>
+        <div class="paire">
+          <div class="champ">
+            <label for="source-longueur">Longueur du câble (m)</label>
+            <input id="source-longueur" name="longueurM" inputmode="decimal" autocomplete="off" placeholder="facultatif">
+          </div>
+          <div class="champ">
+            <label for="source-latence">Latence de la source (images)</label>
+            <input id="source-latence" name="latenceSource" inputmode="numeric" autocomplete="off" placeholder="ex. 3 ou 3-5">
+          </div>
         </div>
         <div class="paire">
           <fieldset class="segmente">
@@ -310,6 +372,98 @@
           <select id="regie" name="regie"></select>
         </div>
         <label id="bloc-multiviewer" class="case" hidden><input type="checkbox" name="multiviewer"><span>Multiviewer utilisé (moins de sorties)</span></label>
+        <label id="bloc-program-seul" class="case" hidden><input type="checkbox" name="programSeul"><span>Program seul (sans prévisualisation)</span></label>
+        <div id="bloc-couches" class="champ" hidden>
+          <label for="couches-sortie">Couches par sortie</label>
+          <input id="couches-sortie" name="couchesParSortie" inputmode="numeric" autocomplete="off" value="1">
+        </div>
+        <fieldset class="chaine-convertisseurs">
+          <legend>Convertisseurs jusqu'au processeur</legend>
+          <div class="champ">
+            <label for="nb-convertisseurs">Nombre de convertisseurs</label>
+            <select id="nb-convertisseurs" name="nbConvertisseurs">
+              <option value="0" selected>Aucun</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
+          </div>
+          <div class="convertisseur" data-rang="1" hidden>
+            <p class="note">Convertisseur 1 (une paire émetteur-récepteur compte pour un)</p>
+            <div class="champ" data-base-convertisseurs hidden>
+              <label for="conv1-fiche">Appareil de la base</label>
+              <select id="conv1-fiche" name="conv1Fiche" class="liste-convertisseurs"></select>
+            </div>
+            <div class="champ">
+              <label for="conv1-nom">Nom</label>
+              <input id="conv1-nom" name="conv1Nom" autocomplete="off" placeholder="ex. HDMI vers 12G-SDI">
+            </div>
+            <div class="paire">
+              <div class="champ">
+                <label for="conv1-liaison">Liaison en sortie</label>
+                <select id="conv1-liaison" name="conv1Liaison" class="liste-liaisons"></select>
+              </div>
+              <div class="champ">
+                <label for="conv1-longueur">Longueur (m)</label>
+                <input id="conv1-longueur" name="conv1Longueur" inputmode="decimal" autocomplete="off" placeholder="facultatif">
+              </div>
+            </div>
+            <div class="champ">
+              <label for="conv1-latence">Latence (images)</label>
+              <input id="conv1-latence" name="conv1Latence" inputmode="numeric" autocomplete="off" placeholder="facultatif">
+            </div>
+          </div>
+          <div class="convertisseur" data-rang="2" hidden>
+            <p class="note">Convertisseur 2 (une paire émetteur-récepteur compte pour un)</p>
+            <div class="champ" data-base-convertisseurs hidden>
+              <label for="conv2-fiche">Appareil de la base</label>
+              <select id="conv2-fiche" name="conv2Fiche" class="liste-convertisseurs"></select>
+            </div>
+            <div class="champ">
+              <label for="conv2-nom">Nom</label>
+              <input id="conv2-nom" name="conv2Nom" autocomplete="off" placeholder="ex. HDMI vers 12G-SDI">
+            </div>
+            <div class="paire">
+              <div class="champ">
+                <label for="conv2-liaison">Liaison en sortie</label>
+                <select id="conv2-liaison" name="conv2Liaison" class="liste-liaisons"></select>
+              </div>
+              <div class="champ">
+                <label for="conv2-longueur">Longueur (m)</label>
+                <input id="conv2-longueur" name="conv2Longueur" inputmode="decimal" autocomplete="off" placeholder="facultatif">
+              </div>
+            </div>
+            <div class="champ">
+              <label for="conv2-latence">Latence (images)</label>
+              <input id="conv2-latence" name="conv2Latence" inputmode="numeric" autocomplete="off" placeholder="facultatif">
+            </div>
+          </div>
+          <div class="convertisseur" data-rang="3" hidden>
+            <p class="note">Convertisseur 3 (une paire émetteur-récepteur compte pour un)</p>
+            <div class="champ" data-base-convertisseurs hidden>
+              <label for="conv3-fiche">Appareil de la base</label>
+              <select id="conv3-fiche" name="conv3Fiche" class="liste-convertisseurs"></select>
+            </div>
+            <div class="champ">
+              <label for="conv3-nom">Nom</label>
+              <input id="conv3-nom" name="conv3Nom" autocomplete="off" placeholder="ex. HDMI vers 12G-SDI">
+            </div>
+            <div class="paire">
+              <div class="champ">
+                <label for="conv3-liaison">Liaison en sortie</label>
+                <select id="conv3-liaison" name="conv3Liaison" class="liste-liaisons"></select>
+              </div>
+              <div class="champ">
+                <label for="conv3-longueur">Longueur (m)</label>
+                <input id="conv3-longueur" name="conv3Longueur" inputmode="decimal" autocomplete="off" placeholder="facultatif">
+              </div>
+            </div>
+            <div class="champ">
+              <label for="conv3-latence">Latence (images)</label>
+              <input id="conv3-latence" name="conv3Latence" inputmode="numeric" autocomplete="off" placeholder="facultatif">
+            </div>
+          </div>
+        </fieldset>
       </form>
 
       <div class="barre-copie">
@@ -589,6 +743,10 @@
               <option value="processeur">Processeurs</option>
               <option value="regie">Régies et scalers</option>
               <option value="bumper">Bumpers et barres</option>
+              <option value="melangeur">Mélangeurs</option>
+              <option value="convertisseur">Convertisseurs et extenders</option>
+              <option value="serveur">Serveurs média</option>
+              <option value="switch">Switches réseau</option>
             </select>
           </div>
           <div class="champ">

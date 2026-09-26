@@ -186,6 +186,13 @@ details.manques p { margin: 0 14px 10px; }
 /* Choix de la dalle (Mur) : recherche, marque, gamme, version */
 .choix-dalle { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .choix-dalle > legend { padding: 0; margin-bottom: 4px; color: var(--texte-doux); font-size: 0.9rem; }
+/* Chaîne vidéo (Canvas) : convertisseurs jusqu'au processeur */
+.chaine-convertisseurs { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.chaine-convertisseurs > legend { padding: 0; margin-bottom: 4px; color: var(--texte-doux); font-size: 0.9rem; }
+.convertisseur { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--bordure); border-radius: var(--rayon); }
+.convertisseur[hidden] { display: none; }
+.liste-chaine { margin: 0; padding-left: 1.2em; }
+.liste-chaine li { margin-bottom: 6px; overflow-wrap: anywhere; }
 .choix-dalle input[type="search"] {
   width: 100%; min-height: var(--cible); padding: 0 12px; border: 1px solid var(--bordure); border-radius: var(--rayon);
   background: var(--surface-2); color: var(--texte); font: inherit; font-size: 1rem; -webkit-appearance: none; appearance: none;

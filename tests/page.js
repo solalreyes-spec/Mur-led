@@ -53,6 +53,13 @@ async function chargerContexte() {
   } catch (erreur) {
     contexte.erreurRegies = erreur.message;
   }
+  // Appareils en amont et en aval (étape Pf3) : un fichier par famille.
+  try {
+    contexte.appareils = {};
+    for (const famille of ['melangeurs', 'convertisseurs', 'serveurs', 'switches']) contexte.appareils[famille] = await lireJson(`data/${famille}.json`);
+  } catch (erreur) {
+    contexte.erreurAppareils = erreur.message;
+  }
   try {
     contexte.fichiers = await chargerFichiersAppli(async (chemin) => {
       const reponse = await fetch(chemin, { cache: 'no-store' });

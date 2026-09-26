@@ -61,3 +61,9 @@ export function bumperDeBase(contexte, id) {
   if (!fiche) throw new Error(`Bumper ${id} absent de data/dalles.json`);
   return calculs.resoudreFiche(fiche, base.sources);
 }
+
+// Appareils en amont et en aval (étape Pf3), un fichier par famille.
+export function baseAppareils(contexte) {
+  if (!contexte?.appareils) throw new Error(`fichiers des appareils non chargés${contexte?.erreurAppareils ? ` : ${contexte.erreurAppareils}` : ''}`);
+  return contexte.appareils;
+}

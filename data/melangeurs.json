@@ -1,0 +1,1955 @@
+{
+  "format": "appli-mur-led/melangeurs",
+  "version": 1,
+  "note": "Mélangeurs de production (live switchers) en amont des processeurs LED.",
+  "sources": {
+    "bmd-products": {
+      "titre": "Page Products de Blackmagic Design, consultée le 26/09/2026 : ATEM Mini Pro, Mini Pro ISO, Mini Extreme ISO G2, SDI, SDI Pro ISO, SDI Extreme ISO, Television Studio HD8, HD8 ISO, 4K8, 1, 2 et 4 M/E Constellation 4K, 4 M/E Constellation 4K Plus, Constellation 8K ; ni ATEM Mini Extreme, ni Constellation HD",
+      "court": "Page Products Blackmagic",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products",
+      "confiance": "constructeur"
+    },
+    "bmd-famille-atemmini": {
+      "titre": "Page ATEM Mini de Blackmagic Design, consultée le 26/09/2026 : ATEM Mini Pro, Mini Extreme, Mini Pro ISO, Mini Extreme ISO G2",
+      "court": "Page ATEM Mini Blackmagic",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemmini",
+      "confiance": "constructeur"
+    },
+    "bmd-famille-atemconstellation": {
+      "titre": "Page ATEM Constellation de Blackmagic Design, consultée le 26/09/2026 : 1, 2 et 4 M/E Constellation HD, 1, 2 et 4 M/E Constellation 4K, 4 M/E Constellation 4K Plus",
+      "court": "Page ATEM Constellation Blackmagic",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemconstellation",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-14": {
+      "titre": "Blackmagic Design, ATEM Mini Pro, page Tech Specs (W-APS-14), consultée le 26/09/2026 : « 4 x HDMI type A » en entrée, « HDMI Program Outputs 1 », « Total Aux Outputs 1 », sorties « 1080p23.98 … 1080p60 », « Power Usage 30W »",
+      "court": "Tech Specs ATEM Mini Pro",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemmini/techspecs/W-APS-14",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-15": {
+      "titre": "Blackmagic Design, ATEM Mini Pro ISO, page Tech Specs (W-APS-15), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM Mini Pro ISO",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemmini/techspecs/W-APS-15",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-17": {
+      "titre": "Blackmagic Design, ATEM Mini Extreme, page Tech Specs (W-APS-17), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM Mini Extreme",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemmini/techspecs/W-APS-17",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-44": {
+      "titre": "Blackmagic Design, ATEM Mini Extreme ISO G2, page Tech Specs (W-APS-44), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM Mini Extreme ISO G2",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemmini/techspecs/W-APS-44",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-30": {
+      "titre": "Blackmagic Design, ATEM SDI, page Tech Specs (W-APS-30), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM SDI",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemsdi/techspecs/W-APS-30",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-32": {
+      "titre": "Blackmagic Design, ATEM SDI Pro ISO, page Tech Specs (W-APS-32), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM SDI Pro ISO",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemsdi/techspecs/W-APS-32",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-36": {
+      "titre": "Blackmagic Design, ATEM SDI Extreme ISO, page Tech Specs (W-APS-36), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM SDI Extreme ISO",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemsdi/techspecs/W-APS-36",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-20": {
+      "titre": "Blackmagic Design, ATEM Television Studio HD8, page Tech Specs (W-APS-20), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM Television Studio HD8",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemtelevisionstudio/techspecs/W-APS-20",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-21": {
+      "titre": "Blackmagic Design, ATEM Television Studio HD8 ISO, page Tech Specs (W-APS-21), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM Television Studio HD8 ISO",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemtelevisionstudio/techspecs/W-APS-21",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-23": {
+      "titre": "Blackmagic Design, ATEM Television Studio 4K8, page Tech Specs (W-APS-23), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM Television Studio 4K8",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemtelevisionstudio/techspecs/W-APS-23",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-25": {
+      "titre": "Blackmagic Design, ATEM 1 M/E Constellation HD, page Tech Specs (W-APS-25), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM 1 M/E Constellation HD",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemconstellation/techspecs/W-APS-25",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-26": {
+      "titre": "Blackmagic Design, ATEM 2 M/E Constellation HD, page Tech Specs (W-APS-26), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM 2 M/E Constellation HD",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemconstellation/techspecs/W-APS-26",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-27": {
+      "titre": "Blackmagic Design, ATEM 4 M/E Constellation HD, page Tech Specs (W-APS-27), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM 4 M/E Constellation HD",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemconstellation/techspecs/W-APS-27",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-40": {
+      "titre": "Blackmagic Design, ATEM 1 M/E Constellation 4K, page Tech Specs (W-APS-40), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM 1 M/E Constellation 4K",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemconstellation/techspecs/W-APS-40",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-41": {
+      "titre": "Blackmagic Design, ATEM 2 M/E Constellation 4K, page Tech Specs (W-APS-41), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM 2 M/E Constellation 4K",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemconstellation/techspecs/W-APS-41",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-42": {
+      "titre": "Blackmagic Design, ATEM 4 M/E Constellation 4K, page Tech Specs (W-APS-42), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM 4 M/E Constellation 4K",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemconstellation/techspecs/W-APS-42",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-45": {
+      "titre": "Blackmagic Design, ATEM 4 M/E Constellation 4K Plus, page Tech Specs (W-APS-45), consultée le 26/09/2026",
+      "court": "Tech Specs ATEM 4 M/E Constellation 4K Plus",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemconstellation/techspecs/W-APS-45",
+      "confiance": "constructeur"
+    },
+    "bmd-w-aps-12": {
+      "titre": "Blackmagic Design, ATEM Constellation 8K, page Tech Specs (W-APS-12), consultée le 26/09/2026 : « Total Video Inputs 40 x up to Ultra HD / 10 x in 8K », Aux « 24 x up to Ultra HD / 6 x in 8K », Ultra HD « 2160p23.98, 2160p24, 2160p25, 2160p29.97, 2160p50, 2160p59.94, 2160p60 » (pas de 30), « Power Usage 300W », « 2 Rack Unit Size »",
+      "court": "Tech Specs ATEM Constellation 8K",
+      "date": "2026-09-26",
+      "url": "https://www.blackmagicdesign.com/products/atemconstellation8k/techspecs/W-APS-12",
+      "confiance": "constructeur"
+    },
+    "roland-menu-video-switchers": {
+      "titre": "Menu Video Switchers de Roland Pro A/V, consulté le 26/09/2026 : V-1-4K, V-80HD, V-160HD, V-02HD MK II, V-1HD+, V-8HD, V-600UHD, V-1SDI, V-1HD, V-4EX ; ni V-60HD, ni V-1200HD",
+      "court": "Menu Video Switchers Roland",
+      "date": "2026-09-26",
+      "url": "https://proav.roland.com/global/categories/video_switchers/",
+      "confiance": "constructeur"
+    },
+    "roland-support-v160hd-latence": {
+      "titre": "Support Roland, « V-160HD: How much latency is there with the input/output? » : « HDMI IN 1-4、SDI IN 1-8: Maximum of two frames », HDMI IN 5-8 « maximum of 4 frames » (progressif) ou « 5 frames » (entrelacé), consulté le 26/09/2026",
+      "court": "Support Roland V-160HD, latence",
+      "date": "2026-09-26",
+      "url": "https://support.roland.com/hc/en-us/articles/4403317682331",
+      "confiance": "constructeur"
+    },
+    "roland-support-v80hd-latence": {
+      "titre": "Support Roland, « V-80HD: How many frames of latency are there for input/output? » : « SDI IN 1-4 Maximum of 2 frames », HDMI IN 1-4 « maximum of 4 frames » (progressif) ou « 5 frames » (entrelacé), consulté le 26/09/2026",
+      "court": "Support Roland V-80HD, latence",
+      "date": "2026-09-26",
+      "url": "https://support.roland.com/hc/en-us/articles/29780195476251",
+      "confiance": "constructeur"
+    },
+    "roland-v-1hd-specs": {
+      "titre": "Roland V-1HD, page Specifications, consultée le 26/09/2026 : « HDMI OUTPUT » et « HDMI PREVIEW » ; sorties 720/59.94p, 720/50p, 1080/59.94i, 1080/50i, 1080/59.94p, 1080/50p, « The video signal frame rate is selected by SETUP parameters (59.94 or 50) » ; « Power Consumption 18W » ; « 1.2 kg »",
+      "court": "Specs Roland V-1HD",
+      "date": "2026-09-26",
+      "url": "https://proav.roland.com/global/products/v-1hd/specifications/",
+      "confiance": "constructeur"
+    },
+    "roland-v-8hd-specs": {
+      "titre": "Roland V-8HD, page Specifications, consultée le 26/09/2026 : « OUTPUT 1--3: HDMI type A x 3 » ; OUTPUT 1-2 de 720/59.94p à 1080/60p, OUTPUT 3 en 1080p (23.98 à 60 Hz) ; « Power Consumption 39.6 W » ; « 2.0 kg »",
+      "court": "Specs Roland V-8HD",
+      "date": "2026-09-26",
+      "url": "https://proav.roland.com/global/products/v-8hd/specifications/",
+      "confiance": "constructeur"
+    },
+    "roland-v-60hd-specs": {
+      "titre": "Roland V-60HD, pages produit et Specifications, consultées le 26/09/2026 : « 2 SDI outputs ‒ assignable to PGM, PVW, AUX », « 2 HDMI outputs ‒ assignable to PGM, PVW, AUX », « 1 Multiview output » ; sorties 720/59.94p, 720/50p, 1080/59.94i, 1080/50i, 1080/59.94p, 1080/50p (« frame rate can be selected at the SYSTEM menu (59.94 or 50) ») ; « Power Consumption 37.0 W » ; « 3.0 kg »",
+      "court": "Specs Roland V-60HD",
+      "date": "2026-09-26",
+      "url": "https://proav.roland.com/global/products/v-60hd/specifications/",
+      "confiance": "constructeur"
+    },
+    "roland-v-80hd-specs": {
+      "titre": "Roland V-80HD, page Specifications, consultée le 26/09/2026 : « HDMI OUT 1--3 » et « SDI OUT 1--3: BNC type x 2 » ; sorties de 720/59.94p à 1080/60p ; « Power Consumption 51 W » ; « 3.5 kg »",
+      "court": "Specs Roland V-80HD",
+      "date": "2026-09-26",
+      "url": "https://proav.roland.com/global/products/v-80hd/specifications/",
+      "confiance": "constructeur"
+    },
+    "roland-v-160hd-specs": {
+      "titre": "Roland V-160HD, pages produit et Specifications, consultées le 26/09/2026 : « Seven total outputs across SDI, HDMI, and USB-C streaming », « seven freely assignable outputs—including three SDI, three HDMI, and one USB-C » ; sorties de 720/59.94p à 1080/60p ; « Power Consumption 55 W » ; « 3.9 kg »",
+      "court": "Specs Roland V-160HD",
+      "date": "2026-09-26",
+      "url": "https://proav.roland.com/global/products/v-160hd/specifications/",
+      "confiance": "constructeur"
+    },
+    "roland-v-600uhd-specs": {
+      "titre": "Roland V-600UHD, page Specifications, consultée le 26/09/2026 : « HDMI OUT 1--3 connectors: HDMI type A (HDMI 2.0) », « SDI OUTPUT connector » (12G/3G-SDI) ; sorties vidéo 1080 et 2160 (UHD et DCI) en 50p et 59.94p ; formats « PC » 1920 × 1080, 3840 × 2160 et 4096 × 2160 à 30 et 60 Hz ; « Power Consumption 80 W » ; « 5.3 kg » avec équerres",
+      "court": "Specs Roland V-600UHD",
+      "date": "2026-09-26",
+      "url": "https://proav.roland.com/global/products/v-600uhd/specifications/",
+      "confiance": "constructeur"
+    },
+    "roland-v-1200hd-specs": {
+      "titre": "Roland V-1200HD, pages produit et Specifications, consultées le 26/09/2026 : « DISCONTINUED » ; « 6 SDI and 2 HDMI outputs » ; SDI « 1080/59.94p, 1080/50p » ; « 9.0 kg »",
+      "court": "Specs Roland V-1200HD",
+      "date": "2026-09-26",
+      "url": "https://proav.roland.com/global/products/v-1200hd/specifications/",
+      "confiance": "constructeur"
+    }
+  },
+  "appareils": [
+    {
+      "id": "blackmagic-atem-mini-pro",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM Mini Pro",
+      "gamme": "ATEM",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi",
+          "nombre": 1,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-14",
+          "note": "« HDMI Program Outputs 1 », « Total Aux Outputs 1 » (la même sortie HDMI)"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 1,
+        "source": "bmd-w-aps-14",
+        "note": "« HDMI Program Outputs 1 », « Total Aux Outputs 1 » (la même sortie HDMI)"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-14",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-14"
+      },
+      "puissanceW": {
+        "valeur": 30,
+        "source": "bmd-w-aps-14",
+        "note": "« Power Usage 30W »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-mini-pro-iso",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM Mini Pro ISO",
+      "gamme": "ATEM",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi",
+          "nombre": 1,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-15",
+          "note": "« HDMI Program Outputs 1 », « Total Aux Outputs 1 »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 1,
+        "source": "bmd-w-aps-15",
+        "note": "« HDMI Program Outputs 1 », « Total Aux Outputs 1 »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-15",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-15"
+      },
+      "puissanceW": {
+        "valeur": 36,
+        "source": "bmd-w-aps-15",
+        "note": "« Power Usage 36W »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-mini-extreme",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM Mini Extreme",
+      "gamme": "ATEM",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi",
+          "nombre": 2,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-17",
+          "note": "« HDMI Program Outputs 2 », « Total Aux Outputs 2 »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 2,
+        "source": "bmd-w-aps-17",
+        "note": "« HDMI Program Outputs 2 », « Total Aux Outputs 2 »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-17",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-17"
+      },
+      "puissanceW": {
+        "valeur": 36,
+        "source": "bmd-w-aps-17",
+        "note": "« Power Usage 36W »"
+      },
+      "statutCommercial": {
+        "valeur": "non renseigné",
+        "source": "bmd-famille-atemmini",
+        "note": "listé sur la page de sa famille, absent de la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-mini-extreme-iso-g2",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM Mini Extreme ISO G2",
+      "gamme": "ATEM",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi",
+          "nombre": 3,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-44",
+          "note": "« HDMI Video Outputs 3 », « HDMI Program Outputs 3 », « Total Aux Outputs 4 »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 3,
+        "source": "bmd-w-aps-44",
+        "note": "« HDMI Video Outputs 3 », « HDMI Program Outputs 3 », « Total Aux Outputs 4 »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-44",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-44"
+      },
+      "puissanceW": {
+        "valeur": 120,
+        "source": "bmd-w-aps-44",
+        "note": "« 120 W max. »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-sdi",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM SDI",
+      "gamme": "ATEM",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 2,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-30",
+          "note": "« SDI Program Outputs 2 », « Total Aux Outputs 2 » ; 3G-SDI"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 2,
+        "source": "bmd-w-aps-30",
+        "note": "« SDI Program Outputs 2 », « Total Aux Outputs 2 » ; 3G-SDI"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-30",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-30"
+      },
+      "puissanceW": {
+        "valeur": 18,
+        "source": "bmd-w-aps-30",
+        "note": "« Power Usage 18W »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-sdi-pro-iso",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM SDI Pro ISO",
+      "gamme": "ATEM",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 2,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-32",
+          "note": "« SDI Program Outputs 2 », « Total Aux Outputs 2 »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 2,
+        "source": "bmd-w-aps-32",
+        "note": "« SDI Program Outputs 2 », « Total Aux Outputs 2 »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-32",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-32"
+      },
+      "puissanceW": {
+        "valeur": 36,
+        "source": "bmd-w-aps-32",
+        "note": "« Power Usage 36W »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-sdi-extreme-iso",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM SDI Extreme ISO",
+      "gamme": "ATEM",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 4,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-36",
+          "note": "« SDI Program Outputs 4 », « Total Aux Outputs 4 »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 4,
+        "source": "bmd-w-aps-36",
+        "note": "« SDI Program Outputs 4 », « Total Aux Outputs 4 »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-36",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-36"
+      },
+      "puissanceW": {
+        "valeur": 36,
+        "source": "bmd-w-aps-36",
+        "note": "« Power Usage 36W »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-tv-studio-hd8",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM Television Studio HD8",
+      "gamme": "ATEM",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 1,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-20",
+          "note": "« SDI Video Outputs 12 » dont « SDI Program Outputs 1 » et « SDI Aux Outputs 2 » : 3 sorties portent le Program (Program et Aux) ; « HDMI Video Outputs 1 »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 3,
+        "source": "bmd-w-aps-20",
+        "note": "« SDI Video Outputs 12 » dont « SDI Program Outputs 1 » et « SDI Aux Outputs 2 » : 3 sorties portent le Program (Program et Aux) ; « HDMI Video Outputs 1 »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-20",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-20"
+      },
+      "puissanceW": {
+        "valeur": 100,
+        "source": "bmd-w-aps-20",
+        "note": "« 100 W max. »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-tv-studio-hd8-iso",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM Television Studio HD8 ISO",
+      "gamme": "ATEM",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 1,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-21",
+          "note": "« SDI Program Outputs 1 », « SDI Aux Outputs 2 » : 3 sorties portent le Program"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 3,
+        "source": "bmd-w-aps-21",
+        "note": "« SDI Program Outputs 1 », « SDI Aux Outputs 2 » : 3 sorties portent le Program"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-21",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-21"
+      },
+      "puissanceW": {
+        "valeur": 100,
+        "source": "bmd-w-aps-21",
+        "note": "« 100 W max. »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-tv-studio-4k8",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM Television Studio 4K8",
+      "gamme": "ATEM",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "role": "program",
+          "largeurMaxPx": 3840,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-23",
+          "note": "« SDI Program Outputs 1 », « SDI Aux Outputs 10 » : 11 sorties portent le Program ; 12G-SDI, 2160p jusqu'à 60"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 11,
+        "source": "bmd-w-aps-23",
+        "note": "« SDI Program Outputs 1 », « SDI Aux Outputs 10 » : 11 sorties portent le Program ; 12G-SDI, 2160p jusqu'à 60"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ],
+          [
+            3840,
+            2160
+          ]
+        ],
+        "source": "bmd-w-aps-23",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-23"
+      },
+      "puissanceW": {
+        "valeur": 120,
+        "source": "bmd-w-aps-23",
+        "note": "« Power Usage 120 W »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-1me-constellation-hd",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM 1 M/E Constellation HD",
+      "gamme": "ATEM Constellation",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 6,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-25",
+          "note": "« Any of the 6 SDI outputs » en Program ou Aux ; 3G-SDI"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 6,
+        "source": "bmd-w-aps-25",
+        "note": "« Any of the 6 SDI outputs » en Program ou Aux ; 3G-SDI"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-25",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-25"
+      },
+      "puissanceW": {
+        "valeur": 36,
+        "source": "bmd-w-aps-25",
+        "note": "« Power Usage 36W »"
+      },
+      "statutCommercial": {
+        "valeur": "non renseigné",
+        "source": "bmd-famille-atemconstellation",
+        "note": "listé sur la page de sa famille, absent de la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-2me-constellation-hd",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM 2 M/E Constellation HD",
+      "gamme": "ATEM Constellation",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 12,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-26",
+          "note": "« Any of the 12 SDI outputs »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 12,
+        "source": "bmd-w-aps-26",
+        "note": "« Any of the 12 SDI outputs »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-26",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-26"
+      },
+      "puissanceW": {
+        "valeur": 52,
+        "source": "bmd-w-aps-26",
+        "note": "« Power Usage 52W »"
+      },
+      "statutCommercial": {
+        "valeur": "non renseigné",
+        "source": "bmd-famille-atemconstellation",
+        "note": "listé sur la page de sa famille, absent de la page Products de Blackmagic (09/2026)"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "bmd-w-aps-26",
+        "note": "« Rack Unit Size »"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-4me-constellation-hd",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM 4 M/E Constellation HD",
+      "gamme": "ATEM Constellation",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 24,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-27",
+          "note": "« Any of the 24 SDI outputs »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 24,
+        "source": "bmd-w-aps-27",
+        "note": "« Any of the 24 SDI outputs »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "bmd-w-aps-27",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-27"
+      },
+      "puissanceW": {
+        "valeur": 147,
+        "source": "bmd-w-aps-27",
+        "note": "« 147W estimated »"
+      },
+      "statutCommercial": {
+        "valeur": "non renseigné",
+        "source": "bmd-famille-atemconstellation",
+        "note": "listé sur la page de sa famille, absent de la page Products de Blackmagic (09/2026)"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "bmd-w-aps-27",
+        "note": "« Rack Unit Size »"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-1me-constellation-4k",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM 1 M/E Constellation 4K",
+      "gamme": "ATEM Constellation",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 6,
+          "role": "program",
+          "largeurMaxPx": 3840,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-40",
+          "note": "« Any of the 6 SDI outputs » ; 12G-SDI, 2160p jusqu'à 60"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 6,
+        "source": "bmd-w-aps-40",
+        "note": "« Any of the 6 SDI outputs » ; 12G-SDI, 2160p jusqu'à 60"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ],
+          [
+            3840,
+            2160
+          ]
+        ],
+        "source": "bmd-w-aps-40",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-40"
+      },
+      "puissanceW": {
+        "valeur": 90,
+        "source": "bmd-w-aps-40",
+        "note": "« Power Usage 90 W »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-2me-constellation-4k",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM 2 M/E Constellation 4K",
+      "gamme": "ATEM Constellation",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 12,
+          "role": "program",
+          "largeurMaxPx": 3840,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-41",
+          "note": "« Any of the 12 SDI outputs »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 12,
+        "source": "bmd-w-aps-41",
+        "note": "« Any of the 12 SDI outputs »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ],
+          [
+            3840,
+            2160
+          ]
+        ],
+        "source": "bmd-w-aps-41",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-41"
+      },
+      "puissanceW": {
+        "valeur": 140,
+        "source": "bmd-w-aps-41",
+        "note": "« Power Usage 140 W »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "bmd-w-aps-41",
+        "note": "« Rack Unit Size »"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-4me-constellation-4k",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM 4 M/E Constellation 4K",
+      "gamme": "ATEM Constellation",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 24,
+          "role": "program",
+          "largeurMaxPx": 3840,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-42",
+          "note": "« Any of the 24 SDI outputs » en Program, « Total Aux Outputs 24 » ; « SDI Video Outputs 28 »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 24,
+        "source": "bmd-w-aps-42",
+        "note": "« Any of the 24 SDI outputs » en Program, « Total Aux Outputs 24 » ; « SDI Video Outputs 28 »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ],
+          [
+            3840,
+            2160
+          ]
+        ],
+        "source": "bmd-w-aps-42",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-42"
+      },
+      "puissanceW": {
+        "valeur": 255,
+        "source": "bmd-w-aps-42",
+        "note": "« Power Usage 255 W »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-4me-constellation-4k-plus",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM 4 M/E Constellation 4K Plus",
+      "gamme": "ATEM Constellation",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 48,
+          "role": "program",
+          "largeurMaxPx": 3840,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-45",
+          "note": "« Any of the 48 SDI outputs » en Program, « Total Aux Outputs 48 » ; « SDI Video Outputs 52 »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 48,
+        "source": "bmd-w-aps-45",
+        "note": "« Any of the 48 SDI outputs » en Program, « Total Aux Outputs 48 » ; « SDI Video Outputs 52 »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ],
+          [
+            3840,
+            2160
+          ]
+        ],
+        "source": "bmd-w-aps-45",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-45"
+      },
+      "puissanceW": {
+        "valeur": 400,
+        "source": "bmd-w-aps-45",
+        "note": "« 400 W max. »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "blackmagic-atem-constellation-8k",
+      "famille": "melangeur",
+      "marque": "Blackmagic Design",
+      "modele": "ATEM Constellation 8K",
+      "gamme": "ATEM Constellation",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "12g-sdi",
+          "nombre": 24,
+          "role": "program",
+          "largeurMaxPx": 7680,
+          "hauteurMaxPx": 4320,
+          "frequenceMaxHz": 60,
+          "source": "bmd-w-aps-12",
+          "note": "« Any of the 24 SDI outputs » en Program ; Aux « 24 x up to Ultra HD / 6 x in 8K »"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 24,
+        "source": "bmd-w-aps-12",
+        "note": "« Any of the 24 SDI outputs » en Program ; Aux « 24 x up to Ultra HD / 6 x in 8K »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ],
+          [
+            3840,
+            2160
+          ],
+          [
+            7680,
+            4320
+          ]
+        ],
+        "source": "bmd-w-aps-12",
+        "note": "formats broadcast seulement (« Video Output Standards »)"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          50,
+          59.94,
+          60
+        ],
+        "source": "bmd-w-aps-12"
+      },
+      "puissanceW": {
+        "valeur": 300,
+        "source": "bmd-w-aps-12",
+        "note": "« Power Usage 300W »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "bmd-products",
+        "note": "sur la page Products de Blackmagic (09/2026)"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "bmd-w-aps-12",
+        "note": "« Rack Unit Size »"
+      },
+      "note": "Latence et poids non publiés sur la page Tech Specs."
+    },
+    {
+      "id": "roland-v-1hd",
+      "famille": "melangeur",
+      "marque": "Roland",
+      "modele": "V-1HD",
+      "gamme": "V",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi",
+          "nombre": 1,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 59.94,
+          "note": "« HDMI OUTPUT » ; « HDMI PREVIEW » à part",
+          "source": "roland-v-1hd-specs"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 1,
+        "source": "roland-v-1hd-specs",
+        "note": "« HDMI OUTPUT » ; la sortie « HDMI PREVIEW » n'est pas comptée"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "roland-v-1hd-specs"
+      },
+      "cadences": {
+        "valeur": [
+          50,
+          59.94
+        ],
+        "source": "roland-v-1hd-specs",
+        "note": "« (59.94 or 50) »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "roland-menu-video-switchers",
+        "note": "au menu Video Switchers de Roland (09/2026)"
+      },
+      "puissanceW": {
+        "valeur": 18,
+        "source": "roland-v-1hd-specs",
+        "note": "« Power Consumption »"
+      },
+      "poidsKg": {
+        "valeur": 1.2,
+        "source": "roland-v-1hd-specs",
+        "note": "hors adaptateur secteur"
+      },
+      "note": "Latence non publiée."
+    },
+    {
+      "id": "roland-v-8hd",
+      "famille": "melangeur",
+      "marque": "Roland",
+      "modele": "V-8HD",
+      "gamme": "V",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi",
+          "nombre": 3,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "note": "« OUTPUT 1--3: HDMI type A x 3 »",
+          "source": "roland-v-8hd-specs"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 1,
+        "source": "roland-v-8hd-specs",
+        "note": "OUTPUT 1 ; autres sorties assignables : à vérifier"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "roland-v-8hd-specs"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "roland-v-8hd-specs",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "roland-menu-video-switchers",
+        "note": "au menu Video Switchers de Roland (09/2026)"
+      },
+      "puissanceW": {
+        "valeur": 39.6,
+        "source": "roland-v-8hd-specs",
+        "note": "« Power Consumption »"
+      },
+      "poidsKg": {
+        "valeur": 2.0,
+        "source": "roland-v-8hd-specs",
+        "note": "hors adaptateur secteur"
+      },
+      "note": "Latence non publiée."
+    },
+    {
+      "id": "roland-v-60hd",
+      "famille": "melangeur",
+      "marque": "Roland",
+      "modele": "V-60HD",
+      "gamme": "V",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 2,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 59.94,
+          "note": "« 2 SDI outputs ‒ assignable to PGM, PVW, AUX »",
+          "source": "roland-v-60hd-specs"
+        },
+        {
+          "type": "hdmi",
+          "nombre": 2,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 59.94,
+          "note": "« 2 HDMI outputs ‒ assignable to PGM, PVW, AUX »",
+          "source": "roland-v-60hd-specs"
+        },
+        {
+          "type": "hdmi",
+          "nombre": 1,
+          "role": "multiviewer",
+          "note": "« 1 Multiview output »",
+          "source": "roland-v-60hd-specs"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 4,
+        "source": "roland-v-60hd-specs",
+        "note": "2 SDI et 2 HDMI « assignable to PGM, PVW, AUX »"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "roland-v-60hd-specs"
+      },
+      "cadences": {
+        "valeur": [
+          50,
+          59.94
+        ],
+        "source": "roland-v-60hd-specs",
+        "note": "« (59.94 or 50) »"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "roland-menu-video-switchers",
+        "note": "absent du menu Video Switchers de Roland (09/2026), page encore en ligne"
+      },
+      "puissanceW": {
+        "valeur": 37,
+        "source": "roland-v-60hd-specs",
+        "note": "« Power Consumption »"
+      },
+      "poidsKg": {
+        "valeur": 3.0,
+        "source": "roland-v-60hd-specs",
+        "note": "hors adaptateur secteur"
+      },
+      "note": "Latence non publiée."
+    },
+    {
+      "id": "roland-v-80hd",
+      "famille": "melangeur",
+      "marque": "Roland",
+      "modele": "V-80HD",
+      "gamme": "V",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi",
+          "nombre": 3,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "note": "« HDMI OUT 1--3 »",
+          "source": "roland-v-80hd-specs"
+        },
+        {
+          "type": "3g-sdi",
+          "nombre": 2,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "note": "« SDI OUT » (2 × BNC)",
+          "source": "roland-v-80hd-specs"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 1,
+        "source": "roland-v-80hd-specs",
+        "note": "une sortie Program ; autres sorties assignables : à vérifier"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "roland-v-80hd-specs"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "roland-v-80hd-specs",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "roland-menu-video-switchers",
+        "note": "au menu Video Switchers de Roland (09/2026)"
+      },
+      "puissanceW": {
+        "valeur": 51,
+        "source": "roland-v-80hd-specs",
+        "note": "« Power Consumption »"
+      },
+      "poidsKg": {
+        "valeur": 3.5,
+        "source": "roland-v-80hd-specs",
+        "note": "hors adaptateur secteur"
+      },
+      "latenceMaxImages": {
+        "valeur": 5,
+        "source": "roland-support-v80hd-latence",
+        "note": "SDI : « Maximum of 2 frames » ; HDMI : 4 images en progressif, 5 en entrelacé ; la plus défavorable retenue"
+      },
+      "note": "Latence du support Roland : 2 images au plus en SDI, 4 à 5 en HDMI."
+    },
+    {
+      "id": "roland-v-160hd",
+      "famille": "melangeur",
+      "marque": "Roland",
+      "modele": "V-160HD",
+      "gamme": "V",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi",
+          "nombre": 3,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "note": "« HDMI OUT 1--3 »",
+          "source": "roland-v-160hd-specs"
+        },
+        {
+          "type": "3g-sdi",
+          "nombre": 3,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "note": "« SDI OUT 1--3 »",
+          "source": "roland-v-160hd-specs"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 6,
+        "source": "roland-v-160hd-specs",
+        "note": "« seven freely assignable outputs » : 3 SDI et 3 HDMI (l'USB-C n'alimente pas de processeur)"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1280,
+            720
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "roland-v-160hd-specs"
+      },
+      "cadences": {
+        "valeur": [
+          23.98,
+          24,
+          25,
+          29.97,
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "roland-v-160hd-specs",
+        "note": null
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "roland-menu-video-switchers",
+        "note": "au menu Video Switchers de Roland (09/2026)"
+      },
+      "puissanceW": {
+        "valeur": 55,
+        "source": "roland-v-160hd-specs",
+        "note": "« Power Consumption »"
+      },
+      "poidsKg": {
+        "valeur": 3.9,
+        "source": "roland-v-160hd-specs",
+        "note": "hors adaptateur secteur"
+      },
+      "latenceMaxImages": {
+        "valeur": 5,
+        "source": "roland-support-v160hd-latence",
+        "note": "HDMI 1-4 et SDI : « Maximum of two frames » ; HDMI 5-8 (scalers) : 4 images en progressif, 5 en entrelacé ; la plus défavorable retenue"
+      },
+      "note": "Latence du support Roland : 2 images au plus en HDMI 1-4 et SDI, 4 à 5 sur les entrées scalées HDMI 5-8."
+    },
+    {
+      "id": "roland-v-600uhd",
+      "famille": "melangeur",
+      "marque": "Roland",
+      "modele": "V-600UHD",
+      "gamme": "V",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 3,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "note": "« HDMI OUT 1--3 » (HDMI 2.0)",
+          "source": "roland-v-600uhd-specs"
+        },
+        {
+          "type": "12g-sdi",
+          "nombre": 1,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 59.94,
+          "note": "« SDI OUTPUT connector » (12G-SDI)",
+          "source": "roland-v-600uhd-specs"
+        },
+        {
+          "type": "hdmi-1.4",
+          "nombre": 1,
+          "role": "multiviewer",
+          "note": "« MULTI-VIEW connector » (HDMI 1.4)",
+          "source": "roland-v-600uhd-specs"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 1,
+        "source": "roland-v-600uhd-specs",
+        "note": "HDMI OUT 1 ; autres sorties assignables : à vérifier"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1920,
+            1080
+          ],
+          [
+            3840,
+            2160
+          ],
+          [
+            4096,
+            2160
+          ]
+        ],
+        "source": "roland-v-600uhd-specs"
+      },
+      "cadences": {
+        "valeur": [
+          30,
+          50,
+          59.94,
+          60
+        ],
+        "source": "roland-v-600uhd-specs",
+        "note": "vidéo en 50 et 59,94 Hz ; 30 et 60 Hz en formats « PC » (HDMI) seulement"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "roland-menu-video-switchers",
+        "note": "au menu Video Switchers de Roland (09/2026)"
+      },
+      "puissanceW": {
+        "valeur": 80,
+        "source": "roland-v-600uhd-specs",
+        "note": "« Power Consumption »"
+      },
+      "poidsKg": {
+        "valeur": 5.3,
+        "source": "roland-v-600uhd-specs",
+        "note": "hors adaptateur secteur"
+      },
+      "note": "Latence non publiée."
+    },
+    {
+      "id": "roland-v-1200hd",
+      "famille": "melangeur",
+      "marque": "Roland",
+      "modele": "V-1200HD",
+      "gamme": "V",
+      "role": "Mélangeur de production",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "3g-sdi",
+          "nombre": 6,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 59.94,
+          "note": "« 3G/HD-SDI: BNC type x 6 »",
+          "source": "roland-v-1200hd-specs"
+        },
+        {
+          "type": "hdmi",
+          "nombre": 2,
+          "role": "program",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 59.94,
+          "note": "« HDMI OUTPUT 1--2 »",
+          "source": "roland-v-1200hd-specs"
+        }
+      ],
+      "sortiesVersProcesseurs": {
+        "valeur": 1,
+        "source": "roland-v-1200hd-specs",
+        "note": "une sortie Program ; autres sorties assignables : à vérifier"
+      },
+      "formatsSortie": {
+        "valeur": [
+          [
+            1920,
+            1080
+          ]
+        ],
+        "source": "roland-v-1200hd-specs"
+      },
+      "cadences": {
+        "valeur": [
+          50,
+          59.94
+        ],
+        "source": "roland-v-1200hd-specs",
+        "note": "SDI « 1080/59.94p, 1080/50p »"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "roland-v-1200hd-specs",
+        "note": "« DISCONTINUED » sur sa page"
+      },
+      "poidsKg": {
+        "valeur": 9.0,
+        "source": "roland-v-1200hd-specs",
+        "note": "hors adaptateur secteur"
+      },
+      "note": "Consommation non trouvée ; latence non publiée."
+    }
+  ]
+}

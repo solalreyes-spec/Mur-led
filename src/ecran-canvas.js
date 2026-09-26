@@ -2,7 +2,7 @@
 // Aucune règle de calcul ici : tout passe par calculs.js.
 
 import {
-  controleSource, controleRegie, sourceConseillee, champsManquantsRegie, ErreurSaisie,
+  controleSource, controleRegie, controleChaine, sourceConseillee, champsManquantsRegie, maillonDepuisFiche, ErreurSaisie,
 } from './calculs.js';
 import { nombre, nombreCourt, lireNombre, sourceCourte } from './format.js';
 import { el, remplacer } from './dom.js';
@@ -13,10 +13,44 @@ const zone = document.getElementById('resultats-canvas');
 
 let liaisons = [];
 let regies = [];
+let appareils = { serveurs: [], convertisseurs: [] };
 let etatData = null;
 // Tant que l'utilisateur n'a pas touché au format de la source, elle suit la source conseillée.
 let sourceModifiee = false;
 const CHAMPS_SOURCE = ['largeurPx', 'hauteurPx', 'frequenceHz', 'liaison'];
+
+// Latence saisie : « 3 » ou « 3-5 » (images) ; vide : non chiffrée.
+function lireLatence(texte) {
+  const m = String(texte ?? '').trim().match(/^(\d+)(?:\s*(?:-|à)\s*(\d+))?$/);
+  if (!m) return {};
+  return { latenceMinImages: Number(m[1]), latenceMaxImages: Number(m[2] ?? m[1]) };
+}
+
+// Convertisseur saisi, ou pris dans la base : sa fiche donne le nom, la latence et la liaison de sortie ;
+// une latence saisie passe devant.
+function lireConvertisseurs(d) {
+  const n = Number(d.get('nbConvertisseurs') ?? 0);
+  return Array.from({ length: n }, (_, i) => {
+    const fiche = appareils.convertisseurs.find((x) => x.id === d.get(`conv${i + 1}Fiche`));
+    const m = fiche ? maillonDepuisFiche(fiche) : null;
+    const latence = lireLatence(d.get(`conv${i + 1}Latence`));
+    return {
+      ...(m ?? {}),
+      nom: String(d.get(`conv${i + 1}Nom`) ?? '').trim() || m?.nom || `Convertisseur ${i + 1}`,
+      liaison: m?.liaison ?? d.get(`conv${i + 1}Liaison`),
+      longueurM: lireNombre(d.get(`conv${i + 1}Longueur`)),
+      ...latence,
+    };
+  });
+}
+
+// Source prise dans la base (mélangeur ou serveur média) : nom, latence, cadences ; mélangeur : formats broadcast
+// et sorties qui portent le Program.
+function lireSourceAppareil(d) {
+  const id = d.get('sourceAppareil');
+  const fiche = [...appareils.melangeurs, ...appareils.serveurs].find((x) => x.id === id);
+  return fiche ? maillonDepuisFiche(fiche) : null;
+}
 
 function lireFormulaire() {
   const d = new FormData(formulaire);
@@ -30,6 +64,12 @@ function lireFormulaire() {
     plage: d.get('plage'),
     regie: d.get('regie'),
     multiviewer: d.has('multiviewer'),
+    programSeul: d.has('programSeul'),
+    couchesParSortie: Math.max(1, Math.floor(lireNombre(d.get('couchesParSortie')) || 1)),
+    longueurM: lireNombre(d.get('longueurM')),
+    latenceSource: lireLatence(d.get('latenceSource')),
+    sourceAppareil: lireSourceAppareil(d),
+    convertisseurs: lireConvertisseurs(d),
   };
 }
 
@@ -77,13 +117,20 @@ function sectionLiaison(source, r, proc) {
   if (!c) return null;
   const l = c.liaison;
   const sourceFormat = l.sources.formatMaxLargeurPx?.sources.map(sourceCourte).join(', ');
+  const mhz = c.frequencePixelMaxMHz;
+  const sourceMhz = l.sources.frequencePixelMaxMHz?.sources.map(sourceCourte).join(', ');
   return el('section', { class: 'bloc-resultats' },
     el('h3', {}, 'Liaison vers le processeur'),
     el('dl', { class: 'tuiles' },
-      tuile('Débit demandé', mpx(c.debitDemande), `${source.largeurPx} × ${source.hauteurPx} px à ${nombreCourt(source.frequenceHz)} Hz`),
-      tuile(`Débit maxi ${l.nom}`, mpx(c.debitMax),
-        `${l.formatMaxLargeurPx} × ${l.formatMaxHauteurPx} à ${l.formatMaxFrequenceHz} Hz, en approximation`,
-        sourceFormat ? `source : ${sourceFormat}` : null),
+      mhz
+        ? tuile('Fréquence pixel', `${nombreCourt(c.frequencePixelMHz)} MHz`, `${source.largeurPx} × ${source.hauteurPx} px à ${nombreCourt(source.frequenceHz)} Hz`,
+          c.methode === 'CTA-861' ? 'timings CTA-861' : 'CVT à blanking réduit, approximation')
+        : tuile('Débit demandé', mpx(c.debitDemande), `${source.largeurPx} × ${source.hauteurPx} px à ${nombreCourt(source.frequenceHz)} Hz`),
+      mhz
+        ? tuile(`Maxi ${l.nom}`, `${nombreCourt(mhz)} MHz`, sourceMhz ? `source : ${sourceMhz}` : null)
+        : tuile(`Débit maxi ${l.nom}`, mpx(c.debitMax),
+          `${l.formatMaxLargeurPx} × ${l.formatMaxHauteurPx} à ${l.formatMaxFrequenceHz} Hz, en approximation`,
+          sourceFormat ? `source : ${sourceFormat}` : null),
       tuile('Utilisation', `${nombre(c.taux * 100)} %`, c.ok ? 'la liaison passe' : 'la liaison ne passe pas'),
       tuile(`Entrée du ${proc.modele}`, r.entree.liaison.nom, proc.entrees ? `entrées : ${proc.entrees}` : null)));
 }
@@ -119,12 +166,32 @@ function sectionRegie(r, regie, source) {
     el('h3', {}, `Régie : ${regie.nom}`),
     r.refus.map((texte) => alerte(texte, 'alerte-erreur')),
     r.alertes.map((texte) => alerte(texte)),
+    (r.notes ?? []).map((texte) => alerte(texte, 'alerte-info')),
     el('dl', { class: 'tuiles' },
       tuile('Sorties nécessaires', nombre(r.sortiesNecessaires), 'une par processeur'),
-      tuile('Sorties disponibles', nombre(r.sortiesDisponibles),
+      tuile('Sorties disponibles', r.sortiesAux > 0 ? `${nombre(r.sortiesDisponibles)} Program + ${nombre(r.sortiesAux)} Aux` : nombre(r.sortiesDisponibles),
         r.mode ? `mode ${r.mode.nom}, jusqu'à ${r.mode.largeurMaxPx} × ${r.mode.hauteurMaxPx} à ${r.mode.frequenceHz} Hz` : 'aucun mode ne convient',
         r.mode?.source ? `source : ${regieSources[r.mode.source] ?? r.mode.source}` : null),
-      tuile('Format envoyé', `${source.largeurPx} × ${source.hauteurPx}`, `${nombreCourt(source.frequenceHz)} Hz`)));
+      tuile('Format envoyé', `${source.largeurPx} × ${source.hauteurPx}`, `${nombreCourt(source.frequenceHz)} Hz`),
+      r.budget?.budget ? tuile('Budget', `${nombreCourt(r.budget.pixels / 1e6, 1)} MP`, `pour ${nombreCourt(r.budget.budget.mpx / 1e6, 1)} MP ${r.budget.budget.libelle}`,
+        `source : ${regieSources[r.budget.budget.source] ?? r.budget.budget.source}`) : null));
+}
+
+function sectionChaine(chaine, source) {
+  const longueur = (m) => (m > 0 ? `, ${nombreCourt(m)} m` : '');
+  const nomLiaison = (id) => liaisons.find((l) => l.id === id)?.nom ?? 'liaison non choisie';
+  return el('section', { class: 'bloc-resultats' },
+    el('h3', {}, 'Chaîne jusqu\'au processeur'),
+    el('ol', { class: 'liste-chaine' }, chaine.maillons.map((m) => el('li', {},
+      m.role === 'processeur' ? `${m.nom} (entrée ${nomLiaison(chaine.liaisonProcesseur)})` : `${m.nom}, puis ${nomLiaison(m.liaison)}${longueur(m.longueurM)}`,
+      m.refus.map((t) => alerte(t, 'alerte-erreur')),
+      m.alertes.map((t) => alerte(t)),
+      (m.notes ?? []).map((t) => alerte(t, 'alerte-info'))))),
+    chaine.cadence.map((t) => alerte(t)),
+    el('dl', { class: 'tuiles' },
+      tuile('Latence de la chaîne', chaine.latence.maxImages === null ? `au moins ${chaine.latence.minImages} im.` : `${chaine.latence.minImages} à ${chaine.latence.maxImages} im.`,
+        chaine.latence.texte, chaine.latenceSourceComptee ? null : 'source non comptée (latence non saisie)'),
+      tuile('Format', `${source.largeurPx} × ${source.hauteurPx}`, `${nombreCourt(source.frequenceHz)} Hz`)));
 }
 
 let regieSources = {};
@@ -149,7 +216,11 @@ function mettreAJour() {
   if (!etatData) return;
   appliquerConseil(etatData.choisie, etatData.reglages);
   const e = lireFormulaire();
+  const regieChoisie = regies.find((x) => x.id === e.regie) ?? null;
   document.getElementById('bloc-multiviewer').hidden = !e.regie;
+  document.getElementById('bloc-program-seul').hidden = !regieChoisie?.budgetsMP?.length;
+  document.getElementById('bloc-couches').hidden = !regieChoisie?.couchesParCarteSL;
+  for (const bloc of formulaire.querySelectorAll('.convertisseur')) bloc.hidden = Number(bloc.dataset.rang) > e.convertisseurs.length;
   const lienData = el('a', { href: '#data' }, 'Choisir le processeur');
   const { choisie, famille, reglages } = etatData;
   if (!choisie) {
@@ -162,24 +233,36 @@ function mettreAJour() {
     return;
   }
 
-  const source = lireFormulaire();
+  const regie = regieChoisie;
+  const saisie = lireFormulaire();
+  // Chaîne : l'entrée du processeur se contrôle sur la liaison du dernier convertisseur.
+  let chaine = null;
   let r;
   try {
-    r = controleSource(source, choisie, liaisons, { famille, bitsReseau: reglages.bits, frequenceHz: reglages.frequenceHz });
+    if (![saisie.largeurPx, saisie.hauteurPx, saisie.frequenceHz].every((x) => Number.isFinite(x) && x > 0)) {
+      throw new ErreurSaisie('Indique une résolution et une fréquence de source supérieures à zéro.');
+    }
+    chaine = controleChaine({
+      source: {
+        ...(saisie.sourceAppareil ?? {}), largeurPx: saisie.largeurPx, hauteurPx: saisie.hauteurPx, frequenceHz: saisie.frequenceHz,
+        nom: saisie.sourceAppareil?.nom ?? 'Source', ...saisie.latenceSource,
+      },
+      liaison: saisie.liaison, longueurM: saisie.longueurM, convertisseurs: saisie.convertisseurs,
+    }, { evaluation: choisie, liaisons, frequenceCalculHz: reglages.frequenceHz, regie });
+    r = controleSource({ ...saisie, liaison: chaine.liaisonProcesseur }, choisie, liaisons, { famille, bitsReseau: reglages.bits, frequenceHz: reglages.frequenceHz });
   } catch (erreur) {
     if (!(erreur instanceof ErreurSaisie)) throw erreur;
     remplacer(zone, alerte(erreur.message, 'alerte-erreur'));
     return;
   }
-
-  const regie = regies.find((x) => x.id === e.regie) ?? null;
-  const rRegie = regie ? controleRegie(regie, choisie, source, liaisons, { multiviewer: e.multiviewer }) : null;
-  dernier = { r, evaluation: choisie, source, regie, rRegie };
+  const source = { ...saisie, liaison: chaine.liaisonProcesseur };
+  const rRegie = regie ? controleRegie(regie, choisie, saisie, liaisons, { multiviewer: e.multiviewer, programSeul: e.programSeul, couchesParSortie: e.couchesParSortie }) : null;
+  dernier = { r, evaluation: choisie, source, regie, rRegie, chaine };
 
   const recap = el('p', { class: 'recap-mur' },
     `Processeur : ${choisie.nombre} × ${proc.nom}, ${nombreCourt(reglages.frequenceHz)} Hz, ${reglages.bits} bits réseau. `,
     el('a', { href: '#data' }, 'Modifier'));
-  const bilan = r.ok && rRegie?.ok !== false
+  const bilan = r.ok && rRegie?.ok !== false && chaine.ok
     ? alerte(`La source passe : ${r.blocs.length > 1 ? `chaque ${proc.modele} reçoit` : `le ${proc.modele} reçoit`} `
       + `${source.largeurPx} × ${source.hauteurPx} px à ${nombreCourt(source.frequenceHz)} Hz en ${r.entree.liaison.nom}.`, 'alerte-ok')
     : null;
@@ -190,7 +273,8 @@ function mettreAJour() {
     r.refus.map((texte) => alerte(texte, 'alerte-erreur')),
     r.alertes.map((texte) => alerte(texte)),
     sectionLiaison(source, r, proc),
-    sectionRegie(rRegie, regie, source),
+    sectionChaine(chaine, source),
+    sectionRegie(rRegie, regie, saisie),
     tableBlocs(r, proc));
 }
 
@@ -223,6 +307,19 @@ export function initialiserCanvas(base) {
   regieSources = Object.fromEntries(Object.entries(base.sourcesRegies ?? {}).map(([id, s]) => [id, sourceCourte(s)]));
   remplacer(formulaire.elements.liaison,
     liaisons.map((l) => el('option', { value: l.id, selected: l.id === 'hdmi-2.0' ? '' : null }, l.nom)));
+  for (const select of formulaire.querySelectorAll('.liste-liaisons')) {
+    remplacer(select, liaisons.map((l) => el('option', { value: l.id, selected: l.id === '12g-sdi' ? '' : null }, l.nom)));
+  }
+  // Maillons de la base : mélangeurs et serveurs média en source, convertisseurs ; listes cachées tant qu'elles sont vides.
+  appareils = { melangeurs: base.appareils?.melangeurs ?? [], serveurs: base.appareils?.serveurs ?? [], convertisseurs: base.appareils?.convertisseurs ?? [] };
+  const groupe = (libelle, liste) => (liste.length ? el('optgroup', { label: libelle }, liste.map((x) => el('option', { value: x.id }, x.nom))) : null);
+  remplacer(formulaire.elements.sourceAppareil, el('option', { value: '' }, 'Autre source (saisie)'),
+    groupe('Mélangeurs', appareils.melangeurs), groupe('Serveurs média', appareils.serveurs));
+  document.getElementById('bloc-source-appareil').hidden = appareils.melangeurs.length + appareils.serveurs.length === 0;
+  for (const select of formulaire.querySelectorAll('.liste-convertisseurs')) {
+    remplacer(select, el('option', { value: '' }, 'Saisie libre'), appareils.convertisseurs.map((x) => el('option', { value: x.id }, x.nom)));
+  }
+  for (const bloc of formulaire.querySelectorAll('[data-base-convertisseurs]')) bloc.hidden = appareils.convertisseurs.length === 0;
   remplirRegies(base.erreurRegies);
   const surSaisie = (evenement) => {
     if (CHAMPS_SOURCE.includes(evenement.target.name)) sourceModifiee = true;

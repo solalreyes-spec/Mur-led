@@ -1,0 +1,51 @@
+{
+  "format": "appli-mur-led/switches",
+  "version": 1,
+  "note": "Switches réseau entre le processeur et les dalles.",
+  "sources": {
+    "acamericas-gigacore-16xt": {
+      "titre": "A.C. Americas (distributeur de Luminex), page GigaCore 16Xt, consultée le 26/09/2026 : 12 ports etherCON Gigabit, 4 ports SFP, switch manageable, 1U, 3 kg ; produit arrêté en janvier 2024, remplacé par le GigaCore 20t",
+      "court": "A.C. Americas, GigaCore 16Xt",
+      "date": "2026-09-26",
+      "url": "https://acamericas.com/products/gigacore-16xt/",
+      "confiance": "revendeur"
+    }
+  },
+  "appareils": [
+    {
+      "id": "luminex-gigacore-16xt",
+      "famille": "switch",
+      "marque": "Luminex",
+      "modele": "GigaCore 16Xt",
+      "role": "Switch réseau",
+      "position": "aval",
+      "ports1G": {
+        "valeur": 12,
+        "source": "acamericas-gigacore-16xt",
+        "note": "etherCON"
+      },
+      "portsSFP": {
+        "valeur": 4,
+        "source": "acamericas-gigacore-16xt"
+      },
+      "manageable": {
+        "valeur": true,
+        "source": "acamericas-gigacore-16xt"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "acamericas-gigacore-16xt"
+      },
+      "poidsKg": {
+        "valeur": 3,
+        "source": "acamericas-gigacore-16xt"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "acamericas-gigacore-16xt",
+        "note": "arrêté en janvier 2024, remplacé par le GigaCore 20t"
+      },
+      "note": "Switch manageable : refusé entre un processeur Brompton et ses dalles (« ONLY with unmanaged switches », aide Tessera). Page d'un revendeur, à vérifier sur la fiche Luminex."
+    }
+  ]
+}

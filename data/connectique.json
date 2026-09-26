@@ -44,6 +44,47 @@
       "court": "Fiche MX6000 Pro V1.5.0",
       "date": "2025-09-30",
       "confiance": "constructeur (fiche MX6000 Pro), norme à confirmer"
+    },
+    "barco-e2-gen2-fiche-2025-11-27": {
+      "titre": "Fiche Barco E2 Gen 2 (NGS-4U-V2), mise à jour le 27/11/2025, p. 3 : entrées « 12 x HDMI 2.0 (600 MHz max) » et « 12 x DisplayPort 1.2 (600 MHz max) » ; sorties « 13 x HDMI (up to 600 MHz) » et « 1 x DisplayPort (up to 660 MHz) »",
+      "court": "Fiche Barco E2 Gen 2",
+      "date": "2025-11-27",
+      "url": "https://assets.barco.com/m/1da1a218bfbbede6/original/E2-Gen-2-en-Spec-sheet.pdf",
+      "confiance": "constructeur"
+    },
+    "datapath-page-fx4": {
+      "titre": "Page produit Datapath Fx4 (datapath-us.com), consultée le 26/09/2026 : « 2 x HDMI1.4 (2160p60 (4:2:0), 2160p30 or equivalent up to 297MP/s) » ; « 1 x DisplayPort1.2 (2160p60 or equivalent up to 616MP/s) » ; sorties « up to 165MP/s »",
+      "court": "Page Datapath Fx4",
+      "date": "2026-09-26",
+      "url": "https://www.datapath-us.com/datapath-products/video-wall-controllers/datapath-fx4/",
+      "confiance": "constructeur"
+    },
+    "novastar-h5-v1-15-0": {
+      "titre": "Fiche Novastar H5 Video Wall Splicer Specifications V1.15.0, p. 11 : carte H_1x12G SDI, « Each connector supports the maximum resolution of 4096×2160@60Hz »",
+      "court": "Fiche Novastar H5 V1.15.0",
+      "date": "2025-06-20",
+      "url": "https://oss.novastar.tech/uploads/2025/06/H5-Video-Wall-Splicer-Specifications-V1.15.0.pdf",
+      "confiance": "constructeur"
+    },
+    "deduit-opt-10g-pixelhue": {
+      "titre": "Déduit : une sortie OPT 10G de la PixelHue série P copie une sortie HDMI 2.0 (« 10G optical fiber ports for copying HDMI outputs », fiche série P V1.6.0, p. 2), d'où le même format maxi, 4096 × 2160 à 60 Hz ; côté Novastar, OPT 1 des VX et VX Pro prend une source vidéo (« Self-adaptive OPT 1 for either video input »), une source 4K sur la VX400 (fiche V1.0.0, p. 3 et 4)",
+      "court": "déduit de la fiche PixelHue série P",
+      "date": null,
+      "confiance": "déduit"
+    },
+    "hdbaset-org-technologie": {
+      "titre": "HDBaseT Alliance, page « HDBaseT Technology », consultée le 26/09/2026 : « up to 100m/328ft » ; HDBaseT 2.0 « UHD 4K@30 4:4:4/4K@60 4:2:0 to 100m/328ft over Cat6 (90m/295ft. over Cat5e) » ; HDBaseT 3.0 « fully uncompressed 4K@60 4:4:4 up to 100m/328ft », « recommends Category 6a U/FTP »",
+      "court": "HDBaseT Alliance, HDBaseT Technology",
+      "date": "2026-09-26",
+      "url": "https://hdbaset.org/hdbaset-technology/",
+      "confiance": "constructeur"
+    },
+    "extron-dtp2-t-212": {
+      "titre": "Extron, DTP2 T 212, onglet Specifications, consulté le 26/09/2026 : « Maximum data rate 18 Gbps », « Maximum pixel clock 600 MHz », « Chroma sampling 4:4:4, 4:2:2, or 4:2:0 », « Transmission distance Up to 330' (100 m) using shielded twisted pair (STP) cable »",
+      "court": "Extron DTP2 T 212",
+      "date": "2026-09-26",
+      "url": "https://www.extron.com/product/dtp2t212",
+      "confiance": "constructeur"
     }
   },
   "liaisons": [
@@ -144,6 +185,11 @@
         "valeur": 10.2,
         "source": "oliverdy-connectique"
       },
+      "frequencePixelMaxMHz": {
+        "valeur": 297,
+        "source": "datapath-page-fx4",
+        "note": "la norme HDMI 1.4 autorise 340 MHz, mais la plupart des appareils (Barco, Datapath) s'arrêtent à 297 MHz ; la limite de la fiche de l'appareil passe devant"
+      },
       "formatMaxLargeurPx": {
         "valeur": 4096,
         "source": "oliverdy-connectique"
@@ -165,6 +211,11 @@
       "debitGbps": {
         "valeur": 18,
         "source": "oliverdy-connectique"
+      },
+      "frequencePixelMaxMHz": {
+        "valeur": 600,
+        "source": "barco-e2-gen2-fiche-2025-11-27",
+        "note": "p. 3"
       },
       "formatMaxLargeurPx": {
         "valeur": 4096,
@@ -202,6 +253,11 @@
       "nom": "DisplayPort 1.2",
       "famille": "dp",
       "rang": 1,
+      "frequencePixelMaxMHz": {
+        "valeur": 660,
+        "source": "barco-e2-gen2-fiche-2025-11-27",
+        "note": "sortie DP de l'E2 Gen 2 (p. 3) ; ses entrées DP 1.2 s'arrêtent à 600 MHz, celle du Datapath Fx4 à 616 Mpx/s"
+      },
       "formatMaxLargeurPx": {
         "valeur": 4096,
         "source": "dp-1-2-a-confirmer"
@@ -283,8 +339,18 @@
         "source": "oliverdy-connectique"
       },
       "formatMaxLargeurPx": {
-        "valeur": 3840,
-        "source": "oliverdy-connectique"
+        "valeurs": [
+          {
+            "valeur": 4096,
+            "source": "novastar-h5-v1-15-0",
+            "note": "p. 11"
+          },
+          {
+            "valeur": 3840,
+            "source": "oliverdy-connectique",
+            "nonRetenue": true
+          }
+        ]
       },
       "formatMaxHauteurPx": {
         "valeur": 2160,
@@ -330,6 +396,129 @@
         "valeur": 60,
         "source": "coex-mx6000-pro-v1-5-0-entrees"
       }
+    },
+    {
+      "id": "opt-10g",
+      "nom": "OPT 10G (fibre PixelHue)",
+      "famille": "opt",
+      "rang": 1,
+      "formatMaxLargeurPx": {
+        "valeur": 4096,
+        "source": "deduit-opt-10g-pixelhue"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "deduit-opt-10g-pixelhue"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "deduit-opt-10g-pixelhue"
+      },
+      "note": "Fibre 10G d'une régie PixelHue vers l'entrée OPT d'un contrôleur Novastar (« Only LED controllers from NovaStar are supported for now », fiche PixelHue série P, p. 1)."
+    },
+    {
+      "id": "hdbaset-2.0",
+      "nom": "HDBaseT 2.0",
+      "famille": "hdbaset",
+      "rang": 1,
+      "formatMaxLargeurPx": {
+        "valeur": 3840,
+        "source": "hdbaset-org-technologie",
+        "note": "« UHD 4K », lu comme 3840 × 2160 par prudence"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "hdbaset-org-technologie"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "hdbaset-org-technologie",
+        "note": "« 4K@60 4:2:0 »"
+      },
+      "format444": {
+        "valeur": {
+          "largeurPx": 3840,
+          "hauteurPx": 2160,
+          "frequenceHz": 30
+        },
+        "source": "hdbaset-org-technologie",
+        "note": "« UHD 4K@30 4:4:4/4K@60 4:2:0 »"
+      },
+      "longueurMaxM": {
+        "valeur": 100,
+        "source": "hdbaset-org-technologie",
+        "note": "« to 100m/328ft over Cat6 »"
+      },
+      "longueurAlerteM": {
+        "valeur": 90,
+        "source": "hdbaset-org-technologie",
+        "note": "en Cat5e : « 90m/295ft. over Cat5e », Cat6 au-delà"
+      },
+      "note": "Extension sur câble Ethernet, entre un émetteur et un récepteur (les processeurs LED n'ont pas d'entrée HDBaseT)."
+    },
+    {
+      "id": "hdbaset-3.0",
+      "nom": "HDBaseT 3.0",
+      "famille": "hdbaset",
+      "rang": 2,
+      "formatMaxLargeurPx": {
+        "valeur": 4096,
+        "source": "hdbaset-org-technologie",
+        "note": "« 4K » : 3840 ou 4096 px, non précisé par la norme"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "hdbaset-org-technologie"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "hdbaset-org-technologie",
+        "note": "« fully uncompressed 4K@60 4:4:4 »"
+      },
+      "longueurMaxM": {
+        "valeur": 100,
+        "source": "hdbaset-org-technologie",
+        "note": "« up to 100m/328ft » ; Cat6a recommandé (« recommends Category 6a U/FTP »)"
+      },
+      "note": "Extension sur câble Ethernet, entre un émetteur et un récepteur ; Cat6a U/FTP recommandé.",
+      "formatCertain": {
+        "valeur": {
+          "largeurPx": 3840,
+          "hauteurPx": 2160
+        },
+        "source": "hdbaset-org-technologie",
+        "note": "4K non précisé par la norme (3840 ou 4096) : vérifie la fiche de l'extender"
+      }
+    },
+    {
+      "id": "dtp2",
+      "nom": "DTP2 (Extron)",
+      "famille": "dtp2",
+      "rang": 1,
+      "formatMaxLargeurPx": {
+        "valeur": 4096,
+        "source": "extron-dtp2-t-212"
+      },
+      "formatMaxHauteurPx": {
+        "valeur": 2160,
+        "source": "extron-dtp2-t-212"
+      },
+      "formatMaxFrequenceHz": {
+        "valeur": 60,
+        "source": "extron-dtp2-t-212",
+        "note": "18 Gbps, 4:4:4"
+      },
+      "frequencePixelMaxMHz": {
+        "valeur": 600,
+        "source": "extron-dtp2-t-212",
+        "note": "« Maximum pixel clock 600 MHz »"
+      },
+      "longueurMaxM": {
+        "valeur": 100,
+        "source": "extron-dtp2-t-212",
+        "note": "« Up to 330' (100 m) using shielded twisted pair (STP) cable »"
+      },
+      "note": "Liaison propre à Extron (DTP2), sur câble blindé STP ; entre un émetteur et un récepteur Extron."
     }
   ]
 }

@@ -78,7 +78,7 @@ export function texteCapaciteAppareil(c) {
 
 // `r` : évaluation du processeur retenu ; `distributeur` : nom du distributeur (XD, CVT10) s'il y en a.
 // `configs` : lots et configs du mur pour le logiciel du processeur (fiches.configsDuMur), avec la version relevée.
-export function resumeData(r, { conseille = false, distributeur = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null, configs = null } = {}) {
+export function resumeData(r, { conseille = false, distributeur = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null, configs = null, reseau = null } = {}) {
   const proc = r.processeur;
   if (!r.groupes?.length) {
     return texte(['DATA', `Processeur : ${proc.nom}`, `Impossible : ${r.impossible ?? 'ce processeur ne convient pas à ce mur'}`, ...alertes(r.alertes)]);
@@ -133,6 +133,7 @@ export function resumeData(r, { conseille = false, distributeur = null, puissanc
   });
   if (configs) lignes.push(...configs.lignes, configs.version ?? null);
   lignes.push(...alertesPorts, ...alertes(r.alertes), ...(r.notes ?? []).map((x) => `Note : ${x}`), ...alertes(configs?.alertes));
+  lignes.push(...(reseau?.refus ?? []).map((x) => `Refus : ${x}`), ...alertes(reseau?.alertes));
   return texte(lignes);
 }
 
@@ -147,15 +148,25 @@ export function consommationProcesseur(proc) {
 }
 
 // `r` : contrôle de la source ; `evaluation` : processeur retenu ; `rRegie` : contrôle de la régie choisie.
-export function resumeCanvas(r, { evaluation, source, regie = null, rRegie = null }) {
+export function resumeCanvas(r, { evaluation, source, regie = null, rRegie = null, chaine = null }) {
   const proc = evaluation.processeur;
   const c = r.entree?.controle;
+  const texteLiaison = (x) => (x.frequencePixelMaxMHz
+    ? `${nombreCourt(x.frequencePixelMHz)} MHz pour ${nombreCourt(x.frequencePixelMaxMHz)} (${x.methode === 'CTA-861' ? 'timings CTA-861' : 'CVT à blanking réduit, approximation'})`
+    : `${nombre(x.taux * 100)} % du débit maxi (approximation)`);
   const lignes = [
     'CANVAS ET SOURCE',
     `Source : ${source.largeurPx} × ${source.hauteurPx} px à ${nombreCourt(source.frequenceHz)} Hz en ${r.entree?.liaison?.nom ?? 'liaison non précisée'}`,
-    c ? `Liaison : ${c.ok ? 'passe' : 'ne passe pas'}, ${nombre(c.taux * 100)} % du débit maxi (approximation)` : null,
+    c ? `Liaison : ${c.ok ? 'passe' : 'ne passe pas'}, ${texteLiaison(c)}` : null,
     `Processeurs : ${evaluation.nombre} × ${proc.nom}`,
   ];
+  if (chaine) {
+    const longueur = (m) => (m > 0 ? `, ${nombreCourt(m)} m` : '');
+    lignes.push(`Chaîne : ${chaine.maillons.map((m) => (m.role === 'processeur' ? m.nom
+      : `${m.nom} (${m.liaisonNom ?? m.liaison}${longueur(m.longueurM)})`)).join(' puis ')}`);
+    lignes.push(`Latence de la chaîne : ${chaine.latence.texte}${chaine.latenceSourceComptee ? '' : ', source non comptée'}`);
+    lignes.push(...chaine.refus.map((x) => `Refus : ${x}`), ...alertes(chaine.alertes), ...(chaine.notes ?? []).map((x) => `Note : ${x}`));
+  }
   for (const b of r.blocs) {
     lignes.push(`Processeur n° ${b.numero}, bloc : ${b.largeurPx} × ${b.hauteurPx} px`);
     if (b.canvas) lignes.push(`Processeur n° ${b.numero}, canvas : ${b.canvas.largeurPx} × ${b.canvas.hauteurPx}${b.canvas.format ? ` (${b.canvas.format})` : ''}`);
@@ -170,7 +181,11 @@ export function resumeCanvas(r, { evaluation, source, regie = null, rRegie = nul
       lignes.push(`Sorties nécessaires : ${nombre(rRegie.sortiesNecessaires)}`);
       lignes.push(`Sorties disponibles : ${rRegie.sortiesDisponibles === null ? 'aucun mode ne convient' : nombre(rRegie.sortiesDisponibles)}`
         + `${rRegie.mode ? `, mode ${rRegie.mode.nom}` : ''}`);
-      lignes.push(...(rRegie.refus ?? []).map((x) => `Refus : ${x}`), ...alertes(rRegie.alertes));
+      if (rRegie.sortiesAux > 0) lignes.push(`Sorties Aux : ${nombre(rRegie.sortiesAux)}, dont ${nombre(rRegie.auxUtilisees ?? 0)} utilisée${(rRegie.auxUtilisees ?? 0) > 1 ? 's' : ''}`);
+      if (rRegie.budget?.budget) {
+        lignes.push(`Budget : ${nombreCourt(rRegie.budget.pixels / 1e6, 1)} MP pour ${nombreCourt(rRegie.budget.budget.mpx / 1e6, 1)} MP ${rRegie.budget.budget.libelle}`);
+      }
+      lignes.push(...(rRegie.refus ?? []).map((x) => `Refus : ${x}`), ...alertes(rRegie.alertes), ...(rRegie.notes ?? []).map((x) => `Note : ${x}`));
     }
   }
   lignes.push(...r.refus.map((x) => `Refus : ${x}`), ...alertes(r.alertes));

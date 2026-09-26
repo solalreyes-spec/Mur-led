@@ -21,6 +21,157 @@
       "date": "2025-11-27",
       "url": "https://assets.barco.com/m/1da1a218bfbbede6/original/E2-Gen-2-en-Spec-sheet.pdf",
       "confiance": "constructeur"
+    },
+    "analogway-aquilon-rs1-2026-07-03": {
+      "titre": "Fiche Analog Way Aquilon RS1 (datasheet du 03/07/2026) : « 40 Megapixels throughput on Program at 10-bit 4:4:4 @60Hz » (p. 1 et 3), « 8x 4K60p active outputs (8x HDMI 2.0) », « 2x configurable 4K Multiviewers » (p. 3), « as low as 1 frame in proper configuration » (p. 4)",
+      "court": "Fiche Aquilon RS1",
+      "date": "2026-07-03",
+      "url": "https://dwn01.analogway.com/Site+Internet/Series/Aquilon/Products/Aquilon+RS1/Technical+Datasheet/Aquilon-RS1-datasheet-en-20260703.pdf",
+      "confiance": "constructeur"
+    },
+    "analogway-aquilon-manuel-v6-2": {
+      "titre": "Manuel Analog Way Aquilon v6.2 (pied de page du 10/09/2026) : p. 33 tableau des modèles (« Max 4K60p PGM outputs » : RS1 « 4 + 4 Aux », Cmini « 4 + 8 Aux », C « 8 + 8 Aux », C+ « 12 + 8 Aux », Cmax « 16 + 8 Aux ») ; p. 64 « Aux Screens do not consume processing resources », « Outputs used in Aux Screens can display up to 8 layers with capacity 1 », « Enabling more than 2 layers disables the next output plugs on the card » ; p. 65 les couches Aux ne gèrent ni « Seamless transitions », ni « Alpha channels », ni « Border settings », ni « Cut & Fill effect », ni « Layers freeze », fond d'une seule couleur ; p. 66 une Aux Screen n'a qu'une sortie et peut afficher le Program d'un Screen ; p. 61 « The minimum capacity (1) refers to dual-link bandwidth » ; p. 66 un VPU gère « 8 mixer layers… spread over 8 outputs, in capacity 1 » ; p. 71 VPU et connecteurs de sortie par modèle (RS1 1 et 8, Cmini 1 et 12, C 2 et 16, C+ 3 et 20, Cmax 4 et 24) ; Cmax « 16 Scr + 4 Aux » en 4K60p (p. 71), « 16 + 8 Aux » au tableau de la p. 33",
+      "court": "Manuel Aquilon v6.2",
+      "date": "2026-09-10",
+      "url": "https://dwn01.analogway.com/Site+Internet/Series/Aquilon/Common/User+Manual/Aquilon_User_Manual_v6.2.pdf",
+      "confiance": "constructeur"
+    },
+    "barco-s3-4k-fiche-2024-07-09": {
+      "titre": "Fiche Barco S3-4K (NGS-3U), mise à jour le 09/07/2024 : p. 1 « 4 PROGRAM outputs, 4 AUX outputs and 2 dedicated Multiviewer outputs », configuration « no longer available once existing stock is consumed » ; p. 2 « Up to 12 outputs configurable… up to 12x 2048X1200@60 or up to 3x 4096x2400@60 », « 4x HDMI 1.4a (297 MHz max) », « Up to 20 megapixels in PVW/PGM or 40 megapixels in PGM only mode », 3 RU, 24 kg, 826 W",
+      "court": "Fiche Barco S3-4K",
+      "date": "2024-07-09",
+      "url": "https://assets.barco.com/m/663dfa0f62601d99/original/S3-4K-en-Spec-sheet.pdf",
+      "confiance": "constructeur"
+    },
+    "barco-e2-gen1-fiche-2023-06-13": {
+      "titre": "Fiche Barco E2 (Gen 1, NGS-4U), mise à jour le 13/06/2023 : p. 3 « 1 frame processing latency for progressive genlock sources » ; p. 5 « 14 outputs via 4 output cards », « Up to 3 x 4K outputs », « Configurable for up to 16X 2048X1200@60 or up to 4 x 4096x2400@60 », « 8 x HDMI 1.4a (297 Mpix/sec max) », « Up to 20 Megapixels PVW/PGM, 40 Megapixels PGM only, 80 Megapixels @30p and PGM only » ; p. 6 4 RU, 31 kg, 826 W",
+      "court": "Fiche Barco E2 Gen 1",
+      "date": "2023-06-13",
+      "url": "https://assets.barco.com/m/753c2b29df077031/original/E2-en-Spec-sheet.pdf",
+      "confiance": "constructeur"
+    },
+    "barco-ex-fiche-2025-01-23": {
+      "titre": "Fiche Barco Ex (NGS-1U), mise à jour le 23/01/2025 : p. 1 « A single processor can provide a 4x4 scaling matrix of HD sources » ; p. 2 « When linked to an E2 or S3 and VPU cards are installed, supports up 20 Megapixels PVW/PGM. Or 40 megapixels PGM only in addition to master processor », « Up to 8 program outputs for destinations created in a linked E2 or S3-4K processor », « Scaled Aux outputs User-definable up to 8 x 2048x1200@60 or 2 x 4K@60 », « Two Ex chassis can be linked for standalone operation », 1 RU, 5,53 kg, 125 W",
+      "court": "Fiche Barco Ex",
+      "date": "2025-01-23",
+      "url": "https://assets.barco.com/m/551c7b03df99bf34/original/Ex-en-Spec-sheet.pdf",
+      "confiance": "constructeur"
+    },
+    "barco-support-e2": {
+      "titre": "Page Barco E2 (Gen 1, R9004799), adresse www.barco.com/en/product/e2 redirigée vers la page support, consultée le 26/09/2026 : « End of life », « This product is replaced by E2 Gen 2 »",
+      "court": "Page support Barco E2",
+      "date": "2026-09-26",
+      "url": "https://www.barco.com/en/product/e2",
+      "confiance": "constructeur"
+    },
+    "barco-support-ex": {
+      "titre": "Page support Barco Ex (R9004776), consultée le 26/09/2026 : « End of life », « This product is no longer available »",
+      "court": "Page support Barco Ex",
+      "date": "2026-09-26",
+      "url": "https://www.barco.com/en/support/ex",
+      "confiance": "constructeur"
+    },
+    "analogway-aquilon-cmini-2026-07-16": {
+      "titre": "Fiche Analog Way Aquilon Cmini (datasheet du 16/07/2026) : « Up to 40 Megapixels throughput on Program at 10-bit 4:4:4 @60Hz » (p. 1 et 4), « as low as 1 frame in proper configuration » (p. 5), cartes de sortie HDMI 2.0 et 12G-SDI (p. 5)",
+      "court": "Fiche Aquilon Cmini",
+      "date": "2026-07-16",
+      "url": "https://dwn01.analogway.com/Site+Internet/Series/LivePremier/Products/Aquilon+Cmini/Technical+Datasheet/Aquilon-Cmini-datasheet-en-20260716.pdf",
+      "confiance": "constructeur"
+    },
+    "analogway-aquilon-c-2026-07-03": {
+      "titre": "Fiche Analog Way Aquilon C (datasheet du 03/07/2026) : « Up to 80 Megapixels throughput on Program at 10-bit 4:4:4 @60Hz » (p. 1 et 4), « as low as 1 frame in proper configuration » (p. 5), cartes de sortie HDMI 2.0, DisplayPort 1.2/1.4 et 12G-SDI (p. 5)",
+      "court": "Fiche Aquilon C",
+      "date": "2026-07-03",
+      "url": "https://dwn01.analogway.com/Site+Internet/Series/Aquilon/Products/Aquilon+C/Technical+Datasheet/Aquilon-C-datasheet-en-20260703.pdf",
+      "confiance": "constructeur"
+    },
+    "analogway-aquilon-cplus-2026-07-03": {
+      "titre": "Fiche Analog Way Aquilon C+ (datasheet du 03/07/2026) : « Up to 120 Megapixels throughput on Program at 10-bit 4:4:4 @60Hz » (p. 1 et 6), « as low as 1 frame in proper configuration » (p. 7), cartes de sortie HDMI 2.0, DisplayPort 1.2/1.4 et 12G-SDI (p. 7)",
+      "court": "Fiche Aquilon C+",
+      "date": "2026-07-03",
+      "url": "https://dwn01.analogway.com/Site+Internet/Series/LivePremier/Products/Aquilon+C%2B/Technical+Datasheet/Aquilon-C%2B-datasheet-en-20260703.pdf",
+      "confiance": "constructeur"
+    },
+    "analogway-aquilon-cmax-2026-07-03": {
+      "titre": "Fiche Analog Way Aquilon Cmax (datasheet du 03/07/2026) : « Up to 160 Megapixels throughput on Program at 10-bit 4:4:4 @60Hz » (p. 1 et 4), « as low as 1 frame in proper configuration » (p. 5), cartes de sortie HDMI 2.0 et 12G-SDI (p. 5)",
+      "court": "Fiche Aquilon Cmax",
+      "date": "2026-07-03",
+      "url": "https://dwn01.analogway.com/Site+Internet/Series/Aquilon/Products/Aquilon+Cmax/Technical+Datasheet/Aquilon-Cmax-datasheet-en-20260703.pdf",
+      "confiance": "constructeur"
+    },
+    "analogway-pulse-4k-2026-05-21": {
+      "titre": "Fiche Analog Way Pulse 4K (datasheet du 21/05/2026) : « 2 modes : Matrix (2 PGM) or Switcher (1 PGM + 1 AUX) », 2RU (p. 1) ; « 1 AUX output up to 1080p60 », « ultra low latency (16 msec » (p. 5) ; « Support custom output formats up to 4096 width / height » (p. 6) ; 7,60 kg, « Max consumption: 95 W » (p. 8)",
+      "court": "Fiche Pulse 4K",
+      "date": "2026-05-21",
+      "url": "https://dwn01.analogway.com/Site+Internet/Series/Midra+4k/Products/Pulse+4k/Technical+Datasheet/AW_Midra4K_Pulse4K_Datasheet_en_20260521.pdf",
+      "confiance": "constructeur"
+    },
+    "analogway-zenith-100-2026-05-21": {
+      "titre": "Fiche Analog Way Zenith 100 (datasheet du 21/05/2026) : 3RU (p. 1) ; « Up to 3 video outputs can be freely configured as single screens or edge-blended widescreens, and the remaining unused outputs (2 max.) can be turned into scaled auxiliary 1080p60 outputs to display any input or screen » (p. 2) ; « ultra-low latency processing (16 msec » (p. 6) ; « Support custom output formats up to 4096 width / height » (p. 7) ; 11,70 kg, « Max consumption: 170W » (p. 9)",
+      "court": "Fiche Zenith 100",
+      "date": "2026-05-21",
+      "url": "https://dwn01.analogway.com/Site+Internet/Series/Alta+4k/Products/Zenith+100/Technical+Datasheet/AW_Alta4K_Zenith100_Datasheet_en_20260521.pdf",
+      "confiance": "constructeur"
+    },
+    "christie-spyder-x20-brochure": {
+      "titre": "Brochure Christie Spyder X20 (© 2022) : « 20 megapixel bandwidth » (p. 1 et 2) ; p. 3 « Output number 8 @ (< 2048 x 1200) or 4 @ (2560 x 1600) or a combination of 4 dual-link and 4 single-link resolutions », « DVI up to 330 MHz », DVI single-link et dual-link, SD/HD/3G-SDI, 4RU, 27 kg, 900W",
+      "court": "Brochure Christie Spyder X20",
+      "date": null,
+      "dateTexte": "© 2022",
+      "url": "https://www.christiedigital.com/globalassets/resources/public/christie-spyder-x20-brochure-en.pdf",
+      "confiance": "constructeur"
+    },
+    "christie-fin-support-x20": {
+      "titre": "Page Christie « end of support » du Spyder X20, consultée le 26/09/2026 : « On January 2, 2024, Christie® Spyder X20 reached end-of-production status », support « until January 2, 2027 »",
+      "court": "Page fin de support Christie Spyder X20",
+      "date": "2026-09-26",
+      "url": "https://www.christiedigital.com/products/end-of-support/image-processors/christie-spyder-x20/",
+      "confiance": "constructeur"
+    },
+    "christie-spyder-x80-brochure": {
+      "titre": "Brochure Christie Spyder X80 (© 2023) : « 80 megapixel bandwidth at 8-bit and 53 megapixel at 12-bit » (p. 2) ; p. 5 « For up to 16 outputs », « DisplayPort 1.2 • HDMI 2.0 • 12G-SDI », « Horizontal up to 4096 and vertical up to 2400 within pixel clock », 6RU, 1680W, 36,17 kg (plein)",
+      "court": "Brochure Christie Spyder X80",
+      "date": null,
+      "dateTexte": "© 2023",
+      "url": "https://www.christiedigital.com/globalassets/resources/public/christie-spyder-x80-brochure.pdf",
+      "confiance": "constructeur"
+    },
+    "datapath-fx4-v1-15": {
+      "titre": "Fiche Datapath Fx4 (19-Fx4-datasheet-en-v1.15), p. 2 : « HDMI version: 4 x HDMI1.3 (1080p60, 1200p60 or equivalent up to 165MP/s)* », « DisplayPort version: 4 x DP1.1 », « * Outputs within 165MP/s but taller/wider than 2048 require testing », « INPUT SURFACE 8K x 8K maximum », 1,86 kg, 35W",
+      "court": "Fiche Datapath Fx4 v1.15",
+      "date": null,
+      "dateTexte": "version 1.15, non datée",
+      "url": "https://www.datapathdocuments.co.uk/wp-content/uploads/Datapath-Fx4_datasheet_EN_v1.15.pdf",
+      "confiance": "constructeur"
+    },
+    "pixelhue-p-v1-6-0": {
+      "titre": "Fiche PixelHue série P (P20, P20-DS, P10), V1.6.0 (P_EN_2025-03-26) : p. 1 « 4x HDMI 2.0 (Primary Output) », « 2x HDMI 2.0 (Primary Output) », « 8x OPT (Copying Output) », « 8x LED Controllers* », « *Only LED controllers from NovaStar are supported for now. », « In switcher mode, a single P20/P20-DS supports up to two 4K×2K@60Hz outputs… In PGM only mode, the output resolution per P20/P20-DS is up to 8K×4K@60Hz and P10 is up to 8K×2K@60Hz » ; p. 2 sorties HDMI 2.0 « Maximum width: 8192 pixels », « Maximum height: 8186 pixels » ; AUX « 4x HDMI 1.3 » (P10 : 2), « Maximum output resolution: 2048×1152@60Hz », « Connect to auxiliary devices such as teleprompters » ; « Up to 12 DL layers (2×MAIN+10×PIP) or 8 DL layers (4×MAIN+4×PIP) », P10 « 6 DL layers » ; « as low as 1 frame in proper configuration » ; 10,2 / 10,7 / 7,9 kg ; 140 / 160 / 82 W ; 3 RU (P20, P20-DS), 2 RU (P10)",
+      "court": "Fiche PixelHue série P V1.6.0",
+      "date": "2025-03-26",
+      "url": "https://en-pixelhue001.oss-us-east-1.aliyuncs.com/Specifications/P%20Series%204K%20Presentation%20Switchers%20Datasheet-V1.6.0.pdf",
+      "confiance": "constructeur"
+    },
+    "pixelhue-f8-fiche": {
+      "titre": "Fiche PixelHue F8 (Specifications, non datée) : p. 1 « 64 megapixel », 39,1 kg (plein, sans accessoires), « Max power consumption: 700 W » ; p. 2 « 8 input slots and 8 output slots », « 6×slots for output cards Each supports up to 4K@60Hz or 4×1080p60Hz », carte « 4K HDMI2.0/OPT Output Card » (4K mode « Max. output width: 8192 pixels », « Max. output height: 7680 pixels », « HDMI2: copy », OPT en copie), « Each output card supports up to 8× SL mixing layers, 4× DL mixing layers or 2× 4K mixing layers », cartes AUX « HDMI1.3×4 », « Up to 2048×1080@60Hz », AUX « Free view of inputs and screens (PGM) »",
+      "court": "Fiche PixelHue F8",
+      "date": null,
+      "dateTexte": "non datée",
+      "url": "https://en-pixelhue001.oss-us-east-1.aliyuncs.com/Specifications/F8%20Seamless%20Switcher%20Specifications.pdf",
+      "confiance": "constructeur"
+    },
+    "pixelhue-q8-v2-0-0": {
+      "titre": "Fiche PixelHue Q8 V2.0.0 du 17/04/2026 : « A single output card supports up to 8x 4K layers » (p. 4) ; sorties « Maximum width: 8192 pixels », « Maximum height: 7680 pixels » (p. 10 à 13) ; 1400 W, 42,6 kg (p. 20) ; nombre de sorties par carte et de cartes de sortie non relevé",
+      "court": "Fiche PixelHue Q8 V2.0.0",
+      "date": "2026-04-17",
+      "url": "https://en-pixelhue001.oss-us-east-1.aliyuncs.com/Specifications/Q8%20Seamless%20Switcher%20Specifications-V2.0.0.pdf",
+      "confiance": "constructeur"
+    },
+    "barco-event-master-guide-v15": {
+      "titre": "Guide Barco Event Master Devices (R5905948, v15 du 15/06/2026), version HTML en ligne : §7.16 « Add Aux Destinations » (« Aux Capacity… The default setting is \"2K\" or single link », capacités DL, 4K ou 8L ; « Custom scales the input image as if it is inside a \"single\" (non-mixing) layer » ; « No wide-screen adjustments are available for Aux Destinations ») ; §7.24 « Drop Inputs to Aux Destinations » (« If the Aux is supposed to toggle between Preview and Program, click the Toggle button ») ; §6.16 (« ALL outputs can be AUX Destinations »)",
+      "court": "Guide Event Master v15",
+      "date": "2026-06-15",
+      "url": "https://www.barco.com/manuals/R5905948/index",
+      "confiance": "constructeur"
     }
   },
   "regies": [
@@ -39,7 +190,8 @@
           "hauteurMaxPx": 2400,
           "frequenceHz": 60,
           "source": "barco-e2-gen2-fiche-2025-11-27",
-          "note": "8 sorties 4K60 sans multiviewer, 6 avec (p. 3)."
+          "note": "8 sorties 4K60 sans multiviewer, 6 avec (p. 3) ; aucune Aux en plus (« up to 8x 4K@60 » Aux, p. 3).",
+          "sortiesAux": 0
         },
         {
           "nom": "2048 × 1200",
@@ -49,7 +201,8 @@
           "hauteurMaxPx": 1200,
           "frequenceHz": 60,
           "source": "barco-e2-gen2-fiche-2025-11-27",
-          "note": "16 sorties Program (« up to 16x 2048X1200@60 », p. 3). 18 = sorties Aux (« Scaled AUX outputs … up to 18x 2048x1200@60 », p. 3), non retenues : une sortie Program par processeur. Nombre de sorties avec le multiviewer non précisé : mode non retenu quand le multiviewer est coché."
+          "note": "16 sorties Program (« up to 16x 2048X1200@60 », p. 3), puis 2 sorties Aux (18 au total : « All outputs can be defined as Aux destinations for a total of 18 Aux outputs », p. 3), avec l'alerte Aux. Nombre de sorties avec le multiviewer non précisé : mode non retenu quand le multiviewer est coché.",
+          "sortiesAux": 2
         }
       ],
       "sortiesTypes": {
@@ -59,25 +212,329 @@
           "dp-1.2"
         ],
         "source": "barco-e2-gen2-fiche-2025-11-27"
+      },
+      "budgetsMP": [
+        {
+          "mpx": 20000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "libelle": "avec prévisualisation",
+          "source": "barco-e2-gen2-fiche-2025-11-27",
+          "note": "« Up to 20 Megapixels PVW/PGM » (p. 3)"
+        },
+        {
+          "mpx": 40000000,
+          "programSeul": true,
+          "frequenceMaxHz": 60,
+          "libelle": "Program seul",
+          "source": "barco-e2-gen2-fiche-2025-11-27",
+          "note": "« 40 Megapixels PGM only » (p. 3)"
+        },
+        {
+          "mpx": 80000000,
+          "programSeul": true,
+          "frequenceMaxHz": 30,
+          "libelle": "Program seul, à 30 Hz",
+          "source": "barco-e2-gen2-fiche-2025-11-27",
+          "note": "« 80 Megapixels @30p and PGM only » (p. 3)"
+        }
+      ],
+      "noteAux": {
+        "valeur": "Barco : une Aux reçoit une source mise à l'échelle, sans mélange de couches (en « Custom », « as if it is inside a \"single\" (non-mixing) layer ») ni réglage d'écran large ; capacité d'entrée 2K par défaut (DL, 4K ou 8L au choix : passe-la en 4K pour une source 4K) ; bascule Preview/Program par le bouton « Toggle ». Fiche Barco E2 Gen 2, p. 3 : « Scaled AUX outputs », couches « assignable to Program output screens »",
+        "source": "barco-event-master-guide-v15",
+        "note": "§7.16 et §7.24 du guide v15 du 15/06/2026, version HTML sans numéro de page"
       }
+    },
+    {
+      "id": "barco-e2-gen1",
+      "marque": "Barco",
+      "modele": "E2 Gen 1",
+      "gamme": "Event Master",
+      "role": "Mélangeur et gestion d'écrans",
+      "position": "amont",
+      "modesSortie": [
+        {
+          "nom": "4K60",
+          "sorties": 3,
+          "sortiesAvecMultiviewer": null,
+          "sortiesAux": 0,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2400,
+          "frequenceHz": 60,
+          "frequencePixelMaxMHz": 297,
+          "source": "barco-e2-gen1-fiche-2023-06-13",
+          "note": "3 sorties 4K retenues (« Up to 3 x 4K outputs », p. 5) ; 4 visibles, non retenues (« up to 4 x 4096x2400@60 », p. 5) ; 297 Mpix/s par connecteur HDMI 1.4a (p. 5). Nombre avec le multiviewer non précisé."
+        },
+        {
+          "nom": "2048 × 1200",
+          "sorties": 16,
+          "sortiesAvecMultiviewer": null,
+          "sortiesAux": 0,
+          "largeurMaxPx": 2048,
+          "hauteurMaxPx": 1200,
+          "frequenceHz": 60,
+          "frequencePixelMaxMHz": 297,
+          "source": "barco-e2-gen1-fiche-2023-06-13",
+          "note": "16 sorties Program (« up to 16X 2048X1200@60 », p. 5) ; aucune Aux en plus (« a total of 16 Aux outputs », p. 5)."
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-1.4",
+          "3g-sdi"
+        ],
+        "source": "barco-e2-gen1-fiche-2023-06-13",
+        "note": "« 4 x SD/HD/3G SDI », « 8 x HDMI 1.4a (297 Mpix/sec max) » (p. 5)"
+      },
+      "budgetsMP": [
+        {
+          "mpx": 20000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "libelle": "avec prévisualisation",
+          "source": "barco-e2-gen1-fiche-2023-06-13",
+          "note": "« Up to 20 Megapixels PVW/PGM » (p. 5)"
+        },
+        {
+          "mpx": 40000000,
+          "programSeul": true,
+          "frequenceMaxHz": 60,
+          "libelle": "Program seul",
+          "source": "barco-e2-gen1-fiche-2023-06-13",
+          "note": "« 40 Megapixels PGM only » (p. 5)"
+        },
+        {
+          "mpx": 80000000,
+          "programSeul": true,
+          "frequenceMaxHz": 30,
+          "libelle": "Program seul, à 30 Hz",
+          "source": "barco-e2-gen1-fiche-2023-06-13",
+          "note": "« 80 Megapixels @30p and PGM only » (p. 5)"
+        }
+      ],
+      "noteAux": {
+        "valeur": "Barco : une Aux reçoit une source mise à l'échelle, sans mélange de couches (en « Custom », « as if it is inside a \"single\" (non-mixing) layer ») ni réglage d'écran large ; capacité d'entrée 2K par défaut (DL, 4K ou 8L au choix : passe-la en 4K pour une source 4K) ; bascule Preview/Program par le bouton « Toggle ». Fiche Barco E2 Gen 1, p. 5 : « Scaled Aux outputs »",
+        "source": "barco-event-master-guide-v15",
+        "note": "§7.16 et §7.24 du guide v15 du 15/06/2026, version HTML sans numéro de page"
+      },
+      "latence": "1 image (sources progressives en genlock)",
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "barco-e2-gen1-fiche-2023-06-13",
+        "note": "« 1 frame processing latency for progressive genlock sources » (p. 3)"
+      },
+      "latenceMaxImages": {
+        "valeur": 1,
+        "source": "barco-e2-gen1-fiche-2023-06-13",
+        "note": "« 1 frame processing latency for progressive genlock sources » (p. 3)"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "barco-support-e2",
+        "note": "« End of life », « This product is replaced by E2 Gen 2 »"
+      },
+      "hauteurU": {
+        "valeur": 4,
+        "source": "barco-e2-gen1-fiche-2023-06-13",
+        "note": "p. 6"
+      },
+      "poidsKg": {
+        "valeur": 31,
+        "source": "barco-e2-gen1-fiche-2023-06-13",
+        "note": "p. 6"
+      },
+      "puissanceW": {
+        "valeur": 826,
+        "source": "barco-e2-gen1-fiche-2023-06-13",
+        "note": "p. 6"
+      },
+      "note": "Configuration de location : 14 sorties via 4 cartes (p. 2 et 5) ; 3 sorties 4K60 retenues, 16 en 2048 × 1200."
     },
     {
       "id": "barco-s3-4k",
       "marque": "Barco",
       "modele": "S3-4K",
       "gamme": "Event Master",
-      "role": "Mélangeur",
-      "statut": "à compléter",
-      "note": "Sorties et résolutions à compléter : aucun contrôle avec ce modèle."
+      "role": "Mélangeur et gestion d'écrans",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-1.4",
+          "nombre": 4,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2400,
+          "frequenceMaxHz": 60,
+          "frequencePixelMaxMHz": 297,
+          "source": "barco-s3-4k-fiche-2024-07-09",
+          "note": "4 sorties Program (« 4 PROGRAM outputs », p. 1) ; la fiche en annonce jusqu'à 12 en 2048 × 1200 et 3 en 4096 × 2400 (p. 2), non retenues ; 297 MHz par connecteur HDMI 1.4a (p. 2) : une sortie 4K60 prend plusieurs connecteurs d'une carte"
+        },
+        {
+          "type": "hdmi-1.4",
+          "nombre": 4,
+          "role": "aux",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2400,
+          "frequenceMaxHz": 60,
+          "frequencePixelMaxMHz": 297,
+          "source": "barco-s3-4k-fiche-2024-07-09",
+          "note": "4 sorties Aux (« 4 AUX outputs », p. 1)"
+        },
+        {
+          "type": "hdmi-1.4",
+          "nombre": 2,
+          "role": "multiviewer",
+          "source": "barco-s3-4k-fiche-2024-07-09",
+          "note": "2 sorties multiviewer (p. 1 et 2)"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-1.4",
+          "3g-sdi"
+        ],
+        "source": "barco-s3-4k-fiche-2024-07-09",
+        "note": "« 4x SD/HD/3G SDI », « 4x HDMI 1.4a (297 MHz max) » (p. 2)"
+      },
+      "budgetsMP": [
+        {
+          "mpx": 20000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "libelle": "avec prévisualisation",
+          "source": "barco-s3-4k-fiche-2024-07-09",
+          "note": "« Up to 20 megapixels in PVW/PGM » (p. 2)"
+        },
+        {
+          "mpx": 40000000,
+          "programSeul": true,
+          "frequenceMaxHz": 60,
+          "libelle": "Program seul",
+          "source": "barco-s3-4k-fiche-2024-07-09",
+          "note": "« 40 megapixels in PGM only mode » (p. 2)"
+        }
+      ],
+      "noteAux": {
+        "valeur": "Barco : une Aux reçoit une source mise à l'échelle, sans mélange de couches (en « Custom », « as if it is inside a \"single\" (non-mixing) layer ») ni réglage d'écran large ; capacité d'entrée 2K par défaut (DL, 4K ou 8L au choix : passe-la en 4K pour une source 4K) ; bascule Preview/Program par le bouton « Toggle ». Fiche Barco S3-4K, p. 2 : « Scaled Aux outputs », couches « assignable to any Program output screen »",
+        "source": "barco-event-master-guide-v15",
+        "note": "§7.16 et §7.24 du guide v15 du 15/06/2026, version HTML sans numéro de page"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "barco-s3-4k-fiche-2024-07-09",
+        "note": "« this S3-4K configuration will no longer be available once existing stock is consumed » (mise à jour d'août 2021, p. 1)"
+      },
+      "hauteurU": {
+        "valeur": 3,
+        "source": "barco-s3-4k-fiche-2024-07-09",
+        "note": "p. 2"
+      },
+      "poidsKg": {
+        "valeur": 24,
+        "source": "barco-s3-4k-fiche-2024-07-09",
+        "note": "p. 2"
+      },
+      "puissanceW": {
+        "valeur": 826,
+        "source": "barco-s3-4k-fiche-2024-07-09",
+        "note": "p. 2"
+      },
+      "note": "12 entrées HD, 4 sorties Program, 4 Aux et 2 multiviewers (p. 1) ; 20 MP avec prévisualisation, 40 MP en Program seul."
     },
     {
       "id": "barco-ex",
       "marque": "Barco",
-      "modele": "EX",
+      "modele": "Ex",
       "gamme": "Event Master",
-      "role": "Mélangeur",
-      "statut": "à compléter",
-      "note": "Sorties et résolutions à compléter : aucun contrôle avec ce modèle."
+      "role": "Unité d'extension et scaler",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-1.4",
+          "nombre": 8,
+          "role": "program",
+          "largeurMaxPx": 2048,
+          "hauteurMaxPx": 1200,
+          "frequenceMaxHz": 60,
+          "frequencePixelMaxMHz": 297,
+          "source": "barco-ex-fiche-2025-01-23",
+          "note": "8 sorties Program, reliées à un E2 ou un S3-4K (« Up to 8 program outputs for destinations created in a linked E2 or S3-4K processor », p. 2) ; format de « 8 x 2048x1200@60 » (p. 2). Connecteurs selon les cartes Event Master installées : HDMI 1.4a à 297 MHz retenus par prudence"
+        },
+        {
+          "type": "hdmi-1.4",
+          "nombre": 2,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "frequencePixelMaxMHz": 297,
+          "source": "barco-ex-fiche-2025-01-23",
+          "note": "ou 2 sorties 4K60 (« 2 x 4K@60 », p. 2)"
+        },
+        {
+          "type": "hdmi-1.4",
+          "nombre": 8,
+          "role": "aux",
+          "largeurMaxPx": 2048,
+          "hauteurMaxPx": 1200,
+          "frequenceMaxHz": 60,
+          "frequencePixelMaxMHz": 297,
+          "source": "barco-ex-fiche-2025-01-23",
+          "note": "Seul, sans E2 ni S3-4K, l'Ex ne sort qu'en Aux (« Scaled Aux outputs », p. 2 ; « 4x4 scaling matrix », p. 1)"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-1.4",
+          "3g-sdi"
+        ],
+        "source": "barco-ex-fiche-2025-01-23",
+        "note": "« any of the Event Master output cards » (p. 2) : HDMI 1.4a et 3G-SDI des cartes Event Master, par prudence"
+      },
+      "budgetsMP": [
+        {
+          "mpx": 20000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "libelle": "avec prévisualisation, relié à un E2 ou un S3-4K avec cartes VPU",
+          "source": "barco-ex-fiche-2025-01-23",
+          "note": "« When linked to an E2 or S3 and VPU cards are installed, supports up 20 Megapixels PVW/PGM » (p. 2) ; seul, aucun budget publié"
+        },
+        {
+          "mpx": 40000000,
+          "programSeul": true,
+          "frequenceMaxHz": 60,
+          "libelle": "Program seul, relié à un E2 ou un S3-4K avec cartes VPU",
+          "source": "barco-ex-fiche-2025-01-23",
+          "note": "« Or 40 megapixels PGM only in addition to master processor » (p. 2)"
+        }
+      ],
+      "noteAux": {
+        "valeur": "Barco : une Aux reçoit une source mise à l'échelle, sans mélange de couches (en « Custom », « as if it is inside a \"single\" (non-mixing) layer ») ni réglage d'écran large ; capacité d'entrée 2K par défaut (DL, 4K ou 8L au choix : passe-la en 4K pour une source 4K) ; bascule Preview/Program par le bouton « Toggle ». Fiche Barco Ex, p. 2 : « Scaled Aux outputs », effets de couches « Determined by Master processor »",
+        "source": "barco-event-master-guide-v15",
+        "note": "§7.16 et §7.24 du guide v15 du 15/06/2026, version HTML sans numéro de page"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "barco-support-ex",
+        "note": "« End of life », « This product is no longer available »"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "barco-ex-fiche-2025-01-23",
+        "note": "p. 2"
+      },
+      "poidsKg": {
+        "valeur": 5.53,
+        "source": "barco-ex-fiche-2025-01-23",
+        "note": "p. 2"
+      },
+      "puissanceW": {
+        "valeur": 125,
+        "source": "barco-ex-fiche-2025-01-23",
+        "note": "p. 2"
+      },
+      "note": "Peut fonctionner seul en scaler (matrice 4 × 4, p. 1 ; deux Ex reliés, p. 2), mais ses sorties Program et son budget ne valent que relié à un E2 ou un S3-4K (p. 2) ; seul, ses sorties sont des Aux."
     },
     {
       "id": "barco-imagepro-4k",
@@ -96,6 +553,545 @@
       "note": "Sorties et résolutions à compléter : aucun contrôle avec ce modèle."
     },
     {
+      "id": "analogway-aquilon-rs1",
+      "marque": "Analog Way",
+      "modele": "Aquilon RS1",
+      "gamme": "Aquilon",
+      "role": "Mélangeur et gestion d'écrans",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 4,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "4 sorties Program 4K60 au plus (p. 33)",
+          "sortiesAux": 4
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 8,
+          "role": "program",
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "sortiesAux": 0,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "« Up to 8x Dual/2K60p program outputs » (fiche, p. 5) ; 2560 × 1600 à 60 Hz au plus : capacité 1, « dual-link bandwidth » (manuel v6.2, p. 61) ; 8 connecteurs de sortie (manuel p. 71) : 0 Aux en plus"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 4,
+          "role": "aux",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "4 sorties Aux 4K60 (p. 33) : servent après les 4 Program, avec l'alerte Aux"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 2,
+          "role": "multiviewer",
+          "source": "analogway-aquilon-rs1-2026-07-03",
+          "note": "2 multiviewers 4K (fiche, p. 3)"
+        }
+      ],
+      "budgetsMP": [
+        {
+          "mpx": 40000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "libelle": "sur le Program, sans restreindre la prévisualisation ni le multiviewer",
+          "source": "analogway-aquilon-rs1-2026-07-03",
+          "note": "« 40 Megapixels throughput at 10-bit 4:4:4 on Program, without restricting Preview or Multiviewer » (p. 3)"
+        }
+      ],
+      "latence": "1 image au mieux (« as low as 1 frame »)",
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "analogway-aquilon-rs1-2026-07-03",
+        "note": "« as low as 1 frame in proper configuration » (p. 4)"
+      },
+      "note": "16 entrées 4K60, 8 sorties 4K60 dont 4 Program et 4 Aux (manuel v6.2, p. 33), 2 multiviewers ; 40 MP sur le Program.",
+      "noteAux": {
+        "valeur": "Aquilon : une Aux Screen n'a qu'une sortie ; jusqu'à 8 couches de capacité 1, mais au-delà de 2 couches elle prend les sorties suivantes de la carte ; ni transition sans coupure, ni canal alpha, ni bordure, ni Cut & Fill, ni gel de couche ; fond d'une seule couleur ; elle peut afficher le Program d'un écran",
+        "source": "analogway-aquilon-manuel-v6-2",
+        "note": "p. 64 à 66"
+      },
+      "auxHorsBudget": {
+        "valeur": true,
+        "source": "analogway-aquilon-manuel-v6-2",
+        "note": "« Aux Screens do not consume processing resources » (p. 64)"
+      }
+    },
+    {
+      "id": "analogway-aquilon-cmini",
+      "marque": "Analog Way",
+      "modele": "Aquilon Cmini",
+      "gamme": "Aquilon",
+      "role": "Mélangeur et gestion d'écrans",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 4,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "4 sorties Program 4K60 au plus (p. 33)",
+          "sortiesAux": 8
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 8,
+          "role": "program",
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "sortiesAux": 4,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "« Up to 8x Dual/2K60p program outputs » (fiche, p. 6) ; 2560 × 1600 à 60 Hz au plus : capacité 1, « dual-link bandwidth » (manuel v6.2, p. 61) ; 12 connecteurs de sortie (manuel p. 71) : 4 Aux en plus"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 8,
+          "role": "aux",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "8 sorties Aux 4K60 (p. 33) : servent après les Program, avec l'alerte Aux"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 2,
+          "role": "multiviewer",
+          "source": "analogway-aquilon-cmini-2026-07-16",
+          "note": "2 multiviewers 4K"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "12g-sdi"
+        ],
+        "source": "analogway-aquilon-cmini-2026-07-16",
+        "note": "cartes de sortie « 4x HDMI 2.0 » et « 4x 12G-SDI » (p. 5)"
+      },
+      "budgetsMP": [
+        {
+          "mpx": 40000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "libelle": "sur le Program, sans restreindre la prévisualisation ni le multiviewer",
+          "source": "analogway-aquilon-cmini-2026-07-16",
+          "note": "« Up to 40 Megapixels throughput on Program at 10-bit 4:4:4 @60Hz » (p. 1 et 4)"
+        }
+      ],
+      "noteAux": {
+        "valeur": "Aquilon : une Aux Screen n'a qu'une sortie ; jusqu'à 8 couches de capacité 1, mais au-delà de 2 couches elle prend les sorties suivantes de la carte ; ni transition sans coupure, ni canal alpha, ni bordure, ni Cut & Fill, ni gel de couche ; fond d'une seule couleur ; elle peut afficher le Program d'un écran",
+        "source": "analogway-aquilon-manuel-v6-2",
+        "note": "p. 64 à 66"
+      },
+      "auxHorsBudget": {
+        "valeur": true,
+        "source": "analogway-aquilon-manuel-v6-2",
+        "note": "« Aux Screens do not consume processing resources » (p. 64)"
+      },
+      "latence": "1 image au mieux (« as low as 1 frame »)",
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "analogway-aquilon-cmini-2026-07-16",
+        "note": "« as low as 1 frame in proper configuration » (p. 5)"
+      },
+      "note": "4 sorties Program et 8 Aux 4K60 (manuel v6.2, p. 33), 2 multiviewers ; 40 MP sur le Program. Cartes de sortie au choix (p. 5). Poids et consommation absents de la fiche."
+    },
+    {
+      "id": "analogway-aquilon-c",
+      "marque": "Analog Way",
+      "modele": "Aquilon C",
+      "gamme": "Aquilon",
+      "role": "Mélangeur et gestion d'écrans",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 8,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "8 sorties Program 4K60 au plus (p. 33)",
+          "sortiesAux": 8
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 16,
+          "role": "program",
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "sortiesAux": 0,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "« Up to 16x Dual/2K60p program outputs » (fiche, p. 6) ; 2560 × 1600 à 60 Hz au plus : capacité 1, « dual-link bandwidth » (manuel v6.2, p. 61) ; 16 connecteurs de sortie (manuel p. 71) : 0 Aux en plus"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 8,
+          "role": "aux",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "8 sorties Aux 4K60 (p. 33) : servent après les Program, avec l'alerte Aux"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 2,
+          "role": "multiviewer",
+          "source": "analogway-aquilon-c-2026-07-03",
+          "note": "2 multiviewers 4K"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2",
+          "12g-sdi"
+        ],
+        "source": "analogway-aquilon-c-2026-07-03",
+        "note": "cartes de sortie « 4x HDMI 2.0 », « 4x DisplayPort 1.2/1.4 » et « 4x 12G-SDI » (p. 5)"
+      },
+      "budgetsMP": [
+        {
+          "mpx": 80000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "libelle": "sur le Program, sans restreindre la prévisualisation ni le multiviewer",
+          "source": "analogway-aquilon-c-2026-07-03",
+          "note": "« Up to 80 Megapixels throughput on Program at 10-bit 4:4:4 @60Hz » (p. 1 et 4)"
+        }
+      ],
+      "noteAux": {
+        "valeur": "Aquilon : une Aux Screen n'a qu'une sortie ; jusqu'à 8 couches de capacité 1, mais au-delà de 2 couches elle prend les sorties suivantes de la carte ; ni transition sans coupure, ni canal alpha, ni bordure, ni Cut & Fill, ni gel de couche ; fond d'une seule couleur ; elle peut afficher le Program d'un écran",
+        "source": "analogway-aquilon-manuel-v6-2",
+        "note": "p. 64 à 66"
+      },
+      "auxHorsBudget": {
+        "valeur": true,
+        "source": "analogway-aquilon-manuel-v6-2",
+        "note": "« Aux Screens do not consume processing resources » (p. 64)"
+      },
+      "latence": "1 image au mieux (« as low as 1 frame »)",
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "analogway-aquilon-c-2026-07-03",
+        "note": "« as low as 1 frame in proper configuration » (p. 5)"
+      },
+      "note": "8 sorties Program et 8 Aux 4K60 (manuel v6.2, p. 33), 2 multiviewers ; 80 MP sur le Program. Cartes de sortie au choix (p. 5). Poids et consommation absents de la fiche."
+    },
+    {
+      "id": "analogway-aquilon-cplus",
+      "marque": "Analog Way",
+      "modele": "Aquilon C+",
+      "gamme": "Aquilon",
+      "role": "Mélangeur et gestion d'écrans",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 12,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "12 sorties Program 4K60 au plus (p. 33)",
+          "sortiesAux": 8
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 20,
+          "role": "program",
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "sortiesAux": 0,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "« Up to 20x Dual/2K60p program outputs » (fiche, p. 8) ; 2560 × 1600 à 60 Hz au plus : capacité 1, « dual-link bandwidth » (manuel v6.2, p. 61) ; 20 connecteurs de sortie (manuel p. 71) : 0 Aux en plus"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 8,
+          "role": "aux",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "8 sorties Aux 4K60 (p. 33) : servent après les Program, avec l'alerte Aux"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 2,
+          "role": "multiviewer",
+          "source": "analogway-aquilon-cplus-2026-07-03",
+          "note": "2 multiviewers 4K"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2",
+          "12g-sdi"
+        ],
+        "source": "analogway-aquilon-cplus-2026-07-03",
+        "note": "cartes de sortie « 4x HDMI 2.0 », « 2/4x DisplayPort 1.2/1.4 » et « 4x 12G-SDI » (p. 7)"
+      },
+      "budgetsMP": [
+        {
+          "mpx": 120000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "libelle": "sur le Program, sans restreindre la prévisualisation ni le multiviewer",
+          "source": "analogway-aquilon-cplus-2026-07-03",
+          "note": "« Up to 120 Megapixels throughput on Program at 10-bit 4:4:4 @60Hz » (p. 1 et 6)"
+        }
+      ],
+      "noteAux": {
+        "valeur": "Aquilon : une Aux Screen n'a qu'une sortie ; jusqu'à 8 couches de capacité 1, mais au-delà de 2 couches elle prend les sorties suivantes de la carte ; ni transition sans coupure, ni canal alpha, ni bordure, ni Cut & Fill, ni gel de couche ; fond d'une seule couleur ; elle peut afficher le Program d'un écran",
+        "source": "analogway-aquilon-manuel-v6-2",
+        "note": "p. 64 à 66"
+      },
+      "auxHorsBudget": {
+        "valeur": true,
+        "source": "analogway-aquilon-manuel-v6-2",
+        "note": "« Aux Screens do not consume processing resources » (p. 64)"
+      },
+      "latence": "1 image au mieux (« as low as 1 frame »)",
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "analogway-aquilon-cplus-2026-07-03",
+        "note": "« as low as 1 frame in proper configuration » (p. 7)"
+      },
+      "note": "12 sorties Program et 8 Aux 4K60 (manuel v6.2, p. 33), 2 multiviewers ; 120 MP sur le Program. Cartes de sortie au choix (p. 7). Poids et consommation absents de la fiche."
+    },
+    {
+      "id": "analogway-aquilon-cmax",
+      "marque": "Analog Way",
+      "modele": "Aquilon Cmax",
+      "gamme": "Aquilon",
+      "role": "Mélangeur et gestion d'écrans",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 16,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "16 sorties Program 4K60 au plus (p. 33)",
+          "sortiesAux": 4
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 24,
+          "role": "program",
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "sortiesAux": 0,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "« Up to 24x Dual/2K60p program outputs » (fiche, p. 6) ; 2560 × 1600 à 60 Hz au plus : capacité 1, « dual-link bandwidth » (manuel v6.2, p. 61) ; 24 connecteurs de sortie (manuel p. 71) : 0 Aux en plus"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 4,
+          "role": "aux",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "analogway-aquilon-manuel-v6-2",
+          "note": "4 Aux retenues, la plus défavorable : « 16 Scr + 4 Aux » (manuel v6.2, p. 71) ; 8 non retenues : « 16 + 8 Aux » (tableau de la p. 33) et 24 connecteurs (p. 71)"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 2,
+          "role": "multiviewer",
+          "source": "analogway-aquilon-cmax-2026-07-03",
+          "note": "2 multiviewers 4K"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "12g-sdi"
+        ],
+        "source": "analogway-aquilon-cmax-2026-07-03",
+        "note": "cartes de sortie « 4x HDMI 2.0 » et « 4x 12G-SDI » (p. 5)"
+      },
+      "budgetsMP": [
+        {
+          "mpx": 160000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "libelle": "sur le Program, sans restreindre la prévisualisation ni le multiviewer",
+          "source": "analogway-aquilon-cmax-2026-07-03",
+          "note": "« Up to 160 Megapixels throughput on Program at 10-bit 4:4:4 @60Hz » (p. 1 et 4)"
+        }
+      ],
+      "noteAux": {
+        "valeur": "Aquilon : une Aux Screen n'a qu'une sortie ; jusqu'à 8 couches de capacité 1, mais au-delà de 2 couches elle prend les sorties suivantes de la carte ; ni transition sans coupure, ni canal alpha, ni bordure, ni Cut & Fill, ni gel de couche ; fond d'une seule couleur ; elle peut afficher le Program d'un écran",
+        "source": "analogway-aquilon-manuel-v6-2",
+        "note": "p. 64 à 66"
+      },
+      "auxHorsBudget": {
+        "valeur": true,
+        "source": "analogway-aquilon-manuel-v6-2",
+        "note": "« Aux Screens do not consume processing resources » (p. 64)"
+      },
+      "latence": "1 image au mieux (« as low as 1 frame »)",
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "analogway-aquilon-cmax-2026-07-03",
+        "note": "« as low as 1 frame in proper configuration » (p. 5)"
+      },
+      "note": "16 sorties Program et 8 Aux 4K60 (manuel v6.2, p. 33), 2 multiviewers ; 160 MP sur le Program. Cartes de sortie au choix (p. 5). Poids et consommation absents de la fiche."
+    },
+    {
+      "id": "analogway-pulse-4k",
+      "marque": "Analog Way",
+      "modele": "Pulse 4K",
+      "gamme": "Midra 4K",
+      "role": "Mélangeur",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 2,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 4096,
+          "frequenceMaxHz": 60,
+          "source": "analogway-pulse-4k-2026-05-21",
+          "note": "2 sorties Program 4K60 en mode Matrix (« Matrix (2 PGM) », p. 1) ; formats personnalisés jusqu'à 4096 px de large ou de haut (p. 6). En mode Switcher, 1 PGM et 1 AUX 1080p60 (p. 5) : aucune Aux en plus des 2 sorties"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "12g-sdi"
+        ],
+        "source": "analogway-pulse-4k-2026-05-21",
+        "note": "« Two 4K60 PGM outputs with mirrored 12G-SDI and HDMI 2.0 » (p. 5)"
+      },
+      "latence": "16 ms à 60 Hz",
+      "latenceMinMs": {
+        "valeur": 16,
+        "source": "analogway-pulse-4k-2026-05-21",
+        "note": "« ultra low latency (16 msec » (p. 5), « 16msec @60Hz » (p. 6)"
+      },
+      "latenceMaxMs": {
+        "valeur": 16,
+        "source": "analogway-pulse-4k-2026-05-21",
+        "note": "« 16msec @60Hz » (p. 6)"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "analogway-pulse-4k-2026-05-21",
+        "note": "p. 1"
+      },
+      "poidsKg": {
+        "valeur": 7.6,
+        "source": "analogway-pulse-4k-2026-05-21",
+        "note": "p. 8"
+      },
+      "puissanceW": {
+        "valeur": 95,
+        "source": "analogway-pulse-4k-2026-05-21",
+        "note": "« Max consumption », p. 8"
+      },
+      "note": "Deux sorties 4K60 (HDMI 2.0 et 12G-SDI en miroir) : 2 Program en mode Matrix, ou 1 Program et 1 Aux 1080p60 en mode Switcher. Pas de budget en mégapixels publié."
+    },
+    {
+      "id": "analogway-zenith-100",
+      "marque": "Analog Way",
+      "modele": "Zenith 100",
+      "gamme": "Alta 4K",
+      "role": "Mélangeur",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 3,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 4096,
+          "frequenceMaxHz": 60,
+          "source": "analogway-zenith-100-2026-05-21",
+          "note": "3 sorties Program au plus (« Up to 3 video outputs », p. 2) ; formats personnalisés jusqu'à 4096 px de large ou de haut (p. 7)"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "role": "aux",
+          "largeurMaxPx": 1920,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "analogway-zenith-100-2026-05-21",
+          "note": "4 sorties en tout (p. 1) : la quatrième en Aux « scaled auxiliary 1080p60 » (p. 2)"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "12g-sdi"
+        ],
+        "source": "analogway-zenith-100-2026-05-21",
+        "note": "« Four 4K60 multiplug outputs (2x HDMI/ SDI/ SFP + 2x HDMI/SDI) » (p. 1)"
+      },
+      "noteAux": {
+        "valeur": "Zenith 100 : Aux « scaled auxiliary 1080p60 outputs to display any input or screen »",
+        "source": "analogway-zenith-100-2026-05-21",
+        "note": "p. 2"
+      },
+      "latence": "16 ms à 60 Hz",
+      "latenceMinMs": {
+        "valeur": 16,
+        "source": "analogway-zenith-100-2026-05-21",
+        "note": "« ultra-low latency processing (16 msec » (p. 6)"
+      },
+      "latenceMaxMs": {
+        "valeur": 16,
+        "source": "analogway-zenith-100-2026-05-21",
+        "note": "« ultra-low latency processing (16 msec » (p. 6)"
+      },
+      "hauteurU": {
+        "valeur": 3,
+        "source": "analogway-zenith-100-2026-05-21",
+        "note": "p. 1"
+      },
+      "poidsKg": {
+        "valeur": 11.7,
+        "source": "analogway-zenith-100-2026-05-21",
+        "note": "p. 9"
+      },
+      "puissanceW": {
+        "valeur": 170,
+        "source": "analogway-zenith-100-2026-05-21",
+        "note": "« Max consumption », p. 9"
+      },
+      "note": "4 sorties 4K60 : 3 Program au plus, la quatrième en Aux 1080p60. Pas de budget en mégapixels publié."
+    },
+    {
       "id": "analogway-midra-4k",
       "marque": "Analog Way",
       "modele": "Midra 4K",
@@ -110,6 +1106,598 @@
       "role": "Scaler",
       "statut": "à compléter",
       "note": "Sorties et résolutions à compléter : aucun contrôle avec ce modèle."
+    },
+    {
+      "id": "christie-spyder-x20",
+      "marque": "Christie",
+      "modele": "Spyder X20",
+      "gamme": "Spyder",
+      "role": "Processeur vidéo multi-écrans",
+      "position": "amont",
+      "modesSortie": [
+        {
+          "nom": "8 × DVI single link",
+          "sorties": 8,
+          "sortiesAvecMultiviewer": null,
+          "largeurMaxPx": 2048,
+          "hauteurMaxPx": 1200,
+          "frequenceHz": 120,
+          "frequencePixelMaxMHz": 165,
+          "source": "christie-spyder-x20-brochure",
+          "note": "« 8 @ (< 2048 x 1200) » (p. 3) ; DVI single link, 165 MHz (norme DVI)"
+        },
+        {
+          "nom": "4 × DVI dual link",
+          "sorties": 4,
+          "sortiesAvecMultiviewer": null,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 2160,
+          "frequenceHz": 120,
+          "frequencePixelMaxMHz": 330,
+          "source": "christie-spyder-x20-brochure",
+          "note": "« 4 @ (2560 x 1600) », « Horizontal resolutions up to 2560 and vertical resolutions up to 2160 within 330 MHz » (p. 3) ; mélange 4 dual link et 4 single link non compté"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "dvi-dual",
+          "3g-sdi"
+        ],
+        "source": "christie-spyder-x20-brochure",
+        "note": "« DVI, single-link and dual-link (4 outputs are dual-link capable) », « SDI, HD-SDI and 3G-SDI » (p. 3)"
+      },
+      "budgetsMP": [
+        {
+          "mpx": 20000000,
+          "programSeul": false,
+          "frequenceMaxHz": 120,
+          "libelle": "bande passante totale",
+          "source": "christie-spyder-x20-brochure",
+          "note": "« 20 megapixel bandwidth » (p. 1 et 2)"
+        }
+      ],
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "christie-fin-support-x20",
+        "note": "fin de production le 02/01/2024, support jusqu'au 02/01/2027"
+      },
+      "hauteurU": {
+        "valeur": 4,
+        "source": "christie-spyder-x20-brochure",
+        "note": "p. 3"
+      },
+      "poidsKg": {
+        "valeur": 27,
+        "source": "christie-spyder-x20-brochure",
+        "note": "p. 3"
+      },
+      "puissanceW": {
+        "valeur": 900,
+        "source": "christie-spyder-x20-brochure",
+        "note": "p. 3"
+      },
+      "note": "8 sorties en single link ou 4 en dual link ; 20 MP."
+    },
+    {
+      "id": "christie-spyder-x80",
+      "marque": "Christie",
+      "modele": "Spyder X80",
+      "gamme": "Spyder",
+      "role": "Processeur vidéo multi-écrans",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 16,
+          "role": "program",
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2400,
+          "frequenceMaxHz": 60,
+          "source": "christie-spyder-x80-brochure",
+          "note": "« For up to 16 outputs », « Horizontal up to 4096 and vertical up to 2400 within pixel clock » (p. 5) ; jusqu'à 120 Hz selon la fréquence pixel"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2",
+          "12g-sdi"
+        ],
+        "source": "christie-spyder-x80-brochure",
+        "note": "« DisplayPort 1.2 • HDMI 2.0 • 12G-SDI » (p. 5)"
+      },
+      "budgetsMP": [
+        {
+          "mpx": 80000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "bitsMax": 8,
+          "libelle": "en 8 bits",
+          "source": "christie-spyder-x80-brochure",
+          "note": "« 80 megapixel bandwidth at 8-bit » (p. 2)"
+        },
+        {
+          "mpx": 53000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "bitsMax": 12,
+          "libelle": "en 10 ou 12 bits (valeur 12 bits)",
+          "source": "christie-spyder-x80-brochure",
+          "note": "« 53 megapixel at 12-bit » (p. 2) ; retenu aussi en 10 bits, aucune valeur publiée"
+        }
+      ],
+      "hauteurU": {
+        "valeur": 6,
+        "source": "christie-spyder-x80-brochure",
+        "note": "p. 5"
+      },
+      "poidsKg": {
+        "valeur": 36.17,
+        "source": "christie-spyder-x80-brochure",
+        "note": "plein, p. 5"
+      },
+      "puissanceW": {
+        "valeur": 1680,
+        "source": "christie-spyder-x80-brochure",
+        "note": "p. 5"
+      },
+      "note": "16 sorties 4K ; 80 MP en 8 bits, 53 MP en 12 bits. Latence non chiffrée (« Extremely low latency », p. 2)."
+    },
+    {
+      "id": "datapath-fx4",
+      "marque": "Datapath",
+      "modele": "Fx4",
+      "role": "Contrôleur de mur (scaler)",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-1.3",
+          "nombre": 4,
+          "role": "program",
+          "largeurMaxPx": 8192,
+          "hauteurMaxPx": 8192,
+          "frequenceMaxHz": 60,
+          "frequencePixelMaxMHz": 165,
+          "dimensionTesteePx": 2048,
+          "noteTest": "« Outputs within 165MP/s but taller/wider than 2048 require testing », fiche Datapath Fx4 v1.15, p. 2",
+          "source": "datapath-fx4-v1-15",
+          "note": "4 × HDMI 1.3 « up to 165MP/s » (p. 2) : une entrée 4K se découpe en quatre sorties ; taille limitée par la fréquence pixel (surface d'entrée 8K × 8K), à tester au-delà de 2048 px"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-1.3"
+        ],
+        "source": "datapath-fx4-v1-15",
+        "note": "version HDMI (Fx4/H) ; version DisplayPort (Fx4/D) : 4 × DP 1.1, mêmes 165 MP/s (p. 2)"
+      },
+      "poidsKg": {
+        "valeur": 1.86,
+        "source": "datapath-fx4-v1-15",
+        "note": "p. 2"
+      },
+      "puissanceW": {
+        "valeur": 35,
+        "source": "datapath-fx4-v1-15",
+        "note": "p. 2"
+      },
+      "note": "4 sorties à 165 MP/s ; tailles au-delà de 2048 px à tester."
+    },
+    {
+      "id": "pixelhue-p10",
+      "marque": "PixelHue",
+      "modele": "P10",
+      "gamme": "Série P",
+      "role": "Mélangeur de présentation",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 2,
+          "role": "program",
+          "largeurMaxPx": 8192,
+          "hauteurMaxPx": 8186,
+          "frequenceMaxHz": 60,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "« 2x HDMI 2.0 (Primary Output) » (p. 1) ; 8192 px de large, 8186 de haut au plus (p. 2)"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 2,
+          "role": "program",
+          "copie": true,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "sorties HDMI 2.0 en copie (« Copying Output », p. 1), jamais comptées"
+        },
+        {
+          "type": "opt-10g",
+          "nombre": 4,
+          "role": "program",
+          "copie": true,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "sorties OPT 10G en copie (« OPT (Copying Output) », p. 1), jamais comptées"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 2,
+          "role": "aux",
+          "largeurMaxPx": 2048,
+          "hauteurMaxPx": 1152,
+          "frequenceMaxHz": 60,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "« 2x HDMI 1.3 » AUX, « Maximum output resolution: 2048×1152@60Hz » (p. 2)"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "role": "multiviewer",
+          "source": "pixelhue-p-v1-6-0",
+          "note": "« 1x HDMI 1.3 » multiviewer (p. 2)"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "opt-10g"
+        ],
+        "source": "pixelhue-p-v1-6-0",
+        "note": "HDMI 2.0 (p. 2) ; OPT 10G en copie des sorties HDMI (« OPT Ports 8 » sur P20 et P20-DS, « 4 » sur P10, p. 2)"
+      },
+      "couchesParCarteSL": {
+        "valeur": 12,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "« 6 DL layers » (p. 2), soit 12 SL (1 DL = 2 SL)"
+      },
+      "sortiesParCarte": 2,
+      "noteAux": {
+        "valeur": "PixelHue : sorties AUX HDMI 1.3 pour des appareils auxiliaires (« such as teleprompters »), 2048 × 1152 à 60 Hz au plus",
+        "source": "pixelhue-p-v1-6-0",
+        "note": "p. 2"
+      },
+      "optNovastarSeulement": {
+        "valeur": true,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "p. 1"
+      },
+      "latence": "1 image au mieux (« as low as 1 frame »)",
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "« as low as 1 frame in proper configuration » (p. 2)"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "p. 2"
+      },
+      "poidsKg": {
+        "valeur": 7.9,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "net, p. 2"
+      },
+      "puissanceW": {
+        "valeur": 82,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "« Max Power Consumption », p. 2"
+      },
+      "note": "2 sorties HDMI 2.0 utiles (primary) ; en mode switcher 1 sortie 4K × 2K à 60 Hz, en PGM only 8K × 2K à 60 Hz (p. 1), non comptés en budget."
+    },
+    {
+      "id": "pixelhue-p20",
+      "marque": "PixelHue",
+      "modele": "P20",
+      "gamme": "Série P",
+      "role": "Mélangeur de présentation",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 4,
+          "role": "program",
+          "largeurMaxPx": 8192,
+          "hauteurMaxPx": 8186,
+          "frequenceMaxHz": 60,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "« 4x HDMI 2.0 (Primary Output) » (p. 1) ; 8192 px de large, 8186 de haut au plus (p. 2)"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 4,
+          "role": "program",
+          "copie": true,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "sorties HDMI 2.0 en copie (« Copying Output », p. 1), jamais comptées"
+        },
+        {
+          "type": "opt-10g",
+          "nombre": 8,
+          "role": "program",
+          "copie": true,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "sorties OPT 10G en copie (« OPT (Copying Output) », p. 1), jamais comptées"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 4,
+          "role": "aux",
+          "largeurMaxPx": 2048,
+          "hauteurMaxPx": 1152,
+          "frequenceMaxHz": 60,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "« 4x HDMI 1.3 » AUX, « Maximum output resolution: 2048×1152@60Hz » (p. 2)"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "role": "multiviewer",
+          "source": "pixelhue-p-v1-6-0",
+          "note": "« 1x HDMI 1.3 » multiviewer (p. 2)"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "opt-10g"
+        ],
+        "source": "pixelhue-p-v1-6-0",
+        "note": "HDMI 2.0 (p. 2) ; OPT 10G en copie des sorties HDMI (« OPT Ports 8 » sur P20 et P20-DS, « 4 » sur P10, p. 2)"
+      },
+      "couchesParCarteSL": {
+        "valeur": 24,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "« 12 DL layers » (p. 2), soit 24 SL (1 DL = 2 SL)"
+      },
+      "sortiesParCarte": 4,
+      "noteAux": {
+        "valeur": "PixelHue : sorties AUX HDMI 1.3 pour des appareils auxiliaires (« such as teleprompters »), 2048 × 1152 à 60 Hz au plus",
+        "source": "pixelhue-p-v1-6-0",
+        "note": "p. 2"
+      },
+      "optNovastarSeulement": {
+        "valeur": true,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "p. 1"
+      },
+      "latence": "1 image au mieux (« as low as 1 frame »)",
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "« as low as 1 frame in proper configuration » (p. 2)"
+      },
+      "hauteurU": {
+        "valeur": 3,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "p. 2"
+      },
+      "poidsKg": {
+        "valeur": 10.2,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "net, p. 2"
+      },
+      "puissanceW": {
+        "valeur": 140,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "« Max Power Consumption », p. 2"
+      },
+      "note": "4 sorties HDMI 2.0 utiles (primary) ; en mode switcher 2 sorties 4K × 2K à 60 Hz, en PGM only 8K × 4K à 60 Hz (p. 1), non comptés en budget. Sorties OPT réservées aux contrôleurs Novastar (p. 1)."
+    },
+    {
+      "id": "pixelhue-p20-ds",
+      "marque": "PixelHue",
+      "modele": "P20-DS",
+      "gamme": "Série P",
+      "role": "Mélangeur de présentation",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 4,
+          "role": "program",
+          "largeurMaxPx": 8192,
+          "hauteurMaxPx": 8186,
+          "frequenceMaxHz": 60,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "« 4x HDMI 2.0 (Primary Output) » (p. 1) ; 8192 px de large, 8186 de haut au plus (p. 2)"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 4,
+          "role": "program",
+          "copie": true,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "sorties HDMI 2.0 en copie (« Copying Output », p. 1), jamais comptées"
+        },
+        {
+          "type": "opt-10g",
+          "nombre": 8,
+          "role": "program",
+          "copie": true,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "sorties OPT 10G en copie (« OPT (Copying Output) », p. 1), jamais comptées"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 4,
+          "role": "aux",
+          "largeurMaxPx": 2048,
+          "hauteurMaxPx": 1152,
+          "frequenceMaxHz": 60,
+          "source": "pixelhue-p-v1-6-0",
+          "note": "« 4x HDMI 1.3 » AUX, « Maximum output resolution: 2048×1152@60Hz » (p. 2)"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 1,
+          "role": "multiviewer",
+          "source": "pixelhue-p-v1-6-0",
+          "note": "« 1x HDMI 1.3 » multiviewer (p. 2)"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "12g-sdi",
+          "opt-10g"
+        ],
+        "source": "pixelhue-p-v1-6-0",
+        "note": "HDMI 2.0 (p. 2) ; 12G-SDI en copie des sorties HDMI (p. 2) ; OPT 10G en copie des sorties HDMI (« OPT Ports 8 » sur P20 et P20-DS, « 4 » sur P10, p. 2)"
+      },
+      "couchesParCarteSL": {
+        "valeur": 24,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "« 12 DL layers » (p. 2), soit 24 SL (1 DL = 2 SL)"
+      },
+      "sortiesParCarte": 4,
+      "noteAux": {
+        "valeur": "PixelHue : sorties AUX HDMI 1.3 pour des appareils auxiliaires (« such as teleprompters »), 2048 × 1152 à 60 Hz au plus",
+        "source": "pixelhue-p-v1-6-0",
+        "note": "p. 2"
+      },
+      "optNovastarSeulement": {
+        "valeur": true,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "p. 1"
+      },
+      "latence": "1 image au mieux (« as low as 1 frame »)",
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "« as low as 1 frame in proper configuration » (p. 2)"
+      },
+      "hauteurU": {
+        "valeur": 3,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "p. 2"
+      },
+      "poidsKg": {
+        "valeur": 10.7,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "net, p. 2"
+      },
+      "puissanceW": {
+        "valeur": 160,
+        "source": "pixelhue-p-v1-6-0",
+        "note": "« Max Power Consumption », p. 2"
+      },
+      "note": "Comme le P20, avec Dante et 4 sorties 12G-SDI en copie (p. 2)."
+    },
+    {
+      "id": "pixelhue-f8",
+      "marque": "PixelHue",
+      "modele": "F8",
+      "gamme": "Flex View",
+      "role": "Mélangeur de présentation",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 6,
+          "role": "program",
+          "largeurMaxPx": 8192,
+          "hauteurMaxPx": 7680,
+          "frequenceMaxHz": 60,
+          "source": "pixelhue-f8-fiche",
+          "note": "6 emplacements de cartes de sortie retenus (« 6×slots for output cards », p. 2 ; « 8 output slots » visibles, non retenus), une sortie 4K par carte « 4K HDMI2.0/OPT » : 8192 × 7680 px en mode 4K (p. 2)"
+        },
+        {
+          "type": "hdmi-2.0",
+          "nombre": 6,
+          "role": "program",
+          "copie": true,
+          "source": "pixelhue-f8-fiche",
+          "note": "HDMI 2 de chaque carte en copie (« HDMI2: copy », p. 2), jamais comptée"
+        },
+        {
+          "type": "opt-10g",
+          "nombre": 24,
+          "role": "program",
+          "copie": true,
+          "source": "pixelhue-f8-fiche",
+          "note": "4 sorties OPT 10G par carte, en copie (p. 2), jamais comptées"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 4,
+          "role": "aux",
+          "largeurMaxPx": 2048,
+          "hauteurMaxPx": 1080,
+          "frequenceMaxHz": 60,
+          "source": "pixelhue-f8-fiche",
+          "note": "carte AUX « HDMI1.3×4 », « Up to 2048×1080@60Hz » (p. 2) ; AUX1 à AUX4 sur le schéma (p. 1)"
+        },
+        {
+          "type": "hdmi-1.3",
+          "nombre": 2,
+          "role": "multiviewer",
+          "source": "pixelhue-f8-fiche",
+          "note": "« 2 dedicated single-link DVI or HDMI 1.3 outputs configurable as MVR » (p. 2)"
+        }
+      ],
+      "sortiesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "opt-10g"
+        ],
+        "source": "pixelhue-f8-fiche",
+        "note": "carte « 4K HDMI2.0/OPT Output Card » (p. 2) ; « 10G OPT copy output » (p. 2)"
+      },
+      "budgetsMP": [
+        {
+          "mpx": 64000000,
+          "programSeul": false,
+          "frequenceMaxHz": 60,
+          "libelle": "total",
+          "source": "pixelhue-f8-fiche",
+          "note": "« 64 megapixel, true 4K@60Hz » (p. 1)"
+        }
+      ],
+      "couchesParCarteSL": {
+        "valeur": 8,
+        "source": "pixelhue-f8-fiche",
+        "note": "« Each output card supports up to 8× SL mixing layers, 4× DL mixing layers or 2× 4K mixing layers » (p. 2)"
+      },
+      "sortiesParCarte": 1,
+      "noteAux": {
+        "valeur": "PixelHue F8 : écran AUX pour la vue libre des entrées et des écrans (« Free view of inputs and screens (PGM) »), 2048 × 1080 à 60 Hz",
+        "source": "pixelhue-f8-fiche",
+        "note": "p. 2"
+      },
+      "poidsKg": {
+        "valeur": 39.1,
+        "source": "pixelhue-f8-fiche",
+        "note": "plein, sans accessoires, p. 1"
+      },
+      "puissanceW": {
+        "valeur": 700,
+        "source": "pixelhue-f8-fiche",
+        "note": "p. 1"
+      },
+      "note": "6 cartes de sortie 4K HDMI 2.0 (8 emplacements annoncés) ; 64 MP. Latence non chiffrée (« Low latency processing », p. 2)."
+    },
+    {
+      "id": "pixelhue-q8",
+      "marque": "PixelHue",
+      "modele": "Q8",
+      "gamme": "Flex View",
+      "role": "Mélangeur de présentation",
+      "position": "amont",
+      "statut": "à compléter",
+      "couchesParCarteSL": {
+        "valeur": 32,
+        "source": "pixelhue-q8-v2-0-0",
+        "note": "« A single output card supports up to 8x 4K layers » (p. 4), soit 32 SL"
+      },
+      "poidsKg": {
+        "valeur": 42.6,
+        "source": "pixelhue-q8-v2-0-0",
+        "note": "net, p. 20"
+      },
+      "puissanceW": {
+        "valeur": 1400,
+        "source": "pixelhue-q8-v2-0-0",
+        "note": "p. 20"
+      },
+      "note": "À compléter : nombre de cartes de sortie et de sorties par carte non relevé ; sorties jusqu'à 8192 × 7680 px (p. 10 à 13). Aucun contrôle avec ce modèle."
     },
     {
       "id": "rgblink",

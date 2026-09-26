@@ -109,6 +109,18 @@ try {
   erreurRegies = erreur.message;
 }
 
+// Appareils en amont et en aval (étape Pf3) : un fichier par famille, facultatifs.
+depart.appareils = {};
+for (const famille of ['melangeurs', 'convertisseurs', 'serveurs', 'switches']) {
+  try {
+    depart.appareils[famille] = await lireJson(`data/${famille}.json`);
+  } catch (erreur) {
+    depart.appareils[famille] = null;
+  }
+}
+const appareils = Object.fromEntries(Object.entries(depart.appareils)
+  .map(([famille, b]) => [famille, (b?.appareils ?? []).map((x) => resoudreFiche(x, b.sources))]));
+
 // Ma base (fiches ajoutées, versions modifiées, parcs, sources) et le parc actif, gardés dans IndexedDB.
 let base = (await lire('base-utilisateur')) ?? baseVide();
 // Ancien champ « fichier de config » d'un parc : repris une fois en premier lot « sans identifiant ».
@@ -220,7 +232,7 @@ initialiserSchema({
   },
 });
 if (connectique) {
-  initialiserCanvas({ ...connectique, regies: courant.regies, sourcesRegies: courant.sourcesRegies, erreurRegies });
+  initialiserCanvas({ ...connectique, regies: courant.regies, sourcesRegies: courant.sourcesRegies, erreurRegies, appareils });
 }
 if (depart.processeurs) {
   initialiserData(pourData(), (etat) => {

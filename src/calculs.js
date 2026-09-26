@@ -86,6 +86,7 @@ export const PLUS_DEFAVORABLE = {
   formatMaxFrequenceHz: 'min',
   debitGbps: 'min',
   horlogeMHz: 'min',
+  frequencePixelMaxMHz: 'min',
 };
 
 function decrireSource(id, sources) {
@@ -695,6 +696,20 @@ function processeurAvecCartes(proc, dalle, choix = 'auto') {
     distributeurObligatoire: true,
     carteSortie: carte,
   };
+  // MX6000 Pro : zone de 16 384 px par carte de sortie ; l'appareil, ses cartes côte à côte (déduit).
+  const zone = proc.zoneCarteSortiePx;
+  if (zone) {
+    const source = proc.sources?.zoneCarteSortiePx;
+    const coteACote = (note) => ({
+      ...source, source: { ...source?.source, court: `${source?.source.court ?? 'fiche'}, déduit : cartes côte à côte`, confiance: 'déduit' }, note,
+    });
+    effectif.carteSortie = { ...carte, portsParCarte: carte.convertisseursParCarte * carte.portsParConvertisseur, largeurMaxPx: zone, hauteurMaxPx: zone };
+    effectif.largeurMaxPx = proc.emplacementsSortie * zone;
+    effectif.hauteurMaxPx = proc.emplacementsSortie * zone;
+    effectif.sources.largeurMaxPx = coteACote(`${proc.emplacementsSortie} cartes de ${zone} px de large`);
+    effectif.sources.hauteurMaxPx = coteACote(`${proc.emplacementsSortie} cartes de ${zone} px de haut`);
+    if (!(proc.dimensionMaxPortPx <= zone)) effectif.dimensionMaxPortPx = zone;
+  }
   if (carte.typePorts === '5G') {
     // Ports 5G : capacité de la fiche selon la carte de réception, comme le CX40 Pro ; pas de règle des 128 px (1G).
     for (const b of [8, 10, 12]) {
@@ -1089,7 +1104,7 @@ function cartesParZones(proc, sous, c, dalle, { redondance = false } = {}) {
     }
   }
   const parCarte = redondance && !proc.portsRedondance ? Math.floor(carte.portsParCarte / 2) : carte.portsParCarte;
-  const tient = (z) => z.n <= parCarte && z.px <= carte.pixelsMax
+  const tient = (z) => z.n <= parCarte && z.px <= (carte.pixelsMax ?? Infinity)
     && (z.c1 - z.c0 + 1) * dalle.pxH <= carte.largeurMaxPx && somme(hauteurs, z.r0, z.r1) <= carte.hauteurMaxPx;
   const cartes = [];
   let zone = null;
@@ -1605,27 +1620,114 @@ export function gainDixBits(m, dalle, evaluation) {
 
 // Formats de source standard, du plus petit au plus grand : conseil par défaut et contrôle EDID.
 export const RESOLUTIONS_STANDARD = [[1920, 1080], [3840, 2160], [4096, 2160]];
-const NOMS_FAMILLE_LIAISON = { hdmi: 'HDMI', sdi: 'SDI', dvi: 'DVI', dp: 'DisplayPort', st2110: 'ST 2110' };
+const NOMS_FAMILLE_LIAISON = { hdmi: 'HDMI', sdi: 'SDI', dvi: 'DVI', dp: 'DisplayPort', st2110: 'ST 2110', opt: 'OPT (fibre)', hdbaset: 'HDBaseT', dtp2: 'DTP2 (Extron)' };
 
 function confianceDe(fiche, champs) {
   return champs.map((c) => fiche.sources?.[c]?.source.confiance ?? '');
 }
 
-// Liaison vidéo : débit de pixels actifs (largeur × hauteur × fréquence) comparé à celui de son format maxi.
-// Approximation : les formats forcés de même débit passent (8192 × 1080 à 60 Hz en HDMI 2.0).
-export function controleLiaison(liaison, { largeurPx, hauteurPx, frequenceHz }) {
+// Fréquence pixel d'un format (total horizontal × total vertical × fréquence) : timings CTA-861 des formats
+// standard ; sinon CVT à blanking réduit (CVT-RB), en approximation (choix de conception du projet).
+const TIMINGS_CTA861 = [
+  { l: 1280, h: 720, t: { 50: [1980, 750], 60: [1650, 750] } },
+  { l: 1920, h: 1080, t: { 24: [2750, 1125], 25: [2640, 1125], 30: [2200, 1125], 50: [2640, 1125], 60: [2200, 1125], 100: [2640, 1125], 120: [2200, 1125] } },
+  { l: 3840, h: 2160, t: { 24: [5500, 2250], 25: [5280, 2250], 30: [4400, 2250], 50: [5280, 2250], 60: [4400, 2250] } },
+  { l: 4096, h: 2160, t: { 24: [5500, 2250], 25: [5280, 2250], 30: [4400, 2250], 50: [5280, 2250], 60: [4400, 2250] } },
+];
+// Cadence nominale d'une fréquence : 59,94 Hz a les timings du 60 Hz.
+const cadenceNominale = (f, cadences) => cadences.find((c) => Math.abs(f - c) < 0.01 || Math.abs(f * 1.001 - c) < 0.01);
+export function frequencePixel({ largeurPx, hauteurPx, frequenceHz }) {
+  const format = TIMINGS_CTA861.find((x) => x.l === largeurPx && x.h === hauteurPx);
+  const cadence = format && cadenceNominale(frequenceHz, Object.keys(format.t).map(Number));
+  if (cadence) {
+    const [totalH, totalV] = format.t[cadence];
+    return { mhz: (totalH * totalV * frequenceHz) / 1e6, totalH, totalV, methode: 'CTA-861' };
+  }
+  // CVT à blanking réduit (version 1) : 160 px de blanking horizontal, 460 µs de blanking vertical au moins.
+  const ratio = largeurPx / hauteurPx;
+  const vSync = [[4 / 3, 4], [16 / 9, 5], [16 / 10, 6], [5 / 4, 7], [15 / 9, 7]].find(([r]) => Math.abs(ratio - r) < 0.01)?.[1] ?? 10;
+  const periodeLigneUs = (1e6 / frequenceHz - 460) / hauteurPx;
+  const lignesBlanking = Math.max(Math.floor(460 / periodeLigneUs) + 1, 3 + vSync + 6);
+  const totalH = largeurPx + 160;
+  const totalV = hauteurPx + lignesBlanking;
+  return { mhz: Math.floor((frequenceHz * totalV * totalH) / 1e6 / 0.25 + EPS) * 0.25, totalH, totalV, methode: 'CVT-RB' };
+}
+
+// SDI : formats broadcast seulement, aux cadences normalisées.
+const FORMATS_SDI = [[1920, 1080], [2048, 1080], [3840, 2160], [4096, 2160]];
+const CADENCES_SDI = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60];
+
+// Contrôle d'un format sur la norme de la liaison : fréquence pixel quand la liaison a une limite en MHz
+// (HDMI 1.4, HDMI 2.0, DP 1.2) ; sinon débit de pixels actifs comparé à celui de son format maxi, en approximation
+// (les formats forcés de même débit passent : 8192 × 1080 à 60 Hz).
+function controleNorme(liaison, { largeurPx, hauteurPx, frequenceHz }) {
   const debitDemande = largeurPx * hauteurPx * frequenceHz;
   const debitMax = liaison.formatMaxLargeurPx * liaison.formatMaxHauteurPx * liaison.formatMaxFrequenceHz;
   const confiances = confianceDe(liaison, ['formatMaxLargeurPx', 'formatMaxHauteurPx', 'formatMaxFrequenceHz']);
-  return {
-    liaison,
-    debitDemande,
-    debitMax,
-    taux: debitDemande / debitMax,
-    ok: debitDemande <= debitMax + EPS,
-    approximation: true,
+  const base = {
+    liaison, debitDemande, debitMax, alertes: [], raison: null,
     deduit: confiances.some((c) => /déduit/.test(c)),
     aConfirmer: confiances.some((c) => /à confirmer/.test(c)),
+  };
+  // Débit plein en 4:4:4 plus bas que le format maxi (HDBaseT 2.0 : « 4K@30 4:4:4/4K@60 4:2:0 ») : au-delà, 4:2:0 seulement.
+  const f444 = liaison.format444;
+  if (f444 && debitDemande > f444.largeurPx * f444.hauteurPx * f444.frequenceHz + EPS) {
+    base.alertes.push(`${liaison.nom} : au-delà de ${f444.largeurPx} × ${f444.hauteurPx} à ${nombreCourt(f444.frequenceHz)} Hz, 4:2:0 seulement`
+      + `${liaison.sources?.format444?.note ? ` (${liaison.sources.format444.note})` : ''}.`);
+  }
+  // Format sûr plus petit que le format maxi (HDBaseT 3.0 : « 4K » sans préciser 3840 ou 4096) : au-delà, alerte.
+  const certain = liaison.formatCertain;
+  if (certain && (largeurPx > certain.largeurPx || hauteurPx > certain.hauteurPx)) {
+    base.alertes.push(`${liaison.nom} : ${liaison.sources?.formatCertain?.note ?? `au-delà de ${certain.largeurPx} × ${certain.hauteurPx}, vérifie la fiche de l'extender`}.`);
+  }
+  const max = liaison.frequencePixelMaxMHz;
+  if (max) {
+    const fp = frequencePixel({ largeurPx, hauteurPx, frequenceHz });
+    const ok = fp.mhz <= max + EPS;
+    return {
+      ...base, frequencePixelMHz: fp.mhz, frequencePixelMaxMHz: max, methode: fp.methode, taux: fp.mhz / max, ok,
+      approximation: fp.methode === 'CVT-RB',
+      raison: ok ? null : `${nombreCourt(fp.mhz)} MHz demandés pour ${nombreCourt(max)} MHz au plus (${fp.methode === 'CTA-861' ? 'timings CTA-861'
+        : 'CVT à blanking réduit, approximation'})`,
+    };
+  }
+  const ok = debitDemande <= debitMax + EPS;
+  return {
+    ...base, taux: debitDemande / debitMax, ok, approximation: true,
+    raison: ok ? null : `${mpx(debitDemande)} Mpx/s demandés pour ${mpx(debitMax)} au plus (${liaison.formatMaxLargeurPx} × ${liaison.formatMaxHauteurPx} `
+      + `à ${liaison.formatMaxFrequenceHz} Hz), en approximation`,
+  };
+}
+
+// Liaison vidéo : norme de la liaison (fréquence pixel ou débit). SDI : formats broadcast seulement ; un canvas
+// personnalisé part dans le plus petit format broadcast qui le contient (zone utile en haut à gauche, noir autour),
+// refusé si aucun ne le contient ou si la cadence n'est pas normalisée.
+export function controleLiaison(liaison, format) {
+  const { largeurPx, hauteurPx, frequenceHz } = format;
+  if (liaison.famille !== 'sdi') return controleNorme(liaison, format);
+  if (!cadenceNominale(frequenceHz, CADENCES_SDI)) {
+    return {
+      ...controleNorme(liaison, format), ok: false,
+      raison: `cadence de ${nombreCourt(frequenceHz)} Hz non normalisée en SDI (23,98, 24, 25, 29,97, 30, 50, 59,94 ou 60 Hz)`,
+    };
+  }
+  if (FORMATS_SDI.some(([l, h]) => l === largeurPx && h === hauteurPx)) return controleNorme(liaison, format);
+  const conteneurs = FORMATS_SDI.filter(([l, h]) => l >= largeurPx && h >= hauteurPx)
+    .map(([l, h]) => ({ l, h, c: controleNorme(liaison, { largeurPx: l, hauteurPx: h, frequenceHz }) }))
+    .filter((x) => x.c.ok);
+  if (conteneurs.length === 0) {
+    return {
+      ...controleNorme(liaison, format), ok: false,
+      raison: `formats broadcast seulement en SDI, et aucun format broadcast que le ${liaison.nom} porte à ${nombreCourt(frequenceHz)} Hz `
+        + `ne contient ${largeurPx} × ${hauteurPx} px`,
+    };
+  }
+  const { l, h, c } = conteneurs[0];
+  return {
+    ...c,
+    conteneur: { largeurPx: l, hauteurPx: h },
+    alertes: [`${liaison.nom} : formats broadcast seulement. Envoie ton canvas de ${largeurPx} × ${hauteurPx} px dans un ${l} × ${h} à `
+      + `${nombreCourt(frequenceHz)} Hz : zone utile en haut à gauche, noir autour.`],
   };
 }
 
@@ -1702,6 +1804,7 @@ export function controleEntree(proc, source, liaisons) {
   const retenu = essais.find((x) => x.c.ok) ?? essais[essais.length - 1] ?? null;
   const format = retenu?.f ?? null;
   const controle = retenu ? retenu.c : controleLiaison(liaison, source);
+  alertes.push(...(controle.alertes ?? []));
   if (format) {
     alertes.push(`Entrée ${format.nom} du ${proc.nom} : contrôle sur le format de sa fiche, ${format.largeurPx} × ${format.hauteurPx} `
       + `à ${format.frequenceHz} Hz${dimensionsMaxi(format) ? `, ${dimensionsMaxi(format)} au plus` : ''}${format.condition ? `, ${format.condition}` : ''}.`);
@@ -1719,8 +1822,7 @@ export function controleEntree(proc, source, liaisons) {
     refus = `Sa fiche limite l'entrée du ${proc.nom} à ${proc.entreeMaxLargeurPx} × ${proc.entreeMaxHauteurPx} px ; `
       + `la source fait ${source.largeurPx} × ${source.hauteurPx} px.`;
   } else if (!controle.ok) {
-    refus = `Entrée ${liaison.nom} du ${proc.nom} : ${mpx(controle.debitDemande)} Mpx/s demandés pour ${mpx(controle.debitMax)} au plus `
-      + `(${liaison.formatMaxLargeurPx} × ${liaison.formatMaxHauteurPx} à ${liaison.formatMaxFrequenceHz} Hz), en approximation.`;
+    refus = `Entrée ${liaison.nom} du ${proc.nom} : ${controle.raison}.`;
   }
   return { ok: refus === null, liaison, controle, alertes, refus };
 }
@@ -1839,9 +1941,11 @@ export function sourceConseillee(evaluation, liaisons, frequenceHz) {
 // Modèle générique (régies, switchers, scalers) : `entrees` et `sorties` par type de liaison et nombre, avec format
 // maxi et source ; `couches`, `latence`, `bitsParCouleur`, `emplacements`, `hauteurU`, `poidsKg`, `puissanceW`,
 // `statutCommercial`. Les anciens `modesSortie` et `sortiesTypes` (E2 Gen 2) restent prioritaires.
-// Sorties qui alimentent des processeurs : ni multiviewer, ni copie d'une autre sortie.
+// Sorties Program : ni multiviewer, ni Aux (Aquilon : 4 Program + 4 Aux), ni copie d'une autre sortie.
 const sortiesUtiles = (regie) => (Array.isArray(regie.sorties) ? regie.sorties : [])
-  .filter((s) => s.role !== 'multiviewer' && !s.copie);
+  .filter((s) => s.role !== 'multiviewer' && s.role !== 'aux' && !s.copie);
+// Sorties Aux : elles servent après les Program, avec l'alerte « fonctions réduites ».
+const sortiesAux = (regie) => (Array.isArray(regie.sorties) ? regie.sorties : []).filter((s) => s.role === 'aux' && !s.copie);
 
 // Modes de sortie d'une régie : ceux de sa fiche, sinon un mode par type de sortie du modèle générique
 // (« 8 × DVI single link »), au format maxi de la sortie, ou de la liaison quand la fiche ne le donne pas.
@@ -1857,10 +1961,42 @@ export function modesSortieRegie(regie, liaisons = []) {
       largeurMaxPx: s.largeurMaxPx ?? liaison?.formatMaxLargeurPx,
       hauteurMaxPx: s.hauteurMaxPx ?? liaison?.formatMaxHauteurPx,
       frequenceHz: s.frequenceMaxHz ?? liaison?.formatMaxFrequenceHz,
+      frequencePixelMaxMHz: s.frequencePixelMaxMHz ?? null,
+      dimensionTesteePx: s.dimensionTesteePx ?? null,
+      noteTest: s.noteTest ?? null,
+      sortiesAux: s.sortiesAux ?? null,
+      noteSortie: s.note ?? null,
       source: s.source,
       type: s.type,
     };
   });
+}
+
+// Budget en mégapixels d'une régie (Aquilon RS1 : 40 MP sur le Program ; E2 Gen 2 : 20 MP avec prévisualisation,
+// 40 MP en Program seul, 80 MP à 30 Hz en Program seul ; Spyder X80 : 80 MP en 8 bits, 53 MP en 12 bits, retenus
+// aussi en 10 bits) : le plus petit qui suffit parmi ceux permis par la fréquence, la profondeur de la source
+// (8 bits si elle n'est pas précisée) et le réglage « Program seul ». Sans budget sur sa fiche : pas de contrôle.
+export function budgetRegie(regie, pixels, { programSeul = false, frequenceHz = 60, bits = 8 } = {}) {
+  const parBits = (regie.budgetsMP ?? []).filter((b) => frequenceHz <= (b.frequenceMaxHz ?? Infinity) + EPS && bits <= (b.bitsMax ?? Infinity));
+  // Budget propre à une profondeur : celui de la plus petite profondeur qui contient la source (X80 en 8 bits : 80 MP).
+  const bitsProche = Math.min(...parBits.map((b) => b.bitsMax ?? Infinity));
+  const budgets = parBits.filter((b) => b.bitsMax === undefined || b.bitsMax === bitsProche);
+  if (!regie.budgetsMP?.length) return { ok: true, budget: null, pixels, programSeulSuffit: false };
+  const plusGrand = (liste) => (liste.length ? liste.reduce((a, b) => (b.mpx > a.mpx ? b : a)) : null);
+  // Le plus petit budget permis qui suffit (la prévisualisation quand elle suffit), sinon le plus grand permis.
+  const permis = budgets.filter((b) => programSeul || !b.programSeul).sort((a, b) => a.mpx - b.mpx);
+  const budget = permis.find((b) => pixels <= b.mpx + EPS) ?? plusGrand(permis);
+  const ok = Boolean(budget) && pixels <= budget.mpx + EPS;
+  const seul = plusGrand(budgets.filter((b) => b.programSeul));
+  return { ok, budget, pixels, programSeulSuffit: !ok && !programSeul && Boolean(seul) && pixels <= seul.mpx + EPS, budgetProgramSeul: seul };
+}
+
+// Unité de couche d'une sortie (PixelHue) : 1 × 4K = 2 DL = 4 SL ; SL jusqu'à 2048 × 1200 px, DL jusqu'à 4096 × 1200.
+export function uniteCouche({ largeurPx, hauteurPx }) {
+  const px = largeurPx * hauteurPx;
+  if (px <= 2048 * 1200) return { unites: 1, nom: 'SL' };
+  if (px <= 4096 * 1200) return { unites: 2, nom: 'DL' };
+  return { unites: 4, nom: '4K' };
 }
 
 // Types de liaison des sorties : ceux de la fiche, sinon ceux des sorties du modèle générique.
@@ -1880,41 +2016,429 @@ export function champsManquantsRegie(regie) {
 // Une sortie de régie par entrée de processeur ; la sortie doit monter au format de la source et avoir la
 // connectique de la liaison (une version plus récente de la même famille convient). Avec le multiviewer,
 // seuls les modes dont le nombre de sorties est connu sont retenus.
-export function controleRegie(regie, evaluation, source, liaisons, { multiviewer = false } = {}) {
+export function controleRegie(regie, evaluation, source, liaisons, { multiviewer = false, programSeul = false, couchesParSortie = 1 } = {}) {
   const necessaires = evaluation.nombre ?? null;
   const manquants = champsManquantsRegie(regie);
   if (manquants.length > 0) {
-    return { ok: null, aCompleter: manquants, refus: [], alertes: [], sortiesNecessaires: necessaires, sortiesDisponibles: null, mode: null };
+    return { ok: null, aCompleter: manquants, refus: [], alertes: [], notes: [], sortiesNecessaires: necessaires, sortiesDisponibles: null, sortiesAux: null, auxUtilisees: 0, mode: null };
   }
   const refus = [];
   const alertes = [];
   const modesFiche = modesSortieRegie(regie, liaisons);
+  const fp = frequencePixel(source);
+  const tientDimensions = (md) => source.largeurPx <= md.largeurMaxPx && source.hauteurPx <= md.hauteurMaxPx && source.frequenceHz <= md.frequenceHz + EPS;
   const modes = modesFiche
     .filter((md) => !multiviewer || md.sortiesAvecMultiviewer)
     .map((md) => ({ ...md, disponibles: multiviewer ? md.sortiesAvecMultiviewer : md.sorties }))
-    .filter((md) => source.largeurPx <= md.largeurMaxPx && source.hauteurPx <= md.hauteurMaxPx && source.frequenceHz <= md.frequenceHz + EPS);
+    .filter((md) => tientDimensions(md) && (!md.frequencePixelMaxMHz || fp.mhz <= md.frequencePixelMaxMHz + EPS));
   const mode = modes.length ? modes.reduce((a, b) => (b.disponibles > a.disponibles ? b : a)) : null;
   if (multiviewer && modesFiche.some((md) => !md.sortiesAvecMultiviewer)) {
     alertes.push(`Multiviewer : ${modesFiche.filter((md) => !md.sortiesAvecMultiviewer).map((md) => `mode ${md.nom}`).join(', ')} `
       + 'non retenu, faute de nombre de sorties connu.');
   }
-  if (!mode) {
+  // Sorties Aux (toutes les régies) : les Program d'abord, puis les Aux qui montent au format de la source
+  // (anciens modes : `sortiesAux` du mode ; modèle générique : sorties de rôle « aux »).
+  const tientAux = (s) => {
+    const l = liaisons.find((x) => x.id === s.type);
+    return tientDimensions({ largeurMaxPx: s.largeurMaxPx ?? l?.formatMaxLargeurPx, hauteurMaxPx: s.hauteurMaxPx ?? l?.formatMaxHauteurPx,
+      frequenceHz: s.frequenceMaxHz ?? l?.formatMaxFrequenceHz }) && (!s.frequencePixelMaxMHz || fp.mhz <= s.frequencePixelMaxMHz + EPS);
+  };
+  const program = mode ? mode.disponibles : 0;
+  // Mode qui fixe ses Aux (Aquilon en 2K : les connecteurs restants) : jamais plus que les Aux qui montent au format.
+  const auxAuFormat = sortiesAux(regie).filter(tientAux).reduce((t, s) => t + s.nombre, 0);
+  const aux = regie.modesSortie?.length ? (mode?.sortiesAux ?? 0)
+    : (mode?.sortiesAux !== null && mode?.sortiesAux !== undefined ? Math.min(mode.sortiesAux, auxAuFormat) : auxAuFormat);
+  const auxUtilisees = necessaires !== null ? Math.max(0, Math.min(necessaires - program, aux)) : 0;
+  // Sortie plafonnée en fréquence pixel (Datapath Fx4 : 165 Mpx/s) : la raison du refus.
+  const plafonnee = !mode ? modesFiche.find((md) => md.frequencePixelMaxMHz && tientDimensions(md) && fp.mhz > md.frequencePixelMaxMHz + EPS) : null;
+  if (!mode && aux === 0 && plafonnee) {
+    refus.push(`Sorties ${plafonnee.nom} de la régie ${regie.nom} plafonnées à ${nombreCourt(plafonnee.frequencePixelMaxMHz)} MHz`
+      + `${plafonnee.noteSortie ? ` (${plafonnee.noteSortie})` : ''} : ${source.largeurPx} × ${source.hauteurPx} à ${nombreCourt(source.frequenceHz)} Hz `
+      + `demande ${nombreCourt(fp.mhz)} MHz.`);
+  } else if (!mode && aux === 0) {
     refus.push(`Aucune sortie de la régie ${regie.nom}${multiviewer ? ' (avec le multiviewer)' : ''} ne monte à `
       + `${source.largeurPx} × ${source.hauteurPx} px à ${nombreCourt(source.frequenceHz)} Hz.`);
-  } else if (necessaires !== null && necessaires > mode.disponibles) {
-    refus.push(`${necessaires} processeurs demandent ${necessaires} sorties : la régie ${regie.nom} n'en a que ${mode.disponibles} `
-      + `en mode ${mode.nom}${multiviewer ? ', avec le multiviewer' : ''}.`);
+  } else if (necessaires !== null && necessaires > program + aux) {
+    refus.push(`${necessaires} processeurs demandent ${necessaires} sorties : la régie ${regie.nom} n'en a que `
+      + `${aux > 0 ? `${program} Program et ${aux} Aux` : program}${mode ? ` en mode ${mode.nom}` : ''}${multiviewer ? ', avec le multiviewer' : ''}.`);
+  } else if (auxUtilisees > 0) {
+    const detail = regie.noteAux
+      ? ` ${regie.noteAux} (${[regie.sources?.noteAux?.source?.court, regie.sources?.noteAux?.note].filter(Boolean).join(', ')}).` : '';
+    alertes.push(`${auxUtilisees} processeur${auxUtilisees > 1 ? 's' : ''} au-delà des ${program} sorties Program de la régie ${regie.nom} : `
+      + `sortie Aux, fonctions réduites (couches, transitions), vérifie dans le manuel.${detail}`);
+  }
+  // Taille de sortie publiée « à tester » au-delà d'une dimension (Datapath Fx4 : 2048 px).
+  if (mode?.dimensionTesteePx && (source.largeurPx > mode.dimensionTesteePx || source.hauteurPx > mode.dimensionTesteePx)) {
+    alertes.push(`Sorties ${mode.nom} de la régie ${regie.nom} : ${source.largeurPx} × ${source.hauteurPx}, au-delà de ${mode.dimensionTesteePx} px `
+      + `de large ou de haut, à tester${mode.noteTest ? ` (${mode.noteTest})` : ''}.`);
   }
   const choisie = liaisons.find((l) => l.id === source.liaison);
   const sorties = sortiesTypesRegie(regie).map((id) => liaisons.find((l) => l.id === id)).filter(Boolean);
   if (choisie && !sorties.some((l) => l.famille === choisie.famille && l.rang >= choisie.rang)) {
     refus.push(`La régie ${regie.nom} n'a pas de sortie ${choisie.nom} (sorties : ${sorties.map((l) => l.nom).join(', ')}).`);
   }
+  // Liaison vers les processeurs : fréquence pixel (HDMI 2.0 600 MHz, DP 1.2 660 MHz) ou débit.
+  const liaison = choisie ? controleLiaison(choisie, source) : null;
+  if (liaison && !liaison.ok) refus.push(`Liaison ${choisie.nom} vers les processeurs : ${liaison.raison}.`);
+  if (liaison) alertes.push(...liaison.alertes);
+  // Budget en mégapixels : une source par processeur ; les sorties Aux comptent aussi, sauf si la fiche dit
+  // qu'elles ne prennent rien au traitement (Aquilon : « Aux Screens do not consume processing resources »).
+  const surBudget = regie.auxHorsBudget ? Math.min(necessaires ?? 0, program) : (necessaires ?? 0);
+  const pixels = surBudget * source.largeurPx * source.hauteurPx;
+  const budget = budgetRegie(regie, pixels, { programSeul, frequenceHz: source.frequenceHz, bits: source.bits ?? 8 });
+  const mp = (x) => `${nombreCourt(x / 1e6, 1)} MP`;
+  if (budget.budget === null && regie.budgetsMP?.length) {
+    refus.push(`Budget de la régie ${regie.nom} : aucun budget à ${nombreCourt(source.frequenceHz)} Hz sur sa fiche.`);
+  } else if (!budget.ok) {
+    refus.push(`Budget de la régie ${regie.nom} : ${mp(pixels)} demandés (${surBudget} × ${source.largeurPx} × ${source.hauteurPx}) `
+      + `pour ${mp(budget.budget.mpx)} ${budget.budget.libelle}${budget.programSeulSuffit
+        ? ` ; en Program seul (sans prévisualisation), ${mp(budget.budgetProgramSeul.mpx)} suffisent` : ''}.`);
+  } else if (budget.budget?.programSeul) {
+    alertes.push(`Régie ${regie.nom} en Program seul : ${mp(pixels)} pour ${mp(budget.budget.mpx)}, sans prévisualisation.`);
+  }
+  // Couches (PixelHue) : 1 × 4K = 2 DL = 4 SL, comptées par carte de sortie.
+  if (regie.couchesParCarteSL && necessaires) {
+    const unite = uniteCouche(source);
+    const parCarte = Math.min(necessaires, regie.sortiesParCarte ?? necessaires);
+    const total = parCarte * couchesParSortie * unite.unites;
+    if (total > regie.couchesParCarteSL) {
+      refus.push(`Couches de la régie ${regie.nom} : ${parCarte} sortie${parCarte > 1 ? 's' : ''} × ${couchesParSortie} couche${couchesParSortie > 1 ? 's' : ''} `
+        + `${unite.nom} = ${total} SL par carte de sortie, pour ${regie.couchesParCarteSL} SL (1 × 4K = 2 DL = 4 SL).`);
+    }
+  }
+  // Sorties OPT réservées aux contrôleurs Novastar (PixelHue : « Only LED controllers from NovaStar are supported
+  // for now », fiche p. 1) : alerte si la liaison passe par OPT vers un autre processeur, simple note en HDMI ou DP.
+  const notes = [];
+  const famille = evaluation.processeur?.famille ?? null;
+  if (regie.optNovastarSeulement && famille && famille !== 'novastar') {
+    const citation = `« Only LED controllers from NovaStar are supported for now » (${[regie.sources?.optNovastarSeulement?.source?.court,
+      regie.sources?.optNovastarSeulement?.note].filter(Boolean).join(', ')})`;
+    if (String(source.liaison ?? '').startsWith('opt') || choisie?.famille === 'opt') {
+      alertes.push(`Liaison OPT (fibre) de la régie ${regie.nom} vers un processeur ${evaluation.processeur.nom} : ${citation}. `
+        + 'Sorties OPT réservées aux processeurs Novastar : passe par une sortie HDMI ou DP.');
+    } else {
+      notes.push(`Régie ${regie.nom} : ${citation} vise les sorties OPT (fibre) vers les processeurs Novastar ; `
+        + `en ${choisie?.nom ?? 'HDMI ou DP'}, rien ne dépend de la marque du processeur.`);
+    }
+  }
   return {
-    ok: refus.length === 0, aCompleter: [], refus, alertes,
-    sortiesNecessaires: necessaires, sortiesDisponibles: mode ? mode.disponibles : 0, mode,
+    ok: refus.length === 0, aCompleter: [], refus, alertes, notes, liaison, budget,
+    sortiesNecessaires: necessaires, sortiesDisponibles: program, sortiesAux: aux, auxUtilisees, mode,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Chaîne vidéo (étape Pf) : latence, cadence, réseau Brompton, longueurs de câble
+// ---------------------------------------------------------------------------
+
+// Latence cumulée de la chaîne, en images (indicative) : les millisecondes sont converties à la fréquence de la
+// chaîne (image entamée comptée) ; un maillon sans latence publiée est signalé, le maximum reste alors inconnu.
+export function latenceChaine(maillons, frequenceHz) {
+  const images = (ms) => Math.ceil((ms * frequenceHz) / 1000 - EPS);
+  let min = 0;
+  let max = 0;
+  let maxConnu = true;
+  const nonChiffres = [];
+  for (const m of maillons) {
+    const mi = m.latenceMinImages ?? (m.latenceMinMs !== undefined && m.latenceMinMs !== null ? images(m.latenceMinMs) : null);
+    const ma = m.latenceMaxImages ?? (m.latenceMaxMs !== undefined && m.latenceMaxMs !== null ? images(m.latenceMaxMs) : null);
+    if (mi === null && ma === null) {
+      nonChiffres.push(m.nom);
+      maxConnu = false;
+      continue;
+    }
+    min += mi ?? 0;
+    if (ma === null) maxConnu = false;
+    else max += ma;
+  }
+  const ms = (n) => nombreCourt((n * 1000) / frequenceHz, 0);
+  const pl = (n) => `${n} image${n > 1 ? 's' : ''}`;
+  const texte = maxConnu
+    ? `${min === max ? pl(min) : `${min} à ${pl(max)}`} (${min === max ? ms(min) : `${ms(min)} à ${ms(max)}`} ms à ${nombreCourt(frequenceHz)} Hz), indicatif`
+    : `au moins ${pl(min)} (${ms(min)} ms à ${nombreCourt(frequenceHz)} Hz)${nonChiffres.length
+      ? `, ${nonChiffres.join(', ')} non chiffré${nonChiffres.length > 1 ? 's' : ''}` : ', maximum non publié'}, indicatif`;
+  return { minImages: min, maxImages: maxConnu ? max : null, minMs: (min * 1000) / frequenceHz, maxMs: maxConnu ? (max * 1000) / frequenceHz : null, nonChiffres, texte };
+}
+
+// Cadence de la source face au calcul data : un écart fait sauter ou doubler une image à intervalle régulier.
+// Appareil qui n'accepte que certaines cadences (V-1HD : 59,94 ou 50 Hz).
+export function controleCadence(sourceHz, calculHz, { appareil = null } = {}) {
+  const alertes = [];
+  if (Math.abs(sourceHz - calculHz) > EPS) {
+    const periode = 1 / Math.abs(sourceHz - calculHz);
+    alertes.push(`Cadence : source à ${nombreCourt(sourceHz)} Hz, calcul data à ${nombreCourt(calculHz)} Hz : une image saute ou se double `
+      + `environ toutes les ${nombreCourt(periode, 0)} s. Même cadence partout, ou genlock conseillé.`);
+  }
+  if (appareil?.cadences?.length && !appareil.cadences.some((c) => Math.abs(c - calculHz) < 0.01)) {
+    alertes.push(`Le ${appareil.nom} ne sort qu'en ${appareil.cadences.map((c) => nombreCourt(c)).join(' ou ')} Hz : le calcul data est à `
+      + `${nombreCourt(calculHz)} Hz.`);
+  }
+  return alertes;
+}
+
+// Réseau Brompton (aide en ligne Tessera, Connection Guidelines 13.1.2 et annexe B), consultée le 26/09/2026.
+const AIDE_TESSERA_CONNEXION = 'aide en ligne Tessera, Connection Guidelines';
+const AIDE_TESSERA_CABLES = 'aide en ligne Tessera, annexe B';
+const CUIVRE_10G_BROMPTON_M = { Cat6A: 60, Cat5e: 30 };
+export function reseauBrompton({ xd = 0, switches = 0, convertisseursFibre = 0, switchManageable = false, switch10G = false, fibre = null, cuivre10G = null } = {}) {
+  const refus = [];
+  const alertes = [];
+  const noeuds = xd + switches + convertisseursFibre;
+  if (noeuds > 5) {
+    refus.push(`${noeuds} appareils entre le processeur et la dalle la plus éloignée (XD, switches et convertisseurs fibre comptés) : 5 au plus `
+      + `(« five switches », « XD Units and fibre optic transceivers count as switches », ${AIDE_TESSERA_CONNEXION}).`);
+  }
+  if (switchManageable) {
+    refus.push(`Switch manageable : « The Tessera Protocol is designed to be used ONLY with unmanaged switches » (${AIDE_TESSERA_CONNEXION}).`);
+  }
+  if (switch10G) {
+    refus.push(`Switch en 10G entre le SX40 et ses XD : « The use of 10G Ethernet switches is not supported » (${AIDE_TESSERA_CABLES}).`);
+  }
+  if (fibre?.mode === 'multimode') refus.push(`Fibre multimode : « Multi-mode fibre is not supported » (${AIDE_TESSERA_CABLES}). Monomode 9/125 µm, 1310 nm.`);
+  if (fibre?.connecteur === 'APC') {
+    refus.push(`Connecteurs APC : interdits, ils peuvent abîmer les connecteurs du SX40 et du XD (« may cause damage », ${AIDE_TESSERA_CABLES}). PC ou UPC seulement.`);
+  }
+  if (cuivre10G) {
+    const limite = CUIVRE_10G_BROMPTON_M[cuivre10G.categorie];
+    if (!limite) {
+      alertes.push(`Cuivre 10G en ${cuivre10G.categorie} : Brompton ne donne de longueur qu'en Cat6A (60 m) et en Cat5e (30 m) (${AIDE_TESSERA_CABLES}).`);
+    } else if (cuivre10G.longueurM > limite + EPS) {
+      alertes.push(`Cuivre 10G en ${cuivre10G.categorie} : ${nombreCourt(cuivre10G.longueurM)} m, au-delà des ${limite} m annoncés `
+        + `(« typically up to ${limite} metres », ${AIDE_TESSERA_CABLES}) : passe en fibre monomode.`);
+    }
+  }
+  return { refus, alertes, noeuds };
+}
+
+// Longueurs de câble vidéo : seuils d'alerte réglables (choix de conception du projet ; la longueur réelle dépend
+// du câble, les fabricants se contredisent). SDI : [alerte, alerte forte] en mètres. HDMI en cuivre passif.
+export const SEUILS_LONGUEUR_M = { '12g-sdi': [30, 90], '6g-sdi': [50, 95], '3g-sdi': [70, 100] };
+const NOMS_LONGUEUR = { '12g-sdi': '12G-SDI', '6g-sdi': '6G-SDI', '3g-sdi': '3G-SDI' };
+const CHOIX_LONGUEUR = 'seuil réglable, choix de conception du projet ; la longueur réelle dépend du câble';
+export function controleLongueur(liaisonId, longueurM, { format = null, seuils = {} } = {}) {
+  if (!(longueurM > 0)) return { niveau: 'ok', texte: null };
+  const l = nombreCourt(longueurM);
+  if (liaisonId.startsWith('hdmi')) {
+    const uhd = format && format.largeurPx * format.hauteurPx >= 3840 * 2160 && format.frequenceHz >= 50 - EPS;
+    const alerteM = seuils.hdmi?.[uhd ? 0 : 1] ?? (uhd ? 5 : 10);
+    if (longueurM > (seuils.hdmiConseil ?? 15) + EPS) {
+      return { niveau: 'conseil', texte: `HDMI en cuivre passif sur ${l} m : câble actif ou fibre conseillé (${CHOIX_LONGUEUR}).` };
+    }
+    if (longueurM > alerteM + EPS) {
+      return { niveau: 'alerte', texte: `HDMI en cuivre passif sur ${l} m, au-delà de ${alerteM} m ${uhd ? 'en 4K60' : 'en 1080p'} (${CHOIX_LONGUEUR}).` };
+    }
+    return { niveau: 'ok', texte: null };
+  }
+  const [alerteM, forteM] = seuils[liaisonId] ?? SEUILS_LONGUEUR_M[liaisonId] ?? [];
+  if (!alerteM) return { niveau: 'ok', texte: null };
+  const nom = NOMS_LONGUEUR[liaisonId] ?? liaisonId;
+  if (longueurM > forteM + EPS) {
+    return { niveau: 'forte', texte: `${nom} sur ${l} m, au-delà de ${forteM} m : risque de perte du signal, passe en fibre (${CHOIX_LONGUEUR}).` };
+  }
+  if (longueurM > alerteM + EPS) return { niveau: 'alerte', texte: `${nom} sur ${l} m, au-delà des ${alerteM} m conseillés (${CHOIX_LONGUEUR}).` };
+  return { niveau: 'ok', texte: null };
+}
+
+// Longueur maxi donnée par la liaison elle-même (HDBaseT : « up to 100m/328ft » ; alerte à 90 m en Cat5e en 2.0 ;
+// DTP2 : 100 m en STP) : refus au-delà du maximum, alerte au-delà du seuil.
+export function controleLongueurLiaison(liaison, longueurM) {
+  const r = { refus: [], alertes: [] };
+  if (!(longueurM > 0) || !liaison) return r;
+  const note = (champ) => (liaison.sources?.[champ]?.note ? ` (${liaison.sources[champ].note})` : '');
+  if (liaison.longueurMaxM && longueurM > liaison.longueurMaxM + EPS) {
+    r.refus.push(`${liaison.nom} sur ${nombreCourt(longueurM)} m : ${nombreCourt(liaison.longueurMaxM)} m au plus${note('longueurMaxM')}.`);
+  } else if (liaison.longueurAlerteM && longueurM > liaison.longueurAlerteM + EPS) {
+    r.alertes.push(`${liaison.nom} sur ${nombreCourt(longueurM)} m : au-delà de ${nombreCourt(liaison.longueurAlerteM)} m${note('longueurAlerteM')}.`);
+  }
+  return r;
+}
+
+// Formats de sortie d'un mélangeur (formats broadcast de sa fiche) : un canvas personnalisé part dans le plus petit
+// format qui le contient (zone utile en haut à gauche, noir autour) ; refus si aucun ne le contient.
+const format2 = ([l, h]) => `${l} × ${h}`;
+function controleFormatsSortie(appareil, { largeurPx, hauteurPx }) {
+  const r = { refus: [], alertes: [] };
+  const formats = appareil.formatsSortie ?? [];
+  if (!formats.length || formats.some(([l, h]) => l === largeurPx && h === hauteurPx)) return r;
+  const conteneurs = formats.filter(([l, h]) => l >= largeurPx && h >= hauteurPx).sort((a, b) => a[0] * a[1] - b[0] * b[1]);
+  if (!conteneurs.length) {
+    r.refus.push(`Le ${appareil.nom} ne sort qu'en ${formats.map(format2).join(', ')} : aucun ne contient ${largeurPx} × ${hauteurPx} px.`);
+  } else {
+    r.alertes.push(`Le ${appareil.nom} ne sort qu'en formats broadcast (${formats.map(format2).join(', ')}) : envoie ton canvas de `
+      + `${largeurPx} × ${hauteurPx} px dans un ${format2(conteneurs[0])}, zone utile en haut à gauche, noir autour.`);
+  }
+  return r;
+}
+
+// Format maxi d'un convertisseur (fiche) : la source doit tenir dans l'un de ses formats (6G : 2160p30 ; Teranex Mini :
+// 4K DCI jusqu'à 25p ; UpDownCross : HD seulement). Sans mise à l'échelle : le format passe tel quel (note).
+function controleFormatsMax(appareil, { largeurPx, hauteurPx, frequenceHz }) {
+  const r = { refus: [], alertes: [], notes: [] };
+  const formats = appareil.formatsMax ?? [];
+  if (formats.length && !formats.some((x) => largeurPx <= x.largeurPx && hauteurPx <= x.hauteurPx && frequenceHz <= x.frequenceHz + EPS)) {
+    r.refus.push(`Le ${appareil.nom} ne passe pas ${largeurPx} × ${hauteurPx} à ${nombreCourt(frequenceHz)} Hz : `
+      + `${formats.map((x) => `${x.largeurPx} × ${x.hauteurPx} à ${nombreCourt(x.frequenceHz)} Hz`).join(' ou ')} au plus`
+      + `${appareil.noteFormatsMax ? ` (${appareil.noteFormatsMax})` : ''}.`);
+  }
+  if (appareil.miseAEchelle === false) r.notes.push(`${appareil.nom} : sans mise à l'échelle, le format passe tel quel.`);
+  return r;
+}
+
+// Longueurs d'un extender selon la fréquence pixel : la fiche de l'appareil passe devant la norme de la liaison
+// (Lightware HDMI-TPS-TX210 : 1080p60 100 m en Cat5e AWG24, jusqu'à 170 m en mode Long Reach ; 4K30 70 m en Cat5e
+// AWG24, 100 m en Cat7 AWG23). Au-delà du câble courant : alerte (autre câble) ou note (Long Reach) ; au-delà du tout : refus.
+function controleLongueursExtender(appareil, longueurM, format) {
+  const r = { refus: [], alertes: [], notes: [] };
+  const table = appareil.longueursMax ?? [];
+  if (appareil.noteLongueurs) r.notes.push(`${appareil.nom} : ${appareil.noteLongueurs}.`);
+  if (!table.length || !(longueurM > 0)) return r;
+  const fp = frequencePixel(format).mhz;
+  const ligne = table.find((x) => fp <= x.frequencePixelMaxMHz + EPS);
+  const l = nombreCourt(longueurM);
+  if (!ligne) {
+    r.refus.push(`${appareil.nom} : ${nombreCourt(fp)} MHz, au-delà des formats de sa fiche.`);
+  } else if (longueurM <= ligne.longueurM + EPS) {
+    return r;
+  } else if (ligne.longueurLongReachM) {
+    if (longueurM > ligne.longueurLongReachM + EPS) {
+      r.refus.push(`${appareil.nom} sur ${l} m en ${nombreCourt(fp)} MHz : ${ligne.longueurLongReachM} m au plus, même en mode Long Reach (fiche).`);
+    } else {
+      r.notes.push(`${appareil.nom} sur ${l} m : ${ligne.noteLongReach}.`);
+    }
+  } else if (ligne.longueurAutreM && longueurM <= ligne.longueurAutreM + EPS) {
+    r.alertes.push(`${appareil.nom} sur ${l} m en ${nombreCourt(fp)} MHz : au-delà de ${ligne.longueurM} m en ${ligne.cable}, `
+      + `${ligne.cableAutre} obligatoire (${ligne.longueurAutreM} m au plus).`);
+  } else {
+    r.refus.push(`${appareil.nom} sur ${l} m en ${nombreCourt(fp)} MHz : ${ligne.longueurAutreM ?? ligne.longueurM} m au plus (fiche).`);
+  }
+  return r;
+}
+
+// Sortie choisie pour un convertisseur à plusieurs sorties : elle doit exister sur sa fiche (même famille, version égale
+// ou plus récente : une sortie HDMI 2.0 porte du HDMI 1.4).
+function controleSortieChoisie(appareil, liaisonId, liaisons) {
+  const types = appareil.sortiesTypes ?? [];
+  if (!liaisonId || !types.length) return [];
+  const choisie = liaisons.find((x) => x.id === liaisonId);
+  if (!choisie) return [];
+  const accepte = types.some((t) => {
+    const l = liaisons.find((x) => x.id === t);
+    return l ? l.famille === choisie.famille && l.rang >= choisie.rang : t === choisie.famille;
+  });
+  const nom = (t) => liaisons.find((x) => x.id === t)?.nom ?? t;
+  return accepte ? [] : [`Le ${appareil.nom} n'a pas de sortie ${choisie.nom} (sorties : ${types.map(nom).join(', ')}).`];
+}
+
+// Familles d'appareils en amont et en aval (un fichier par famille dans data/ ; régies et scalers dans regies.json).
+export const FAMILLES_APPAREILS = { melangeur: 'Mélangeurs', convertisseur: 'Convertisseurs et extenders', serveur: 'Serveurs média', switch: 'Switches réseau' };
+
+// Maillon de la chaîne pris dans la base : latence, liaison de sa première sortie utile, cadences acceptées.
+// Mélangeur : formats broadcast de sortie, sorties qui portent le Program. Convertisseur : formats maxi, mise à l'échelle,
+// longueurs d'un extender. Un convertisseur bidirectionnel, ou à plusieurs types de sortie, n'impose pas sa liaison de
+// sortie (choisie dans la saisie).
+export function maillonDepuisFiche(fiche) {
+  const sortie = (fiche.sorties ?? []).find((x) => x.role !== 'multiviewer' && x.role !== 'aux' && !x.copie);
+  return {
+    nom: fiche.nom, ficheId: fiche.id, famille: fiche.famille ?? null, liaison: fiche.bidirectionnel || fiche.sortieAuChoix ? null : (sortie?.type ?? null), cadences: fiche.cadences ?? null,
+    latenceMinImages: fiche.latenceMinImages, latenceMaxImages: fiche.latenceMaxImages, latenceMinMs: fiche.latenceMinMs, latenceMaxMs: fiche.latenceMaxMs,
+    formatsSortie: fiche.formatsSortie ?? null, sortiesVersProcesseurs: fiche.sortiesVersProcesseurs ?? null,
+    formatsMax: fiche.formatsMax ?? null, noteFormatsMax: fiche.sources?.formatsMax?.note ?? null, miseAEchelle: fiche.miseAEchelle ?? null,
+    longueursMax: fiche.longueursMax ?? null, noteLongueurs: fiche.sources?.longueursMax?.note ?? null,
+    sortiesTypes: [...new Set((fiche.sorties ?? []).filter((x) => x.role !== 'multiviewer' && !x.copie).map((x) => x.type))],
+  };
+}
+
+// Chaîne vidéo de l'onglet Canvas : source (ou sortie de la régie), 0 à 3 convertisseurs (une paire émetteur-récepteur
+// compte pour un maillon), processeur. Chaque liaison : norme (fréquence pixel ou débit ; formats broadcast en SDI) et
+// longueur ; cadence face au calcul data ; latence cumulée. L'entrée du processeur (controleSource) se contrôle sur la
+// liaison du dernier maillon (`liaisonProcesseur`) ; la régie, sur controleRegie.
+export const CONVERTISSEURS_MAX = 3;
+export function controleChaine(chaine, { evaluation, liaisons, frequenceCalculHz, regie = null, seuils = {} }) {
+  const { source } = chaine;
+  const format = { largeurPx: source.largeurPx, hauteurPx: source.hauteurPx, frequenceHz: source.frequenceHz };
+  const convertisseurs = chaine.convertisseurs ?? [];
+  const refus = [];
+  if (convertisseurs.length > CONVERTISSEURS_MAX) {
+    refus.push(`${convertisseurs.length} convertisseurs : ${CONVERTISSEURS_MAX} convertisseurs au plus dans la chaîne (une paire émetteur-récepteur compte pour un).`);
+  }
+  const lien = (id, longueurM, { longueurParFiche = false } = {}) => {
+    const r = { refus: [], alertes: [] };
+    const l = liaisons.find((x) => x.id === id);
+    if (!l) {
+      r.refus.push('Liaison non choisie.');
+      return r;
+    }
+    const c = controleLiaison(l, format);
+    if (!c.ok) r.refus.push(`Liaison ${l.nom} : ${c.raison}.`);
+    r.alertes.push(...c.alertes);
+    const longueur = controleLongueur(id, longueurM, { format, seuils });
+    if (longueur.texte) r.alertes.push(longueur.texte);
+    const parLiaison = longueurParFiche ? { refus: [], alertes: [] } : controleLongueurLiaison(l, longueurM);
+    r.refus.push(...parLiaison.refus);
+    r.alertes.push(...parLiaison.alertes);
+    return r;
+  };
+  // Mélangeur en source : formats broadcast, cadences de sa fiche, sorties qui portent le Program face aux processeurs.
+  const sourceAppareil = () => {
+    const r = { refus: [], alertes: [], notes: [] };
+    const f = controleFormatsSortie(source, format);
+    r.refus.push(...f.refus);
+    r.alertes.push(...f.alertes);
+    if (source.formatsSortie?.length && source.cadences?.length && !source.cadences.some((c) => Math.abs(c - format.frequenceHz) < 0.01)) {
+      r.refus.push(`Le ${source.nom} ne sort qu'en ${source.cadences.map((c) => nombreCourt(c)).join(' ou ')} Hz : pas de source à ${nombreCourt(format.frequenceHz)} Hz.`);
+    }
+    const n = evaluation.nombre ?? 1;
+    if (!regie && source.sortiesVersProcesseurs && n > source.sortiesVersProcesseurs) {
+      r.alertes.push(`${n} processeurs pour ${source.sortiesVersProcesseurs} sortie${source.sortiesVersProcesseurs > 1 ? 's' : ''} du ${source.nom} qui `
+        + `porte${source.sortiesVersProcesseurs > 1 ? 'nt' : ''} le Program : ajoute un ampli de distribution.`);
+    }
+    return r;
+  };
+  const appareilConvertisseur = (c) => {
+    const f = controleFormatsMax(c, format);
+    const l = controleLongueursExtender(c, c.longueurM, format);
+    return { refus: [...controleSortieChoisie(c, c.liaison, liaisons), ...f.refus, ...l.refus], alertes: [...f.alertes, ...l.alertes], notes: [...f.notes, ...l.notes] };
+  };
+  const fusion = (...rs) => ({ refus: rs.flatMap((x) => x.refus ?? []), alertes: rs.flatMap((x) => x.alertes ?? []), notes: rs.flatMap((x) => x.notes ?? []) });
+  const retenus = convertisseurs.slice(0, CONVERTISSEURS_MAX);
+  const proc = evaluation.processeur;
+  const nomDe = (id) => liaisons.find((x) => x.id === id)?.nom ?? id;
+  const maillons = [
+    { role: 'source', nom: regie ? regie.nom : (source.nom ?? 'Source'), liaison: chaine.liaison, liaisonNom: nomDe(chaine.liaison),
+      longueurM: chaine.longueurM ?? null, ...fusion(sourceAppareil(), lien(chaine.liaison, chaine.longueurM)) },
+    ...retenus.map((c) => ({ role: 'convertisseur', nom: c.nom, liaison: c.liaison, liaisonNom: nomDe(c.liaison), longueurM: c.longueurM ?? null,
+      ...fusion(appareilConvertisseur(c), lien(c.liaison, c.longueurM, { longueurParFiche: Boolean(c.longueursMax?.length) })) })),
+    { role: 'processeur', nom: proc.nom, liaison: null, longueurM: null, refus: [], alertes: [], notes: [] },
+  ];
+  // Cadence : source face au calcul data, puis appareils qui n'acceptent que certaines cadences (fiche).
+  const cadence = [
+    ...controleCadence(format.frequenceHz, frequenceCalculHz),
+    ...[source, ...retenus].filter((x) => x.cadences?.length).flatMap((x) => controleCadence(frequenceCalculHz, frequenceCalculHz, { appareil: x })),
+  ];
+  const aLatence = (x) => [x?.latenceMinImages, x?.latenceMaxImages, x?.latenceMinMs, x?.latenceMaxMs].some((y) => y !== undefined && y !== null);
+  const latence = latenceChaine([
+    ...(aLatence(source) ? [{ nom: source.nom ?? 'Source', ...latencesDe(source) }] : []),
+    ...(regie ? [{ nom: regie.nom, ...latencesDe(regie) }] : []),
+    ...retenus.map((c) => ({ nom: c.nom, ...latencesDe(c) })),
+    { nom: proc.nom, ...latencesDe(proc) },
+  ], format.frequenceHz);
+  refus.push(...maillons.flatMap((m) => m.refus));
+  return {
+    maillons,
+    latence,
+    latenceSourceComptee: aLatence(source),
+    cadence,
+    liaisonProcesseur: retenus.length ? retenus[retenus.length - 1].liaison : chaine.liaison,
+    alertes: [...maillons.flatMap((m) => m.alertes), ...cadence],
+    notes: maillons.flatMap((m) => m.notes ?? []),
+    refus,
+    ok: refus.length === 0,
+  };
+}
+const latencesDe = (x) => ({
+  latenceMinImages: x.latenceMinImages ?? undefined, latenceMaxImages: x.latenceMaxImages ?? undefined,
+  latenceMinMs: x.latenceMinMs ?? undefined, latenceMaxMs: x.latenceMaxMs ?? undefined,
+});
 
 // ---------------------------------------------------------------------------
 // Module 3 : électricité (indicatif : à valider par l'électricien)
@@ -2622,9 +3146,44 @@ export function cablageData(m, dalle, evaluation, {
   const novaLCT = proc.logiciel === 'NovaLCT';
   const cinqG = proc.typePorts === '5G';
 
-  const libellePort = (n, miroir = false) => (surDistributeur
-    ? `${modeleDistributeur}${miroir ? ' miroir' : ''} ${Math.ceil(n / sorties)}, port ${((n - 1) % sorties) + 1}`
-    : `port ${n}`);
+  // Cartes à zones (Z8t, X100 Pro, série H) : convertisseurs numérotés carte par carte, dans l'ordre des ports ;
+  // sinon par groupes de `sorties` ports.
+  let numerotation = null;
+  const libellePort = (n, miroir = false) => {
+    if (!surDistributeur) return `port ${n}`;
+    const x = numerotation?.[n - 1] ?? { conv: Math.ceil(n / sorties), port: ((n - 1) % sorties) + 1 };
+    return `${modeleDistributeur}${miroir ? ' miroir' : ''} ${x.conv}, port ${x.port}`;
+  };
+  const numerotationParCartes = (groupes) => {
+    const carte = proc.carteSortie;
+    if (!surDistributeur || !carte?.largeurMaxPx) return null;
+    const parCarte = redondance && !proc.portsRedondance ? Math.floor(carte.portsParCarte / 2) : carte.portsParCarte;
+    const tient = (z) => z.n <= parCarte && z.px <= (carte.pixelsMax ?? Infinity) + EPS
+      && z.x1 - z.x0 <= carte.largeurMaxPx && z.y1 - z.y0 <= carte.hauteurMaxPx;
+    const resultat = [];
+    let zone = null;
+    let avant = 0;
+    for (const grp of groupes) {
+      const t = grp.map(tuile);
+      const p = {
+        x0: Math.min(...t.map((d) => d.px.x)), x1: Math.max(...t.map((d) => d.px.x + d.px.largeur)),
+        y0: Math.min(...t.map((d) => d.px.y)), y1: Math.max(...t.map((d) => d.px.y + d.px.hauteur)),
+        px: grp.reduce((somme, q) => somme + poids(q), 0),
+      };
+      const essai = zone && {
+        x0: Math.min(zone.x0, p.x0), x1: Math.max(zone.x1, p.x1), y0: Math.min(zone.y0, p.y0), y1: Math.max(zone.y1, p.y1), n: zone.n + 1, px: zone.px + p.px,
+      };
+      if (essai && tient(essai)) {
+        zone = essai;
+      } else {
+        if (zone) avant += Math.ceil(zone.n / sorties);
+        zone = { ...p, n: 1 };
+      }
+      const k = zone.n - 1;
+      resultat.push({ conv: avant + Math.floor(k / sorties) + 1, port: (k % sorties) + 1 });
+    }
+    return resultat;
+  };
   const pairesBrompton = redondance && proc.famille === 'brompton' && !proc.portsRedondance;
   const moitie = Math.floor((modeOptique && proc.portsOptionOptique ? proc.portsOptionOptique : proc.ports) / 2);
   const convention = redondance && !proc.portsRedondance && !pairesBrompton;
@@ -2691,6 +3250,7 @@ export function cablageData(m, dalle, evaluation, {
         raisons.push(`Le processeur n° ${i + 1} demande ${utilises(nb)} ports${redondance && proc.portsRedondance ? ' principaux' : ''}, `
           + `au-delà des ${limite} d'un ${proc.nom}.`);
       }
+      numerotation = numerotationParCartes(groupes);
       const ports = groupes.map((grp, j) => {
         const px = grp.reduce((s, p) => s + poids(p), 0);
         const trajet = trajetDepuisCoin(m, depart, tuile(grp[0]));

@@ -1,0 +1,1412 @@
+{
+  "format": "appli-mur-led/serveurs",
+  "version": 1,
+  "note": "Serveurs média (sources), avec leurs sorties et leur latence de capture.",
+  "sources": {
+    "disguise-vx4-plus-fiche": {
+      "titre": "Fiche disguise VX 4+ (Spec Sheet and Playback Data, déposée en 12/2023) : 18,2 kg (p. 1) ; « Mounting System: 4U », « Power Consumption Peak: 785 W », « 4x 4K outputs using VFC cards », « Ships standard with HDMI 2.0 VFC cards » (p. 2) ; latence de capture : 5 images en mode normal, 4 en low latency, 3 (Deltacast) ou 4 (Matrox) en ultra-low latency, à 60, 50 et 30 Hz (p. 4)",
+      "court": "Fiche disguise VX 4+",
+      "date": null,
+      "dateTexte": "déposée en 12/2023 (adresse du fichier)",
+      "url": "https://www.disguise.one/sites/default/files/2023-12/Product_Disguise%20VX%204+%20Spec%20Sheet%20and%20Playback%20Data.pdf",
+      "confiance": "constructeur"
+    },
+    "pixera-menu-hardware": {
+      "titre": "Menu Hardware de Pixera, consulté le 26/09/2026 : PIXERA zero, ONE, TWO (« available with 2, 4 or 8 outputs »), TWO RS, FOUR (fiche « four Gen2 »), FOUR RS",
+      "court": "Menu Hardware Pixera",
+      "date": "2026-09-26",
+      "url": "https://pixera.one/en/hardware/",
+      "confiance": "constructeur"
+    },
+    "pixera-latence-capture": {
+      "titre": "Pixera, « Capture Cards Latency » (26/06/2024), consultée le 26/09/2026 : latence de la capture à la sortie à 60 i/s, PXO-IH2 (2x HDMI 2.0) 3 frames, PXO-IH4 (4x HDMI 2.1) 3 frames, PXO-CT2H1 2 frames (12G/3G-SDI) et 3 (HDMI 2.0), PXO-IS2 2 frames, PXO-IS4, CS4, CS8 et CT4 3 frames, PXO-IS1 2 frames",
+      "court": "Pixera, latence des cartes de capture",
+      "date": "2026-09-26",
+      "url": "https://help.pixera.one/live-inputs/capture-cards-latency",
+      "confiance": "constructeur"
+    },
+    "pixera-one-gen2-specs": {
+      "titre": "Pixera, « PIXERA one Gen.2 - Basic Technical Specifications », consultée le 26/09/2026 : « Physical Video Outputs 4 », « Licensed Video Outputs » 2 ou 4, « DP1.4a », « 5120x2880 », « Genlock Optional », « Power Consumption Peak 500W », « 8,3kg »",
+      "court": "Specs Pixera PIXERA one Gen.2",
+      "date": "2026-09-26",
+      "url": "https://help.pixera.one/pixera-server-specifications/pixera-one-basic-technical-specifications",
+      "confiance": "constructeur"
+    },
+    "pixera-two-gen2-specs": {
+      "titre": "Pixera, « PIXERA two Gen.2 - Basic Technical Specifications », consultée le 26/09/2026 : « Physical Video Outputs 4 », « Licensed Video Outputs » 2 ou 4, « DP1.4a », « 5120x2880 », « Genlock Optional », « Power Consumption Peak 800W », « 13,1kg »",
+      "court": "Specs Pixera PIXERA two Gen.2",
+      "date": "2026-09-26",
+      "url": "https://help.pixera.one/pixera-server-specifications/pixera-two-basic-technical-specifications",
+      "confiance": "constructeur"
+    },
+    "pixera-two-octo-gen2-specs": {
+      "titre": "Pixera, « PIXERA two octo Gen.2 - Basic Technical Specifications », consultée le 26/09/2026 : « Physical Video Outputs 8 », « DP1.4a », « 5120x2880 », « Genlock Optional », « Framelock Yes », « Power Consumption Peak 940W », « 13,6kg »",
+      "court": "Specs Pixera PIXERA two octo Gen.2",
+      "date": "2026-09-26",
+      "url": "https://help.pixera.one/pixera-server-specifications/pixera-two-octo-basic-technical-specifications",
+      "confiance": "constructeur"
+    },
+    "pixera-four-specs": {
+      "titre": "Pixera, « PIXERA four - Basic Technical Specifications », consultée le 26/09/2026 : « Physical Video Outputs 4 », « DP1.4 », « 5120x2880 », « Genlock Optional », « Power Consumption Peak 900W », « 18,5kg »",
+      "court": "Specs Pixera PIXERA four",
+      "date": "2026-09-26",
+      "url": "https://help.pixera.one/pixera-server-specifications/pixera-four-basic-technical-specifications",
+      "confiance": "constructeur"
+    },
+    "pixera-four-gen2-specs": {
+      "titre": "Pixera, « PIXERA four Gen2 - Basic Technical Specifications », consultée le 26/09/2026 : « Physical Video Outputs 4 », « DP 2.1b », « 5120x2880 », « Genlock Optional », « Power Consumption Peak 1200W | 1600W », « 19,6kg »",
+      "court": "Specs Pixera PIXERA four Gen2",
+      "date": "2026-09-26",
+      "url": "https://help.pixera.one/pixera-server-specifications/pixera-four-gen2-basic-technical-specifications",
+      "confiance": "constructeur"
+    },
+    "greenhippo-menu": {
+      "titre": "Menu Hippotizer Media Servers de Green Hippo, consulté le 26/09/2026 : HYCO MX, MEUSE MX, KASAI MX, TAGUS MX, TEKA MX",
+      "court": "Menu Green Hippo",
+      "date": "2026-09-26",
+      "url": "https://www.green-hippo.com/hippotizer-media-servers/",
+      "confiance": "constructeur"
+    },
+    "greenhippo-tagus-mx": {
+      "titre": "Green Hippo, TAGUS MX, page produit, consultée le 26/09/2026 : « Production Outputs 2 », « Modular output slots (HDMI 2.0, DP 1.4, 12G SDI) », « Genlock No », « Size (Rack Units) 2 », « Installed Weight 16 Kgs », « Power Consumption (Max) 800W »",
+      "court": "Page Green Hippo TAGUS MX",
+      "date": "2026-09-26",
+      "url": "https://www.green-hippo.com/hippotizer-media-servers/tagus-mx/",
+      "confiance": "constructeur"
+    },
+    "greenhippo-meuse-mx": {
+      "titre": "Green Hippo, MEUSE MX, page produit, consultée le 26/09/2026 : « Production Outputs 4 », « 4x Swappable Output Modules (HDMI 2.0, DP 1.4, or 12G SDI) », « Genlock Yes », « Size (Rack Units) 4 », « Installed Weight 26 Kgs », « Power Consumption (Max) 1650/2000W »",
+      "court": "Page Green Hippo MEUSE MX",
+      "date": "2026-09-26",
+      "url": "https://www.green-hippo.com/hippotizer-media-servers/meuse-mx/",
+      "confiance": "constructeur"
+    },
+    "greenhippo-hyco-mx": {
+      "titre": "Green Hippo, HYCO MX, page produit, consultée le 26/09/2026 : « Production Outputs 4 », « 4x Production Outputs (HDMI 2.0, DP 1.4, or 12G SDI) », « Genlock Yes », « Size (Rack Units) 4 », « Installed Weight 26 Kgs », « Power Consumption (Max) 1650/2000W »",
+      "court": "Page Green Hippo HYCO MX",
+      "date": "2026-09-26",
+      "url": "https://www.green-hippo.com/hippotizer-media-servers/hyco-mx/",
+      "confiance": "constructeur"
+    },
+    "greenhippo-karst-plus-mk2": {
+      "titre": "Green Hippo, Karst+ MK2, page produit, consultée le 26/09/2026 : « 2x DP 1.2 or 2x HDMI output options », « Production Outputs 2 », « Genlock Yes », « Size (Rack Units) 2 », « Installed Weight 16 Kgs », « Power Consumption (Max) 650 VA »",
+      "court": "Page Green Hippo Karst+ MK2",
+      "date": "2026-09-26",
+      "url": "https://www.green-hippo.com/karst-mk2/",
+      "confiance": "constructeur"
+    },
+    "modulopi-page-player": {
+      "titre": "Page Modulo Player de Modulo Pi, consultée le 26/09/2026 : « available in 4 different hardware configurations … Nano, Standard, Pro, and Ultra », fiches HWR2024-1, « low-latency live mixer »",
+      "court": "Page Modulo Player",
+      "date": "2026-09-26",
+      "url": "https://www.modulo-pi.com/media-servers/modulo-player/",
+      "confiance": "constructeur"
+    },
+    "modulopi-nano": {
+      "titre": "Fiche Modulo Player Nano (REF NANO-1, Hardware Revision 2024-1, pied de page 16/10/2024) : « Max. output resolution: 1 x output 2560 x 1600 @60P », « Physical video output: 1 x HDMI 2.0a and 1 x mini DisplayPort », « 12-19V D.C 90W (external power supply) », ~1,2 kg",
+      "court": "Fiche Modulo Player Nano",
+      "date": "2024-10-16",
+      "url": "https://www.modulo-pi.com/wp-content/uploads/2022/01/Modulo-Player-Nano-SpecSheet-LD.pdf",
+      "confiance": "constructeur"
+    },
+    "modulopi-standard": {
+      "titre": "Fiche Modulo Player Standard (MP-STD-1 à 4, Hardware Revision 2024-1, pied de page 23/07/2024) : « 4 x mini DP 1.4 » ou « 4 x DP 1.4 », de « 1 output up to WQXGA » à « 4 outputs up to WQXGA or 1 output up to 4K », WQXGA « 2560 x1600 », 4K « 4096x2160 », « Average power consumption (high load): 300W », alimentation 750W, 4U, ~17 kg",
+      "court": "Fiche Modulo Player Standard",
+      "date": "2024-07-23",
+      "url": "https://www.modulo-pi.com/wp-content/uploads/2023/10/Modulo-Player-Standard-SpecSheet-20231011.pdf",
+      "confiance": "constructeur"
+    },
+    "modulopi-pro": {
+      "titre": "Fiche Modulo Player Pro (MP-PRO-1 à 4x4K, Hardware Revision 2024-1, pied de page 23/07/2024) : de « 1 output up to WQXGA » à « 6 outputs up to WQXGA or 4 outputs up to 4K », « Average power consumption (high load): 450W », alimentation 850W, « Genlock/Framelock: Contact us for more information », 4U, ~17 kg",
+      "court": "Fiche Modulo Player Pro",
+      "date": "2024-07-23",
+      "url": "https://www.modulo-pi.com/wp-content/uploads/2023/10/Modulo-Player-Pro-SpecSheet-20231011.pdf",
+      "confiance": "constructeur"
+    },
+    "modulopi-ultra": {
+      "titre": "Fiche Modulo Player Ultra (MP-UX-1 à 3x4K, Hardware Revision 2024-1, pied de page 23/07/2024) : de « 1 output up to WQXGA » à « 6 outputs up to WQXGA or 3 outputs up to 4K », « Average power consumption (high load): 450W », alimentation 850W, « Genlock/Framelock: Contact us for more information », 4U, ~17 kg",
+      "court": "Fiche Modulo Player Ultra",
+      "date": "2024-07-23",
+      "url": "https://www.modulo-pi.com/wp-content/uploads/2023/10/Modulo-Player-Ultra-SpecSheet-20231011.pdf",
+      "confiance": "constructeur"
+    },
+    "smode-page-media-server": {
+      "titre": "Smode, page « Smode Media Server », consultée le 26/09/2026 : SMODE Tetra (AMD Ryzen) et SMODE Octa (AMD Threadripper), option RUGGED, « Native and integrated Deltacast and Blackmagic support + genlock native support » ; aucune sortie ni résolution publiée",
+      "court": "Page Smode Media Server",
+      "date": "2026-09-26",
+      "url": "https://www.smode.io/en/product/smode-media-server",
+      "confiance": "constructeur"
+    },
+    "resolume-advanced-output": {
+      "titre": "Resolume, aide « Advanced Output », consultée le 26/09/2026 : « The Advanced Output is available on both Avenue and Arena. To get everything it has to offer, you will need Arena » ; logiciel, sorties selon la carte graphique",
+      "court": "Aide Resolume, Advanced Output",
+      "date": "2026-09-26",
+      "url": "https://www.resolume.com/support/en/advanced-output",
+      "confiance": "constructeur"
+    }
+  },
+  "appareils": [
+    {
+      "id": "disguise-vx4-plus",
+      "famille": "serveur",
+      "marque": "disguise",
+      "modele": "vx 4+",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 4,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "disguise-vx4-plus-fiche",
+          "note": "« 4x 4K outputs using VFC cards », cartes VFC HDMI 2.0 livrées de série (p. 2)"
+        }
+      ],
+      "latenceMinImages": {
+        "valeur": 3,
+        "source": "disguise-vx4-plus-fiche",
+        "note": "capture vers sortie, mode ultra-low latency, cartes Deltacast (p. 4)"
+      },
+      "latenceMaxImages": {
+        "valeur": 5,
+        "source": "disguise-vx4-plus-fiche",
+        "note": "capture vers sortie, mode normal (p. 4)"
+      },
+      "hauteurU": {
+        "valeur": 4,
+        "source": "disguise-vx4-plus-fiche",
+        "note": "p. 2"
+      },
+      "poidsKg": {
+        "valeur": 18.2,
+        "source": "disguise-vx4-plus-fiche",
+        "note": "p. 1"
+      },
+      "puissanceW": {
+        "valeur": 785,
+        "source": "disguise-vx4-plus-fiche",
+        "note": "crête, p. 2"
+      },
+      "note": "Latence de capture de 3 à 5 images selon le mode (p. 4) : elle compte quand le serveur reprend un flux en direct."
+    },
+    {
+      "id": "pixera-one-gen2",
+      "famille": "serveur",
+      "marque": "Pixera",
+      "modele": "one Gen.2",
+      "gamme": "Pixera",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 4,
+          "largeurMaxPx": 5120,
+          "hauteurMaxPx": 2880,
+          "frequenceMaxHz": 60,
+          "source": "pixera-one-gen2-specs",
+          "note": "« DP1.4a », 5120 × 2880 au plus"
+        }
+      ],
+      "genlock": {
+        "valeur": "option",
+        "source": "pixera-one-gen2-specs"
+      },
+      "puissanceW": {
+        "valeur": 500,
+        "source": "pixera-one-gen2-specs",
+        "note": "crête"
+      },
+      "poidsKg": {
+        "valeur": 8.3,
+        "source": "pixera-one-gen2-specs"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "pixera-menu-hardware",
+        "note": "PIXERA ONE au menu Hardware (09/2026)"
+      },
+      "latenceMinImages": {
+        "valeur": 2,
+        "source": "pixera-latence-capture",
+        "note": "capture vers sortie, cartes SDI PXO-CT2H1, IS2, IS1"
+      },
+      "latenceMaxImages": {
+        "valeur": 3,
+        "source": "pixera-latence-capture",
+        "note": "capture vers sortie, cartes HDMI et SDI PXO-IH2, IH4, IS4, CS4, CS8, CT4"
+      },
+      "note": "Latence de capture : 2 ou 3 images selon la carte, quand le serveur reprend un flux en direct. Version Dual (2 sorties sous licence) ou Quad (4)."
+    },
+    {
+      "id": "pixera-two-gen2",
+      "famille": "serveur",
+      "marque": "Pixera",
+      "modele": "two Gen.2",
+      "gamme": "Pixera",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 4,
+          "largeurMaxPx": 5120,
+          "hauteurMaxPx": 2880,
+          "frequenceMaxHz": 60,
+          "source": "pixera-two-gen2-specs",
+          "note": "« DP1.4a », 5120 × 2880 au plus"
+        }
+      ],
+      "genlock": {
+        "valeur": "option",
+        "source": "pixera-two-gen2-specs"
+      },
+      "puissanceW": {
+        "valeur": 800,
+        "source": "pixera-two-gen2-specs",
+        "note": "crête"
+      },
+      "poidsKg": {
+        "valeur": 13.1,
+        "source": "pixera-two-gen2-specs"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "pixera-menu-hardware",
+        "note": "PIXERA TWO au menu Hardware (09/2026)"
+      },
+      "latenceMinImages": {
+        "valeur": 2,
+        "source": "pixera-latence-capture",
+        "note": "capture vers sortie, cartes SDI PXO-CT2H1, IS2, IS1"
+      },
+      "latenceMaxImages": {
+        "valeur": 3,
+        "source": "pixera-latence-capture",
+        "note": "capture vers sortie, cartes HDMI et SDI PXO-IH2, IH4, IS4, CS4, CS8, CT4"
+      },
+      "note": "Latence de capture : 2 ou 3 images selon la carte, quand le serveur reprend un flux en direct. Version Dual (2 sorties sous licence) ou Quad (4)."
+    },
+    {
+      "id": "pixera-two-octo-gen2",
+      "famille": "serveur",
+      "marque": "Pixera",
+      "modele": "two octo Gen.2",
+      "gamme": "Pixera",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 8,
+          "largeurMaxPx": 5120,
+          "hauteurMaxPx": 2880,
+          "frequenceMaxHz": 60,
+          "source": "pixera-two-octo-gen2-specs",
+          "note": "« DP1.4a », 5120 × 2880 au plus"
+        }
+      ],
+      "genlock": {
+        "valeur": "option",
+        "source": "pixera-two-octo-gen2-specs"
+      },
+      "puissanceW": {
+        "valeur": 940,
+        "source": "pixera-two-octo-gen2-specs",
+        "note": "crête"
+      },
+      "poidsKg": {
+        "valeur": 13.6,
+        "source": "pixera-two-octo-gen2-specs"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "pixera-menu-hardware",
+        "note": "PIXERA TWO « available with 2, 4 or 8 outputs » au menu Hardware (09/2026)"
+      },
+      "latenceMinImages": {
+        "valeur": 2,
+        "source": "pixera-latence-capture",
+        "note": "capture vers sortie, cartes SDI PXO-CT2H1, IS2, IS1"
+      },
+      "latenceMaxImages": {
+        "valeur": 3,
+        "source": "pixera-latence-capture",
+        "note": "capture vers sortie, cartes HDMI et SDI PXO-IH2, IH4, IS4, CS4, CS8, CT4"
+      },
+      "note": "Latence de capture : 2 ou 3 images selon la carte, quand le serveur reprend un flux en direct."
+    },
+    {
+      "id": "pixera-four",
+      "famille": "serveur",
+      "marque": "Pixera",
+      "modele": "four",
+      "gamme": "Pixera",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 4,
+          "largeurMaxPx": 5120,
+          "hauteurMaxPx": 2880,
+          "frequenceMaxHz": 60,
+          "source": "pixera-four-specs",
+          "note": "« DP1.4 », 5120 × 2880 au plus"
+        }
+      ],
+      "genlock": {
+        "valeur": "option",
+        "source": "pixera-four-specs"
+      },
+      "puissanceW": {
+        "valeur": 900,
+        "source": "pixera-four-specs",
+        "note": "crête"
+      },
+      "poidsKg": {
+        "valeur": 18.5,
+        "source": "pixera-four-specs"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "pixera-menu-hardware",
+        "note": "le menu Hardware renvoie PIXERA FOUR vers la fiche « four Gen2 » (09/2026) ; fiche Gen 1 encore en ligne"
+      },
+      "latenceMinImages": {
+        "valeur": 2,
+        "source": "pixera-latence-capture",
+        "note": "capture vers sortie, cartes SDI PXO-CT2H1, IS2, IS1"
+      },
+      "latenceMaxImages": {
+        "valeur": 3,
+        "source": "pixera-latence-capture",
+        "note": "capture vers sortie, cartes HDMI et SDI PXO-IH2, IH4, IS4, CS4, CS8, CT4"
+      },
+      "note": "Latence de capture : 2 ou 3 images selon la carte, quand le serveur reprend un flux en direct."
+    },
+    {
+      "id": "pixera-four-gen2",
+      "famille": "serveur",
+      "marque": "Pixera",
+      "modele": "four Gen2",
+      "gamme": "Pixera",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 4,
+          "largeurMaxPx": 5120,
+          "hauteurMaxPx": 2880,
+          "frequenceMaxHz": 60,
+          "source": "pixera-four-gen2-specs",
+          "note": "« DP 2.1b », compté en DisplayPort 1.4 (version la plus haute de la connectique de l'appli) ; 5120 × 2880 au plus"
+        }
+      ],
+      "genlock": {
+        "valeur": "option",
+        "source": "pixera-four-gen2-specs"
+      },
+      "puissanceW": {
+        "valeur": 1600,
+        "source": "pixera-four-gen2-specs",
+        "note": "« 1200W | 1600W » selon la version : le plus haut retenu"
+      },
+      "poidsKg": {
+        "valeur": 19.6,
+        "source": "pixera-four-gen2-specs"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "pixera-menu-hardware",
+        "note": "PIXERA FOUR au menu Hardware (09/2026)"
+      },
+      "latenceMinImages": {
+        "valeur": 2,
+        "source": "pixera-latence-capture",
+        "note": "capture vers sortie, cartes SDI PXO-CT2H1, IS2, IS1"
+      },
+      "latenceMaxImages": {
+        "valeur": 3,
+        "source": "pixera-latence-capture",
+        "note": "capture vers sortie, cartes HDMI et SDI PXO-IH2, IH4, IS4, CS4, CS8, CT4"
+      },
+      "note": "Latence de capture : 2 ou 3 images selon la carte, quand le serveur reprend un flux en direct."
+    },
+    {
+      "id": "greenhippo-tagus-mx",
+      "famille": "serveur",
+      "marque": "Green Hippo",
+      "modele": "TAGUS MX",
+      "gamme": "Hippotizer",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 2,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "greenhippo-tagus-mx",
+          "note": "modules HDMI 2.0, DP 1.4 ou 12G-SDI (« 2 x 4K output modules »)"
+        }
+      ],
+      "genlock": {
+        "valeur": false,
+        "source": "greenhippo-tagus-mx"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "greenhippo-tagus-mx",
+        "note": "« Size (Rack Units) »"
+      },
+      "poidsKg": {
+        "valeur": 16,
+        "source": "greenhippo-tagus-mx",
+        "note": "« Installed Weight »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "greenhippo-menu",
+        "note": "au menu Green Hippo (09/2026)"
+      },
+      "puissanceW": {
+        "valeur": 800,
+        "source": "greenhippo-tagus-mx",
+        "note": "max"
+      },
+      "note": "Latence non publiée."
+    },
+    {
+      "id": "greenhippo-meuse-mx",
+      "famille": "serveur",
+      "marque": "Green Hippo",
+      "modele": "MEUSE MX",
+      "gamme": "Hippotizer",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 4,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "greenhippo-meuse-mx",
+          "note": "modules HDMI 2.0, DP 1.4 ou 12G-SDI"
+        }
+      ],
+      "genlock": {
+        "valeur": true,
+        "source": "greenhippo-meuse-mx"
+      },
+      "hauteurU": {
+        "valeur": 4,
+        "source": "greenhippo-meuse-mx",
+        "note": "« Size (Rack Units) »"
+      },
+      "poidsKg": {
+        "valeur": 26,
+        "source": "greenhippo-meuse-mx",
+        "note": "« Installed Weight »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "greenhippo-menu",
+        "note": "au menu Green Hippo (09/2026)"
+      },
+      "puissanceW": {
+        "valeur": 2000,
+        "source": "greenhippo-meuse-mx",
+        "note": "« 1650/2000W » : le plus haut retenu"
+      },
+      "note": "Latence non publiée."
+    },
+    {
+      "id": "greenhippo-hyco-mx",
+      "famille": "serveur",
+      "marque": "Green Hippo",
+      "modele": "HYCO MX",
+      "gamme": "Hippotizer",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 4,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "greenhippo-hyco-mx",
+          "note": "modules HDMI 2.0, DP 1.4 ou 12G-SDI"
+        }
+      ],
+      "genlock": {
+        "valeur": true,
+        "source": "greenhippo-hyco-mx"
+      },
+      "hauteurU": {
+        "valeur": 4,
+        "source": "greenhippo-hyco-mx",
+        "note": "« Size (Rack Units) »"
+      },
+      "poidsKg": {
+        "valeur": 26,
+        "source": "greenhippo-hyco-mx",
+        "note": "« Installed Weight »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "greenhippo-menu",
+        "note": "au menu Green Hippo (09/2026)"
+      },
+      "puissanceW": {
+        "valeur": 2000,
+        "source": "greenhippo-hyco-mx",
+        "note": "« 1650/2000W » : le plus haut retenu"
+      },
+      "note": "Latence non publiée."
+    },
+    {
+      "id": "greenhippo-karst-plus-mk2",
+      "famille": "serveur",
+      "marque": "Green Hippo",
+      "modele": "Karst+ MK2",
+      "gamme": "Hippotizer",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 2,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "greenhippo-karst-plus-mk2",
+          "note": "2 × HDMI 2.0 ou 2 × DP 1.2 selon la version"
+        }
+      ],
+      "genlock": {
+        "valeur": true,
+        "source": "greenhippo-karst-plus-mk2"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "greenhippo-karst-plus-mk2",
+        "note": "« Size (Rack Units) »"
+      },
+      "poidsKg": {
+        "valeur": 16,
+        "source": "greenhippo-karst-plus-mk2",
+        "note": "« Installed Weight »"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "greenhippo-menu",
+        "note": "absent du menu Green Hippo (09/2026), page encore en ligne"
+      },
+      "note": "Latence non publiée. Consommation donnée en VA (650 VA max)."
+    },
+    {
+      "id": "modulopi-nano-1",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Nano",
+      "gamme": "Modulo Player Nano",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "hdmi-2.0",
+          "nombre": 1,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-nano",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 90,
+        "source": "modulopi-nano",
+        "note": "alimentation externe 90 W"
+      },
+      "poidsKg": {
+        "valeur": 1.2,
+        "source": "modulopi-nano",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Sortie HDMI 2.0a (et un mini DisplayPort) ; latence non publiée."
+    },
+    {
+      "id": "modulopi-mp-std-1",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Standard (MP-STD-1)",
+      "gamme": "Modulo Player Standard",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 1,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-standard",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 300,
+        "source": "modulopi-standard",
+        "note": "« Average power consumption (high load): 300W », alimentation 750 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-standard",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "4 connecteurs DP 1.4 (mini DP sur STD-1 et 2). Latence non chiffrée (« low-latency live mixer »).",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-standard",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-std-2",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Standard (MP-STD-2)",
+      "gamme": "Modulo Player Standard",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 2,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-standard",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 300,
+        "source": "modulopi-standard",
+        "note": "« Average power consumption (high load): 300W », alimentation 750 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-standard",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "4 connecteurs DP 1.4 (mini DP sur STD-1 et 2). Latence non chiffrée (« low-latency live mixer »).",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-standard",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-std-3",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Standard (MP-STD-3)",
+      "gamme": "Modulo Player Standard",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 3,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-standard",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 300,
+        "source": "modulopi-standard",
+        "note": "« Average power consumption (high load): 300W », alimentation 750 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-standard",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "4 connecteurs DP 1.4 (mini DP sur STD-1 et 2). Latence non chiffrée (« low-latency live mixer »).",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-standard",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-std-4",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Standard (MP-STD-4)",
+      "gamme": "Modulo Player Standard",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 4,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-standard",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        },
+        {
+          "type": "dp-1.4",
+          "nombre": 1,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-standard",
+          "note": "ou « up to 4K » (4096 × 2160)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 300,
+        "source": "modulopi-standard",
+        "note": "« Average power consumption (high load): 300W », alimentation 750 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-standard",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "4 connecteurs DP 1.4 (mini DP sur STD-1 et 2). Latence non chiffrée (« low-latency live mixer »).",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-standard",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-pro-1",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Pro (MP-PRO-1)",
+      "gamme": "Modulo Player Pro",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 1,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-pro",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-pro",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-pro",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-pro-2",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Pro (MP-PRO-2)",
+      "gamme": "Modulo Player Pro",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 2,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-pro",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-pro",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-pro",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-pro-4",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Pro (MP-PRO-4)",
+      "gamme": "Modulo Player Pro",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 4,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        },
+        {
+          "type": "dp-1.4",
+          "nombre": 1,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "ou « up to 4K » (4096 × 2160)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-pro",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-pro",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-pro",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-pro-6",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Pro (MP-PRO-6)",
+      "gamme": "Modulo Player Pro",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 6,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        },
+        {
+          "type": "dp-1.4",
+          "nombre": 1,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "ou « up to 4K » (4096 × 2160)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-pro",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-pro",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-pro",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-pro-2x4k",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Pro (MP-PRO-2x4K)",
+      "gamme": "Modulo Player Pro",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 6,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        },
+        {
+          "type": "dp-1.4",
+          "nombre": 2,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "ou « up to 4K » (4096 × 2160)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-pro",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-pro",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-pro",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-pro-3x4k",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Pro (MP-PRO-3x4K)",
+      "gamme": "Modulo Player Pro",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 6,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        },
+        {
+          "type": "dp-1.4",
+          "nombre": 3,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "ou « up to 4K » (4096 × 2160)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-pro",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-pro",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-pro",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-pro-4x4k",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Pro (MP-PRO-4x4K)",
+      "gamme": "Modulo Player Pro",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 6,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        },
+        {
+          "type": "dp-1.4",
+          "nombre": 4,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-pro",
+          "note": "ou « up to 4K » (4096 × 2160)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-pro",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-pro",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-pro",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-ux-1",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Ultra (MP-UX-1)",
+      "gamme": "Modulo Player Ultra",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 1,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-ultra",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-ultra",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-ultra",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-ultra",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-ux-2",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Ultra (MP-UX-2)",
+      "gamme": "Modulo Player Ultra",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 2,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-ultra",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-ultra",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-ultra",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-ultra",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-ux-4",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Ultra (MP-UX-4)",
+      "gamme": "Modulo Player Ultra",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 4,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-ultra",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        },
+        {
+          "type": "dp-1.4",
+          "nombre": 1,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-ultra",
+          "note": "ou « up to 4K » (4096 × 2160)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-ultra",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-ultra",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-ultra",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-ux-2x4k",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Ultra (MP-UX-2x4K)",
+      "gamme": "Modulo Player Ultra",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 6,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-ultra",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        },
+        {
+          "type": "dp-1.4",
+          "nombre": 2,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-ultra",
+          "note": "ou « up to 4K » (4096 × 2160)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-ultra",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-ultra",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-ultra",
+        "note": "« 19-inch rack 4U »"
+      }
+    },
+    {
+      "id": "modulopi-mp-ux-3x4k",
+      "famille": "serveur",
+      "marque": "Modulo Pi",
+      "modele": "Modulo Player Ultra (MP-UX-3x4K)",
+      "gamme": "Modulo Player Ultra",
+      "role": "Serveur média",
+      "position": "amont",
+      "sorties": [
+        {
+          "type": "dp-1.4",
+          "nombre": 6,
+          "largeurMaxPx": 2560,
+          "hauteurMaxPx": 1600,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-ultra",
+          "note": "« up to WQXGA » (2560 × 1600)"
+        },
+        {
+          "type": "dp-1.4",
+          "nombre": 3,
+          "largeurMaxPx": 4096,
+          "hauteurMaxPx": 2160,
+          "frequenceMaxHz": 60,
+          "source": "modulopi-ultra",
+          "note": "ou « up to 4K » (4096 × 2160)"
+        }
+      ],
+      "puissanceW": {
+        "valeur": 450,
+        "source": "modulopi-ultra",
+        "note": "« Average power consumption (high load): 450W », alimentation 850 W"
+      },
+      "poidsKg": {
+        "valeur": 17,
+        "source": "modulopi-ultra",
+        "note": "environ"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "modulopi-page-player",
+        "note": "configuration listée sur la page Modulo Player (09/2026)"
+      },
+      "note": "Latence non chiffrée (« low-latency live mixer ») ; genlock sur demande.",
+      "hauteurU": {
+        "valeur": 4,
+        "source": "modulopi-ultra",
+        "note": "« 19-inch rack 4U »"
+      }
+    }
+  ],
+  "informations": [
+    {
+      "id": "smode-media-server",
+      "famille": "serveur",
+      "marque": "Smode",
+      "modele": "Tetra et Octa",
+      "statut": "information",
+      "role": "Serveur média",
+      "genlock": {
+        "valeur": true,
+        "source": "smode-page-media-server"
+      },
+      "note": "Fiche d'information : aucune sortie ni résolution publiée, hors chaîne."
+    },
+    {
+      "id": "resolume-arena",
+      "famille": "serveur",
+      "marque": "Resolume",
+      "modele": "Arena",
+      "statut": "information",
+      "role": "Logiciel de diffusion",
+      "note": "Fiche d'information : logiciel, sorties selon la carte graphique de l'ordinateur ; latence et genlock non publiés. Hors chaîne."
+    }
+  ]
+}

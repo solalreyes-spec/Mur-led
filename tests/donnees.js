@@ -2,7 +2,7 @@
 // par la page de tests (ou par node.test.js) et passés à chaque vérification dans `contexte`.
 
 import * as calculs from '../src/calculs.js';
-import { baseDalles as lireBase, baseProcesseurs, baseConnectique, baseRegies } from './base.js';
+import { baseDalles as lireBase, baseProcesseurs, baseConnectique, baseRegies, baseAppareils } from './base.js';
 import { listeCache, fichiersCharges } from './fichiers.js';
 
 function fichiersAppli(contexte) {
@@ -317,7 +317,7 @@ export const DONNEES = [
     verifier(v, contexte) {
       const base = baseConnectique(contexte);
       v.egal('liaisons', base.liaisons.map((l) => l.id),
-        ['dvi-single', 'dvi-dual', 'hdmi-1.2', 'hdmi-1.3', 'hdmi-1.4', 'hdmi-2.0', 'hdmi-2.1', 'dp-1.2', 'dp-1.4', '3g-sdi', '6g-sdi', '12g-sdi', 'st2110-25g', 'st2110-100g']);
+        ['dvi-single', 'dvi-dual', 'hdmi-1.2', 'hdmi-1.3', 'hdmi-1.4', 'hdmi-2.0', 'hdmi-2.1', 'dp-1.2', 'dp-1.4', '3g-sdi', '6g-sdi', '12g-sdi', 'st2110-25g', 'st2110-100g', 'opt-10g', 'hdbaset-2.0', 'hdbaset-3.0', 'dtp2']);
       for (const l of base.liaisons) {
         v.egal(`${l.id} : valeurs sans source`, valeursSourcees(l).filter((x) => !base.sources[x.source]).map((x) => x.nom), []);
         const r = calculs.resoudreFiche(l, base.sources);
@@ -387,8 +387,10 @@ export const DONNEES = [
     verifier(v, contexte) {
       const base = baseRegies(contexte);
       v.egal('régies', base.regies.map((r) => r.id), [
-        'barco-e2-gen2', 'barco-s3-4k', 'barco-ex', 'barco-imagepro-4k',
-        'analogway-livepremier-aquilon', 'analogway-midra-4k', 'analogway-vio-4k', 'rgblink',
+        'barco-e2-gen2', 'barco-e2-gen1', 'barco-s3-4k', 'barco-ex', 'barco-imagepro-4k',
+        'analogway-livepremier-aquilon', 'analogway-aquilon-rs1', 'analogway-aquilon-cmini', 'analogway-aquilon-c', 'analogway-aquilon-cplus',
+        'analogway-aquilon-cmax', 'analogway-pulse-4k', 'analogway-zenith-100', 'analogway-midra-4k', 'analogway-vio-4k',
+        'christie-spyder-x20', 'christie-spyder-x80', 'datapath-fx4', 'pixelhue-p10', 'pixelhue-p20', 'pixelhue-p20-ds', 'pixelhue-f8', 'pixelhue-q8', 'rgblink',
       ]);
       for (const r of base.regies) {
         v.egal(`${r.id} : valeurs sans source`, valeursSourcees(r).filter((x) => !base.sources[x.source]).map((x) => x.nom), []);
@@ -1108,7 +1110,7 @@ export const DONNEES = [
       const e2 = baseRegies(contexte).regies.find((r) => r.id === 'barco-e2-gen2');
       v.egal('E2 Gen 2 : modes et sorties sourcés par la fiche Barco du 27/11/2025', [...e2.modesSortie.map((m) => m.source), e2.sortiesTypes.source],
         ['barco-e2-gen2-fiche-2025-11-27', 'barco-e2-gen2-fiche-2025-11-27', 'barco-e2-gen2-fiche-2025-11-27']);
-      v.vrai('E2 Gen 2 : 16 sorties Program en 2048 × 1200, note « 18 = sorties Aux »', e2.modesSortie[1].sorties === 16 && /18 = sorties Aux/.test(e2.modesSortie[1].note ?? ''));
+      v.vrai('E2 Gen 2 : 16 sorties Program et 2 Aux en 2048 × 1200, note « a total of 18 Aux outputs »', e2.modesSortie[1].sorties === 16 && e2.modesSortie[1].sortiesAux === 2 && /a total of 18 Aux outputs/.test(e2.modesSortie[1].note ?? ''));
       const vx20 = p('colorlight-vx20');
       v.egal('VX20 : calculable, 16 384 × 8192, 650 000 et 487 500 px par port (fiche V1.20)', [calculs.champsManquants(vx20), vx20.largeurMaxPx, vx20.hauteurMaxPx, vx20.capacitePort60Hz8bits,
         vx20.capacitePort60Hz10bits, vx20.sources.capacitePort60Hz8bits.source.id], [[], 16384, 8192, 650000, 487500, 'colorlight-vx20-v1-20']);
@@ -1225,6 +1227,83 @@ export const DONNEES = [
       v.egal('SP60 Pro : statut non renseigné', p('coex-sp60-pro').statutCommercial, undefined);
       v.egal('textes de latence déjà relevés gardés (MX30 complété)', [p('coex-mx20').latence, p('coex-ku20').latence, p('coex-mx30').latence],
         ['0 trame en envoi seul, 1 en tout en un', '0 trame', '0 trame en envoi seul, 1 en tout en un']);
+    },
+  },
+  {
+    id: 'D44',
+    titre: 'Appareils en amont et en aval : un fichier par famille (mélangeurs, convertisseurs, serveurs média, switches réseau), au format de la base, chaque appareil de la bonne famille et chaque valeur sourcée',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const a = baseAppareils(contexte);
+      const familles = { melangeurs: 'melangeur', convertisseurs: 'convertisseur', serveurs: 'serveur', switches: 'switch' };
+      for (const [fichier, famille] of Object.entries(familles)) {
+        const b = a[fichier];
+        v.egal(`${fichier} : format et version`, [b.format, b.version, Array.isArray(b.appareils), typeof b.sources], [`appli-mur-led/${fichier}`, 1, true, 'object']);
+        v.egal(`${fichier} : famille de chaque appareil`, b.appareils.filter((x) => x.famille !== famille).map((x) => x.id), []);
+        const sansSource = b.appareils.flatMap((x) => Object.entries(x).filter(([, val]) => val && typeof val === 'object' && !Array.isArray(val) && 'valeur' in val && !b.sources[val.source]).map(([k]) => `${x.id}.${k}`));
+        v.egal(`${fichier} : valeurs sourcées`, sansSource, []);
+      }
+    },
+  },
+  {
+    id: 'D45',
+    titre: 'Premier lot des régies, serveurs et switches (fiches relues le 26/09/2026) : sorties Program et Aux, budgets, latence, statut, chacun avec sa source et sa page',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const br = baseRegies(contexte);
+      const r = (id) => calculs.resoudreFiche(br.regies.find((x) => x.id === id), br.sources);
+      const sorties = (x, role) => (x.sorties ?? []).filter((s) => (s.role ?? 'program') === role && !s.copie).map((s) => s.nombre);
+      const mp = (x) => (x.budgetsMP ?? []).map((b) => b.mpx / 1e6);
+      v.egal('S3-4K : 4 Program, 4 Aux, 2 multiviewers ; 20 et 40 MP ; ancien', [sorties(r('barco-s3-4k'), 'program'), sorties(r('barco-s3-4k'), 'aux'), mp(r('barco-s3-4k')), r('barco-s3-4k').statutCommercial],
+        [[4], [4], [20, 40], 'ancien']);
+      v.egal('Ex : 8 Program (relié), 20 et 40 MP relié ; ancien (page Barco)', [sorties(r('barco-ex'), 'program'), mp(r('barco-ex')), r('barco-ex').statutCommercial, r('barco-ex').sources.statutCommercial.source.id],
+        [[8, 2], [20, 40], 'ancien', 'barco-support-ex']);
+      const e1 = r('barco-e2-gen1');
+      v.egal('E2 Gen 1 : 3 sorties 4K (4 visibles), 16 en 2048 × 1200 ; 20, 40 et 80 MP ; 1 image ; ancien (page Barco)', [e1.modesSortie.map((x) => x.sorties), mp(e1), e1.latenceMinImages, e1.statutCommercial, e1.sources.statutCommercial.source.id],
+        [[3, 16], [20, 40, 80], 1, 'ancien', 'barco-support-e2']);
+      v.vrai('E2 Gen 1 : 4 × 4K visibles en note', /4 x 4096x2400/.test(e1.modesSortie[0].note ?? ''));
+      for (const [id, program, program2K, aux, budget] of [['analogway-aquilon-cplus', 12, 20, 8, 120], ['analogway-aquilon-c', 8, 16, 8, 80], ['analogway-aquilon-cmax', 16, 24, 4, 160], ['analogway-aquilon-cmini', 4, 8, 8, 40]]) {
+        v.egal(`${id} : ${program} Program en 4K, ${program2K} en 2K, ${aux} Aux, ${budget} MP, 1 image au mieux`, [sorties(r(id), 'program'), sorties(r(id), 'aux'), mp(r(id)), r(id).latenceMinImages], [[program, program2K], [aux], [budget], 1]);
+      }
+      v.egal('Pulse 4K : 2 Program, 16 ms ; Zenith 100 : 3 Program, 1 Aux 1080p, 16 ms', [sorties(r('analogway-pulse-4k'), 'program'), r('analogway-pulse-4k').latenceMinMs,
+        sorties(r('analogway-zenith-100'), 'program'), sorties(r('analogway-zenith-100'), 'aux'), r('analogway-zenith-100').latenceMinMs], [[2], 16, [3], [1], 16]);
+      v.egal('Spyder X20 : 8 sorties SL ou 4 DL, 20 MP, ancien (page Christie)', [r('christie-spyder-x20').modesSortie.map((x) => x.sorties), mp(r('christie-spyder-x20')), r('christie-spyder-x20').statutCommercial], [[8, 4], [20], 'ancien']);
+      v.egal('Spyder X80 : 16 sorties, 80 et 53 MP', [sorties(r('christie-spyder-x80'), 'program'), mp(r('christie-spyder-x80'))], [[16], [80, 53]]);
+      v.egal('Fx4 : 4 sorties à 165 MHz, à tester au-delà de 2048 px', [r('datapath-fx4').sorties[0].nombre, r('datapath-fx4').sorties[0].frequencePixelMaxMHz, r('datapath-fx4').sorties[0].dimensionTesteePx], [4, 165, 2048]);
+      v.egal('P20, P20-DS, P10 : sorties Program 4, 4, 2 ; couches 24, 24, 12 SL', ['pixelhue-p20', 'pixelhue-p20-ds', 'pixelhue-p10'].map((id) => [sorties(r(id), 'program')[0], r(id).couchesParCarteSL]), [[4, 24], [4, 24], [2, 12]]);
+      v.egal('F8 : 6 emplacements retenus (8 visibles), 8 SL par carte, 64 MP', [sorties(r('pixelhue-f8'), 'program'), r('pixelhue-f8').couchesParCarteSL, mp(r('pixelhue-f8'))], [[6], 8, [64]]);
+      v.egal('Q8 : à compléter (nombre de sorties absent de la fiche)', calculs.champsManquantsRegie(r('pixelhue-q8')).length > 0, true);
+      const a = contexte.appareils;
+      const vx = calculs.resoudreFiche(a.serveurs.appareils.find((x) => x.id === 'disguise-vx4-plus'), a.serveurs.sources);
+      v.egal('disguise vx 4+ : 3 à 5 images, 4 sorties 4K HDMI 2.0', [vx.latenceMinImages, vx.latenceMaxImages, vx.sorties[0].nombre, vx.sorties[0].type], [3, 5, 4, 'hdmi-2.0']);
+      const gc = calculs.resoudreFiche(a.switches.appareils.find((x) => x.id === 'luminex-gigacore-16xt'), a.switches.sources);
+      v.egal('Luminex GigaCore 16Xt : 12 ports 1G, manageable, page revendeur', [gc.ports1G, gc.manageable, gc.sources.manageable.source.confiance], [12, true, 'revendeur']);
+      const lot = ['barco-s3-4k', 'barco-ex', 'barco-e2-gen1', 'analogway-aquilon-cplus', 'analogway-pulse-4k', 'analogway-zenith-100', 'christie-spyder-x20', 'christie-spyder-x80', 'datapath-fx4', 'pixelhue-p20', 'pixelhue-f8'];
+      const sansAdresse = lot.flatMap((id) => [...new Set((br.regies.find((x) => x.id === id).sorties ?? []).map((s) => s.source).concat((br.regies.find((x) => x.id === id).budgetsMP ?? []).map((b) => b.source)))])
+        .filter((id) => id && (!br.sources[id]?.url || !(br.sources[id].date || br.sources[id].dateTexte)));
+      v.egal('sources des fiches relues : adresse et date', [...new Set(sansAdresse)], []);
+    },
+  },
+  {
+    id: 'D46',
+    titre: 'Second lot des familles (pages officielles relues le 26/09/2026, fiches Modulo Pi et Decimator) : mélangeurs, convertisseurs, serveurs ; statut « actuel » seulement au menu produits du constructeur, « ancien » absent du menu, « non renseigné » si ce n\'est pas clair',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const a = contexte.appareils;
+      const f = (famille, id) => calculs.resoudreFiche(a[famille].appareils.find((x) => x.id === id), a[famille].sources);
+      v.egal('mélangeurs : 18 ATEM et 7 Roland', [a.melangeurs.appareils.filter((x) => x.marque === 'Blackmagic Design').length, a.melangeurs.appareils.filter((x) => x.marque === 'Roland').length], [18, 7]);
+      v.egal('statuts : V-60HD et V-1200HD anciens, V-1HD actuel ; Constellation HD et Mini Extreme non renseignés',
+        [f('melangeurs', 'roland-v-60hd').statutCommercial, f('melangeurs', 'roland-v-1200hd').statutCommercial, f('melangeurs', 'roland-v-1hd').statutCommercial,
+          f('melangeurs', 'blackmagic-atem-1me-constellation-hd').statutCommercial, f('melangeurs', 'blackmagic-atem-mini-extreme').statutCommercial],
+        ['ancien', 'ancien', 'actuel', 'non renseigné', 'non renseigné']);
+      v.egal('Roland V-1HD : cadences 50 et 59,94 Hz ; V-80HD : 2 à 5 images', [f('melangeurs', 'roland-v-1hd').cadences, f('melangeurs', 'roland-v-80hd').latenceMaxImages], [[50, 59.94], 5]);
+      v.egal('ATEM Constellation 8K : pas de 30 Hz dans ses cadences', f('melangeurs', 'blackmagic-atem-constellation-8k').cadences.includes(30), false);
+      v.egal('convertisseurs : 20 Blackmagic, 3 Decimator, 5 AJA, 1 Lightware', ['Blackmagic Design', 'Decimator', 'AJA', 'Lightware'].map((mq) => a.convertisseurs.appareils.filter((x) => x.marque === mq).length), [20, 3, 5, 1]);
+      v.egal('Teranex AV : 2 images au mieux ; FS-HDR : 2 images (HD) ; Micro 12G : 4 W', [f('convertisseurs', 'blackmagic-teranex-av').latenceMinImages, f('convertisseurs', 'aja-fs-hdr').latenceMinImages, f('convertisseurs', 'blackmagic-micro-sdi-hdmi-12g').puissanceW], [2, 2, 4]);
+      v.egal('serveurs : Pixera four (Gen 1) ancien, four Gen2 actuel ; Karst+ MK2 ancien', [f('serveurs', 'pixera-four').statutCommercial, f('serveurs', 'pixera-four-gen2').statutCommercial, f('serveurs', 'greenhippo-karst-plus-mk2').statutCommercial], ['ancien', 'actuel', 'ancien']);
+      const sources = { ...a.melangeurs.sources, ...a.convertisseurs.sources, ...a.serveurs.sources };
+      const sansAdresse = Object.entries(sources).filter(([, x]) => !x.url || !(x.date || x.dateTexte)).map(([id]) => id);
+      v.egal('sources : adresse et date', sansAdresse, []);
     },
   },
 ];
