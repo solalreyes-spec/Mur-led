@@ -2547,6 +2547,7 @@ export function latenceChaine(maillons, frequenceHz) {
 
 // Cadence de la source face au calcul data : un écart fait sauter ou doubler une image à intervalle régulier.
 // Appareil qui n'accepte que certaines cadences (V-1HD : 59,94 ou 50 Hz).
+const texteSortieCadences = (appareil) => (appareil.sortieCadences ? ` sur sa sortie ${appareil.sortieCadences}` : '');
 export function controleCadence(sourceHz, calculHz, { appareil = null } = {}) {
   const alertes = [];
   if (Math.abs(sourceHz - calculHz) > EPS) {
@@ -2555,8 +2556,8 @@ export function controleCadence(sourceHz, calculHz, { appareil = null } = {}) {
       + `environ toutes les ${nombreCourt(periode, 0)} s. Même cadence partout, ou genlock conseillé.`);
   }
   if (appareil?.cadences?.length && !appareil.cadences.some((c) => Math.abs(c - calculHz) < 0.01)) {
-    alertes.push(`Le ${appareil.nom} ne sort qu'en ${appareil.cadences.map((c) => nombreCourt(c)).join(' ou ')} Hz : le calcul data est à `
-      + `${nombreCourt(calculHz)} Hz.`);
+    alertes.push(`Le ${appareil.nom} ne sort qu'en ${appareil.cadences.map((c) => nombreCourt(c)).join(' ou ')} Hz${texteSortieCadences(appareil)} : le calcul data est à `
+      + `${nombreCourt(calculHz)} Hz${appareil.noteCadences ? ` (${appareil.noteCadences})` : ''}.`);
   }
   return alertes;
 }
@@ -2725,7 +2726,8 @@ function controleSortieChoisie(appareil, liaisonId, liaisons) {
 export const FAMILLES_APPAREILS = { melangeur: 'Mélangeurs', convertisseur: 'Convertisseurs et extenders', serveur: 'Serveurs média', switch: 'Switches réseau' };
 
 // Maillon de la chaîne pris dans la base : latence, liaison de sa première sortie utile, cadences acceptées.
-// Mélangeur : formats broadcast de sortie, sorties qui portent le Program. Convertisseur : formats maxi, mise à l'échelle,
+// Mélangeur : formats broadcast de sortie, sorties qui portent le Program et leurs conditions (V-8HD : OUTPUT 3 dès le
+// 3e processeur, alerte ; V-1HD : PREVIEW dès le 2e, note). Convertisseur : formats maxi, mise à l'échelle,
 // longueurs d'un extender. Un convertisseur bidirectionnel, ou à plusieurs types de sortie, n'impose pas sa liaison de
 // sortie (choisie dans la saisie).
 export function maillonDepuisFiche(fiche) {
@@ -2734,6 +2736,8 @@ export function maillonDepuisFiche(fiche) {
     nom: fiche.nom, ficheId: fiche.id, famille: fiche.famille ?? null, liaison: fiche.bidirectionnel || fiche.sortieAuChoix ? null : (sortie?.type ?? null), cadences: fiche.cadences ?? null,
     latenceMinImages: fiche.latenceMinImages, latenceMaxImages: fiche.latenceMaxImages, latenceMinMs: fiche.latenceMinMs, latenceMaxMs: fiche.latenceMaxMs,
     formatsSortie: fiche.formatsSortie ?? null, sortiesVersProcesseurs: fiche.sortiesVersProcesseurs ?? null,
+    conditionsSortiesProgram: fiche.conditionsSortiesProgram ?? null,
+    cadencesParSortie: (fiche.sorties ?? []).filter((x) => x.cadences?.length).map((x) => ({ type: x.type, cadences: x.cadences, noteCadences: x.noteCadences ?? null })),
     formatsMax: fiche.formatsMax ?? null, noteFormatsMax: fiche.sources?.formatsMax?.note ?? null, miseAEchelle: fiche.miseAEchelle ?? null,
     longueursMax: fiche.longueursMax ?? null, noteLongueurs: fiche.sources?.longueursMax?.note ?? null,
     sortiesTypes: [...new Set((fiche.sorties ?? []).filter((x) => x.role !== 'multiviewer' && !x.copie).map((x) => x.type))],
@@ -2770,19 +2774,31 @@ export function controleChaine(chaine, { evaluation, liaisons, frequenceCalculHz
     r.alertes.push(...parLiaison.alertes);
     return r;
   };
+  // Cadences propres à la sortie du mélangeur qu'emprunte la liaison (même famille : V-600UHD, SDI OUT en 50 et
+  // 59,94 Hz seulement) : elles remplacent celles du mélangeur entier, dans les mêmes messages, avec leur source.
+  const familleDe = (id) => liaisons.find((x) => x.id === id)?.famille ?? id;
+  const parSortie = regie ? null : (source.cadencesParSortie ?? []).find((x) => familleDe(x.type) === familleDe(chaine.liaison));
+  const sourceCadences = parSortie ? { ...source, cadences: parSortie.cadences, noteCadences: parSortie.noteCadences,
+    sortieCadences: liaisons.find((x) => x.id === parSortie.type)?.nom ?? parSortie.type } : source;
   // Mélangeur en source : formats broadcast, cadences de sa fiche, sorties qui portent le Program face aux processeurs.
   const sourceAppareil = () => {
     const r = { refus: [], alertes: [], notes: [] };
     const f = controleFormatsSortie(source, format);
     r.refus.push(...f.refus);
     r.alertes.push(...f.alertes);
-    if (source.formatsSortie?.length && source.cadences?.length && !source.cadences.some((c) => Math.abs(c - format.frequenceHz) < 0.01)) {
-      r.refus.push(`Le ${source.nom} ne sort qu'en ${source.cadences.map((c) => nombreCourt(c)).join(' ou ')} Hz : pas de source à ${nombreCourt(format.frequenceHz)} Hz.`);
+    const sc = sourceCadences;
+    if (sc.formatsSortie?.length && sc.cadences?.length && !sc.cadences.some((c) => Math.abs(c - format.frequenceHz) < 0.01)) {
+      r.refus.push(`Le ${sc.nom} ne sort qu'en ${sc.cadences.map((c) => nombreCourt(c)).join(' ou ')} Hz${texteSortieCadences(sc)} : `
+        + `pas de source à ${nombreCourt(format.frequenceHz)} Hz${sc.noteCadences ? ` (${sc.noteCadences})` : ''}.`);
     }
     const n = evaluation.nombre ?? 1;
     if (!regie && source.sortiesVersProcesseurs && n > source.sortiesVersProcesseurs) {
       r.alertes.push(`${n} processeurs pour ${source.sortiesVersProcesseurs} sortie${source.sortiesVersProcesseurs > 1 ? 's' : ''} du ${source.nom} qui `
         + `porte${source.sortiesVersProcesseurs > 1 ? 'nt' : ''} le Program : ajoute un ampli de distribution.`);
+    }
+    // Condition d'une sortie, dès le processeur qui l'occupe (fiche, avec la page du manuel dans le texte).
+    for (const c of regie ? [] : source.conditionsSortiesProgram ?? []) {
+      if (n >= c.aPartirDe) (c.niveau === 'note' ? r.notes : r.alertes).push(`${source.nom} : ${c.texte}`);
     }
     return r;
   };
@@ -2805,7 +2821,7 @@ export function controleChaine(chaine, { evaluation, liaisons, frequenceCalculHz
   // Cadence : source face au calcul data, puis appareils qui n'acceptent que certaines cadences (fiche).
   const cadence = [
     ...controleCadence(format.frequenceHz, frequenceCalculHz),
-    ...[source, ...retenus].filter((x) => x.cadences?.length).flatMap((x) => controleCadence(frequenceCalculHz, frequenceCalculHz, { appareil: x })),
+    ...[sourceCadences, ...retenus].filter((x) => x.cadences?.length).flatMap((x) => controleCadence(frequenceCalculHz, frequenceCalculHz, { appareil: x })),
   ];
   const aLatence = (x) => [x?.latenceMinImages, x?.latenceMaxImages, x?.latenceMinMs, x?.latenceMaxMs].some((y) => y !== undefined && y !== null);
   const latence = latenceChaine([

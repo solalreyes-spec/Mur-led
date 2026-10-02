@@ -3865,9 +3865,9 @@ export const REGLES = [
       v.vrai('UpDownCross HD : sortie 12G-SDI refusée (sorties 3G-SDI et HDMI 1.3)', !udc.ok && udc.refus.some((x) => x.includes('UpDownCross') && x.includes('12G-SDI')));
       v.egal('12G-CROSS : sortie HDMI 2.0 en 4K60 acceptée', ch('decimator-12g-cross', 3840, 2160, 60, 2, 'hdmi-2.0').ok, true);
       const mel = (id) => calculs.resoudreFiche(a.melangeurs.appareils.find((x) => x.id === id), a.melangeurs.sources);
-      v.egal('Roland V-80HD et V-1200HD : une sortie Program, « autres sorties assignables : à vérifier »',
-        ['roland-v-80hd', 'roland-v-1200hd'].map((id) => [mel(id).sortiesVersProcesseurs, /autres sorties assignables : à vérifier/.test(mel(id).sources.sortiesVersProcesseurs.note)]),
-        [[1, true], [1, true]]);
+      v.egal('Roland V-80HD : 5 sorties Program, plus rien à vérifier ; V-1200HD : 2 (HDMI OUT 1 et 2), SDI « à vérifier »',
+        ['roland-v-80hd', 'roland-v-1200hd'].map((id) => [mel(id).sortiesVersProcesseurs, /à vérifier/.test(mel(id).sources.sortiesVersProcesseurs.note)]),
+        [[5, false], [2, true]]);
       const vx = calculs.controleEntree(processeurDeBase(contexte, 'novastar-vx1000'), { largeurPx: 3840, hauteurPx: 1080, frequenceHz: 60, liaison: 'dvi-single' }, liaisons);
       v.vrai('VX1000 en DVI, 3840 × 1080 à 60 Hz : accepté, avec « demande une source dual link ou un câble HDMI vers DVI »',
         vx.ok && vx.alertes.some((x) => x.includes('source dual link ou un câble HDMI vers DVI')));
@@ -3875,7 +3875,7 @@ export const REGLES = [
   },
   {
     id: 'R199',
-    titre: 'Après la v6 : 12G-CROSS en 12G-SDI (page du site Decimator et tableau de la brochure, constructeur), « 3G/HD/SD » non retenu (copier-coller de la brochure MD-HX) ; sorties Program Roland d\'après la base de connaissances Roland : V-600UHD 4, V-8HD 2, V-80HD et V-1200HD 1',
+    titre: 'Après la v6 : 12G-CROSS en 12G-SDI (page du site Decimator et tableau de la brochure, constructeur), « 3G/HD/SD » non retenu (copier-coller de la brochure MD-HX) ; sorties Program Roland d\'après leurs manuels (relus le 02/10/2026, voir R215 et D51) : V-600UHD 4, V-8HD 3, V-80HD 5, V-1200HD 2',
     etape: 'amont',
     verifier(v, contexte) {
       const a = contexte.appareils;
@@ -3891,11 +3891,12 @@ export const REGLES = [
       v.egal('12G-CROSS : « 3G/HD/SD » non retenu, « copier-coller de la brochure MD-HX »', [sdi?.nonRetenue?.[0]?.type, /copier-coller de la brochure MD-HX/.test(sdi?.nonRetenue?.[0]?.note ?? '')], ['3g-sdi', true]);
       const mel = (id) => calculs.resoudreFiche(a.melangeurs.appareils.find((x) => x.id === id), a.melangeurs.sources);
       const src = (id) => mel(id).sources.sortiesVersProcesseurs.source;
-      v.egal('Roland : V-600UHD 4, V-8HD 2, V-80HD 1, V-1200HD 1', ['roland-v-600uhd', 'roland-v-8hd', 'roland-v-80hd', 'roland-v-1200hd'].map((id) => mel(id).sortiesVersProcesseurs), [4, 2, 1, 1]);
-      v.egal('Roland V-600UHD et V-8HD : articles de la base de connaissances Roland, confiance constructeur',
-        [src('roland-v-600uhd').id, src('roland-v-600uhd').confiance, src('roland-v-8hd').id, src('roland-v-8hd').confiance],
-        ['roland-kb-v-600uhd-sorties', 'constructeur', 'roland-kb-v-8hd-mix-minus', 'constructeur']);
-      v.vrai('Roland V-8HD : Output 3 à vérifier', /Output 3 à vérifier/.test(mel('roland-v-8hd').sources.sortiesVersProcesseurs.note));
+      v.egal('Roland : V-600UHD 4, V-8HD 3, V-80HD 5, V-1200HD 2', ['roland-v-600uhd', 'roland-v-8hd', 'roland-v-80hd', 'roland-v-1200hd'].map((id) => mel(id).sortiesVersProcesseurs), [4, 3, 5, 2]);
+      v.egal('Roland V-600UHD et V-8HD : manuels Roland, confiance constructeur ; base de connaissances en seconde source du V-600UHD',
+        [src('roland-v-600uhd').id, src('roland-v-600uhd').confiance, src('roland-v-8hd').id, src('roland-v-8hd').confiance, mel('roland-v-600uhd').sources.sortiesVersProcesseurs.sources[1]?.id],
+        ['roland-v-600uhd-manuel', 'constructeur', 'roland-v-8hd-manuel', 'constructeur', 'roland-kb-v-600uhd-sorties']);
+      v.vrai('Roland V-8HD : OUTPUT 3 comptée, avec l\'alerte ON SCREEN MENU (plus « à vérifier »)',
+        mel('roland-v-8hd').conditionsSortiesProgram?.[0]?.niveau === 'alerte' && !/à vérifier/.test(mel('roland-v-8hd').sources.sortiesVersProcesseurs.note));
     },
   },
   {
@@ -4360,6 +4361,69 @@ export const REGLES = [
       const ull = cas(cb5, 30, 12, 'brompton-s8', { bits: 10, ull: true });
       v.vrai('ULL : le SX40 de l\'alternative est évalué en ULL', ull.alt?.evaluation.reglages.ull === true && ull.alt.nombre < ull.e.nombre);
       v.vrai('texte copié : ligne « Alternative : »', resumes.resumeData(a.e, { alternative: a.alt }).includes('Alternative : 1 SX40 (2 U) + 3 XD au lieu de 4 S8 (8 U)'));
+    },
+  },
+  {
+    id: 'R215',
+    titre: 'Mélangeurs Roland relus dans leurs manuels (02/10/2026) : sorties qui portent le Program, V-80HD 5, V-1200HD 2 (HDMI OUT 1 et 2, SDI à vérifier), V-8HD 3 avec l\'alerte OUTPUT 3 (1080p, ON SCREEN MENU) dès le 3e processeur, V-1HD 1 avec la note PREVIEW dès le 2e',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const a = contexte.appareils;
+      const m = (id) => calculs.maillonDepuisFiche(calculs.resoudreFiche(a.melangeurs.appareils.find((x) => x.id === id), a.melangeurs.sources));
+      const liaisons = liaisonsDeBase(contexte);
+      const evaluation = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 20, 10), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      const ch = (id, nombre, frequenceHz = 59.94) => calculs.controleChaine({ source: { ...m(id), largeurPx: 1920, hauteurPx: 1080, frequenceHz }, liaison: 'hdmi-2.0', longueurM: 3, convertisseurs: [] },
+        { evaluation: { ...evaluation, nombre }, liaisons, frequenceCalculHz: 60 });
+      const ampli = (r) => r.alertes.some((x) => x.includes('ampli de distribution'));
+      const sortie3 = (r) => r.alertes.filter((x) => x.includes('OUTPUT 3'));
+      v.egal('V-80HD : 5 processeurs sans ampli, 6 avec', [ampli(ch('roland-v-80hd', 5)), ampli(ch('roland-v-80hd', 6))], [false, true]);
+      v.egal('V-1200HD : 2 processeurs sans ampli, 3 avec', [ampli(ch('roland-v-1200hd', 2)), ampli(ch('roland-v-1200hd', 3))], [false, true]);
+      v.egal('V-8HD vers 2 processeurs : ni ampli ni alerte OUTPUT 3', [ampli(ch('roland-v-8hd', 2)), sortie3(ch('roland-v-8hd', 2)).length], [false, 0]);
+      const v8 = ch('roland-v-8hd', 3);
+      v.egal('V-8HD vers 3 processeurs : une alerte OUTPUT 3, sans ampli', [sortie3(v8).length, ampli(v8)], [1, false]);
+      v.vrai('alerte OUTPUT 3 : 1080p (p. 8), menu sur le mur, « Passer ON SCREEN MENU sur OFF avant le show (Reference Manual p. 93). »',
+        sortie3(v8).some((x) => x.includes('V-8HD') && x.includes('1080p') && x.includes('mur') && x.includes('Passer ON SCREEN MENU sur OFF avant le show (Reference Manual p. 93).')));
+      v.vrai('alerte OUTPUT 3 dans les alertes du maillon source', v8.maillons[0].alertes.some((x) => x.includes('OUTPUT 3')));
+      v.egal('V-8HD vers 4 processeurs : ampli et alerte OUTPUT 3', [ampli(ch('roland-v-8hd', 4)), sortie3(ch('roland-v-8hd', 4)).length], [true, 1]);
+      const preview = 'PREVIEW en mode OUTPUT montre le Program, mais le vumètre (affiché d\'usine) et le menu y apparaissent : 2e sortie utilisable seulement vumètre désactivé et sans toucher au menu pendant le show (Owner\'s Manual p. 12 et 15).';
+      const v1 = ch('roland-v-1hd', 2);
+      v.egal('V-1HD vers 2 processeurs : ampli, et la note PREVIEW (note, pas alerte)', [ampli(v1), v1.notes.some((x) => x.includes(preview)), v1.alertes.some((x) => x.includes('PREVIEW'))], [true, true, false]);
+      v.egal('V-1HD vers 1 processeur : pas de note PREVIEW', ch('roland-v-1hd', 1).notes.some((x) => x.includes('PREVIEW')), false);
+      const copie = (chaine, nombre) => resumes.resumeCanvas({ blocs: [], refus: [], alertes: [] },
+        { evaluation: { ...evaluation, nombre }, source: { largeurPx: 1920, hauteurPx: 1080, frequenceHz: 59.94 }, chaine }).split('\n');
+      v.vrai('texte copié : alerte OUTPUT 3 du V-8HD', copie(v8, 3).some((l) => l.startsWith('Alerte : Roland V-8HD : le 3e processeur se branche sur OUTPUT 3')));
+      v.vrai('texte copié : note PREVIEW du V-1HD', copie(v1, 2).includes(`Note : Roland V-1HD : ${preview}`));
+      v.egal('ATEM Mini Pro vers 3 processeurs : aucune condition de sortie (ni note ni alerte OUTPUT)',
+        [ch('blackmagic-atem-mini-pro', 3, 60).notes.length, sortie3(ch('blackmagic-atem-mini-pro', 3, 60)).length], [0, 0]);
+    },
+  },
+  {
+    id: 'R216',
+    titre: 'Cadence d\'un mélangeur contrôlée sortie par sortie : liaison SDI et cadences propres à sa sortie SDI (V-600UHD : SDI OUT en 50 et 59,94 Hz seulement, Reference Manual p. 13), même niveau de message que pour tout le mélangeur, avec la source',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const a = contexte.appareils;
+      const m = (id) => calculs.maillonDepuisFiche(calculs.resoudreFiche(a.melangeurs.appareils.find((x) => x.id === id), a.melangeurs.sources));
+      const liaisons = liaisonsDeBase(contexte);
+      const evaluation = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 20, 10), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      const ch = (liaison, frequenceHz, calcul = frequenceHz, largeurPx = 3840, hauteurPx = 2160) => calculs.controleChaine({ source: { ...m('roland-v-600uhd'), largeurPx, hauteurPx, frequenceHz }, liaison, longueurM: 3, convertisseurs: [] },
+        { evaluation, liaisons, frequenceCalculHz: calcul });
+      const cadenceSdi = (r) => [...r.refus, ...r.alertes].filter((x) => x.includes('ne sort qu\'en'));
+      const sdi60 = ch('12g-sdi', 60);
+      v.egal('V-600UHD en 12G-SDI à 60 Hz : refusé, comme une cadence absente de tout le mélangeur', [sdi60.ok, sdi60.refus.some((x) => x.includes('ne sort qu\'en 50 ou 59,94 Hz'))], [false, true]);
+      v.vrai('message : sortie 12G-SDI et sa source (SDI OUT : 50 et 59,94 Hz seulement, Reference Manual p. 13)',
+        sdi60.refus.some((x) => x.includes('V-600UHD') && x.includes('12G-SDI') && x.includes('pas de source à 60 Hz') && x.includes('Reference Manual Roland V-600UHD p. 13')));
+      v.vrai('calcul data à 60 Hz : alerte « ne sort qu\'en 50 ou 59,94 Hz » pour la sortie SDI, avec la source',
+        sdi60.alertes.some((x) => x.includes('ne sort qu\'en 50 ou 59,94 Hz') && x.includes('le calcul data est à 60 Hz') && x.includes('p. 13')));
+      const hdmi60 = ch('hdmi-2.0', 60);
+      v.egal('le même en HDMI 2.0 à 60 Hz : aucun message de cadence de sortie, accepté', [cadenceSdi(hdmi60).length, hdmi60.ok], [0, true]);
+      v.egal('V-600UHD en 12G-SDI à 59,94 Hz, calcul data à 59,94 Hz : aucun message de cadence de sortie', cadenceSdi(ch('12g-sdi', 59.94)).length, 0);
+      const sdi3g = ch('3g-sdi', 60, 60, 1920, 1080);
+      v.egal('V-600UHD en 3G-SDI, 1920 × 1080 à 60 Hz : la même sortie SDI, refusé pour la cadence seulement', [sdi3g.ok, sdi3g.refus.length, sdi3g.refus.some((x) => x.includes('ne sort qu\'en 50 ou 59,94 Hz'))], [false, 1, true]);
+      v.vrai('V-600UHD en HDMI à 24 Hz (firmware 3.00) : accepté, sans message de cadence de sortie', cadenceSdi(ch('hdmi-2.0', 24)).length === 0);
+      const v1 = calculs.controleChaine({ source: { ...m('roland-v-1hd'), largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60 }, liaison: 'hdmi-2.0', longueurM: 3, convertisseurs: [] },
+        { evaluation, liaisons, frequenceCalculHz: 60 });
+      v.vrai('V-1HD sans cadences de sortie : message de tout le mélangeur inchangé', v1.refus.some((x) => x === 'Le Roland V-1HD ne sort qu\'en 50 ou 59,94 Hz : pas de source à 60 Hz.'));
     },
   },
 ];

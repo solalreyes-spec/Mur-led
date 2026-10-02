@@ -9,4 +9,5 @@ export const VERSIONS_CACHE = [
   { version: 7, empreinte: 'e1c555deebcd61312f404c0bb5a6faa093bd3057a0b61c7511b212f360bbe465', date: '2026-10-02', note: 'Processeurs : Brompton relu (XD-T, XD-S, HFR, ULL, R2), Megapixel HELIOS et switches, Linsn, Kystar, Mooncell' },
   { version: 8, empreinte: 'a37a68ebc691e00016c644c6a73b2d97338bb4a78036cb1e34d566d977326753', date: '2026-10-02', note: 'COEX : carte MX_8×5G_Base-T, plafond par carte de sortie, CVT10 comptés carte par carte, règle des 128 px en 5G' },
   { version: 9, empreinte: '1f33d82fe592d23c7a99f2f94a70ffa468ec748f2eb2e423d50e6d8fcd40553d', date: '2026-10-02', note: 'Data : alternative « SX40 + XD » pour un S8, S4, M2 ou T1' },
+  { version: 10, empreinte: '6dac80a60b87e3e71d520f25bd10194583e42d99085b18b6039d6bdbe6637866', date: '2026-10-02', note: 'Mélangeurs Roland relus dans leurs manuels (sorties Program, alerte OUTPUT 3 du V-8HD, note PREVIEW du V-1HD, cadences), cadence contrôlée sortie par sortie' },
 ];

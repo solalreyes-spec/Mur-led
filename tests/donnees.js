@@ -1523,4 +1523,47 @@ export const DONNEES = [
       v.egal('MX2000 Pro : pas de carte MX_8×5G_Base-T, point « à vérifier » dans sa note', [mx2000.carteSortie5GBaseT, /MX_8×5G_Base-T/.test(mx2000.note ?? '') && /à vérifier/.test(mx2000.note ?? '')], [undefined, true]);
     },
   },
+  {
+    id: 'D51',
+    titre: 'Manuels Roland relus le 02/10/2026 (proav.roland.com) : V-80HD (Reference Manual 2024), V-1200HD (Owner\'s Manual 2016), V-600UHD (Reference Manual, firmware 3.00), V-8HD (Reference Manual v3, 2024), V-1HD (Owner\'s Manual v2, 2019) ; sorties qui portent le Program, cadences, consommation, latence non publiée',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const a = contexte.appareils;
+      const brute = (id) => a.melangeurs.appareils.find((x) => x.id === id);
+      const f = (id) => calculs.resoudreFiche(brute(id), a.melangeurs.sources);
+      const manuels = { 'roland-v-80hd': 'roland-v-80hd-manuel', 'roland-v-1200hd': 'roland-v-1200hd-manuel', 'roland-v-600uhd': 'roland-v-600uhd-manuel', 'roland-v-8hd': 'roland-v-8hd-manuel', 'roland-v-1hd': 'roland-v-1hd-manuel' };
+      const ids = Object.keys(manuels);
+      v.egal('sorties qui portent le Program : V-80HD 5, V-1200HD 2, V-600UHD 4, V-8HD 3, V-1HD 1', ids.map((id) => f(id).sortiesVersProcesseurs), [5, 2, 4, 3, 1]);
+      v.egal('source retenue : le manuel de chaque modèle', ids.map((id) => f(id).sources.sortiesVersProcesseurs.source.id), Object.values(manuels));
+      const note = (id) => f(id).sources.sortiesVersProcesseurs.note ?? '';
+      v.vrai('V-80HD : « Video Assign », p. 17 et 113 ; usine : sortie 1 en Program', /Video Assign/.test(note('roland-v-80hd')) && /p\. 17 et 113/.test(note('roland-v-80hd')) && /sortie 1 en Program/.test(note('roland-v-80hd')));
+      v.vrai('V-1200HD : HDMI OUT 1 et 2 (p. 18), SDI OUT 1 à 6 à vérifier', /HDMI OUT 1 et 2/.test(note('roland-v-1200hd')) && /p\. 18/.test(note('roland-v-1200hd')) && /SDI OUT 1 à 6.*à vérifier/.test(note('roland-v-1200hd')));
+      v.vrai('V-600UHD : SDI OUT « PGM fixed » (p. 15), une seule SDI OUT (p. 67)', /PGM fixed/.test(note('roland-v-600uhd')) && /p\. 15/.test(note('roland-v-600uhd')) && /une seule SDI OUT/.test(note('roland-v-600uhd')));
+      v.egal('V-600UHD et V-80HD : la base de connaissances Roland reste en seconde source', ['roland-v-600uhd', 'roland-v-80hd'].map((id) => f(id).sources.sortiesVersProcesseurs.sources.map((s) => s.id)),
+        [['roland-v-600uhd-manuel', 'roland-kb-v-600uhd-sorties'], ['roland-v-80hd-manuel', 'roland-kb-v-80hd-pgm-aux']]);
+      v.vrai('V-8HD : OUTPUT 1 à 3 (p. 10 et 71), OUTPUT 3 toujours en 1080p (p. 8)', /OUTPUT 1 à 3/.test(note('roland-v-8hd')) && /p\. 10 et 71/.test(note('roland-v-8hd')) && /1080p \(p\. 8\)/.test(note('roland-v-8hd')));
+      v.vrai('V-1HD : PREVIEW non comptée, p. 12 et 15', /PREVIEW/.test(note('roland-v-1hd')) && /p\. 12 et 15/.test(note('roland-v-1hd')));
+      const v8 = brute('roland-v-8hd').conditionsSortiesProgram ?? [];
+      v.egal('V-8HD : alerte dès le 3e processeur, sourcée par le manuel', v8.map((x) => [x.aPartirDe, x.niveau, x.source]), [[3, 'alerte', 'roland-v-8hd-manuel']]);
+      v.vrai('V-8HD : « Passer ON SCREEN MENU sur OFF avant le show (Reference Manual p. 93). »', v8.some((x) => x.texte.endsWith('Passer ON SCREEN MENU sur OFF avant le show (Reference Manual p. 93).')));
+      const v1 = brute('roland-v-1hd').conditionsSortiesProgram ?? [];
+      v.egal('V-1HD : note dès le 2e processeur, texte validé', v1.map((x) => [x.aPartirDe, x.niveau, x.source, x.texte]),
+        [[2, 'note', 'roland-v-1hd-manuel', 'PREVIEW en mode OUTPUT montre le Program, mais le vumètre (affiché d\'usine) et le menu y apparaissent : 2e sortie utilisable seulement vumètre désactivé et sans toucher au menu pendant le show (Owner\'s Manual p. 12 et 15).']]);
+      const v1200 = f('roland-v-1200hd');
+      v.egal('V-1200HD : 90 W sans carte d\'extension (Owner\'s Manual p. 32)', [v1200.puissanceW, v1200.sources.puissanceW.source.id, /sans carte d'extension/.test(v1200.sources.puissanceW.note ?? '') && /p\. 32/.test(v1200.sources.puissanceW.note ?? '')],
+        [90, 'roland-v-1200hd-manuel', true]);
+      v.egal('V-1200HD : cadences 50 et 59,94 Hz, « /60 » en HDMI non confirmé', [v1200.cadences, (v1200.sources.cadences.note ?? '').includes('formats PC « /60 » en HDMI : 60,00 Hz non confirmé (Owner\'s Manual p. 32)')], [[50, 59.94], true]);
+      const v600 = f('roland-v-600uhd');
+      v.egal('V-600UHD : 8 cadences, source le manuel', [v600.cadences, v600.sources.cadences.source.id], [[23.98, 24, 25, 29.97, 30, 50, 59.94, 60], 'roland-v-600uhd-manuel']);
+      v.vrai('V-600UHD : SDI OUT 50 et 59,94 Hz seulement ; 23,98 à 29,97 Hz en HDMI avec le firmware 3.00 ou plus récent',
+        /SDI OUT : 50 et 59,94 Hz seulement/.test(v600.sources.cadences.note ?? '') && /23,98 à 29,97 Hz en HDMI demandent le firmware 3\.00 ou plus récent/.test(v600.sources.cadences.note ?? ''));
+      v.egal('consommations confirmées par les manuels, inchangées : V-80HD 51 W, V-600UHD 80 W, V-8HD 39,6 W, V-1HD 18 W',
+        ['roland-v-80hd', 'roland-v-600uhd', 'roland-v-8hd', 'roland-v-1hd'].map((id) => f(id).puissanceW), [51, 80, 39.6, 18]);
+      v.vrai('latence non publiée, manuel relu : V-1200HD, V-600UHD, V-8HD, V-1HD', ['roland-v-1200hd', 'roland-v-600uhd', 'roland-v-8hd', 'roland-v-1hd'].every((id) => /Latence non publiée \((Reference|Owner's) Manual relu\)/.test(f(id).note ?? '')));
+      v.egal('V-80HD : 5 images du support Roland, absente du Reference Manual', [f('roland-v-80hd').latenceMaxImages, /non publiée dans le Reference Manual/.test(f('roland-v-80hd').note ?? '')], [5, true]);
+      const sources = Object.values(manuels).map((id) => a.melangeurs.sources[id]);
+      v.vrai('5 sources : constructeur, page de proav.roland.com, date du document, relu le 02/10/2026',
+        sources.every((s) => s && s.confiance === 'constructeur' && /^https:\/\/proav\.roland\.com\/global\/support\/by_product\//.test(s.url ?? '') && s.date && /relu le 02\/10\/2026/.test(s.titre)));
+    },
+  },
 ];
