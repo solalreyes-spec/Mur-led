@@ -3,13 +3,14 @@
 
 import {
   evaluerProcesseur, evaluerToutesMarques, processeurConseille, entierInferieur,
-  BIT_DEPTH_PAR_DEFAUT, rappelTessera, gainDixBits, LIBELLES_COIN, ErreurSaisie, reseauBrompton,
+  BIT_DEPTH_PAR_DEFAUT, rappelTessera, gainDixBits, LIBELLES_COIN, ErreurSaisie, reseauBrompton, alternativeSX40,
 } from './calculs.js';
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
 import { alertesSansManques, ligneManques } from './manques.js';
 import {
   resumeData, consommationProcesseur, resumeAvantDePartir, texteCapaciteAppareil, texteLatence, texteAlimentation, texteWatts, texteLogicielReglage,
+  texteAlternativeSX40,
 } from './resumes.js';
 import {
   configsDuMur, logicielDuProcesseur, texteLogicielParc, avantDePartir, arbreProcesseurs, MARQUES_FAMILLE, LOGICIELS,
@@ -24,6 +25,8 @@ let processeurs = [];
 // Fiches d'information (VX4, MCTRL610) : grisées dans le choix du processeur.
 let informations = [];
 let distributeurs = new Map();
+// Fiche du SX40, même hors du parc actif : alternative « SX40 + XD » à un autre Brompton.
+let ficheSX40 = null;
 let sources = {};
 let etatMur = null;
 let familleAffichee = null;
@@ -513,6 +516,20 @@ export function resumeOngletDepart() {
   return resumeAvantDePartir(derniereListe);
 }
 
+// Alternative « SX40 + XD » : texte et bouton « Choisir le SX40 » (la sélection seulement, jamais le parc).
+function sectionAlternative(alternative, dansParc) {
+  if (!alternative) return null;
+  let bouton = el('span', { class: 'source-ligne' }, 'Pour le choisir, passe le parc sur « Tous » ou ajoute un SX40 au parc.');
+  if (dansParc) {
+    bouton = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Choisir le SX40');
+    bouton.addEventListener('click', () => {
+      retenirChoixProcesseur({ id: ficheSX40.id });
+      formulaire.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+  return el('div', { class: 'alerte alerte-info' }, texteAlternativeSX40(alternative), el('br'), bouton);
+}
+
 function sectionAutres(e, evaluations, choisie) {
   const lignes = evaluations.map((r) => {
     const p = r.processeur;
@@ -641,7 +658,11 @@ function calculer(e) {
   const { base, parcId } = contexteLots;
   const avecParcs = Boolean(base?.parcs.length);
   afficherDepart(avecParcs ? avantDePartir(base, parcId, etatMur.lots ?? [], choisie.processeur, { presents }) : null, avecParcs);
+  // Alternative « SX40 + XD » : le SX40 en demande strictement moins que le Brompton retenu.
+  const dansParc = processeurs.some((p) => p.id === ficheSX40?.id);
+  const alternative = alternativeSX40(mur, dalle, choisie, ficheSX40, reglages, { dansParc, nomParc });
   dernier = {
+    alternative,
     choisie, conseille: choisie === conseil, distributeur: nomDistributeur(choisie),
     distributeurFiche: distributeurs.get(choisie.processeur.distributeur) ?? null,
     puissanceDistributeurW: distributeurs.get(choisie.processeur.distributeur)?.puissanceW ?? null,
@@ -652,6 +673,7 @@ function calculer(e) {
   };
   remplacer(zone, recap,
     ...alertes,
+    sectionAlternative(alternative, dansParc),
     choisie.global ? sectionPorts(e, dalle, choisie) : null,
     sectionProcesseur(choisie, conseil),
     sectionConfigs(configs),
@@ -692,6 +714,7 @@ export function initialiserData(base, rappel = () => {}) {
 // Nouvelle base ou nouveau parc actif : `base.processeurs` ne contient que les processeurs du parc actif.
 export function actualiserData(base, premiereFois = false) {
   processeurs = base.processeurs;
+  ficheSX40 = base.sx40 ?? null;
   informations = base.informations ?? [];
   distributeurs = new Map(base.distributeurs.map((d) => [d.id, d]));
   sources = base.sources;

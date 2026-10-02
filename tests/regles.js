@@ -4318,6 +4318,50 @@ export const REGLES = [
       v.vrai('MX40 Pro (1G) : alerte inchangée (« Ports 1G », fiche MX40 Pro V1.5.0, wiki COEX)', mx40.alertes.some((x) => x.startsWith('Ports 1G du COEX MX40 Pro') && x.includes('fiche MX40 Pro V1.5.0, wiki COEX')));
     },
   },
+  {
+    id: 'R214',
+    titre: 'Alternative « SX40 + XD » dans Data : pour un Brompton autre que le SX40 (S8, S4, M2, T1), quand le SX40 évalué avec les mêmes réglages en demande strictement moins (2 processeurs remplacés par 1 compris) ; XD comptés à part (pas dans les U de rack), entrées vidéo à fournir, liaison SX40 vers XD ; marquée « hors parc » si le parc n\'a pas de SX40',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const dist = bp.distributeurs.map((x) => calculs.resoudreFiche(x, bp.sources));
+      const sx40 = processeurDeBase(contexte, 'brompton-sx40');
+      const cb5 = dalleDeBase(contexte, 'roe-cb5-mkii');
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const cas = (d, cols, rows, id, reglages = {}, options = {}) => {
+        const m = calculs.mur(d, cols, rows);
+        const r = { frequenceHz: 60, bits: 12, distributeurs: dist, ...reglages };
+        const e = calculs.evaluerProcesseur(m, d, processeurDeBase(contexte, id), r);
+        return { e, alt: calculs.alternativeSX40(m, d, e, sx40, r, options) };
+      };
+      const a = cas(cb5, 30, 12, 'brompton-s8', { bits: 10 });
+      v.egal('CB5 MKII 30 × 12 en 10 bits : 4 S8, ou 1 SX40 + 3 XD ; 1 entrée vidéo au lieu de 4 ; 2 U au lieu de 8 (XD à part)',
+        [a.e.nombre, a.alt?.nombre, a.alt?.xd, a.alt?.entrees, a.alt?.rack], [4, 1, 3, { avant: 4, apres: 1 }, { avant: 8, apres: 2 }]);
+      v.egal('texte, mot pour mot', resumes.texteAlternativeSX40(a.alt),
+        'Alternative : 1 SX40 (2 U) + 3 XD au lieu de 4 S8 (8 U) ; 1 entrée vidéo au lieu de 4 ; liaison SX40 vers XD : fibre monomode, ou Cat6A 60 m au plus (aide en ligne Tessera, annexe B).');
+      const b = cas(bp2, 24, 8, 'brompton-s8');
+      v.egal('BP2 V2 24 × 8 en 12 bits : 3 S8, ou 2 SX40 + 4 XD ; 2 entrées au lieu de 3', [b.e.nombre, b.alt?.nombre, b.alt?.xd, b.alt?.entrees], [3, 2, 4, { avant: 3, apres: 2 }]);
+      const c = cas(bp2, 24, 8, 'brompton-s8', { redondance: true });
+      v.egal('même mur en redondance : 6 S8, ou 2 SX40 + 8 XD (XD miroirs compris)', [c.e.nombre, c.alt?.nombre, c.alt?.xd], [6, 2, 8]);
+      const d2 = cas(bp2, 16, 8, 'brompton-s8');
+      v.egal('BP2 V2 16 × 8 en 12 bits : 2 S8 (16 ports), ou 1 SX40 + 2 XD ; 1 entrée au lieu de 2', [d2.e.nombre, d2.alt?.nombre, d2.alt?.xd, d2.alt?.entrees], [2, 1, 2, { avant: 2, apres: 1 }]);
+      v.vrai('2 S8 → 1 SX40 : « 1 entrée vidéo au lieu de 2 »', /1 entrée vidéo au lieu de 2/.test(resumes.texteAlternativeSX40(d2.alt) ?? ''));
+      const t1 = cas(cb5, 18, 5, 'brompton-t1', { bits: 10 });
+      v.egal('T1 : plusieurs T1, ou un seul SX40', [t1.e.nombre > 1, t1.alt?.nombre, t1.alt?.remplace], [true, 1, 'T1']);
+      v.egal('pas d\'alternative : 1 S8 suffit ; SX40 sans économie (mur trop large pour les deux) ; SX40 déjà choisi ; Novastar',
+        [cas(bp2, 8, 4, 'brompton-s8').alt, cas(bp2, 30, 2, 'brompton-s8').alt, cas(bp2, 24, 8, 'brompton-sx40').alt, cas(bp2, 24, 8, 'novastar-mctrl4k', { bits: 8 }).alt],
+        [null, null, null, null]);
+      v.egal('mur trop large : 2 S8 et 2 SX40, d\'où pas d\'alternative', [cas(bp2, 30, 2, 'brompton-s8').e.nombre, calculs.evaluerProcesseur(calculs.mur(bp2, 30, 2), bp2, sx40, { frequenceHz: 60, bits: 12 }).nombre], [2, 2]);
+      const hors = cas(cb5, 30, 12, 'brompton-s8', { bits: 10 }, { dansParc: false, nomParc: 'Test' });
+      v.vrai('SX40 absent du parc : alternative marquée « hors parc »', hors.alt?.horsParc === true && /SX40 hors du parc Test/.test(resumes.texteAlternativeSX40(hors.alt) ?? ''));
+      const xdt = cas(cb5, 30, 12, 'brompton-s8', { bits: 10, distributeur: 'brompton-xd-t' });
+      v.vrai('distributeur XD-T choisi : repris, liaison en fibre seulement', xdt.alt?.modeleXd === 'XD-T' && /3 XD-T/.test(resumes.texteAlternativeSX40(xdt.alt) ?? '')
+        && /fibre monomode seulement/.test(resumes.texteAlternativeSX40(xdt.alt) ?? ''));
+      const ull = cas(cb5, 30, 12, 'brompton-s8', { bits: 10, ull: true });
+      v.vrai('ULL : le SX40 de l\'alternative est évalué en ULL', ull.alt?.evaluation.reglages.ull === true && ull.alt.nombre < ull.e.nombre);
+      v.vrai('texte copié : ligne « Alternative : »', resumes.resumeData(a.e, { alternative: a.alt }).includes('Alternative : 1 SX40 (2 U) + 3 XD au lieu de 4 S8 (8 U)'));
+    },
+  },
 ];
 
 // Message de l'erreur levée par `f`, ou chaîne vide.

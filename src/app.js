@@ -178,6 +178,8 @@ const pourData = () => ({
   processeurs: filtrerParParc(courant.processeurs, base, parcActif, 'processeur'),
   // Fiches d'information (VX4, MCTRL610) : visibles et grisées dans le choix du processeur, hors parc actif.
   informations: parcActif ? [] : courant.informationsProcesseurs,
+  // Fiche du SX40, même hors du parc actif : alternative « SX40 + XD » dans Data.
+  sx40: courant.processeurs.find((p) => p.id === 'brompton-sx40') ?? null,
   // Convertisseurs et distributeurs des processeurs, et switches des HELIOS (famille switch).
   distributeurs: [...courant.distributeurs, ...(appareils.switches ?? [])],
   sources: courant.sourcesProcesseurs,

@@ -88,6 +88,17 @@ export function texteLogicielReglage(proc) {
   return `Logiciel : ${s.note ?? s.valeur}. Source : ${court.charAt(0).toLowerCase()}${court.slice(1)}.`;
 }
 
+// Alternative « SX40 + XD » : « Alternative : 1 SX40 (2 U) + 3 XD au lieu de 4 S8 (8 U) ; 1 entrée vidéo au lieu de 4 ;
+// liaison SX40 vers XD : … ». XD hors des U de rack. Sinon null.
+export function texteAlternativeSX40(alt) {
+  if (!alt) return null;
+  const u = (n) => (alt.rack ? ` (${nombre(n)} U)` : '');
+  const entrees = `${nombre(alt.entrees.apres)} ${alt.entrees.apres > 1 ? 'entrées vidéo' : 'entrée vidéo'} au lieu de ${nombre(alt.entrees.avant)}`;
+  return `Alternative : ${nombre(alt.nombre)} SX40${u(alt.rack?.apres)} + ${nombre(alt.xd)} ${alt.modeleXd} au lieu de `
+    + `${nombre(alt.nombreRemplace)} ${alt.remplace}${u(alt.rack?.avant)} ; ${entrees} ; liaison SX40 vers ${alt.modeleXd} : ${alt.liaison}`
+    + `${alt.horsParc ? ` ; SX40 hors du parc ${alt.nomParc ?? 'actif'} : à demander au loueur` : ''}.`;
+}
+
 // Puissance d'un appareil : « 50 W max » quand la fiche donne un maximum.
 export function texteWatts(fiche) {
   if (!fiche?.puissanceW) return null;
@@ -104,6 +115,7 @@ export function texteCapaciteAppareil(c) {
 // `configs` : lots et configs du mur pour le logiciel du processeur (fiches.configsDuMur), avec la version relevée.
 export function resumeData(r, {
   conseille = false, distributeur = null, distributeurFiche = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null, configs = null, reseau = null,
+  alternative = null,
 } = {}) {
   const proc = r.processeur;
   if (!r.groupes?.length) {
@@ -164,6 +176,7 @@ export function resumeData(r, {
       + `${r.grille?.rangees > 1 ? `, rangées ${gr.premiereRangee} à ${gr.derniereRangee}` : ''}`
       + ` (${pluriel(gr.dalles, 'dalle', 'dalles')}, ${pluriel(ports, 'port', 'ports')})`);
   });
+  if (alternative) lignes.push(texteAlternativeSX40(alternative).replace(/\.$/, ''));
   if (configs) lignes.push(...configs.lignes, configs.version ?? null);
   lignes.push(...alertesPorts, ...alertes(r.alertes), ...(r.notes ?? []).map((x) => `Note : ${x}`), ...alertes(configs?.alertes));
   lignes.push(...(reseau?.refus ?? []).map((x) => `Refus : ${x}`), ...alertes(reseau?.alertes));

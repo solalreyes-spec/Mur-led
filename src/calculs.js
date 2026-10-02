@@ -1928,6 +1928,36 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   };
 }
 
+// Alternative « SX40 + XD » (onglet Data) : pour un Brompton autre que le SX40 (S8, S4, M2, T1), le SX40 évalué avec
+// les mêmes réglages (fréquence, profondeur, ULL, redondance, XD choisi), quand il en demande strictement moins
+// (2 processeurs remplacés par 1 compris : une seule source au lieu d'un canvas découpé). Une entrée vidéo par
+// processeur. XD comptés à part : souvent montés au pied du mur, ils n'entrent pas dans les U de rack.
+// `dansParc` : le SX40 fait partie du parc actif (sinon « hors parc », à demander au loueur). Sinon null.
+export function alternativeSX40(m, dalle, evaluation, sx40, reglages = {}, { dansParc = true, nomParc = null } = {}) {
+  const proc = evaluation?.processeur;
+  if (!sx40 || proc?.famille !== 'brompton' || proc.id === sx40.id || !(evaluation.nombre > 0)) return null;
+  const e = evaluerProcesseur(m, dalle, sx40, reglages);
+  if (e.nombre === null || e.nombre >= evaluation.nombre) return null;
+  const idXd = e.processeur.distributeur;
+  const fiche = (reglages.distributeurs ?? []).find((x) => x.id === idXd);
+  let liaison = 'fibre monomode, ou Cat6A 60 m au plus (aide en ligne Tessera, annexe B)';
+  if (fiche?.entreeFibreSeulement || idXd === 'brompton-xd-t') liaison = 'fibre monomode seulement (entrée fibre du XD-T)';
+  else if (fiche?.modulesSfpAvecSX40 || idXd === 'brompton-xd-s') liaison = 'fibre monomode, modules SFP+ 10GBASE-LR obligatoires';
+  return {
+    evaluation: e,
+    nombre: e.nombre,
+    xd: reglages.redondance ? e.totaux.distributeurs.redondance : e.totaux.distributeurs.colonnes,
+    modeleXd: MODELES_DISTRIBUTEUR[idXd] ?? 'XD',
+    remplace: proc.modele,
+    nombreRemplace: evaluation.nombre,
+    entrees: { avant: evaluation.nombre, apres: e.nombre },
+    rack: proc.hauteurU > 0 && sx40.hauteurU > 0 ? { avant: evaluation.nombre * proc.hauteurU, apres: e.nombre * sx40.hauteurU } : null,
+    liaison,
+    horsParc: !dansParc,
+    nomParc,
+  };
+}
+
 // Conseil « toutes marques du parc » : chaque processeur évalué à la profondeur réseau par défaut de sa marque
 // (réglage du parc compris, `bitsParFamille`), la marque choisie (`famille`) à la profondeur du formulaire.
 export function evaluerToutesMarques(m, dalle, processeurs, reglages, { famille = null, bitsParFamille = {} } = {}) {
