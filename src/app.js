@@ -178,13 +178,14 @@ const pourData = () => ({
   processeurs: filtrerParParc(courant.processeurs, base, parcActif, 'processeur'),
   // Fiches d'information (VX4, MCTRL610) : visibles et grisées dans le choix du processeur, hors parc actif.
   informations: parcActif ? [] : courant.informationsProcesseurs,
-  distributeurs: courant.distributeurs,
+  // Convertisseurs et distributeurs des processeurs, et switches des HELIOS (famille switch).
+  distributeurs: [...courant.distributeurs, ...(appareils.switches ?? [])],
   sources: courant.sourcesProcesseurs,
   nomParc: nomParc(),
   // Cartes de réception de la base : capacité d'une carte face à la dalle.
   cartesReception: courant.cartesReception,
   // Profondeur réseau par défaut dans le parc actif, par marque.
-  bitsParDefaut: Object.fromEntries(['brompton', 'novastar', 'colorlight'].map((f) => [f, bitsReseauParc(base, parcActif, f)])),
+  bitsParDefaut: Object.fromEntries(['brompton', 'novastar', 'colorlight', 'megapixel', 'linsn', 'kystar', 'mooncell'].map((f) => [f, bitsReseauParc(base, parcActif, f)])),
   // Lots et configs des dalles, version des logiciels relevée dans le parc actif.
   lots: { base, parcId: parcActif },
 });

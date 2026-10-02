@@ -8,6 +8,8 @@ import { nombreCourt } from './format.js';
 const EPS = 1e-9;
 // « 2 ports », « 1 port ».
 const quantite = (n, mot) => `${nombreCourt(n)} ${mot}${n > 1 ? 's' : ''}`;
+// Nom court de source au milieu d'une phrase : « aide en ligne Tessera 12.2.5 ».
+const minuscule = (texte) => (texte ? `${texte.charAt(0).toLowerCase()}${texte.slice(1)}` : texte);
 
 // Erreur due à la saisie (valeur impossible, cible trop petite…) : affichée telle quelle à l'utilisateur.
 export class ErreurSaisie extends Error {}
@@ -80,6 +82,12 @@ export const PLUS_DEFAVORABLE = {
   capaciteHaute60Hz12bits: 'min',
   entreeMaxLargeurPx: 'min',
   entreeMaxHauteurPx: 'min',
+  // Brompton : canvas en ULL, dalles en HFR, ports et chaînage des XD.
+  ullHauteurMaxPx: 'min',
+  hfrPxMaxDalle: 'min',
+  capaciteNominalePort: 'min',
+  sortiesAvecSX40: 'min',
+  chainageXdMax: 'min',
   // Liaisons vidéo : le format maxi le plus petit
   formatMaxLargeurPx: 'min',
   formatMaxHauteurPx: 'min',
@@ -384,7 +392,9 @@ export function dimensionner(dalle, demande, options = {}) {
 // Débit utile d'un port 1G (bit/s). Le MX40 Pro porte le sien dans sa fiche (950 000 000).
 export const DEBIT_UTILE_BPS = { brompton: 756e6, novastar: 936e6 };
 // Brompton : 12 bits, le réglage de livraison de Tessera, le plus défavorable ; un parc peut préciser le sien.
-export const BIT_DEPTH_PAR_DEFAUT = { brompton: 12, novastar: 8, colorlight: 8 };
+// Megapixel : 12 bits, le plus défavorable du tableau de la page de support (aucune profondeur par défaut publiée).
+// Linsn, Kystar et Mooncell : 8 bits, seule profondeur dont la capacité est publiée.
+export const BIT_DEPTH_PAR_DEFAUT = { brompton: 12, novastar: 8, colorlight: 8, megapixel: 12, linsn: 8, kystar: 8, mooncell: 8 };
 export const SEUIL_CHARGE_PORT = 0.95;
 
 // Rappel Tessera, avec la capacité d'un port 1G en 10 bits à la fréquence et en ULL comme réglés.
@@ -431,6 +441,11 @@ export function refusBitsReseau(proc, bits) {
   const possibles = proc.bitsReseauPossibles;
   if (!possibles || possibles.includes(bits)) return null;
   const pourquoi = proc.sources?.bitsReseauPossibles?.note;
+  // Linsn, Kystar, Mooncell : la profondeur peut exister (10 bits en entrée sur les X8208 et X8212), seule la capacité
+  // par port n'est pas publiée.
+  if (proc.bitsNonPublies) {
+    return `${proc.nom} : capacité ${bits} bits non publiée par ${proc.marque}. Calcul en ${possibles.join(' ou ')} bits seulement (choix du projet).`;
+  }
   return `Le ${proc.nom} travaille en ${possibles.join(' ou ')} bits${pourquoi ? ` ; ${pourquoi}` : ''} `
     + `(${proc.sources?.bitsReseauPossibles?.source.court ?? 'sa fiche'}) : pas de calcul en ${bits} bits.`;
 }
@@ -447,6 +462,12 @@ export function capacitePortProcesseur(proc, reglages = {}) {
   if (!(Number.isFinite(frequenceHz) && frequenceHz > 0)) throw new ErreurSaisie('Indique une fréquence supérieure à zéro.');
   const refus = refusBitsReseau(proc, bits);
   if (refus) throw new ErreurSaisie(refus);
+  // Megapixel HELIOS : tableau de la page de support, selon le lien des dalles (1G ou 2,5G).
+  if (proc.capacitesHelios) {
+    const r = capaciteHelios(proc, { frequenceHz, bits, lien: proc.lienPorts ?? '1G' });
+    if (!r) throw new ErreurSaisie(`${proc.nom} : ${nombreCourt(frequenceHz)} Hz hors du tableau Megapixel (240 Hz au plus).`);
+    return { champ: 'capacitesHelios', capacite: r.capacite, formule: r.formule, deduit: r.deduit, aConfirmer: false, notes: r.notes };
+  }
   if (bits === 10 && cartesPro && proc.cartesPro === true && proc.capaciteCartesPro60Hz10bits !== undefined) {
     const reference = proc.capaciteCartesPro60Hz10bits;
     const source = proc.sources?.capaciteCartesPro60Hz10bits;
@@ -567,13 +588,18 @@ export function champsManquants(proc) {
   // Capacités de la fiche pour chaque profondeur que le processeur sait faire (Colorlight : 8 et 10 bits).
   const parFiche = (proc.bitsReseauPossibles ?? [8, 10, 12]).every((b) => proc[`capacitePort60Hz${b}bits`] !== undefined);
   const parFormule = proc.famille in DEBIT_UTILE_BPS && proc.debitUtileBps > 0;
-  if (!parFiche && !parFormule) manquants.push('capacite');
+  const parTableau = Array.isArray(proc.capacitesHelios) && proc.capacitesHelios.length > 0;
+  if (!parFiche && !parFormule && !parTableau) manquants.push('capacite');
   // MX2000 Pro, MX6000 Pro : les ports viennent des cartes de sortie. Série H : ports, pixels, largeur et hauteur
   // viennent des cartes d'envoi LED.
   const portsParCartes = proc.emplacementsSortie > 0 && Boolean(proc.carteSortie1G || proc.carteSortie5G);
   const toutParCartes = proc.emplacementsSortie > 0 && proc.cartesSortieLED?.length > 0;
   for (const champ of ['pixelsMax', 'ports', 'largeurMaxPx', 'hauteurMaxPx']) {
     if (toutParCartes || (champ === 'ports' && portsParCartes)) continue;
+    // HELIOS 8K et 4K : ports donnés par les switches, sur leurs sorties 10G. HELIOS Jr : pixels maxi calculés par
+    // ses ports (capacité de charge LED), distincts de son canvas d'entrée.
+    if (champ === 'ports' && proc.sorties10G > 0) continue;
+    if (champ === 'pixelsMax' && proc.pixelsMaxParPorts) continue;
     if (!(proc[champ] > 0)) manquants.push(champ);
   }
   return manquants;
@@ -735,7 +761,8 @@ export function controleCarteReception(dalle, cartes, bits) {
   const norme = (x) => String(x).toLowerCase().replace(/[\s-]+/g, '');
   const carte = cartes.find((c) => norme(c.modele) === norme(modele));
   if (!carte) return null;
-  const aBits = (carte.capacites ?? []).filter((c) => c.bits === bits);
+  // Capacité sans profondeur (R2+ de Brompton : 262 144 px) : valable à toutes les profondeurs.
+  const aBits = (carte.capacites ?? []).filter((c) => c.bits === bits || c.bits === undefined);
   if (aBits.length === 0) {
     return { carte, capacite: null, ok: null, alerte: `Carte de réception ${carte.modele} : capacité en ${bits} bits non précisée sur sa fiche, pas de contrôle.` };
   }
@@ -752,10 +779,20 @@ export function controleCarteReception(dalle, cartes, bits) {
     capacite = pwm;
     note = 'IC classiques non précisés sur la fiche : contrôle sur la valeur IC PWM, la plus haute';
   }
-  const ok = dalle.pxH <= capacite.largeurPx && dalle.pxV <= capacite.hauteurPx;
-  const ic = capacite.ic ? ` (IC ${capacite.ic === 'PWM' ? 'PWM' : 'classiques'})` : '';
-  const texte = `Carte de réception ${carte.modele} en ${bits} bits${ic} : ${capacite.largeurPx} × ${capacite.hauteurPx} px par carte ; `
-    + `la dalle ${dalle.nom} fait ${dalle.pxH} × ${dalle.pxV} px (une carte par dalle)`;
+  let ok;
+  let texte;
+  if (capacite.pixels) {
+    // Capacité en pixels (R2+) : le total de la dalle face à celui de la carte.
+    const px = dalle.pxH * dalle.pxV;
+    ok = px <= capacite.pixels;
+    texte = `Carte de réception ${carte.modele} : ${nombreCourt(capacite.pixels)} px par carte ; `
+      + `la dalle ${dalle.nom} fait ${dalle.pxH} × ${dalle.pxV} = ${nombreCourt(px)} px (une carte par dalle)`;
+  } else {
+    ok = dalle.pxH <= capacite.largeurPx && dalle.pxV <= capacite.hauteurPx;
+    const ic = capacite.ic ? ` (IC ${capacite.ic === 'PWM' ? 'PWM' : 'classiques'})` : '';
+    texte = `Carte de réception ${carte.modele} en ${bits} bits${ic} : ${capacite.largeurPx} × ${capacite.hauteurPx} px par carte ; `
+      + `la dalle ${dalle.nom} fait ${dalle.pxH} × ${dalle.pxV} px (une carte par dalle)`;
+  }
   return {
     carte, capacite, ok, note, texte,
     alerte: ok ? null : `${texte} : dépassé, vérifie la carte ou le câblage des modules${note ? `. ${note}` : ''}.`,
@@ -764,13 +801,16 @@ export function controleCarteReception(dalle, cartes, bits) {
 
 // Marque de carte de réception → famille de processeurs qui la pilote (COEX est une gamme Novastar).
 // Une autre marque connue (Megapixel, Linsn…) ne correspond à aucune famille de la base.
-const NOMS_FAMILLE_CARTE = { brompton: 'Brompton', novastar: 'Novastar', colorlight: 'Colorlight' };
+const NOMS_FAMILLE_CARTE = {
+  brompton: 'Brompton', novastar: 'Novastar', colorlight: 'Colorlight', megapixel: 'Megapixel', linsn: 'Linsn', kystar: 'Kystar', mooncell: 'Mooncell',
+};
 export function familleDeCarte(marque) {
   const m = String(marque ?? '').trim().toLowerCase();
   if (!m) return null;
   if (m.includes('novastar') || m.includes('coex')) return 'novastar';
   if (m.includes('brompton') || m.includes('tessera')) return 'brompton';
   if (m.includes('colorlight')) return 'colorlight';
+  if (m.includes('megapixel') || m === 'mvr') return 'megapixel';
   return m;
 }
 
@@ -1264,6 +1304,155 @@ function rectanglesNovaLCT(m, dalle, capacite) {
   return meilleur && { ...meilleur, redondance: 2 * meilleur.ports };
 }
 
+// Megapixel HELIOS : capacité d'un port (ou d'une sortie 10G) lue dans le tableau de la page de support, colonnes 1G,
+// 2,5G et 10G, en 10 et 12 bits. 8 bits : valeurs du 10 bits (déduit, 8 bits non publié). Fréquence absente : la ligne
+// publiée juste au-dessus, la plus défavorable (59,94 → 60 Hz ; 100 → 120 Hz), déduit. Au-delà de 240 Hz : null.
+const LIENS_HELIOS = ['1G', '2.5G', '10G'];
+const NOMS_LIEN_HELIOS = { '1G': '1G', '2.5G': '2,5G', '10G': '10G' };
+export function capaciteHelios(proc, { frequenceHz = 60, bits = BIT_DEPTH_PAR_DEFAUT.megapixel, lien = '1G' } = {}) {
+  const lignes = [...(proc.capacitesHelios ?? [])].sort((a, b) => a.frequenceHz - b.frequenceHz);
+  const exacte = lignes.find((l) => Math.abs(l.frequenceHz - frequenceHz) < 0.01);
+  const ligne = exacte ?? lignes.find((l) => l.frequenceHz > frequenceHz);
+  const colonne = bits === 8 ? 10 : bits;
+  const valeurs = ligne?.[`bits${colonne}`];
+  if (!valeurs) return null;
+  const capacite = valeurs[LIENS_HELIOS.indexOf(lien)];
+  const notes = [];
+  if (bits === 8) notes.push('8 bits : valeurs du 10 bits, déduit, 8 bits non publié par Megapixel');
+  if (!exacte) notes.push(`${nombreCourt(frequenceHz)} Hz absent du tableau Megapixel : ligne de ${ligne.frequenceHz} Hz, la plus proche au-dessus, déduit`);
+  return {
+    capacite,
+    frequenceHz: ligne.frequenceHz,
+    deduit: notes.length > 0,
+    notes,
+    formule: `${nombreCourt(capacite)} px (tableau Megapixel, ${ligne.frequenceHz} Hz, ${colonne} bits, lien ${NOMS_LIEN_HELIOS[lien]})`,
+  };
+}
+
+// HELIOS vu avec ses switches (8K, 4K) ou ses ports directs (Jr) : lien des dalles (1G par défaut, 2,5G si la dalle
+// le permet), switch choisi (M4250 par défaut, M4200) et mode 20G (M4250 : 2 fibres par switch, ports 1 à 6 et 7 à 12).
+// Ports utilisés par fibre 10G : le plus petit des ports du switch et de ce que la fibre transporte (10G / port).
+// HELIOS Jr : deux limites distinctes, son canvas d'entrée (4096 × 2160, déduit, à confirmer) et sa capacité de charge
+// LED, 8 ports × la capacité d'un port 1G du tableau, à la fréquence et à la profondeur du calcul.
+// Canvas du HELIOS 8K (données) : 8192 × 4320 px, déduit, à confirmer, lu comme 4 entrées 12G-SDI de 4096 × 2160
+// assemblées ; autre lecture possible, un lien quad 12G-SDI qui porte une seule image de 7680 × 4320 (8K UHD). Une
+// fiche détaillée devra trancher.
+// Renvoie { proc, notes } ou { refus }.
+function processeurMegapixel(proc, reglages, { frequenceHz, bits }) {
+  const lien = reglages.lienMegapixel === '2.5G' ? '2.5G' : '1G';
+  const notes = [];
+  if (!capaciteHelios(proc, { frequenceHz, bits, lien: '1G' })) {
+    return { refus: `${proc.nom} : ${nombreCourt(frequenceHz)} Hz hors du tableau Megapixel (240 Hz au plus, fiche HELIOS 2023).` };
+  }
+  if (lien === '2.5G') notes.push('Dalles en 2,5G : « 2.5G connectivity is dependent on the tile design » (support Megapixel) ; vérifie que tes dalles le permettent.');
+  if (!(proc.sorties10G > 0)) {
+    if (lien === '2.5G') return { refus: `${proc.nom} : ports 1G en cuivre seulement (« 8 x 1G Copper SFP », fiche HELIOS 2023), pas de lien 2,5G.` };
+    if (!proc.pixelsMaxParPorts) return { proc: { ...proc, lienPorts: '1G' }, notes: [] };
+    const r = capaciteHelios(proc, { frequenceHz, bits, lien: '1G' });
+    const s = proc.sources?.pixelsMaxParPorts;
+    const pixels = proc.ports * r.capacite;
+    const retenue = {
+      valeur: pixels, source: s?.source, sources: s ? [s.source] : [], type: null, declinaisons: [], autres: [], conflit: false,
+      note: `${proc.ports} ports × ${nombreCourt(r.capacite)} px (tableau Megapixel, ${r.frequenceHz} Hz, ${bits === 8 ? 10 : bits} bits, lien 1G)`,
+    };
+    return { proc: { ...proc, lienPorts: '1G', pixelsMax: pixels, sources: { ...proc.sources, pixelsMax: retenue } }, notes: [] };
+  }
+  const id = reglages.switchMegapixel && proc.distributeursPossibles?.includes(reglages.switchMegapixel) ? reglages.switchMegapixel : proc.distributeur;
+  const sw = (reglages.distributeurs ?? []).find((x) => x.id === id);
+  if (!sw) return { refus: `${proc.nom} : switch ${id} absent de la base, pas de calcul.` };
+  if (lien === '2.5G' && !sw.lien25G) {
+    return { refus: `${sw.modele} : ports 1G seulement (${minuscule(sw.sources?.vitessePorts?.source.court) ?? 'sa fiche'}) ; le lien 2,5G demande un M4250.` };
+  }
+  const mode20G = reglages.mode20G === true;
+  if (mode20G && !sw.mode20G) {
+    return { refus: `Mode 20G : M4250 seulement (« ${sw.sources?.mode20G?.note?.replace(/^« | »$/g, '') ?? 'NOT available with the older 8-port M4200 switches'} », notes de version HELIOS v25.11.0).` };
+  }
+  const port = capaciteHelios(proc, { frequenceHz, bits, lien }).capacite;
+  const fibre = capaciteHelios(proc, { frequenceHz, bits, lien: '10G' }).capacite;
+  const parLienMax = mode20G ? Math.floor(sw.ports / 2) : sw.ports;
+  const parBande = Math.floor(fibre / port + EPS);
+  const parLien = Math.min(parLienMax, parBande);
+  const parSwitch = mode20G ? 2 * parLien : parLien;
+  // Mode 20G : un switch par paire de sorties 10G. Sortie impaire (HELIOS 4K : 3 sorties) laissée sans switch pour
+  // l'instant ; elle pourra plus tard être branchée sur un switch simple, non agrégé.
+  const switches = mode20G ? Math.floor(proc.sorties10G / 2) : proc.sorties10G;
+  notes.push(`${sw.modele}${mode20G ? ' en mode 20G' : ''} : ${parSwitch} ports ${NOMS_LIEN_HELIOS[lien]} utilisés sur ${sw.ports} par switch `
+    + `(${mode20G ? `${parLien} par fibre, ` : ''}${nombreCourt(fibre)} px par fibre 10G, ${nombreCourt(port)} px par port), `
+    + `${switches} switch${switches > 1 ? 'es' : ''} au plus par ${proc.modele}.`);
+  if (mode20G && proc.sorties10G % 2 === 1) {
+    notes.push(`Mode 20G : ${proc.sorties10G} sorties 10G sur le ${proc.modele}, ${switches} switch${switches > 1 ? 'es' : ''} en 20G, une sortie 10G sans switch.`);
+  }
+  return {
+    proc: {
+      ...proc, lienPorts: lien, ports: switches * parSwitch, sortiesParDistributeur: parSwitch, distributeur: sw.id, distributeurObligatoire: true,
+    },
+    notes,
+  };
+}
+
+// Pixels maxi pour ranger les processeurs du plus petit au plus grand : ceux de la fiche, sinon (HELIOS Jr) ses ports ×
+// la capacité d'un port 1G à 60 Hz, dans la profondeur par défaut de sa marque.
+export function pixelsPourClassement(proc) {
+  if (proc.pixelsMax > 0) return proc.pixelsMax;
+  if (proc.pixelsMaxParPorts && proc.ports > 0) {
+    const r = capaciteHelios(proc, { frequenceHz: 60, bits: BIT_DEPTH_PAR_DEFAUT[proc.famille], lien: '1G' });
+    return r ? proc.ports * r.capacite : null;
+  }
+  return null;
+}
+
+// SX40 et S8 : capacité en pixels selon la fréquence (aide en ligne Tessera 12.2.5 et 12.2.4 ; S8 par analogie).
+// Au-delà de 60 Hz, maximum × 60 / fréquence, ou la valeur publiée si elle est plus basse (SX40 : 2,15 M à 250 Hz) ;
+// en ULL, divisée par 2 et remontée sous 60 Hz jusqu'au maximum (le canvas de 4094 × 2047 px limite ensuite à 8,38 M).
+// Sans règle sur la fiche : null.
+export function pixelsMaxSelonFrequence(proc, { frequenceHz = 60, ull = false } = {}) {
+  const points = proc.capaciteSelonFrequence;
+  if (!Array.isArray(points) || !(frequenceHz > 0)) return null;
+  const maximum = proc.pixelsMaxReference ?? proc.pixelsMax;
+  const proportion = (maximum * 60) / frequenceHz;
+  const publie = frequenceHz > 60 ? points.find((p) => Math.abs(p.frequenceHz - frequenceHz) < 0.01 && p.pixels < proportion) : null;
+  const brut = publie ? publie.pixels : proportion;
+  const avecUll = ull && proc.ullPossible === true;
+  const valeur = Math.min(maximum, avecUll ? brut / 2 : brut);
+  // La règle de fréquence (et sa source) ne sert qu'hors 60 Hz ; l'ULL divise par 2 sur SX40 et S8 (aide 12.2.4).
+  const horsSoixante = Math.abs(frequenceHz - 60) > EPS;
+  const source = horsSoixante ? proc.sources?.capaciteSelonFrequence?.source : null;
+  const sourceUll = avecUll ? proc.sources?.ullPossible?.source : null;
+  const mpx = (x) => `${nombreCourt(x / 1e6, 3)} M`;
+  let detail = horsSoixante ? `${mpx(maximum)} × 60 / ${nombreCourt(frequenceHz)}` : mpx(maximum);
+  if (publie) detail = `${mpx(publie.pixels)} publiés (la proportion donne ${mpx(proportion)})`;
+  return {
+    valeur,
+    maximum,
+    deduit: /déduit/.test(source?.confiance ?? ''),
+    sources: [source, sourceUll].filter(Boolean),
+    texte: `Capacité du ${proc.nom} à ${nombreCourt(frequenceHz)} Hz${avecUll ? ' en ULL' : ''} : ${detail}${avecUll ? ' / 2 (ULL)' : ''} = ${mpx(valeur)} px `
+      + `(${[source?.court, sourceUll?.court].filter(Boolean).map(minuscule).join(', ')}).`,
+  };
+}
+
+// Distributeur Brompton choisi pour le processeur (XD-T, XD-S avec un SX40) : ports utilisés sur ceux de sa fiche,
+// entrée fibre seulement, modules SFP+ obligatoires (alerte), capacité déduite et chaînage non écrit (notes).
+function notesDistributeur(d, proc) {
+  const alertes = [];
+  const notes = [];
+  const source = (champ) => minuscule(d.sources?.[champ]?.source.court) ?? `fiche ${d.modele}`;
+  if (d.sortiesAvecSX40 && d.sortiesAvecSX40 < d.sorties) {
+    notes.push(`${d.modele} avec un ${proc.modele} : ${d.sortiesAvecSX40} premiers ports sur ${d.sorties} (${source('sortiesAvecSX40')}).`);
+  }
+  if (d.entreeFibreSeulement) notes.push(`${d.modele} : entrée fibre seulement (${d.entree}), pas de cuivre 10G depuis le ${proc.modele}.`);
+  if (d.modulesSfpAvecSX40) {
+    alertes.push(`${d.modele} avec un ${proc.modele} : modules SFP+ ${d.modulesSfpAvecSX40} obligatoires, cages livrées vides (${source('modulesSfpAvecSX40')}).`);
+  }
+  const capacite = d.sources?.capaciteNominalePort;
+  if (capacite && /déduit/.test(capacite.source.confiance)) {
+    notes.push(`${d.modele} : ${nombreCourt(d.capaciteNominalePort)} px par port à 60 Hz en 8 bits, ${minuscule(capacite.source.court)}, absent de sa fiche ; `
+      + 'la capacité suit la formule Tessera, comme sur le XD.');
+  }
+  if (proc.famille === 'brompton' && d.chainageXdMax === undefined) notes.push(`${d.modele} : chaînage à confirmer (non écrit sur sa fiche).`);
+  return { alertes, notes };
+}
+
 // Évalue un processeur pour un mur : capacité, dalles par port, ports, contrôles, nombre de processeurs,
 // découpage, ports et distributeurs par processeur.
 // Réglages : frequenceHz, bits, ull (Brompton), cartesPro et modeOptique (MX40 Pro), redondance.
@@ -1271,11 +1460,46 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   // MX2000 Pro, MX6000 Pro : ports, convertisseurs et capacité selon la carte de sortie retenue.
   let avecCartes = procFiche.carteSortie1G || procFiche.carteSortie5G ? processeurAvecCartes(procFiche, dalle, reglages.carteSortie) : null;
   if (procFiche.cartesSortieLED?.length && procFiche.emplacementsSortie > 0) avecCartes = processeurAvecCartesLED(procFiche, reglages.carteSortie, dalle);
-  const proc = avecCartes?.proc ?? procFiche;
+  let proc = avecCartes?.proc ?? procFiche;
   const {
     frequenceHz = 60, bits = BIT_DEPTH_PAR_DEFAUT[proc.famille], ull = false, cartesPro = false,
     redondance = false, modeOptique = false,
   } = reglages;
+  // SX40 : XD, XD-T ou XD-S au choix (onglet Data) ; 10 ports par unité avec un SX40.
+  if (reglages.distributeur && procFiche.distributeursPossibles?.includes(reglages.distributeur)) {
+    proc = { ...proc, distributeur: reglages.distributeur };
+  }
+  // Megapixel HELIOS : switches (8K, 4K) ou ports directs (Jr), lien des dalles 1G ou 2,5G, mode 20G.
+  const megapixel = proc.capacitesHelios ? processeurMegapixel(proc, reglages, { frequenceHz, bits }) : null;
+  if (megapixel?.proc) proc = megapixel.proc;
+  // ULL (SX40, S8) : canvas de 720 à 2047 px de haut, l'EDID faisant deux fois la hauteur du canvas ;
+  // les préréglages plus hauts (4K DCI) disparaissent.
+  let formatsRetiresUll = [];
+  if (ull && proc.ullHauteurMaxPx && proc.hauteurMaxPx > proc.ullHauteurMaxPx) {
+    formatsRetiresUll = (proc.formatsCanvas ?? []).filter((f) => f.hauteurPx > proc.ullHauteurMaxPx);
+    proc = {
+      ...proc,
+      hauteurMaxPx: proc.ullHauteurMaxPx,
+      formatsCanvas: (proc.formatsCanvas ?? []).filter((f) => f.hauteurPx <= proc.ullHauteurMaxPx),
+      sources: { ...proc.sources, hauteurMaxPx: proc.sources?.ullHauteurMaxPx ?? proc.sources?.hauteurMaxPx },
+    };
+  }
+  // SX40 et S8 : capacité en pixels au-delà de 60 Hz et en ULL. Le maximum de la fiche reste en `pixelsMaxReference`,
+  // pour qu'un nouveau calcul avec ce processeur (rappel en 10 bits) ne la divise pas deux fois.
+  const selonFrequence = pixelsMaxSelonFrequence(proc, { frequenceHz, ull });
+  const noteCapacite = selonFrequence && Math.abs(selonFrequence.valeur - selonFrequence.maximum) > EPS ? selonFrequence.texte : null;
+  if (noteCapacite) {
+    const s = proc.sources?.pixelsMax;
+    proc = {
+      ...proc,
+      pixelsMaxReference: selonFrequence.maximum,
+      pixelsMax: selonFrequence.valeur,
+      sources: {
+        ...proc.sources,
+        pixelsMax: s && { ...s, valeur: selonFrequence.valeur, sources: [...s.sources, ...selonFrequence.sources.filter((x) => !s.sources.some((y) => y.id === x.id))] },
+      },
+    };
+  }
   const reglagesCapacite = {
     frequenceHz,
     bits,
@@ -1292,6 +1516,16 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   // Colorlight : capacité 12 bits non publiée.
   const refusBits = refusBitsReseau(proc, bits);
   if (refusBits) return { ...vide, impossible: refusBits };
+  // ULL : SX40 et S8 seulement ; les S4, M2 et T1 ont leur Low Latency Mode, par leurs formats de canvas.
+  if (ull && proc.famille === 'brompton' && proc.ullPossible === false) {
+    const s = proc.sources?.ullPossible;
+    return {
+      ...vide,
+      impossible: `ULL : fonction des SX40 et S8 seulement (${[s?.note, minuscule(s?.source.court)].filter(Boolean).join(', ')}) ; `
+        + `le ${proc.nom} a son Low Latency Mode, par ses formats de canvas Low Latency. Décoche l'ULL.`,
+    };
+  }
+  if (megapixel?.refus) return { ...vide, impossible: megapixel.refus };
   const manquants = champsManquants(proc);
   if (procFiche.statut === 'information') {
     return { ...vide, aCompleter: manquants, impossible: `${proc.nom} : fiche d'information, à compléter avec une fiche constructeur ; aucun calcul avec ce modèle.` };
@@ -1326,6 +1560,17 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     alertes.push('Dalles de moins de 16 px dans une dimension : elles coûtent cher en traitement et on peut en brancher '
       + 'moins que la capacité nominale (manuel Tessera §13.1.4). Vérifie les barres de charge dans Tessera.');
   }
+  // HFR (SX40, S8, au-delà de 60 Hz) : dalles à carte R2 ou R2+ d'environ 108 000 px au plus.
+  const hfr = proc.hfrPxMaxDalle;
+  if (hfr && frequenceHz > 60) {
+    const source = proc.sources?.hfrPxMaxDalle;
+    const origine = [source?.note, minuscule(source?.source.court)].filter(Boolean).join(', ');
+    for (const x of [dalle, m.demi].filter(Boolean).filter((y) => y.pxH * y.pxV > hfr)) {
+      alertes.push(`HFR à ${nombreCourt(frequenceHz)} Hz : la dalle ${x.nom} fait ${x.pxH} × ${x.pxV} = ${nombreCourt(x.pxH * x.pxV)} px ; `
+        + `le HFR demande des dalles à carte R2 ou R2+ d'environ ${nombreCourt(hfr)} px au plus${origine ? ` (${origine})` : ''}, `
+        + 'avec des circuits de commande qui le supportent. Vérifie avec Brompton que la dalle le permet.');
+    }
+  }
   const pxParDalle = pixelsComptes(dalle, proc);
   const pxParDemi = m.demi ? pixelsComptes(m.demi, proc) : pxParDalle;
   const plafond = redondance && proc.maxDallesParBoucleRedondance ? proc.maxDallesParBoucleRedondance : Infinity;
@@ -1336,6 +1581,24 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   }
   // Informations sans alerte (Colorlight : règle des 1280 px de la fiche S20 sur un autre modèle).
   const notes = [];
+  if (noteCapacite) notes.push(noteCapacite);
+  notes.push(...(megapixel?.notes ?? []));
+  if (proc.famille === 'megapixel' && redondance) {
+    alertes.push('Redondance Megapixel (SeamlessLoop) : non modélisée par l\'appli ; ports doublés par prudence, vérifie la configuration dans HELIOS.');
+  }
+  if (reglagesCapacite.ull && proc.ullHauteurMaxPx) {
+    const source = proc.sources?.ullHauteurMaxPx?.source;
+    notes.push(`ULL : canvas de ${proc.canvasLibre?.hauteurMinPx ?? 720} à ${proc.ullHauteurMaxPx} px de haut (l'EDID fait deux fois la hauteur du canvas)`
+      + `${formatsRetiresUll.length ? `, sans ${formatsRetiresUll.map((f) => `le format ${f.nom}`).join(', ')}` : ''} ; `
+      + `entrée HDMI seulement, pas de SDI (${minuscule(source?.court) ?? 'aide en ligne Tessera'}).`);
+  }
+  // Distributeur choisi (XD-T, XD-S) : ports utilisés avec ce processeur, entrée, modules, valeurs déduites.
+  const distributeur = proc.distributeursPossibles && reglages.distributeurs?.find((x) => x.id === proc.distributeur);
+  if (distributeur) {
+    const r = notesDistributeur(distributeur, proc);
+    alertes.push(...r.alertes);
+    notes.push(...r.notes);
+  }
   // Capacité de l'appareil : ports utiles × capacité d'un port, plafonnée par le total de la fiche
   // (VX4S : 4 × 650 000 = 2,6 M, mais 2,3 M au total). En redondance, les ports principaux seulement.
   const portsSorties = optique && proc.portsOptionOptique ? proc.portsOptionOptique : proc.ports;
@@ -1841,6 +2104,13 @@ export function controleSource(source, evaluation, liaisons, data) {
   const entree = controleEntree(proc, source, liaisons);
   if (entree.refus) refus.push(entree.refus);
   alertes.push(...entree.alertes);
+  // ULL (SX40, S8) : HDMI seulement, la source doit respecter l'EDID du processeur.
+  const famille = entree.liaison?.famille;
+  if (evaluation.reglages?.ull && proc.ullEntrees && famille && !proc.ullEntrees.includes(famille)) {
+    const s = proc.sources?.ullEntrees;
+    refus.push(`ULL : entrée ${proc.ullEntrees.map((f) => NOMS_FAMILLE_LIAISON[f] ?? f).join(' ou ')} seulement sur le ${proc.nom}, pas de ${NOMS_FAMILLE_LIAISON[famille] ?? famille}`
+      + `${s ? ` (${[s.note, minuscule(s.source.court)].filter(Boolean).join(', ')})` : ''}.`);
+  }
 
   const blocs = (evaluation.groupes ?? []).map((g, i) => ({
     numero: i + 1,
@@ -2180,9 +2450,16 @@ export function controleCadence(sourceHz, calculHz, { appareil = null } = {}) {
 const AIDE_TESSERA_CONNEXION = 'aide en ligne Tessera, Connection Guidelines';
 const AIDE_TESSERA_CABLES = 'aide en ligne Tessera, annexe B';
 const CUIVRE_10G_BROMPTON_M = { Cat6A: 60, Cat5e: 30 };
-export function reseauBrompton({ xd = 0, switches = 0, convertisseursFibre = 0, switchManageable = false, switch10G = false, fibre = null, cuivre10G = null } = {}) {
+export function reseauBrompton({
+  xd = 0, switches = 0, convertisseursFibre = 0, switchManageable = false, switch10G = false, fibre = null, cuivre10G = null, distributeur = null,
+} = {}) {
   const refus = [];
   const alertes = [];
+  // XD-T : entrée fibre seulement.
+  if (cuivre10G && distributeur?.entreeFibreSeulement) {
+    refus.push(`${distributeur.modele} : entrée fibre seulement (${distributeur.entree}) ; pas de cuivre 10G jusqu'au ${distributeur.modele} `
+      + `(${minuscule(distributeur.sources?.sorties?.source.court) ?? `fiche ${distributeur.modele}`}).`);
+  }
   const noeuds = xd + switches + convertisseursFibre;
   if (noeuds > 5) {
     refus.push(`${noeuds} appareils entre le processeur et la dalle la plus éloignée (XD, switches et convertisseurs fibre comptés) : 5 au plus `
@@ -2904,14 +3181,19 @@ const TEXTE_SANS_FIBRE = 'pas de sortie fibre : une paire de CVT310 (multimode, 
 // Colorlight sans sortie fibre : les H10FN2, H10FN et H10Fix demandent une sortie fibre 10G.
 const TEXTE_SANS_FIBRE_COLORLIGHT = 'pas de sortie fibre : une paire de convertisseurs Ethernet-fibre 1G par port au-delà de 100 m '
   + '(les H10FN2, H10FN et H10Fix demandent une sortie fibre 10G ; choix de conception du projet)';
+// HELIOS Jr : ports 1G en cuivre, sans sortie fibre.
+const TEXTE_SANS_FIBRE_MEGAPIXEL = 'pas de sortie fibre : une paire de convertisseurs Ethernet-fibre 1G par port au-delà de 100 m '
+  + '(choix de conception du projet), ou un HELIOS 4K ou 8K avec ses switches';
+const TEXTES_SANS_FIBRE = { colorlight: TEXTE_SANS_FIBRE_COLORLIGHT, megapixel: TEXTE_SANS_FIBRE_MEGAPIXEL };
 // Convertisseurs de même rôle, cités en note.
 const AUTRES_DISTRIBUTEURS = { 'colorlight-h10fn2': 'H10FN ou H10Fix' };
 // Distributeur fibre proposé quand le cuivre dépasse 100 m, si la fiche du processeur n'en nomme pas.
-const FIBRE_PAR_FAMILLE = { brompton: 'XD', novastar: 'CVT10', colorlight: 'convertisseurs fibre' };
+const FIBRE_PAR_FAMILLE = { brompton: 'XD', novastar: 'CVT10', colorlight: 'convertisseurs fibre', megapixel: 'switches' };
 // Nom court des convertisseurs, pour les libellés de ports et les alertes.
 export const MODELES_DISTRIBUTEUR = {
-  'brompton-xd': 'XD', 'novastar-cvt10': 'CVT10', 'coex-cvt8-5g': 'CVT8-5G', 'novastar-cvt4k': 'CVT4K', 'novastar-cvt310': 'CVT310', 'novastar-cvt320': 'CVT320',
+  'brompton-xd': 'XD', 'brompton-xd-t': 'XD-T', 'brompton-xd-s': 'XD-S', 'novastar-cvt10': 'CVT10', 'coex-cvt8-5g': 'CVT8-5G', 'novastar-cvt4k': 'CVT4K', 'novastar-cvt310': 'CVT310', 'novastar-cvt320': 'CVT320',
   'colorlight-h10fn2': 'H10FN2', 'colorlight-h2f': 'H2F', 'colorlight-h10fix-5g': 'H10Fix-5G',
+  'netgear-m4250-msm4214x': 'M4250', 'netgear-m4200-gsm4210p': 'M4200',
 };
 
 export const idDalle = (colonne, rangee) => `C${colonne} R${rangee}`;
@@ -3294,7 +3576,7 @@ export function cablageData(m, dalle, evaluation, {
       alertes.push(`${longs.length} câble${longs.length > 1 ? 's' : ''} de tête en cuivre au-delà de ${limiteM} m `
         + `(jusqu'à ${nombreCourt(Math.max(...longs.map((p) => p.longueurCuivreM)), 1)} m) : l'Ethernet en cuivre s'arrête à ${limiteM} m, `
         + (proc.sortiesFibre === 'aucune'
-          ? `et le ${proc.modele} n'a ${proc.famille === 'colorlight' ? TEXTE_SANS_FIBRE_COLORLIGHT : TEXTE_SANS_FIBRE}.`
+          ? `et le ${proc.modele} n'a ${TEXTES_SANS_FIBRE[proc.famille] ?? TEXTE_SANS_FIBRE}.`
           : `passe en fibre avec des ${fibre} au pied du mur${autres && !nomDistributeur ? ` (${autres} possibles)` : ''}.`));
     }
     const retoursLongs = tous.filter((p) => p.secours?.long).map((p) => p.secours.retourM);

@@ -70,6 +70,30 @@ export function texteLatence(proc) {
   return `${texte}${sources ? ` (${sources})` : ''}`;
 }
 
+// Courant de l'alimentation, tel que la fiche le donne, jamais converti en watts :
+// « 1,2 A à 100 V / 0,6 A à 240 V (courant maximal de l'alimentation, pas une consommation mesurée) ». Sinon null.
+export function texteAlimentation(fiche) {
+  const valeurs = fiche?.courantAlimentation;
+  if (!Array.isArray(valeurs) || valeurs.length === 0) return null;
+  const tension = (x) => (x.tensionV ? ` à ${nombreCourt(x.tensionV)} V` : `, de ${nombreCourt(x.tensionMinV)} à ${nombreCourt(x.tensionMaxV)} V`);
+  return `${valeurs.map((x) => `${nombreCourt(x.courantA, 2)} A${tension(x)}`).join(' / ')} (courant maximal de l'alimentation, pas une consommation mesurée)`;
+}
+
+// Logiciel de réglage quand la fiche le donne (Linsn, Kystar, Mooncell), sans parenthèses imbriquées :
+// « Logiciel : LEDSet (réglage des cartes) et LEDStudio (lecture). Source : pages logiciels Linsn [TIERS]. » Sinon null.
+export function texteLogicielReglage(proc) {
+  const s = proc?.sources?.logicielReglage;
+  if (!s) return null;
+  const court = s.source?.court ?? 'source non précisée';
+  return `Logiciel : ${s.note ?? s.valeur}. Source : ${court.charAt(0).toLowerCase()}${court.slice(1)}.`;
+}
+
+// Puissance d'un appareil : « 50 W max » quand la fiche donne un maximum.
+export function texteWatts(fiche) {
+  if (!fiche?.puissanceW) return null;
+  return `${nombreCourt(fiche.puissanceW)} W${fiche.sources?.puissanceW?.type === 'max' ? ' max' : ''}`;
+}
+
 // Capacité de l'appareil : « min(4 ports × 650 000 = 2 600 000 px ; total de la fiche 2 300 000 px) = 2 300 000 px ».
 export function texteCapaciteAppareil(c) {
   return `min(${pluriel(c.ports, 'port', 'ports')} × ${nombre(entierInferieur(c.capacitePort))} = ${nombre(entierInferieur(c.sommePorts))} px ; `
@@ -78,7 +102,9 @@ export function texteCapaciteAppareil(c) {
 
 // `r` : évaluation du processeur retenu ; `distributeur` : nom du distributeur (XD, CVT10) s'il y en a.
 // `configs` : lots et configs du mur pour le logiciel du processeur (fiches.configsDuMur), avec la version relevée.
-export function resumeData(r, { conseille = false, distributeur = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null, configs = null, reseau = null } = {}) {
+export function resumeData(r, {
+  conseille = false, distributeur = null, distributeurFiche = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null, configs = null, reseau = null,
+} = {}) {
   const proc = r.processeur;
   if (!r.groupes?.length) {
     return texte(['DATA', `Processeur : ${proc.nom}`, `Impossible : ${r.impossible ?? 'ce processeur ne convient pas à ce mur'}`, ...alertes(r.alertes)]);
@@ -117,14 +143,21 @@ export function resumeData(r, { conseille = false, distributeur = null, puissanc
   }
   const conso = consommationProcesseur(proc);
   if (conso) lignes.push(conso);
+  const alimentation = texteAlimentation(proc);
+  if (alimentation) lignes.push(`Alimentation ${proc.modele} : ${alimentation}`);
   if (distributeur && r.totaux?.distributeurs) {
     const libres = r.totaux.distributeurs.portsNonUtilises;
+    const watts = texteWatts(distributeurFiche) ?? (puissanceDistributeurW ? `${nombreCourt(puissanceDistributeurW)} W` : null);
     lignes.push(`${distributeur} : ${nombre(reg.redondance ? r.totaux.distributeurs.redondance : r.totaux.distributeurs.colonnes)}`
       + `${libres > 0 ? `, ${pluriel(libres, 'port non utilisé', 'ports non utilisés')}` : ''}`
-      + `${puissanceDistributeurW ? `, ${nombreCourt(puissanceDistributeurW)} W chacun` : ''}`);
+      + `${watts ? `, ${watts} chacun` : ''}`);
+    const alimentationDistributeur = texteAlimentation(distributeurFiche);
+    if (alimentationDistributeur) lignes.push(`Alimentation ${distributeurFiche.modele} : ${alimentationDistributeur}`);
   }
   const latence = texteLatence(proc);
   if (latence) lignes.push(`Latence : ${latence}`);
+  const logiciel = texteLogicielReglage(proc);
+  if (logiciel) lignes.push(logiciel.replace(/\.$/, ''));
   r.groupes.forEach((gr, i) => {
     const ports = reg.redondance ? gr.ports.redondance.colonnes : gr.ports.colonnes;
     lignes.push(`${proc.modele} n° ${i + 1} : colonnes ${gr.premiereColonne} à ${gr.derniereColonne}`

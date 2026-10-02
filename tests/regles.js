@@ -3097,7 +3097,8 @@ export const REGLES = [
       const procs = bp.processeurs.map((x) => calculs.resoudreFiche(x, bp.sources));
       const infos = (bp.informations ?? []).map((x) => calculs.resoudreFiche(x, bp.sources));
       const arbre = fiches.arbreProcesseurs(procs, { informations: infos });
-      v.egal('marques et famille de calcul', arbre.map((m) => [m.marque, m.famille]), [['Brompton', 'brompton'], ['Colorlight', 'colorlight'], ['Novastar', 'novastar']]);
+      v.egal('marques et famille de calcul', arbre.map((m) => [m.marque, m.famille]), [['Brompton', 'brompton'], ['Colorlight', 'colorlight'], ['Kystar', 'kystar'], ['Linsn', 'linsn'],
+        ['Megapixel', 'megapixel'], ['Mooncell', 'mooncell'], ['Novastar', 'novastar']]);
       const gammes = (marque) => arbre.find((m) => m.marque === marque).gammes;
       v.egal('gammes Novastar, COEX compris', gammes('Novastar').map((g) => g.gamme), ['COEX', 'MCTRL', 'MSD (cartes d\'envoi)', 'NovaPro', 'Série H', 'VX', 'VX Pro']);
       const fichesDe = (marque, gamme) => gammes(marque).find((g) => g.gamme === gamme).fiches;
@@ -3624,7 +3625,7 @@ export const REGLES = [
       const evaluation = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 20, 10), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
       const r = calculs.controleChaine({ source: { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60, ...m }, liaison: 'hdmi-2.0', longueurM: 3,
         convertisseurs: [{ ...convertisseur, longueurM: 20 }] }, { evaluation, liaisons, frequenceCalculHz: 60 });
-      v.egal('chaîne : liaison du processeur, latence du serveur et du convertisseur comptées', [r.liaisonProcesseur, r.latence.minImages, r.latenceSourceComptee], ['12g-sdi', 4, true]);
+      v.egal('chaîne : liaison du processeur, latence du serveur, du convertisseur et du SX40 comptées', [r.liaisonProcesseur, r.latence.minImages, r.latenceSourceComptee], ['12g-sdi', 5, true]);
       v.egal('familles connues', Object.keys(calculs.FAMILLES_APPAREILS), ['melangeur', 'convertisseur', 'serveur', 'switch']);
     },
   },
@@ -3840,7 +3841,7 @@ export const REGLES = [
   },
   {
     id: 'R198',
-    titre: 'Réponses au second lot : HDBaseT 3.0, « 4K » non précisé (4096 × 2160 à 60 Hz en alerte) ; TX210, la fiche passe devant la norme (Long Reach en 1080p jusqu\'à 170 m, 4K30 : 70 m en Cat5e, 100 m en Cat7 AWG23) ; sortie choisie d\'un convertisseur contrôlée ; 12G-CROSS : SDI 3G retenue, 12G visible ; Roland : une sortie Program quand la page ne dit rien ; DVI du VX1000',
+    titre: 'Réponses au second lot : HDBaseT 3.0, « 4K » non précisé (4096 × 2160 à 60 Hz en alerte) ; TX210, la fiche passe devant la norme (Long Reach en 1080p jusqu\'à 170 m, 4K30 : 70 m en Cat5e, 100 m en Cat7 AWG23) ; sortie choisie d\'un convertisseur contrôlée ; DVI du VX1000 (12G-CROSS et Roland : voir R199)',
     etape: 'amont',
     verifier(v, contexte) {
       const liaisons = liaisonsDeBase(contexte);
@@ -3860,18 +3861,360 @@ export const REGLES = [
       v.vrai('TX210 en 1080p sur 150 m : accepté, note « mode Long Reach (fiche Lightware) », sans le refus de la norme', lr.ok && lr.notes.some((x) => x.includes('mode Long Reach (fiche Lightware)')));
       v.vrai('TX210 en 1080p sur 180 m : refusé', !ch('lightware-hdmi-tps-tx210', 1920, 1080, 60, 180).ok);
       v.egal('TX210 en 4K30 : 90 m acceptés (Cat7 AWG23), 110 m refusés', [ch('lightware-hdmi-tps-tx210', 3840, 2160, 30, 90).ok, ch('lightware-hdmi-tps-tx210', 3840, 2160, 30, 110).ok], [true, false]);
-      const x12 = ch('decimator-12g-cross', 3840, 2160, 60, 2, '12g-sdi');
-      v.vrai('12G-CROSS : sortie 12G-SDI refusée (SDI 3G retenue, la plus défavorable)', !x12.ok && x12.refus.some((x) => x.includes('12G-CROSS') && x.includes('12G-SDI')));
+      const udc = ch('blackmagic-mini-updowncross-hd', 1920, 1080, 60, 2, '12g-sdi');
+      v.vrai('UpDownCross HD : sortie 12G-SDI refusée (sorties 3G-SDI et HDMI 1.3)', !udc.ok && udc.refus.some((x) => x.includes('UpDownCross') && x.includes('12G-SDI')));
       v.egal('12G-CROSS : sortie HDMI 2.0 en 4K60 acceptée', ch('decimator-12g-cross', 3840, 2160, 60, 2, 'hdmi-2.0').ok, true);
-      const cross = calculs.resoudreFiche(a.convertisseurs.appareils.find((x) => x.id === 'decimator-12g-cross'), a.convertisseurs.sources);
-      v.vrai('12G-CROSS : 12G visible en note de la sortie SDI', cross.sorties.some((x) => x.type === '3g-sdi' && /12G/.test(x.note ?? '')));
       const mel = (id) => calculs.resoudreFiche(a.melangeurs.appareils.find((x) => x.id === id), a.melangeurs.sources);
-      v.egal('Roland V-8HD, V-80HD, V-600UHD, V-1200HD : une sortie Program, « autres sorties assignables : à vérifier »',
-        ['roland-v-8hd', 'roland-v-80hd', 'roland-v-600uhd', 'roland-v-1200hd'].map((id) => [mel(id).sortiesVersProcesseurs, /autres sorties assignables : à vérifier/.test(mel(id).sources.sortiesVersProcesseurs.note)]),
-        [[1, true], [1, true], [1, true], [1, true]]);
+      v.egal('Roland V-80HD et V-1200HD : une sortie Program, « autres sorties assignables : à vérifier »',
+        ['roland-v-80hd', 'roland-v-1200hd'].map((id) => [mel(id).sortiesVersProcesseurs, /autres sorties assignables : à vérifier/.test(mel(id).sources.sortiesVersProcesseurs.note)]),
+        [[1, true], [1, true]]);
       const vx = calculs.controleEntree(processeurDeBase(contexte, 'novastar-vx1000'), { largeurPx: 3840, hauteurPx: 1080, frequenceHz: 60, liaison: 'dvi-single' }, liaisons);
       v.vrai('VX1000 en DVI, 3840 × 1080 à 60 Hz : accepté, avec « demande une source dual link ou un câble HDMI vers DVI »',
         vx.ok && vx.alertes.some((x) => x.includes('source dual link ou un câble HDMI vers DVI')));
+    },
+  },
+  {
+    id: 'R199',
+    titre: 'Après la v6 : 12G-CROSS en 12G-SDI (page du site Decimator et tableau de la brochure, constructeur), « 3G/HD/SD » non retenu (copier-coller de la brochure MD-HX) ; sorties Program Roland d\'après la base de connaissances Roland : V-600UHD 4, V-8HD 2, V-80HD et V-1200HD 1',
+    etape: 'amont',
+    verifier(v, contexte) {
+      const a = contexte.appareils;
+      const liaisons = liaisonsDeBase(contexte);
+      const evaluation = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 20, 10), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      const fiche = calculs.resoudreFiche(a.convertisseurs.appareils.find((x) => x.id === 'decimator-12g-cross'), a.convertisseurs.sources);
+      const m = calculs.maillonDepuisFiche(fiche);
+      const r = calculs.controleChaine({ source: { nom: 'Source', largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60 }, liaison: 'hdmi-2.0', longueurM: 2,
+        convertisseurs: [{ ...m, liaison: '12g-sdi', longueurM: 2 }] }, { evaluation, liaisons, frequenceCalculHz: 60 });
+      v.egal('12G-CROSS : sortie 12G-SDI en 3840 × 2160 à 60 Hz acceptée', r.ok, true);
+      const sdi = fiche.sorties.find((x) => x.type === '12g-sdi');
+      v.egal('12G-CROSS : 4 sorties 12G-SDI, source page du site Decimator', [sdi?.nombre, sdi?.source, a.convertisseurs.sources[sdi?.source]?.confiance], [4, 'decimator-12g-cross-page', 'constructeur']);
+      v.egal('12G-CROSS : « 3G/HD/SD » non retenu, « copier-coller de la brochure MD-HX »', [sdi?.nonRetenue?.[0]?.type, /copier-coller de la brochure MD-HX/.test(sdi?.nonRetenue?.[0]?.note ?? '')], ['3g-sdi', true]);
+      const mel = (id) => calculs.resoudreFiche(a.melangeurs.appareils.find((x) => x.id === id), a.melangeurs.sources);
+      const src = (id) => mel(id).sources.sortiesVersProcesseurs.source;
+      v.egal('Roland : V-600UHD 4, V-8HD 2, V-80HD 1, V-1200HD 1', ['roland-v-600uhd', 'roland-v-8hd', 'roland-v-80hd', 'roland-v-1200hd'].map((id) => mel(id).sortiesVersProcesseurs), [4, 2, 1, 1]);
+      v.egal('Roland V-600UHD et V-8HD : articles de la base de connaissances Roland, confiance constructeur',
+        [src('roland-v-600uhd').id, src('roland-v-600uhd').confiance, src('roland-v-8hd').id, src('roland-v-8hd').confiance],
+        ['roland-kb-v-600uhd-sorties', 'constructeur', 'roland-kb-v-8hd-mix-minus', 'constructeur']);
+      v.vrai('Roland V-8HD : Output 3 à vérifier', /Output 3 à vérifier/.test(mel('roland-v-8hd').sources.sortiesVersProcesseurs.note));
+    },
+  },
+  {
+    id: 'R200',
+    titre: 'Brompton (étape Pc2) : courant de l\'alimentation affiché tel que la fiche le donne, « 1,2 A à 100 V / 0,6 A à 240 V (courant maximal de l\'alimentation, pas une consommation mesurée) », dans Data et le texte copié, jamais converti en watts ; watts maxi de la fiche pour XD-T et XD-S (« 50 W max ») ; latence chiffrée',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const dist = bp.distributeurs.map((x) => calculs.resoudreFiche(x, bp.sources));
+      const d = (id) => dist.find((x) => x.id === id);
+      const suffixe = ' (courant maximal de l\'alimentation, pas une consommation mesurée)';
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      v.egal('S8', resumes.texteAlimentation(s8), `1,2 A à 100 V / 0,6 A à 240 V${suffixe}`);
+      v.egal('M2', resumes.texteAlimentation(processeurDeBase(contexte, 'brompton-m2')), `1 A à 100 V / 0,5 A à 240 V${suffixe}`);
+      v.egal('XD', resumes.texteAlimentation(d('brompton-xd')), `0,4 A à 100 V / 0,2 A à 240 V${suffixe}`);
+      v.egal('fiche sans courant : rien', resumes.texteAlimentation(processeurDeBase(contexte, 'novastar-mctrl4k')), null);
+      const texte = resumes.resumeData(calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 10, 5), DALLE_CAS_7, s8, BROMPTON_60_10));
+      v.vrai('texte copié : « Alimentation S8 : 1,2 A à 100 V / 0,6 A à 240 V (courant maximal…) »', texte.includes(`Alimentation S8 : 1,2 A à 100 V / 0,6 A à 240 V${suffixe}`));
+      v.vrai('texte copié : S8 7,5 kg, 2U, sans watts inventés', texte.includes('S8 : 7,5 kg, 2U chacun'));
+      v.vrai('texte copié : latence de 1 à 2 images', /Latence : 1 à 2 images/.test(texte));
+      const sx40 = processeurDeBase(contexte, 'brompton-sx40');
+      const m = calculs.mur(DALLE_CAS_7, 20, 10);
+      const ev = (id) => calculs.evaluerProcesseur(m, DALLE_CAS_7, sx40, { ...BROMPTON_60_10, distributeur: id, distributeurs: dist });
+      const xdt = resumes.resumeData(ev('brompton-xd-t'), { distributeur: 'XD-T', distributeurFiche: d('brompton-xd-t') });
+      v.vrai('XD-T : « 50 W max chacun »', /XD-T : \d+[^\n]*, 50 W max chacun/.test(xdt));
+      const xd = resumes.resumeData(ev('brompton-xd'), { distributeur: 'XD', distributeurFiche: d('brompton-xd') });
+      v.vrai('XD : courant de sa fiche, sans watts', xd.includes(`Alimentation XD : 0,4 A à 100 V / 0,2 A à 240 V${suffixe}`) && !/XD : \d+[^\n]* W chacun/.test(xd));
+    },
+  },
+  {
+    id: 'R201',
+    titre: 'SX40 avec XD, XD-T ou XD-S (choix dans Data) : 10 ports par unité avec un SX40 (10 premiers sur 12), même nombre d\'unités ; XD-T : entrée fibre seulement (note), cuivre 10G refusé dans le réseau Brompton ; XD-S : modules SFP+ 10GBASE-LR obligatoires (alerte), 525 000 px déduits de la fiche XD-T et chaînage non écrit (notes)',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const dist = bp.distributeurs.map((x) => calculs.resoudreFiche(x, bp.sources));
+      const sx40 = processeurDeBase(contexte, 'brompton-sx40');
+      const m = calculs.mur(DALLE_CAS_7, 20, 10);
+      const ev = (id, proc = sx40) => calculs.evaluerProcesseur(m, DALLE_CAS_7, proc, { ...BROMPTON_60_10, distributeur: id, distributeurs: dist });
+      const [xd, xdt, xds] = ['brompton-xd', 'brompton-xd-t', 'brompton-xd-s'].map((id) => ev(id));
+      v.egal('même nombre de SX40, de ports et d\'unités (10 ports par unité)', [xd, xdt, xds].map((e) => [e.nombre, e.totaux.ports.colonnes, e.totaux.distributeurs.colonnes]),
+        [[1, 20, 2], [1, 20, 2], [1, 20, 2]]);
+      v.egal('distributeur retenu dans le processeur', [xd, xdt, xds].map((e) => e.processeur.distributeur), ['brompton-xd', 'brompton-xd-t', 'brompton-xd-s']);
+      v.egal('noms courts', ['brompton-xd', 'brompton-xd-t', 'brompton-xd-s'].map((id) => calculs.MODELES_DISTRIBUTEUR[id]), ['XD', 'XD-T', 'XD-S']);
+      v.vrai('XD-T : notes « 10 premiers ports sur 12 » et « entrée fibre seulement »',
+        xdt.notes.some((x) => x.includes('10 premiers ports sur 12')) && xdt.notes.some((x) => x.includes('entrée fibre seulement')));
+      v.vrai('XD-S : alerte, modules SFP+ 10GBASE-LR obligatoires', xds.alertes.some((x) => x.includes('XD-S') && x.includes('10GBASE-LR') && x.includes('obligatoires')));
+      v.vrai('XD-S : 525 000 px par port déduits de la fiche XD-T ; chaînage à confirmer',
+        xds.notes.some((x) => /525 000 px/.test(x.replace(/\s/g, ' ')) && x.includes('déduit') && x.includes('XD-T')) && xds.notes.some((x) => x.includes('chaînage à confirmer')));
+      v.egal('XD : ni alerte ni note de distributeur', [xd.alertes.some((x) => /XD-[ST]/.test(x)), xd.notes.length], [false, 0]);
+      v.egal('sans choix : XD', calculs.evaluerProcesseur(m, DALLE_CAS_7, sx40, BROMPTON_60_10).processeur.distributeur, 'brompton-xd');
+      v.egal('choix ignoré sur un processeur sans distributeur (S8)', ev('brompton-xd-t', processeurDeBase(contexte, 'brompton-s8')).processeur.distributeur, undefined);
+      const r = (id, x) => calculs.reseauBrompton({ xd: 1, distributeur: dist.find((y) => y.id === id), ...x });
+      v.vrai('XD-T : cuivre 10G refusé (entrée fibre seulement)', r('brompton-xd-t', { cuivre10G: { categorie: 'Cat6A', longueurM: 20 } }).refus.some((x) => x.includes('XD-T') && x.includes('fibre')));
+      v.egal('XD : cuivre 10G Cat6A sur 20 m accepté', r('brompton-xd', { cuivre10G: { categorie: 'Cat6A', longueurM: 20 } }).refus, []);
+      v.egal('XD-T : fibre monomode PC, rien', r('brompton-xd-t', { fibre: { mode: 'monomode', connecteur: 'PC' } }).refus, []);
+    },
+  },
+  {
+    id: 'R202',
+    titre: 'SX40 et S8 : HFR au-delà de 60 Hz, dalles d\'environ 108 000 px au plus (aide en ligne Tessera 12.2.5), alerte ; ULL : canvas de 720 à 2047 px de haut (l\'EDID fait deux fois la hauteur du canvas), sans le préréglage 4K DCI, entrée HDMI seulement (aide en ligne Tessera 12.2.4)',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const sx40 = processeurDeBase(contexte, 'brompton-sx40');
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      const grande = { id: 'fictive-120k', nom: 'Dalle 400 × 300 px', fictive: true, largeurMm: 500, hauteurMm: 375, pxH: 400, pxV: 300 };
+      const juste = { id: 'fictive-108k', nom: 'Dalle 360 × 300 px', fictive: true, largeurMm: 480, hauteurMm: 400, pxH: 360, pxV: 300 };
+      const alertesHfr = (proc, dalle, frequenceHz) => calculs.evaluerProcesseur(calculs.mur(dalle, 4, 2), dalle, proc, { frequenceHz, bits: 8 }).alertes.filter((x) => x.includes('HFR'));
+      v.egal('SX40 à 120 Hz : dalle de 120 000 px, alerte ; de 108 000 px, rien ; à 60 Hz, rien',
+        [alertesHfr(sx40, grande, 120).length, alertesHfr(sx40, juste, 120).length, alertesHfr(sx40, grande, 60).length], [1, 0, 0]);
+      v.egal('S8 à 100 Hz : alerte', alertesHfr(s8, grande, 100).length, 1);
+      v.vrai('alerte sourcée, citation de l\'aide en ligne', alertesHfr(sx40, grande, 120).every((x) => x.includes('approximately 108,000 pixels or fewer') && x.includes('aide en ligne Tessera 12.2.5')));
+      const haut = calculs.mur(DALLE_CAS_7, 10, 12);
+      const sans = calculs.evaluerProcesseur(haut, DALLE_CAS_7, sx40, BROMPTON_60_10);
+      const ull = calculs.evaluerProcesseur(haut, DALLE_CAS_7, sx40, { ...BROMPTON_60_10, ull: true });
+      v.egal('mur de 1920 × 2304 px : 1 SX40 sans ULL, 2 en ULL (canvas de 2047 px de haut)', [sans.nombre, ull.nombre, ull.controles.hauteur.limite, ull.limites.includes('hauteur')], [1, 2, 2047, true]);
+      v.vrai('ULL : note « 720 à 2047 px de haut », « deux fois la hauteur », « HDMI seulement »',
+        ull.notes.some((x) => x.includes('720 à 2047 px de haut') && x.includes('deux fois la hauteur') && x.includes('HDMI seulement')));
+      const large = calculs.mur(DALLE_256, 16, 4);
+      v.egal('mur de 4096 × 1024 px : 1 SX40 sans ULL (préréglage 4K DCI), 2 en ULL (4094 px de large)',
+        [calculs.evaluerProcesseur(large, DALLE_256, sx40, BROMPTON_60_10).nombre, calculs.evaluerProcesseur(large, DALLE_256, sx40, { ...BROMPTON_60_10, ull: true }).nombre], [1, 2]);
+      const liaisons = liaisonsDeBase(contexte);
+      const petit = calculs.mur(DALLE_CAS_7, 10, 5);
+      const src = (liaison, reglages) => calculs.controleSource({ largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60, bits: 10, liaison, espace: 'RGB', plage: 'Full' },
+        calculs.evaluerProcesseur(petit, DALLE_CAS_7, sx40, reglages), liaisons, { famille: 'brompton', bitsReseau: 10, frequenceHz: 60 }).refus.filter((x) => x.includes('ULL'));
+      v.egal('ULL : source en 12G-SDI refusée ; HDMI 2.0 acceptée ; sans ULL, 12G-SDI acceptée',
+        [src('12g-sdi', { ...BROMPTON_60_10, ull: true }).length, src('hdmi-2.0', { ...BROMPTON_60_10, ull: true }).length, src('12g-sdi', BROMPTON_60_10).length], [1, 0, 0]);
+      v.vrai('refus ULL : « HDMI seulement », aide en ligne Tessera 12.2.4', src('12g-sdi', { ...BROMPTON_60_10, ull: true }).every((x) => x.includes('HDMI seulement') && x.includes('aide en ligne Tessera 12.2.4')));
+    },
+  },
+  {
+    id: 'R203',
+    titre: 'Carte de réception Brompton R2+ (fiche R2/R2+ de mars 2025) : 262 144 px par carte, quelle que soit la profondeur ; au-delà, alerte, jamais de refus ; même contrôle que les cartes COEX',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const cartes = bp.cartesReception.map((c) => calculs.resoudreFiche(c, bp.sources));
+      const dalle = (pxH, pxV, modele = 'R2+') => ({ ...DALLE_CAS_7, id: 'fictive-r2', nom: `Dalle ${pxH} × ${pxV} px`, pxH, pxV, carteReceptionMarque: 'Brompton', carteReceptionModele: modele });
+      const c = (d, bits) => calculs.controleCarteReception(d, cartes, bits);
+      v.egal('512 × 512 = 262 144 px : passe en 8, 10 et 12 bits', [8, 10, 12].map((b) => c(dalle(512, 512), b)?.ok), [true, true, true]);
+      const trop = c(dalle(520, 512), 12);
+      v.egal('520 × 512 = 266 240 px : dépassé', trop?.ok, false);
+      v.vrai('alerte : 262 144 px par carte, et les pixels de la dalle', /262\s144 px par carte/.test(trop?.alerte ?? '') && /266\s240 px/.test(trop?.alerte ?? ''));
+      v.egal('nom écrit « r2 + » : reconnu', c(dalle(512, 512, 'r2 +'), 10)?.carte.modele, 'R2+');
+      const e = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 4, 2), dalle(520, 512), processeurDeBase(contexte, 'brompton-s8'), { ...BROMPTON_60_10, cartesReception: cartes });
+      v.egal('Data : alerte, calcul gardé', [e.nombre !== null, e.alertes.some((x) => x.includes('R2+'))], [true, true]);
+      const r2 = cartes.find((x) => x.modele === 'R2+');
+      v.egal('source : fiche R2/R2+ de mars 2025, constructeur', [r2?.sources.capacites.source.id, r2?.sources.capacites.source.confiance], ['brompton-fiche-r2-r2plus-2025-03', 'constructeur']);
+    },
+  },
+  {
+    id: 'R204',
+    titre: 'ULL réservé aux SX40 et S8 (« Ultra Low Latency is a Tessera SX40 and S8 only feature », aide en ligne Tessera 12.2.4) : refusé sur S4, M2 et T1 avec la raison ; leur Low Latency Mode (formats de canvas) ne change pas',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_7, 4, 2);
+      const e = (id, ull) => calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, id), { ...BROMPTON_60_10, ull });
+      const hd = ['brompton-s4', 'brompton-m2', 'brompton-t1'];
+      v.egal('S4, M2 et T1 en ULL : refusés, avec la phrase de l\'aide en ligne', hd.map((id) => [e(id, true).nombre, /SX40 and S8 only feature/.test(e(id, true).impossible ?? '')]),
+        hd.map(() => [null, true]));
+      v.vrai('raison : leur Low Latency Mode passe par les formats de canvas', hd.every((id) => /Low Latency Mode/.test(e(id, true).impossible ?? '')));
+      v.egal('S4, M2 et T1 sans ULL : calculés', hd.map((id) => e(id, false).nombre), [1, 1, 1]);
+      v.egal('SX40 et S8 en ULL : calculés', ['brompton-sx40', 'brompton-s8'].map((id) => e(id, true).nombre), [1, 1]);
+      v.egal('T1 : format 1080 × 1920 en Low Latency Mode, inchangé', calculs.canvasProcesseur(processeurDeBase(contexte, 'brompton-t1'), 1080, 1920)?.lowLatency, true);
+      const p = (id) => processeurDeBase(contexte, id);
+      v.egal('fiches : ULL possible sur SX40 et S8, pas sur S4, M2 et T1, source aide en ligne Tessera 12.2.4',
+        ['brompton-sx40', 'brompton-s8', ...hd].map((id) => [p(id).ullPossible, p(id).sources.ullPossible?.source.id]),
+        [[true, 'brompton-aide-tessera-12-2-4'], [true, 'brompton-aide-tessera-12-2-4'], ...hd.map(() => [false, 'brompton-aide-tessera-12-2-4'])]);
+    },
+  },
+  {
+    id: 'R205',
+    titre: 'Capacité en pixels des SX40 et S8 selon la fréquence : au-delà de 60 Hz, maximum × 60 / fréquence (SX40 : 4,5 M à 120 Hz ; 2,15 M publiés à 250 Hz, retenus devant les 2,16 M de la proportion ; aide en ligne Tessera 12.2.5) ; en ULL, divisée par 2 et remontée sous 60 Hz jusqu\'au maximum (tableau de l\'aide 12.2.4), le canvas de 4094 × 2047 px limitant à 8,38 M ; S8 déduit par analogie avec le SX40',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const sx40 = processeurDeBase(contexte, 'brompton-sx40');
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      const px = (proc, frequenceHz, ull = false) => calculs.pixelsMaxSelonFrequence(proc, { frequenceHz, ull })?.valeur;
+      v.egal('SX40 sans ULL : 9 M à 24 et 60 Hz, 4,5 M à 120 Hz, 2,15 M à 250 Hz', [24, 60, 120, 250].map((f) => px(sx40, f)), [9000000, 9000000, 4500000, 2150000]);
+      v.egal('SX40 en ULL : tableau de l\'aide 12.2.4 (48, 50, 60, 120 et 240 Hz)', [48, 50, 60, 120, 240].map((f) => px(sx40, f, true)), [5625000, 5400000, 4500000, 2250000, 1125000]);
+      v.egal('SX40 en ULL à 24 et 30 Hz : 9 M au plus ; le canvas de 4094 × 2047 px donne les 8,38 M de l\'aide', [px(sx40, 24, true), px(sx40, 30, true), 4094 * 2047], [9000000, 9000000, 8380418]);
+      v.egal('S8 : 4,5 M à 60 Hz, 2,25 M à 120 Hz, 2,25 M en ULL à 60 Hz', [px(s8, 60), px(s8, 120), px(s8, 60, true)], [4500000, 2250000, 2250000]);
+      const s8a120 = calculs.pixelsMaxSelonFrequence(s8, { frequenceHz: 120 });
+      v.vrai('S8 : déduit par analogie avec le SX40', s8a120?.deduit === true && /analogie/.test(s8a120?.texte ?? ''));
+      v.egal('SX40 : source constructeur (aide en ligne Tessera 12.2.5)', [calculs.pixelsMaxSelonFrequence(sx40, { frequenceHz: 120 })?.deduit, sx40.sources.capaciteSelonFrequence?.source.id], [false, 'brompton-aide-tessera-12-2-5']);
+      v.egal('T1 et Novastar : pas de règle', [px(processeurDeBase(contexte, 'brompton-t1'), 120), px(processeurDeBase(contexte, 'novastar-mctrl4k'), 120)], [undefined, undefined]);
+      // Dans le calcul : à 120 Hz en 8 bits, 7 dalles par port ; le mur tient dans 40 ports mais pas dans 2 × 4,5 M px.
+      const dalle = { id: 'fictive-192', nom: 'Dalle 192 × 192 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
+      const m = calculs.mur(dalle, 20, 14); // 3840 × 2688 = 10,3 M px
+      const e = (reglages) => calculs.evaluerProcesseur(m, dalle, sx40, { bits: 8, ...reglages });
+      const a120 = e({ frequenceHz: 120 });
+      v.egal('mur de 10,3 M px à 120 Hz en 8 bits : limite de 4,5 M px, 3 SX40', [a120.controles.pixels.limite, a120.nombre], [4500000, 3]);
+      v.vrai('note : capacité à 120 Hz, aide en ligne Tessera 12.2.5', a120.notes.some((x) => x.includes('120 Hz') && x.includes('aide en ligne Tessera 12.2.5')));
+      v.egal('sa source dans le tableau : fiche et aide en ligne 12.2.5', a120.processeur.sources.pixelsMax.sources.map((s) => s.id).includes('brompton-aide-tessera-12-2-5'), true);
+      v.egal('à 60 Hz : 9 M, sans note de capacité', [e({ frequenceHz: 60 }).controles.pixels.limite, e({ frequenceHz: 60 }).notes.some((x) => /Capacité du/.test(x))], [9000000, false]);
+      v.egal('en ULL à 60 Hz : 4,5 M', e({ frequenceHz: 60, ull: true }).controles.pixels.limite, 4500000);
+      const encore = calculs.evaluerProcesseur(m, dalle, a120.processeur, { frequenceHz: 120, bits: 8 });
+      v.egal('processeur déjà ajusté réévalué (rappel Tessera en 10 bits) : 4,5 M, pas divisé deux fois', encore.controles.pixels.limite, 4500000);
+    },
+  },
+  {
+    id: 'R206',
+    titre: 'Carte de réception Brompton R2 (fiche de janvier 2021) : 262 144 px par carte, comme la R2+ ; carte plus ancienne, toujours répandue en parc ; même contrôle, alerte sans refus',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const cartes = bp.cartesReception.map((c) => calculs.resoudreFiche(c, bp.sources));
+      const r2 = cartes.find((x) => x.modele === 'R2');
+      const s = r2?.sources.capacites.source;
+      v.egal('R2 : 262 144 px, fiche de janvier 2021 avec son adresse, constructeur',
+        [r2?.capacites?.[0]?.pixels, s?.id, /Brompton-R2-Data-Sheet-Jan2021\.pdf$/.test(s?.url ?? ''), s?.confiance], [262144, 'brompton-fiche-r2-2021-01', true, 'constructeur']);
+      v.vrai('note : plus ancienne que la R2+, toujours répandue en parc', /répandue en parc/.test(r2?.note ?? ''));
+      const dalle = (pxH, pxV) => ({ ...DALLE_CAS_7, id: 'fictive-r2', nom: `Dalle ${pxH} × ${pxV} px`, pxH, pxV, carteReceptionMarque: 'Brompton', carteReceptionModele: 'R2' });
+      const c = (d, bits) => calculs.controleCarteReception(d, cartes, bits);
+      v.egal('512 × 512 px : passe ; 520 × 512 px : dépassé ; carte reconnue comme R2, pas R2+', [c(dalle(512, 512), 12)?.ok, c(dalle(520, 512), 8)?.ok, c(dalle(512, 512), 10)?.carte.modele],
+        [true, false, 'R2']);
+    },
+  },
+  {
+    id: 'R207',
+    titre: 'Megapixel : capacité par port lue dans le tableau de la page de support (fréquence, profondeur, lien 1G, 2,5G ou 10G) ; 8 bits : valeurs du 10 bits, « déduit, 8 bits non publié » ; fréquence absente : la ligne publiée juste au-dessus, la plus défavorable, « déduit » ; au-delà de 240 Hz, refus',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const sw = contexte.appareils.switches;
+      const switches = sw.appareils.map((x) => calculs.resoudreFiche(x, sw.sources));
+      const k8 = processeurDeBase(contexte, 'megapixel-helios-8k');
+      const c = (frequenceHz, bits, lien) => calculs.capaciteHelios(k8, { frequenceHz, bits, lien });
+      v.egal('60 Hz, 12 bits : 425 000 (1G), 1 062 500 (2,5G), 4 250 000 (10G)', ['1G', '2.5G', '10G'].map((l) => c(60, 12, l)?.capacite), [425000, 1062500, 4250000]);
+      v.egal('24 Hz, 10 bits, 10G : 8,5 M, plafond d\'une sortie', c(24, 10, '10G')?.capacite, 8500000);
+      const huit = c(60, 8, '1G');
+      v.egal('8 bits : valeur du 10 bits (510 000), déduit, « 8 bits non publié »', [huit?.capacite, huit?.deduit, (huit?.notes ?? []).some((x) => /8 bits non publié/.test(x))], [510000, true, true]);
+      const f5994 = c(59.94, 12, '1G');
+      v.egal('59,94 Hz : ligne de 60 Hz (425 000), déduit', [f5994?.capacite, f5994?.deduit, (f5994?.notes ?? []).some((x) => /60 Hz/.test(x))], [425000, true, true]);
+      v.egal('100 Hz : ligne de 120 Hz ; 23,98 Hz : ligne de 24 Hz', [c(100, 12, '1G')?.capacite, c(23.98, 12, '1G')?.capacite], [200000, 1062500]);
+      v.egal('60 Hz en 12 bits : valeur publiée, pas déduite', c(60, 12, '1G')?.deduit, false);
+      v.egal('250 Hz : hors tableau', c(250, 12, '1G'), null);
+      const mur = calculs.mur(DALLE_CAS_7, 4, 2);
+      const a250 = calculs.evaluerProcesseur(mur, DALLE_CAS_7, k8, { frequenceHz: 250, bits: 12, distributeurs: switches });
+      v.vrai('HELIOS à 250 Hz : refusé avec la raison (240 Hz au plus)', a250.nombre === null && /240 Hz/.test(a250.impossible ?? ''));
+      const a8 = calculs.evaluerProcesseur(mur, DALLE_CAS_7, k8, { frequenceHz: 60, bits: 8, distributeurs: switches });
+      v.vrai('Data en 8 bits : alerte « 8 bits non publié »', a8.alertes.some((x) => /8 bits non publié/.test(x)));
+      v.egal('source de la capacité : page de support Megapixel', [a8.champCapacite, a8.processeur.sources.capacitesHelios?.source.id], ['capacitesHelios', 'megapixel-support-capacite']);
+      v.egal('profondeur réseau par défaut Megapixel : 12 bits (le plus défavorable, aucun défaut publié)', calculs.BIT_DEPTH_PAR_DEFAUT.megapixel, 12);
+    },
+  },
+  {
+    id: 'R208',
+    titre: 'HELIOS 8K et 4K : distribution par switches, comptés par processeur comme les XD ; ports utilisés par fibre 10G = le plus petit du switch et de la bande passante (60 Hz, 12 bits : 10 ports 1G ou 4 en 2,5G) ; M4200 : 8 ports 1G, pas de 2,5G ; mode 20G sur M4250 seulement (2 fibres par switch, ports 1 à 6 et 7 à 12) ; HELIOS Jr : 8 ports 1G en direct',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const sw = contexte.appareils.switches;
+      const switches = sw.appareils.map((x) => calculs.resoudreFiche(x, sw.sources));
+      const [jr, k4, k8] = ['megapixel-helios-jr', 'megapixel-helios-4k', 'megapixel-helios-8k'].map((id) => processeurDeBase(contexte, id));
+      // 40 × 11 dalles de 192 px : 7680 × 2112 px ; 11 dalles par port à 60 Hz en 12 bits, soit une colonne par port : 40 ports.
+      const m = calculs.mur(DALLE_CAS_7, 40, 11);
+      const e = (proc, reglages = {}) => calculs.evaluerProcesseur(m, DALLE_CAS_7, proc, { frequenceHz: 60, bits: 12, distributeurs: switches, ...reglages });
+      const base = e(k8);
+      v.egal('HELIOS 8K + M4250 en 1G : 1 processeur, 40 ports, 4 switches ; 10 ports par switch, 80 au plus',
+        [base.nombre, base.totaux?.ports.colonnes, base.totaux?.distributeurs?.colonnes, base.processeur.sortiesParDistributeur, base.processeur.ports], [1, 40, 4, 10, 80]);
+      v.egal('switch retenu : M4250, obligatoire', [base.processeur.distributeur, base.distributeurObligatoire], ['netgear-m4250-msm4214x', true]);
+      v.vrai('note : 10 ports utilisés sur 12 par switch (bande passante de la fibre 10G)', base.notes.some((x) => x.includes('M4250') && x.includes('10 ports') && x.includes('12')));
+      const m4200 = e(k8, { switchMegapixel: 'netgear-m4200-gsm4210p' });
+      v.egal('M4200 : 8 ports par switch, 5 switches, 64 ports au plus', [m4200.processeur.sortiesParDistributeur, m4200.totaux?.distributeurs?.colonnes, m4200.processeur.ports], [8, 5, 64]);
+      v.vrai('M4200 en 2,5G : refusé', /2,5G/.test(e(k8, { switchMegapixel: 'netgear-m4200-gsm4210p', lienMegapixel: '2.5G' }).impossible ?? ''));
+      const l25 = e(k8, { lienMegapixel: '2.5G' });
+      v.egal('M4250 en 2,5G : 1 062 500 px par port, 4 ports par switch, 32 au plus', [calculs.entierInferieur(l25.capacite), l25.processeur.sortiesParDistributeur, l25.processeur.ports], [1062500, 4, 32]);
+      v.vrai('2,5G : note « 2.5G connectivity is dependent on the tile design »', l25.notes.some((x) => /tile design/.test(x)));
+      const m20 = e(k8, { mode20G: true });
+      v.egal('mode 20G (M4250) : 12 ports par switch (6 par fibre), 4 switches par HELIOS 8K, 48 ports au plus', [m20.processeur.sortiesParDistributeur, m20.processeur.ports], [12, 48]);
+      v.vrai('mode 20G avec un M4200 : refusé', /20G/.test(e(k8, { mode20G: true, switchMegapixel: 'netgear-m4200-gsm4210p' }).impossible ?? ''));
+      const k4m20 = e(k4, { mode20G: true });
+      v.egal('HELIOS 4K en mode 20G : 1 switch sur ses 3 sorties 10G, 12 ports', k4m20.processeur.ports, 12);
+      v.vrai('HELIOS 4K en mode 20G : note, une sortie 10G sans switch', k4m20.notes.some((x) => /sans switch/.test(x)));
+      v.egal('24 Hz en 10 bits, 1G : 6 ports par fibre (8,5 M / 1 275 000)', e(k8, { frequenceHz: 24, bits: 10 }).processeur.sortiesParDistributeur, 6);
+      const ej = e(jr);
+      v.egal('HELIOS Jr : 8 ports 1G en direct, aucun switch', [ej.processeur.ports, ej.processeur.distributeur, ej.totaux?.distributeurs ?? null], [8, undefined, null]);
+      const j30 = e(jr, { frequenceHz: 30 });
+      v.egal('HELIOS Jr : capacité de charge LED = 8 ports × tableau (3,4 M px à 60 Hz, 6,8 M px à 30 Hz en 12 bits), canvas 4096 × 2160 à part',
+        [ej.controles.pixels.limite, j30.controles.pixels.limite, ej.controles.largeur.limite, ej.controles.hauteur.limite], [3400000, 6800000, 4096, 2160]);
+      v.vrai('HELIOS Jr : source de la capacité de charge, déduit des ports', ej.processeur.sources.pixelsMax?.source.id === 'deduit-helios-jr-capacite' && /8 ports/.test(ej.processeur.sources.pixelsMax?.note ?? ''));
+      v.vrai('HELIOS Jr en 2,5G : refusé (ports 1G en cuivre)', /1G/.test(e(jr, { lienMegapixel: '2.5G' }).impossible ?? ''));
+      v.egal('noms courts des switches', [calculs.MODELES_DISTRIBUTEUR['netgear-m4250-msm4214x'], calculs.MODELES_DISTRIBUTEUR['netgear-m4200-gsm4210p']], ['M4250', 'M4200']);
+    },
+  },
+  {
+    id: 'R209',
+    titre: 'Megapixel dans Data : marque de calcul (choix du processeur, conseil toutes marques à 12 bits), cartes de réception Megapixel ou MVR reconnues, logiciel HELIOS, courant « 3 A, de 100 à 240 V » et latence dans le texte copié, redondance SeamlessLoop signalée comme non modélisée',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const sw = contexte.appareils.switches;
+      const switches = sw.appareils.map((x) => calculs.resoudreFiche(x, sw.sources));
+      const procs = bp.processeurs.map((x) => calculs.resoudreFiche(x, bp.sources));
+      v.egal('marque de calcul Megapixel', fiches.MARQUES_FAMILLE.megapixel, 'Megapixel');
+      const mp = fiches.arbreProcesseurs(procs).find((x) => x.famille === 'megapixel');
+      v.egal('Data : marque Megapixel, gamme HELIOS, du plus petit au plus grand (Jr : 8 ports × 425 000 px, à 60 Hz en 12 bits)', [mp?.marque, mp?.gammes.map((g) => g.gamme), mp?.gammes[0]?.fiches.map((x) => x.id)],
+        ['Megapixel', ['HELIOS'], ['megapixel-helios-jr', 'megapixel-helios-4k', 'megapixel-helios-8k']]);
+      v.egal('cartes Megapixel et MVR : famille megapixel', [calculs.familleDeCarte('Megapixel'), calculs.familleDeCarte('MVR'), calculs.familleDeCarte('Megapixel VR')], ['megapixel', 'megapixel', 'megapixel']);
+      const k8 = processeurDeBase(contexte, 'megapixel-helios-8k');
+      const dalleMP = { ...DALLE_CAS_7, id: 'fictive-mp', nom: 'Dalle Megapixel', carteReceptionMarque: 'Megapixel', carteReceptionModele: 'PX1' };
+      const m = calculs.mur(DALLE_CAS_7, 10, 5);
+      v.vrai('dalle à carte Megapixel sur un S8 : refusée', /Megapixel/.test(calculs.evaluerProcesseur(m, dalleMP, processeurDeBase(contexte, 'brompton-s8'), BROMPTON_60_10).impossible ?? ''));
+      v.egal('dalle à carte Megapixel sur un HELIOS 8K : calculée', calculs.evaluerProcesseur(m, dalleMP, k8, { frequenceHz: 60, bits: 12, distributeurs: switches }).nombre, 1);
+      v.egal('logiciel : HELIOS', fiches.logicielDuProcesseur(k8), 'HELIOS');
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, k8, { frequenceHz: 60, bits: 12, distributeurs: switches });
+      const texte = resumes.resumeData(e, { distributeur: 'M4250', distributeurFiche: switches.find((x) => x.id === 'netgear-m4250-msm4214x') });
+      v.vrai('texte copié : « Alimentation HELIOS 8K : 3 A, de 100 à 240 V (courant maximal…) »',
+        texte.includes('Alimentation HELIOS 8K : 3 A, de 100 à 240 V (courant maximal de l\'alimentation, pas une consommation mesurée)'));
+      v.vrai('texte copié : latence de 3 images, copie tierce', /Latence : 3 images \([^)]*copie tierce/.test(texte));
+      v.vrai('texte copié : switches M4250, 37,9 W max chacun (« System Full Load »)', /M4250 : \d+[^\n]*37,9 W max chacun/.test(texte));
+      v.vrai('redondance : SeamlessLoop non modélisée, signalée', calculs.evaluerProcesseur(m, DALLE_CAS_7, k8, { frequenceHz: 60, bits: 12, redondance: true, distributeurs: switches }).alertes.some((x) => /SeamlessLoop/.test(x)));
+      const toutes = calculs.evaluerToutesMarques(m, DALLE_CAS_7, procs, { frequenceHz: 60, bits: 8, distributeurs: switches }, { famille: 'novastar' });
+      v.egal('conseil toutes marques : HELIOS évalués à 12 bits', [...new Set(toutes.filter((x) => x.processeur.famille === 'megapixel').map((x) => x.reglages.bits))], [12]);
+    },
+  },
+  {
+    id: 'R210',
+    titre: 'Linsn, Kystar et Mooncell (étape Pd) : marques de calcul, 8 bits par défaut ; 650 000 px par port à 60 Hz, proportionnel à la fréquence (déduit hors 60 Hz) ; 10 et 12 bits refusés (capacité non publiée) ; cartes de réception de la même marque seulement ; logiciel non géré par l\'appli',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const procs = bp.processeurs.map((x) => calculs.resoudreFiche(x, bp.sources));
+      v.egal('marques de calcul', ['linsn', 'kystar', 'mooncell'].map((f) => [fiches.MARQUES_FAMILLE[f], calculs.BIT_DEPTH_PAR_DEFAUT[f]]), [['Linsn', 8], ['Kystar', 8], ['Mooncell', 8]]);
+      v.egal('Data : les sept marques', fiches.arbreProcesseurs(procs).map((m) => m.marque), ['Brompton', 'Colorlight', 'Kystar', 'Linsn', 'Megapixel', 'Mooncell', 'Novastar']);
+      const x8408 = processeurDeBase(contexte, 'linsn-x8408');
+      const m = calculs.mur(DALLE_CAS_7, 16, 8); // 3072 × 1536 px ; 17 dalles par port à 60 Hz en 8 bits, soit 2 colonnes : 8 ports
+      const e = (proc, reglages = {}) => calculs.evaluerProcesseur(m, DALLE_CAS_7, proc, { frequenceHz: 60, bits: 8, ...reglages });
+      const a60 = e(x8408);
+      v.egal('X8408 à 60 Hz en 8 bits : 650 000 px par port, 8 ports, 1 processeur', [calculs.entierInferieur(a60.capacite), a60.totaux?.ports.colonnes, a60.nombre], [650000, 8, 1]);
+      const a50 = e(x8408, { frequenceHz: 50 });
+      v.egal('à 50 Hz : 780 000 px par port, déduit (proportionnel à la fréquence)', [calculs.entierInferieur(a50.capacite), a50.capaciteDeduite], [780000, true]);
+      const r10 = e(x8408, { bits: 10 }).impossible ?? '';
+      const r12 = e(x8408, { bits: 12 }).impossible ?? '';
+      v.vrai('10 et 12 bits : refus « capacité 10 bits non publiée », « capacité 12 bits non publiée », jamais « travaille en 8 bits »',
+        r10.includes('capacité 10 bits non publiée') && r12.includes('capacité 12 bits non publiée') && !/travaille en/.test(r10 + r12));
+      v.egal('refus du X8208 en 10 bits, mot pour mot', calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'linsn-x8208'), { frequenceHz: 60, bits: 10 }).impossible,
+        'Linsn X8208 : capacité 10 bits non publiée par Linsn. Calcul en 8 bits seulement (choix du projet).');
+      v.egal('ligne logiciel de Data, sans parenthèses imbriquées', ['linsn-x8408', 'kystar-es10', 'mooncell-mtb800e'].map((id) => resumes.texteLogicielReglage(processeurDeBase(contexte, id))), [
+        'Logiciel : LEDSet (réglage des cartes) et LEDStudio (lecture). Source : pages logiciels Linsn [TIERS].',
+        'Logiciel : Kystar Control System. Source : page logiciels Kystar [TIERS].',
+        'Logiciel : AutoLEDSetup (synchrone). Source : page logiciels Mooncell [TIERS].',
+      ]);
+      v.vrai('texte copié : ligne logiciel', resumes.resumeData(a60).includes('Logiciel : LEDSet (réglage des cartes) et LEDStudio (lecture). Source : pages logiciels Linsn [TIERS]'));
+      v.egal('processeur sans logiciel sur sa fiche : pas de ligne', resumes.texteLogicielReglage(processeurDeBase(contexte, 'novastar-mctrl4k')), null);
+      const es20 = e(processeurDeBase(contexte, 'kystar-es20')).capaciteAppareil;
+      v.egal('ES20 : capacité de l\'appareil min(20 × 650 000 = 13 M ; 8,85 M) = 8,85 M, la fibre n\'ajoute rien', [es20.sommePorts, es20.valeur, es20.limite], [13000000, 8850000, 'total']);
+      const mtb600 = e(processeurDeBase(contexte, 'mooncell-mtb600e'));
+      v.egal('MTB600E : limite de 2,6 M px (fiche), pas 3,9 M', mtb600.controles.pixels.limite, 2600000);
+      v.egal('à compléter : pas de calcul (KLS2c, M40)', ['kystar-kls2c', 'mooncell-m40'].map((id) => e(processeurDeBase(contexte, id)).nombre), [null, null]);
+      const carte = (marque) => ({ ...DALLE_CAS_7, id: `fictive-${marque}`, nom: `Dalle à carte ${marque}`, carteReceptionMarque: marque, carteReceptionModele: 'X' });
+      v.vrai('dalle à carte Linsn sur un Novastar : refusée', /Linsn/.test(calculs.evaluerProcesseur(m, carte('Linsn'), processeurDeBase(contexte, 'novastar-mctrl4k'), NOVASTAR_60_8).impossible ?? ''));
+      v.egal('dalle à carte Linsn sur un Linsn : calculée', calculs.evaluerProcesseur(m, carte('Linsn'), x8408, { frequenceHz: 60, bits: 8 }).nombre, 1);
+      v.vrai('dalle à carte Kystar sur un Mooncell : refusée', /Mooncell/.test(calculs.evaluerProcesseur(m, carte('Kystar'), processeurDeBase(contexte, 'mooncell-mtb800e'), { frequenceHz: 60, bits: 8 }).impossible ?? ''));
+      v.egal('logiciel : LEDSet, Kystar Control System, AutoLEDSetup ; configs non gérées par l\'appli', ['linsn-x8408', 'kystar-es10', 'mooncell-mtb800e']
+        .map((id) => fiches.logicielDuProcesseur(processeurDeBase(contexte, id))).map((l) => [l, fiches.LOGICIELS.includes(l)]),
+        [['LEDSet', false], ['Kystar Control System', false], ['AutoLEDSetup', false]]);
+      v.egal('Colorlight en 12 bits : refus inchangé (« travaille en 8 ou 10 bits »)', /travaille en 8 ou 10 bits/.test(calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'colorlight-x20'), { frequenceHz: 60, bits: 12 }).impossible ?? ''), true);
+      const toutes = calculs.evaluerToutesMarques(m, DALLE_CAS_7, procs, { frequenceHz: 60, bits: 10 }, { famille: 'novastar' });
+      v.egal('conseil toutes marques : Linsn, Kystar et Mooncell à 8 bits', [...new Set(toutes.filter((x) => ['linsn', 'kystar', 'mooncell'].includes(x.processeur.famille)).map((x) => x.reglages.bits))], [8]);
     },
   },
 ];

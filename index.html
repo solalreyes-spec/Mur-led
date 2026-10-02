@@ -208,6 +208,14 @@
 
         <label class="case"><input type="checkbox" name="redondance"><span>Redondance (ports doublés)</span></label>
         <label class="case" data-famille="brompton" hidden><input type="checkbox" name="ull"><span>ULL, Ultra Low Latency (capacité divisée par 2)</span></label>
+        <div class="champ" data-famille="brompton" hidden>
+          <label for="distributeur">Distributeur du SX40</label>
+          <select id="distributeur" name="distributeur">
+            <option value="brompton-xd" selected>XD (10 ports 1G)</option>
+            <option value="brompton-xd-t">XD-T (10 ports sur 12 avec un SX40, fibre seulement)</option>
+            <option value="brompton-xd-s">XD-S (10 ports sur 12 avec un SX40, SFP+ 10GBASE-LR)</option>
+          </select>
+        </div>
         <fieldset class="groupe" data-famille="brompton" hidden>
           <legend>Réseau entre le processeur et les dalles</legend>
           <div class="paire">
@@ -256,6 +264,15 @@
             </div>
           </div>
         </fieldset>
+        <div class="champ" data-famille="megapixel" hidden>
+          <label for="switch-megapixel">Switch des HELIOS 8K et 4K</label>
+          <select id="switch-megapixel" name="switchMegapixel">
+            <option value="netgear-m4250-msm4214x" selected>Netgear M4250 (MSM4214X), 12 ports 1G ou 2,5G</option>
+            <option value="netgear-m4200-gsm4210p">Netgear M4200 (GSM4210P), 8 ports 1G, ancien</option>
+          </select>
+        </div>
+        <label class="case" data-famille="megapixel" hidden><input type="checkbox" name="lien25G"><span>Dalles en 2,5G (si la dalle le permet ; M4250)</span></label>
+        <label class="case" data-famille="megapixel" hidden><input type="checkbox" name="mode20G"><span>Mode 20G : 2 fibres par M4250 (ports 1 à 6 et 7 à 12)</span></label>
         <label class="case" data-famille="novastar"><input type="checkbox" name="cartesPro"><span>Cartes A8s Pro ou A10s Pro (MX40 Pro, 10 bits)</span></label>
         <label class="case" data-famille="novastar"><input type="checkbox" name="modeOptique"><span>MX40 Pro : mode 40 ports (sorties optiques et convertisseurs)</span></label>
         <div class="champ" data-famille="novastar colorlight">

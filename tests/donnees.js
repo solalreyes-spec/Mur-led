@@ -172,8 +172,13 @@ export const DONNEES = [
         'colorlight-x2m', 'colorlight-x4m', 'colorlight-x8m', 'colorlight-x12m', 'colorlight-x20m', 'colorlight-x26m', 'colorlight-x40m',
         'colorlight-vx6', 'colorlight-vx10', 'colorlight-z4-pro', 'colorlight-z5', 'colorlight-z4f', 'colorlight-z6-pro-g2', 'colorlight-z3',
         'colorlight-x4e', 'colorlight-z4', 'colorlight-x100-pro-2u', 'colorlight-x100-pro-4u', 'colorlight-x100-pro-7u', 'colorlight-x100-pro-11u',
+        'megapixel-helios-jr', 'megapixel-helios-4k', 'megapixel-helios-8k',
+        'linsn-ts852d', 'linsn-ts952', 'linsn-x100', 'linsn-x8408', 'linsn-x8216', 'linsn-x8208', 'linsn-x8212',
+        'kystar-es6', 'kystar-es10', 'kystar-es20', 'kystar-kls2c', 'kystar-kls4c', 'kystar-kls6c', 'kystar-kls8c', 'kystar-kls12c', 'kystar-kls16c', 'kystar-kls24c',
+        'mooncell-mtb200s', 'mooncell-mtb400e', 'mooncell-mtb600e', 'mooncell-mtb800e', 'mooncell-mtb1200e', 'mooncell-mtb2000e',
+        'mooncell-mvb6s', 'mooncell-mvb8s', 'mooncell-mvb10e', 'mooncell-mvb12e', 'mooncell-m40', 'mooncell-m32',
       ]);
-      v.egal('distributeurs', base.distributeurs.map((d) => d.id), ['brompton-xd', 'novastar-cvt10', 'novastar-cvt10-pro', 'novastar-cvt4k', 'novastar-cvt310', 'novastar-cvt320', 'coex-cvt8-5g',
+      v.egal('distributeurs', base.distributeurs.map((d) => d.id), ['brompton-xd', 'brompton-xd-t', 'brompton-xd-s', 'brompton-qd-s', 'novastar-cvt10', 'novastar-cvt10-pro', 'novastar-cvt4k', 'novastar-cvt310', 'novastar-cvt320', 'coex-cvt8-5g',
         'colorlight-h10fn2', 'colorlight-h10fn', 'colorlight-h10fix', 'colorlight-h10fix-5g', 'colorlight-h2f']);
     },
   },
@@ -836,7 +841,7 @@ export const DONNEES = [
     verifier(v, contexte) {
       const bp = baseProcesseurs(contexte);
       const cartes = bp.cartesReception.map((c) => calculs.resoudreFiche(c, bp.sources));
-      v.egal('7 cartes', cartes.map((c) => c.modele), ['A5s Plus', 'A7s Plus', 'A8s Pro', 'A10s Pro', 'A10s Plus-N', 'CA50E', 'XA50 Pro']);
+      v.egal('9 cartes', cartes.map((c) => c.modele), ['A5s Plus', 'A7s Plus', 'A8s Pro', 'A10s Pro', 'A10s Plus-N', 'CA50E', 'XA50 Pro', 'R2', 'R2+']);
       const cap = (modele) => cartes.find((c) => c.modele === modele).capacites.map((x) => `${x.bits}${x.ic ? ` ${x.ic}` : ''} ${x.largeurPx}×${x.hauteurPx}`);
       v.egal('A5s Plus', cap('A5s Plus'), ['8 PWM 512×384', '8 classique 384×384', '10 PWM 256×384', '10 classique 192×384', '12 PWM 256×384', '12 classique 192×384']);
       v.egal('A7s Plus : 10 et 12 bits non précisés', cap('A7s Plus'), ['8 PWM 512×512', '8 classique 512×384']);
@@ -1068,7 +1073,7 @@ export const DONNEES = [
       v.egal('série H : cartes d\'envoi LED (ports, pixels, largeur maxi)', h[0].cartesSortieLED.map((c) => [c.id, c.ports, c.pixelsMax, c.largeurMaxPx]),
         [['h-20xrj45', 20, 13000000, 10752], ['h-16xrj45', 16, 10400000, 10240], ['h-4xfiber', 32, 20800000, 16384]]);
       v.egal('fiches d\'information à part (comme les dalles), VX400s à compléter', [(bp.informations ?? []).map((x) => [x.id, x.statut]), brute('novastar-vx400s').statut],
-        [[['novastar-vx4', 'information'], ['novastar-mctrl610', 'information'], ['colorlight-s6', 'information'], ['colorlight-z6-pro', 'information']], 'à compléter']);
+        [[['novastar-vx4', 'information'], ['novastar-mctrl610', 'information'], ['colorlight-s6', 'information'], ['colorlight-z6-pro', 'information'], ['brompton-sq200', 'information']], 'à compléter']);
       v.egal('VX2 et VX2S : page revendeur, confiance revendeur', ['novastar-vx2', 'novastar-vx2s'].map((id) => p(id).sources.pixelsMax.source.confiance), ['revendeur', 'revendeur']);
       const nouvellesSources = ['novastar-page-processeurs', 'novastar-page-controleurs', 'eagerled-novastar-discontinued', 'novastar-vx-pro-manuel-v1-4-1', 'novastar-vx400-pro-v1-4-0',
         'novastar-vx600-pro-v1-4-0', 'novastar-vx1000-pro-v1-4-0', 'novastar-vx2000-pro-v1-4-0', 'novastar-vx1000-manuel-v1-3-0', 'novastar-vx1000-v1-6-0', 'novastar-vx600-v1-7-1',
@@ -1304,6 +1309,198 @@ export const DONNEES = [
       const sources = { ...a.melangeurs.sources, ...a.convertisseurs.sources, ...a.serveurs.sources };
       const sansAdresse = Object.entries(sources).filter(([, x]) => !x.url || !(x.date || x.dateTexte)).map(([id]) => id);
       v.egal('sources : adresse et date', sansAdresse, []);
+    },
+  },
+  {
+    id: 'D47',
+    titre: 'Brompton, fiches relues le 26/09/2026 (étape Pc2) : SX40 (02/2025), S8 (03/2025), S4 (03/2025), M2 (01/2021), T1 (11/2021), XD (02/2025) ; poids, hauteur en rack, latence, courant de l\'alimentation, statut (menu Products ou rubrique Legacy), ports et entrées sourcés par la fiche ; 525 000 px par port sur les fiches, comme la formule ; XD-T et XD-S (fiches préliminaires) ; SQ200 et QD-S en fiches d\'information',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const brute = (id) => bp.processeurs.find((x) => x.id === id) ?? (bp.informations ?? []).find((x) => x.id === id);
+      const p = (id) => calculs.resoudreFiche(brute(id), bp.sources);
+      const d = (id) => calculs.resoudreFiche(bp.distributeurs.find((x) => x.id === id), bp.sources);
+      const ids = ['brompton-sx40', 'brompton-s8', 'brompton-s4', 'brompton-m2', 'brompton-t1'];
+      const procs = ids.map(p);
+      const courant = (x) => (x.courantAlimentation ?? []).map((c) => [c.courantA, c.tensionV]);
+      v.egal('poids (kg)', procs.map((x) => x.poidsKg), [7.5, 7.5, 3.1, 9, 3.1]);
+      v.egal('hauteur en rack (U)', procs.map((x) => x.hauteurU), [2, 2, 1, 2, 1]);
+      v.egal('latence en images, mini et maxi', procs.map((x) => [x.latenceMinImages, x.latenceMaxImages]), [[1, 2], [1, 2], [2, 2], [2, 3], [2, 3]]);
+      v.egal('S8 : 1 image en ULL, aide en ligne Tessera 12.2.4 (absent de sa fiche)', p('brompton-s8').sources.latenceMinImages.source.id, 'brompton-aide-tessera-12-2-4');
+      v.egal('courant de l\'alimentation, en A à 100 et 240 V', procs.map(courant),
+        [[[1.2, 100], [0.6, 240]], [[1.2, 100], [0.6, 240]], [[0.4, 100], [0.2, 240]], [[1, 100], [0.5, 240]], [[0.4, 100], [0.2, 240]]]);
+      v.egal('statut : SX40 et S8 actuels (menu Products), S4, M2 et T1 anciens (rubrique Legacy)', procs.map((x) => [x.statutCommercial, x.sources.statutCommercial?.source.id]),
+        [['actuel', 'brompton-menu-produits'], ['actuel', 'brompton-menu-produits'], ['ancien', 'brompton-page-legacy'], ['ancien', 'brompton-page-legacy'], ['ancien', 'brompton-page-legacy']]);
+      v.vrai('S4, M2 et T1 : « encore courant en parc »', ['brompton-s4', 'brompton-m2', 'brompton-t1'].every((id) => /encore courant en parc/.test(p(id).sources.statutCommercial?.note ?? '')));
+      // Valeurs déjà présentes, vérifiées sur les fiches : la valeur ne change pas, la source devient la fiche.
+      const fiches = {
+        'brompton-sx40': 'brompton-fiche-sx40-2025-02', 'brompton-s8': 'brompton-fiche-s8-2025-03', 'brompton-s4': 'brompton-fiche-s4-2025-03',
+        'brompton-m2': 'brompton-fiche-m2-2021-01', 'brompton-t1': 'brompton-fiche-t1-2021-11',
+      };
+      const legacy = ['brompton-s4', 'brompton-m2', 'brompton-t1'];
+      v.egal('ports 1G (S8 8, S4 4, M2 4, T1 1), source la fiche', ids.slice(1).map((id) => [p(id).ports, p(id).sources.ports.source.id]),
+        [[8, fiches['brompton-s8']], [4, fiches['brompton-s4']], [4, fiches['brompton-m2']], [1, fiches['brompton-t1']]]);
+      v.egal('S4, M2 et T1 : entrée jusqu\'à 1920 × 1080 à 60 Hz, source la fiche', legacy.map((id) => [p(id).largeurMaxPx, p(id).hauteurMaxPx, p(id).sources.largeurMaxPx.source.id, p(id).sources.hauteurMaxPx.source.id]),
+        legacy.map((id) => [1920, 1080, fiches[id], fiches[id]]));
+      v.egal('entrées inchangées, source la fiche', ids.map((id) => [p(id).entreesTypes, p(id).sources.entreesTypes.source.id]),
+        [[['hdmi-2.0', '12g-sdi'], fiches['brompton-sx40']], [['hdmi-2.0', '12g-sdi'], fiches['brompton-s8']], [['dvi-single'], fiches['brompton-s4']],
+          [['dvi-single', '3g-sdi'], fiches['brompton-m2']], [['dvi-single'], fiches['brompton-t1']]]);
+      const sx40 = p('brompton-sx40');
+      v.egal('SX40 : 9 M px, aussi sur la fiche de février 2025', [sx40.pixelsMax, sx40.sources.pixelsMax.sources.map((s) => s.id).includes(fiches['brompton-sx40'])], [9000000, true]);
+      // 525K par port : la formule de l'aide en ligne redonne la valeur nominale des fiches.
+      const formule = calculs.entierInferieur(calculs.capacitePort('brompton', { frequenceHz: 60, bits: 8 }));
+      v.egal('525 000 px par port à 60 Hz en 8 bits sur les fiches S8, S4, M2, T1, XD et XD-T, comme la formule',
+        [...ids.slice(1).map((id) => p(id).capaciteNominalePort), d('brompton-xd').capaciteNominalePort, d('brompton-xd-t').capaciteNominalePort, formule],
+        [525000, 525000, 525000, 525000, 525000, 525000, 525000]);
+      const t1 = p('brompton-t1');
+      v.egal('T1 : 525 000 par port sur la fiche de novembre 2021 ; 500 000 au total retenu (aide en ligne), 525 000 de la fiche de septembre 2024 visible',
+        [t1.sources.capaciteNominalePort.source.id, t1.pixelsMax, t1.sources.pixelsMax.autres.map((x) => x.valeur)], ['brompton-fiche-t1-2021-11', 500000, [525000]]);
+      // Distributeurs.
+      const xd = d('brompton-xd');
+      const xdt = d('brompton-xd-t');
+      const xds = d('brompton-xd-s');
+      v.egal('XD : 10 sorties (fiche de février 2025), 5 XD de plus en chaîne, 3,7 kg, 2U, 0,4 A à 100 V et 0,2 A à 240 V, actuel',
+        [xd.sorties, xd.sources.sorties.source.id, xd.chainageXdMax, xd.poidsKg, xd.hauteurU, courant(xd), xd.statutCommercial],
+        [10, 'brompton-fiche-xd-2025-02', 5, 3.7, 2, [[0.4, 100], [0.2, 240]], 'actuel']);
+      v.egal('XD-T : 12 sorties, 10 avec un SX40, entrée fibre seulement, 5 XD de plus en chaîne, 50 W max, 4 kg, 2U, actuel',
+        [xdt.sorties, xdt.sortiesAvecSX40, xdt.entreeFibreSeulement, xdt.chainageXdMax, xdt.puissanceW, xdt.sources.puissanceW.type, xdt.poidsKg, xdt.hauteurU, xdt.statutCommercial],
+        [12, 10, true, 5, 50, 'max', 4, 2, 'actuel']);
+      v.egal('XD-S : 12 sorties, 10 avec un SX40, modules SFP+ 10GBASE-LR, 525 000 déduit de la fiche XD-T, chaînage non écrit, 50 W max, 1,5 kg, 1U, actuel',
+        [xds.sorties, xds.sortiesAvecSX40, xds.modulesSfpAvecSX40, xds.capaciteNominalePort, xds.sources.capaciteNominalePort.source.confiance, xds.chainageXdMax,
+          xds.puissanceW, xds.sources.puissanceW.type, xds.poidsKg, xds.hauteurU, xds.statutCommercial],
+        [12, 10, '10GBASE-LR', 525000, 'déduit', undefined, 50, 'max', 1.5, 1, 'actuel']);
+      v.egal('XD-T et XD-S : fiches préliminaires', [xdt.sources.sorties.source.confiance, xds.sources.sorties.source.confiance], ['constructeur, fiche préliminaire', 'constructeur, fiche préliminaire']);
+      v.egal('SX40 : XD, XD-T ou XD-S au choix, XD par défaut', [sx40.distributeursPossibles, sx40.distributeur], [['brompton-xd', 'brompton-xd-t', 'brompton-xd-s'], 'brompton-xd']);
+      // Fiches d'information : SQ200 et QD-S (fiches préliminaires).
+      const sq = p('brompton-sq200');
+      v.egal('SQ200 : fiche d\'information (fiche préliminaire), licences de 9, 18, 27 et 36 M px, 1 à 2 images, 8,7 kg, 4 A à 115 V et 2 A à 230 V, actuel',
+        [brute('brompton-sq200')?.statut, sq.licencesPx, sq.latenceMinImages, sq.latenceMaxImages, sq.poidsKg, courant(sq), sq.statutCommercial, sq.sources.licencesPx?.source.confiance],
+        ['information', [9000000, 18000000, 27000000, 36000000], 1, 2, 8.7, [[4, 115], [2, 230]], 'actuel', 'constructeur, fiche préliminaire']);
+      v.vrai('SQ200 : jamais parmi les processeurs calculés', !bp.processeurs.some((x) => x.id === 'brompton-sq200'));
+      const qd = d('brompton-qd-s');
+      v.egal('QD-S : fiche d\'information, 12 sorties 10G, 100 W max, 1,75 kg, 1U, jamais distributeur d\'un processeur',
+        [bp.distributeurs.find((x) => x.id === 'brompton-qd-s')?.statut, qd.sorties, qd.typeSorties, qd.puissanceW, qd.sources.puissanceW.type, qd.poidsKg, qd.hauteurU,
+          bp.processeurs.some((x) => x.distributeur === 'brompton-qd-s')],
+        ['information', 12, '10G', 100, 'max', 1.75, 1, false]);
+      const relevees = [...Object.values(fiches), 'brompton-fiche-xd-2025-02', 'brompton-fiche-xd-s-2025-07', 'brompton-fiche-xd-t-2026-03', 'brompton-fiche-sq200-2025-10',
+        'brompton-fiche-qd-s-2026-06', 'brompton-fiche-r2-r2plus-2025-03', 'brompton-menu-produits', 'brompton-page-legacy', 'brompton-aide-tessera-12-2-4', 'brompton-aide-tessera-12-2-5'];
+      const fautes = relevees.filter((id) => !/^https:\/\/www\.bromptontech\.com\//.test(bp.sources[id]?.url ?? '') || !bp.sources[id]?.date);
+      v.egal('sources Brompton relues : adresse du site Brompton et date', fautes, []);
+    },
+  },
+  {
+    id: 'D48',
+    titre: 'Megapixel (étape Pc3) : HELIOS Jr, 4K et 8K (fiche 2023), tableau de capacité par port de la page de support « HELIOS System Capacity Basics » (10 et 12 bits, liens 1G, 2,5G et 10G, 24 à 240 i/s), 35 M px par HELIOS, latence de 3 images (guide 2020, copie tierce) ; switches M4250 et M4200 (notes de version v25.11.0), RS12 en fiche d\'information',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const p = (id) => calculs.resoudreFiche(bp.processeurs.find((x) => x.id === id), bp.sources);
+      const ids = ['megapixel-helios-jr', 'megapixel-helios-4k', 'megapixel-helios-8k'];
+      v.egal('trois HELIOS, marque Megapixel, famille de calcul megapixel, gamme HELIOS', ids.map((id) => [p(id).marque, p(id).famille, p(id).gamme]), ids.map(() => ['Megapixel', 'megapixel', 'HELIOS']));
+      // Tableau J.15 du guide HELIOS, relevé sur la page de support : fréquence → 10 bits (1G, 2,5G, 10G), 12 bits (1G, 2,5G, 10G).
+      const tableau = [
+        [24, [1275000, 3187500, 8500000], [1062500, 2656250, 8500000]], [25, [1225000, 3062500, 8500000], [1020000, 2550000, 8500000]],
+        [30, [1020000, 2550000, 8500000], [850000, 2125000, 8500000]], [48, [635000, 1587500, 6350000], [531000, 1328125, 5312500]],
+        [50, [610000, 1525000, 6100000], [510000, 1275000, 5100000]], [60, [510000, 1275000, 5100000], [425000, 1062500, 4250000]],
+        [120, [240000, 600000, 2400000], [200000, 500000, 2000000]], [144, [195000, 487500, 1950000], [160000, 400000, 1600000]],
+        [180, [148000, 370000, 1480000], [126000, 315000, 1260000]], [200, [128000, 320000, 1280000], [112000, 280000, 1120000]],
+        [240, [100000, 250000, 1000000], [90000, 225000, 900000]],
+      ];
+      for (const id of ids) {
+        v.egal(`${id} : tableau de capacité de la page de support`, p(id).capacitesHelios.map((l) => [l.frequenceHz, l.bits10, l.bits12]), tableau);
+      }
+      const support = bp.sources['megapixel-support-capacite'];
+      v.egal('page de support : constructeur, adresse, modifiée le 12/08/2026', [support?.confiance, /^https:\/\/support\.megapixelvr\.com\//.test(support?.url ?? ''), support?.date],
+        ['constructeur', true, '2026-08-12']);
+      const [jr, k4, k8] = ids.map(p);
+      v.egal('HELIOS 8K : 8 sorties 10G, 35 M px (page de support)', [k8.sorties10G, k8.pixelsMax, k8.sources.pixelsMax.source.id], [8, 35000000, 'megapixel-support-capacite']);
+      v.egal('HELIOS 4K : 3 sorties 10G ; canvas 4096 × 2160 = 8 847 360 px, déduit, « capacité du 4K non publiée »',
+        [k4.sorties10G, k4.pixelsMax, k4.largeurMaxPx, k4.hauteurMaxPx, k4.sources.pixelsMax.source.confiance, /capacité du 4K non publiée/.test(k4.sources.pixelsMax.note ?? '')],
+        [3, 8847360, 4096, 2160, 'déduit', true]);
+      v.egal('HELIOS Jr : 8 ports 1G en cuivre, en direct, sans sortie fibre ni switch', [jr.ports, jr.sources.ports.source.id, jr.sortiesFibre, jr.distributeur], [8, 'megapixel-fiche-helios-2023', 'aucune', undefined]);
+      v.egal('HELIOS Jr : deux limites distinctes, canvas d\'entrée 4096 × 2160 (déduit, à confirmer) et capacité de charge LED calculée par ses ports (pas de pixels maxi figés)',
+        [jr.largeurMaxPx, jr.hauteurMaxPx, jr.sources.largeurMaxPx.source.confiance, jr.pixelsMax, jr.pixelsMaxParPorts, jr.sources.pixelsMaxParPorts?.source.id],
+        [4096, 2160, 'déduit, à confirmer', undefined, true, 'deduit-helios-jr-capacite']);
+      const canvas8k = k8.sources.largeurMaxPx.source;
+      v.egal('HELIOS 8K : canvas 8192 × 4320, déduit, à confirmer, avec l\'autre lecture (lien quad, une image 7680 × 4320)',
+        [k8.largeurMaxPx, k8.hauteurMaxPx, canvas8k.confiance, /7680 × 4320/.test(canvas8k.titre) && /quad/.test(canvas8k.titre)], [8192, 4320, 'déduit, à confirmer', true]);
+      v.egal('latence : 3 images, guide HELIOS 2020 en copie tierce', ids.map((id) => [p(id).latenceMinImages, p(id).latenceMaxImages, p(id).sources.latenceMaxImages.source.confiance]),
+        ids.map(() => [3, 3, 'copie tierce']));
+      v.egal('5,7 kg, 1U, 3 A de 100 à 240 V (fiche 2023)', ids.map((id) => [p(id).poidsKg, p(id).hauteurU, p(id).courantAlimentation.map((c) => [c.courantA, c.tensionMinV, c.tensionMaxV])]),
+        ids.map(() => [5.7, 1, [[3, 100, 240]]]));
+      v.egal('statut : 8K actuel (page HELIOS) ; 4K et Jr non renseignés (absents de la page, fiche 2023 en ligne)', ids.map((id) => p(id).statutCommercial), ['non renseigné', 'non renseigné', 'actuel']);
+      v.egal('HELIOS 8K et 4K : M4250 par défaut, M4200 possible', [k8.distributeur, k8.distributeursPossibles, k4.distributeur],
+        ['netgear-m4250-msm4214x', ['netgear-m4250-msm4214x', 'netgear-m4200-gsm4210p'], 'netgear-m4250-msm4214x']);
+      // Switches.
+      const sw = contexte.appareils.switches;
+      const s = (id) => calculs.resoudreFiche(sw.appareils.find((x) => x.id === id), sw.sources);
+      const m4250 = s('netgear-m4250-msm4214x');
+      const m4200 = s('netgear-m4200-gsm4210p');
+      v.egal('M4250 (MSM4214X) : 12 ports 1G ou 2,5G, 2 SFP+, mode 20G, 37,9 W, 1,745 kg, actuel',
+        [m4250.ports, m4250.lien25G, m4250.portsSFP, m4250.mode20G, m4250.puissanceW, m4250.poidsKg, m4250.statutCommercial], [12, true, 2, true, 37.9, 1.745, 'actuel']);
+      v.egal('M4250 : mode 20G, notes de version v25.11.0 (p. 59)', [m4250.sources.mode20G.source.id, /ports 1-6/.test(m4250.sources.mode20G.note ?? '')], ['megapixel-notes-v25-11-0', true]);
+      v.egal('M4200 (GSM4210P) : 8 ports 1G, pas de 2,5G, pas de mode 20G, ancien', [m4200.ports, m4200.lien25G, m4200.mode20G, m4200.statutCommercial], [8, undefined, false, 'ancien']);
+      v.egal('RS12 : fiche d\'information (page HELIOS : 12 ports 1G ou 2,5G, une fibre)', (sw.informations ?? []).map((x) => [x.id, x.statut]), [['megapixel-rs12', 'information']]);
+      const nouvelles = ['megapixel-fiche-helios-2023', 'megapixel-support-capacite', 'megapixel-notes-v25-11-0', 'megapixel-guide-helios-2020', 'megapixel-page-helios'];
+      v.egal('sources Megapixel : adresse et date', nouvelles.filter((id) => !bp.sources[id]?.url || !bp.sources[id]?.date), []);
+      v.egal('sources des switches : adresse et date', Object.entries(sw.sources).filter(([, x]) => !x.url || !x.date).map(([id]) => id), []);
+    },
+  },
+  {
+    id: 'D49',
+    titre: 'Linsn, Kystar et Mooncell (étape Pd, relevé du 26/09/2026) : ports, pixels maxi, canvas, entrées, poids et conso ; 650 000 px par port à 60 Hz en 8 bits (règle des fiches Linsn, déduit du total ÷ ports chez Kystar et Mooncell) ; valeurs contradictoires ; modèles sans canvas ni capacité « à compléter »',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const brute = (id) => bp.processeurs.find((x) => x.id === id);
+      const p = (id) => calculs.resoudreFiche(brute(id), bp.sources);
+      const de = (famille) => bp.processeurs.filter((x) => x.famille === famille).map((x) => x.id);
+      v.egal('Linsn', de('linsn'), ['linsn-ts852d', 'linsn-ts952', 'linsn-x100', 'linsn-x8408', 'linsn-x8216', 'linsn-x8208', 'linsn-x8212']);
+      v.egal('Kystar', de('kystar'), ['kystar-es6', 'kystar-es10', 'kystar-es20', 'kystar-kls2c', 'kystar-kls4c', 'kystar-kls6c', 'kystar-kls8c', 'kystar-kls12c', 'kystar-kls16c', 'kystar-kls24c']);
+      v.egal('Mooncell', de('mooncell'), ['mooncell-mtb200s', 'mooncell-mtb400e', 'mooncell-mtb600e', 'mooncell-mtb800e', 'mooncell-mtb1200e', 'mooncell-mtb2000e',
+        'mooncell-mvb6s', 'mooncell-mvb8s', 'mooncell-mvb10e', 'mooncell-mvb12e', 'mooncell-m40', 'mooncell-m32']);
+      const cle = (id) => { const x = p(id); return [x.ports, x.pixelsMax, x.largeurMaxPx, x.hauteurMaxPx]; };
+      v.egal('Linsn calculables : TS852D, X100, X8408, X8216 (ports, pixels, largeur, hauteur)', ['linsn-ts852d', 'linsn-x100', 'linsn-x8408', 'linsn-x8216'].map(cle),
+        [[2, 1310720, 4032, 2048], [2, 1300000, 1920, 1080], [8, 5200000, 7680, 4000], [16, 10000000, 8192, 4000]]);
+      v.egal('Kystar calculables : ES6, ES10, ES20', ['kystar-es6', 'kystar-es10', 'kystar-es20'].map(cle), [[6, 2350000, 4000, 4000], [10, 6500000, 8000, 8000], [20, 8850000, 8000, 8000]]);
+      v.egal('Mooncell calculables : MTB200S à MTB2000E, MVB6S à MVB12E', ['mooncell-mtb200s', 'mooncell-mtb400e', 'mooncell-mtb600e', 'mooncell-mtb800e', 'mooncell-mtb1200e', 'mooncell-mtb2000e',
+        'mooncell-mvb6s', 'mooncell-mvb8s', 'mooncell-mvb10e', 'mooncell-mvb12e'].map(cle),
+        [[2, 1300000, 4096, 4096], [4, 2600000, 4096, 4096], [6, 2600000, 4096, 4096], [8, 5200000, 8192, 8192], [12, 7800000, 8192, 8192], [20, 8290000, 8192, 8192],
+          [6, 3900000, 8192, 3840], [8, 5200000, 8192, 3840], [10, 6500000, 8192, 3840], [12, 7800000, 8192, 3840]]);
+      const aCompleter = ['linsn-ts952', 'linsn-x8208', 'linsn-x8212', 'kystar-kls2c', 'kystar-kls4c', 'kystar-kls6c', 'kystar-kls8c', 'kystar-kls12c', 'kystar-kls16c', 'kystar-kls24c', 'mooncell-m40', 'mooncell-m32'];
+      v.egal('à compléter (canvas ou capacité non publiés) : jamais calculés', aCompleter.map((id) => [brute(id).statut, calculs.champsManquants(p(id)).length > 0]), aCompleter.map(() => ['à compléter', true]));
+      v.egal('KLS : ports et pixels connus (650 000 par port), canvas absent', ['kystar-kls2c', 'kystar-kls24c'].map((id) => [p(id).ports, p(id).pixelsMax, calculs.champsManquants(p(id))]),
+        [[2, 1300000, ['largeurMaxPx', 'hauteurMaxPx']], [24, 15600000, ['largeurMaxPx', 'hauteurMaxPx']]]);
+      // Capacité d'un port.
+      const calculables = bp.processeurs.filter((x) => ['linsn', 'kystar', 'mooncell'].includes(x.famille) && x.statut !== 'à compléter').map((x) => x.id);
+      v.egal('650 000 px par port à 60 Hz en 8 bits, 8 bits seulement', [...new Set(calculables.map((id) => `${p(id).capacitePort60Hz8bits} ${p(id).bitsReseauPossibles.join('/')}`))], ['650000 8']);
+      const conf = (id) => p(id).sources.capacitePort60Hz8bits.source.confiance;
+      v.egal('source de la règle : fiches Linsn (copie), déduit chez Kystar et Mooncell', [conf('linsn-x8216'), conf('kystar-es10'), conf('mooncell-mtb800e')],
+        ['constructeur, copie hébergée par un tiers', 'déduit', 'déduit']);
+      v.egal('TS852D : 655 360 par port de sa page visible, 650 000 retenu (le plus défavorable)', p('linsn-ts852d').sources.capacitePort60Hz8bits.autres.map((x) => x.valeur), [655360]);
+      v.vrai('10 et 12 bits : capacité non publiée', /non publiée/.test(p('linsn-x8216').sources.bitsReseauPossibles.note ?? ''));
+      // Valeurs contradictoires.
+      const m600 = p('mooncell-mtb600e');
+      v.vrai('MTB600E : « 2.6 Million » de la fiche retenu, 3,9 M attendu (6 × 650 000) signalé', m600.pixelsMax === 2600000 && /3,9 M/.test(m600.sources.pixelsMax.note ?? ''));
+      const m2000 = p('mooncell-mtb2000e');
+      v.egal('MTB2000E : 8,29 M en pixel à pixel retenus, 10,4 M (mise à l\'échelle) visibles', [m2000.pixelsMax, m2000.sources.pixelsMax.autres.map((x) => x.valeur)], [8290000, [10400000]]);
+      const n8216 = p('linsn-x8216').sources.pixelsMax.note ?? '';
+      v.vrai('X8216 : « up to 10 million » retenu, plafond de l\'appareil (16 × 650 000 = 10,4 M), comme les VX4S', p('linsn-x8216').pixelsMax === 10000000
+        && /10 million/.test(n8216) && /plafond de l'appareil/.test(n8216) && /10,4 M/.test(n8216) && /VX4S/.test(n8216));
+      v.vrai('ES20 : 8,85 M, plafond 4K pixel à pixel, pas 20 × 650 000 = 13 M', p('kystar-es20').pixelsMax === 8850000 && /13 M/.test(p('kystar-es20').sources.pixelsMax.note ?? ''));
+      v.egal('poids et conso Linsn de leurs fiches (X100, X8408, X8216, TS952)', ['linsn-x100', 'linsn-x8408', 'linsn-x8216', 'linsn-ts952'].map((id) => [p(id).poidsKg, p(id).puissanceW]),
+        [[2.1, 15], [4.2, 35], [3, 30], [3, 20]]);
+      v.egal('X100 : 1U (fiche)', p('linsn-x100').hauteurU, 1);
+      v.vrai('ES20 : 4 sorties fibre 10G, rôle non précisé, signalé', /4 × 10G/.test(p('kystar-es20').note ?? '') && /non précisé/.test(p('kystar-es20').note ?? ''));
+      v.egal('fiches Linsn V3.0 et TS952 : dossier des PDF sur colorlitled.com', ['linsn-x100-v3-0', 'linsn-x8408-v3-0', 'linsn-x8216-v3-0', 'linsn-ts952-v1-5'].map((id) => bp.sources[id].url),
+        ['linsn-x100-v3-0', 'linsn-x8408-v3-0', 'linsn-x8216-v3-0', 'linsn-ts952-v1-5'].map(() => 'https://www.colorlitled.com/wp-content/download/linsn/specifications/'));
+      const logiciel = (id) => [p(id).logicielReglage, p(id).sources.logicielReglage?.source.confiance, Boolean(p(id).sources.logicielReglage?.source.url)];
+      v.egal('logiciels de réglage : LEDSet (Linsn), Kystar Control System, AutoLEDSetup (Mooncell), sources tierces avec adresse',
+        ['linsn-x8408', 'kystar-es10', 'mooncell-mtb800e'].map(logiciel), [['LEDSet', 'tiers', true], ['Kystar Control System', 'tiers', true], ['AutoLEDSetup', 'tiers', true]]);
+      v.vrai('tous les Linsn, Kystar et Mooncell ont leur logiciel', [...de('linsn'), ...de('kystar'), ...de('mooncell')].every((id) => p(id).logicielReglage));
+      const ids = [...de('linsn'), ...de('kystar'), ...de('mooncell')];
+      const sources = [...new Set(ids.flatMap((id) => Object.values(brute(id)).flatMap((x) => (x && typeof x === 'object' && !Array.isArray(x) ? (x.valeurs ?? [x]).map((y) => y.source) : [])).filter(Boolean)))];
+      v.egal('sources : toutes connues, avec date ; adresse sauf règles déduites ou choix de conception', sources.filter((id) => !bp.sources[id] || !bp.sources[id].date || (!bp.sources[id].url && !/déduit|choix de conception/.test(bp.sources[id].confiance))), []);
     },
   },
 ];

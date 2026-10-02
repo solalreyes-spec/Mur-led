@@ -153,13 +153,15 @@
       "titre": "Fiche Brompton Tessera M2, janvier 2021 : entrée maxi 1920 × 1080, soit 2 073 600 px",
       "court": "Fiche M2",
       "date": "2021-01",
-      "confiance": "constructeur"
+      "confiance": "constructeur",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2021/02/Brompton-M2-Data-Sheet-Jan2021.pdf"
     },
     "brompton-fiche-s8-2025-03": {
       "titre": "Fiche Brompton Tessera S8, mars 2025",
       "court": "Fiche S8",
       "date": "2025-03",
-      "confiance": "constructeur"
+      "confiance": "constructeur",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2025/07/Brompton-S8-Data-Sheet-Mar2025-EN.pdf"
     },
     "novastar-mctrl300-v2-4-1": {
       "titre": "Fiche Novastar MCTRL300 V2.4.1",
@@ -1282,6 +1284,314 @@
       "date": "2026-09-26",
       "url": null,
       "confiance": "déduit"
+    },
+    "brompton-fiche-sx40-2025-02": {
+      "titre": "Fiche Brompton Tessera SX40, février 2025 (Full Specifications, p. 4)",
+      "court": "Fiche SX40",
+      "date": "2025-02",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2025/07/Brompton-SX40-Data-Sheet-Feb2025-EN.pdf",
+      "confiance": "constructeur"
+    },
+    "brompton-fiche-s4-2025-03": {
+      "titre": "Fiche Brompton Tessera S4, mars 2025 (Full Specifications, p. 4)",
+      "court": "Fiche S4",
+      "date": "2025-03",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2025/07/Brompton-S4-Data-Sheet-Mar2025-EN.pdf",
+      "confiance": "constructeur"
+    },
+    "brompton-fiche-t1-2021-11": {
+      "titre": "Fiche Brompton Tessera T1, novembre 2021 (Full Specifications, p. 4)",
+      "court": "Fiche T1",
+      "date": "2021-11",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2021/11/Brompton-T1-Data-Sheet-Nov2021.pdf",
+      "confiance": "constructeur"
+    },
+    "brompton-fiche-xd-2025-02": {
+      "titre": "Fiche Brompton Tessera XD, février 2025 (p. 3 et Full Specifications, p. 4)",
+      "court": "Fiche XD",
+      "date": "2025-02",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2025/07/Brompton-XD-Data-Sheet-Feb2025-EN.pdf",
+      "confiance": "constructeur"
+    },
+    "brompton-fiche-xd-s-2025-07": {
+      "titre": "Fiche Brompton Tessera XD-S, juillet 2025, « PRELIMINARY DATA SHEET » (Full Specifications, p. 3)",
+      "court": "Fiche XD-S préliminaire",
+      "date": "2025-07",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2025/09/Brompton-XD-S-Data-Sheet-July2025-EN.pdf",
+      "confiance": "constructeur, fiche préliminaire"
+    },
+    "brompton-fiche-xd-t-2026-03": {
+      "titre": "Fiche Brompton Tessera XD-T, mars 2026, marquée « PRELIMINARY » (Full Specifications, p. 3)",
+      "court": "Fiche XD-T préliminaire",
+      "date": "2026-03",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2026/03/Brompton-XD-T-Data-Sheet-Mar2026-EN-Preliminary.pdf",
+      "confiance": "constructeur, fiche préliminaire"
+    },
+    "brompton-fiche-sq200-2025-10": {
+      "titre": "Fiche Brompton Tessera SQ200, octobre 2025, marquée « PRELIMINARY » (celle de la page produit au 26/09/2026)",
+      "court": "Fiche SQ200 préliminaire",
+      "date": "2025-10",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2025/10/Brompton-SQ200-Data-Sheet-Oct2025-EN.pdf",
+      "confiance": "constructeur, fiche préliminaire"
+    },
+    "brompton-fiche-qd-s-2026-06": {
+      "titre": "Fiche Brompton Tessera QD-S, juin 2026, « PRELIMINARY DATA SHEET » (Full Specifications, p. 3)",
+      "court": "Fiche QD-S préliminaire",
+      "date": "2026-06",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2026/06/Brompton-QD-S-Data-Sheet-June2026-EN.pdf",
+      "confiance": "constructeur, fiche préliminaire"
+    },
+    "brompton-fiche-r2-r2plus-2025-03": {
+      "titre": "Fiche Brompton Tessera R2/R2+, mars 2025 (spécifications de la R2+, p. 2)",
+      "court": "Fiche R2/R2+",
+      "date": "2025-03",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2025/12/Brompton-R2R2-plus-Data-Sheet-Mar2025-EN.pdf",
+      "confiance": "constructeur"
+    },
+    "brompton-menu-produits": {
+      "titre": "Site Brompton, menu Products (consulté le 26/09/2026) : SQ200, SX40, S8, QD-S, XD-S, XD-T, XD, R2+ et G1 listés",
+      "court": "Site Brompton, menu Products",
+      "date": "2026-09-26",
+      "url": "https://www.bromptontech.com/products/",
+      "confiance": "constructeur"
+    },
+    "brompton-page-legacy": {
+      "titre": "Site Brompton, rubrique Legacy (consultée le 26/09/2026) : S4, M2 et T1",
+      "court": "Site Brompton, rubrique Legacy",
+      "date": "2026-09-26",
+      "url": "https://www.bromptontech.com/product/legacy/",
+      "confiance": "constructeur"
+    },
+    "brompton-aide-tessera-12-2-4": {
+      "titre": "Brompton, aide en ligne Tessera, page « Ultra Low Latency » (12.2.4), consultée le 26/09/2026 : SX40 et S8 seulement, latence d'une image, capacité divisée par 2, HDMI seulement (« HDMI can be used but not SDI »), EDID de deux fois la hauteur du canvas, canvas de 720 à 2047 px de haut",
+      "court": "Aide en ligne Tessera 12.2.4",
+      "date": "2026-09-26",
+      "url": "https://www.bromptontech.com/online-help/Content/Tessera%20User%20Manual/03.%20Features/12.2.4%20-%20Ultra%20Low%20Latency.htm",
+      "confiance": "constructeur"
+    },
+    "brompton-aide-tessera-12-2-5": {
+      "titre": "Brompton, aide en ligne Tessera, page « HFR+ (High Frame Rate) » (12.2.5), consultée le 26/09/2026 : SX40 et S8 jusqu'à 250 i/s, dalles à carte R2 ou R2+ d'environ 108 000 px au plus, pas de HFR en SDI",
+      "court": "Aide en ligne Tessera 12.2.5",
+      "date": "2026-09-26",
+      "url": "https://www.bromptontech.com/online-help/Content/Tessera%20User%20Manual/03.%20Features/12.2.5%20-%20High%20Frame%20Rate.htm",
+      "confiance": "constructeur"
+    },
+    "deduit-xd-s-capacite": {
+      "titre": "Déduit : capacité d'un port 1G de la fiche XD-T (« Each 1G output is capable of 525K pixels at 8bpc, 60Hz »), même protocole Tessera 1G ; la fiche XD-S (préliminaire) ne la donne pas",
+      "court": "Déduit de la fiche XD-T",
+      "date": "2026-09-26",
+      "url": null,
+      "confiance": "déduit"
+    },
+    "deduit-s8-capacite-frequence": {
+      "titre": "Déduit par analogie avec le SX40 (aide en ligne Tessera 12.2.4 et 12.2.5) : capacité en pixels du S8 × 60 / fréquence au-delà de 60 Hz, divisée par 2 en ULL ; l'aide ne chiffre l'exemple que pour le SX40",
+      "court": "Déduit par analogie avec le SX40",
+      "date": "2026-09-26",
+      "url": null,
+      "confiance": "déduit"
+    },
+    "brompton-fiche-r2-2021-01": {
+      "titre": "Fiche Brompton Tessera R2, janvier 2021 : « 262,144 RGB pixels capacity »",
+      "court": "Fiche R2",
+      "date": "2021-01",
+      "url": "https://www.bromptontech.com/wp-content/uploads/2021/01/Brompton-R2-Data-Sheet-Jan2021.pdf",
+      "confiance": "constructeur"
+    },
+    "megapixel-fiche-helios-2023": {
+      "titre": "Fiche Megapixel « HELIOS LED Processing Platform » (2023, p. 2) : HELIOS Jr, 4K et 8K",
+      "court": "Fiche HELIOS",
+      "date": "2023-09",
+      "url": "https://megapixelvr.com/wp-content/uploads/2023/09/megapixel-helios-led-processing-platform-specifications.pdf",
+      "confiance": "constructeur"
+    },
+    "megapixel-support-capacite": {
+      "titre": "Support Megapixel, « HELIOS System Capacity Basics » (modifié le 12/08/2026, lu le 26/09/2026) : tableau J.15 du guide HELIOS « Output Port Capacity (Pixels) », 10 et 12 bits, liens 1G et 2,5G (switch vers dalles) et 10G (HELIOS vers switch), 24 à 240 i/s ; « the maximum pixels per HELIOS output port is 8.5 million, and with all outputs combined, a maximum of 35 million pixels per HELIOS » ; « 2.5G connectivity is dependent on the tile design »",
+      "court": "Support Megapixel, HELIOS System Capacity Basics",
+      "date": "2026-08-12",
+      "url": "https://support.megapixelvr.com/support/solutions/articles/103000262246-helios-system-capacity-basics",
+      "confiance": "constructeur"
+    },
+    "megapixel-guide-helios-2020": {
+      "titre": "Guide HELIOS 20.09.0.20886 du 19/10/2020, document Megapixel hébergé par atcomms.co.uk : latence « 3 frames ( @ 60Hz = 50ms | @ 120Hz = 25 ms) »",
+      "court": "Guide HELIOS 2020, copie tierce",
+      "date": "2020-10-19",
+      "url": "https://www.atcomms.co.uk/wp-content/uploads/2023/01/HELIOS-SPEC-SHEET.pdf",
+      "confiance": "copie tierce"
+    },
+    "megapixel-page-helios": {
+      "titre": "Site Megapixel, page HELIOS (consultée le 26/09/2026) : un seul modèle présenté, « 8x10G Fiber Output » ; switch durci RS12",
+      "court": "Site Megapixel, page HELIOS",
+      "date": "2026-09-26",
+      "url": "https://megapixelvr.com/helios/",
+      "confiance": "constructeur"
+    },
+    "megapixel-notes-v25-11-0": {
+      "titre": "Megapixel, notes de version HELIOS v25.11.0 (28/11/2025) : switches pris en charge M4200 (GSM4210P) et M4250 (MSM4214X) ; p. 59, « 20G switch aggregated 2 x 10G support » sur M4250 seulement",
+      "court": "Notes de version HELIOS v25.11.0",
+      "date": "2025-11-28",
+      "url": "https://megapixelvr.com/downloads/HELIOS_Release_Notes_v25.11.0.pdf",
+      "confiance": "constructeur"
+    },
+    "deduit-helios-8k-canvas": {
+      "titre": "Déduit, à confirmer : canvas de 8192 × 4320 px, lu comme 4 entrées 12G-SDI de 4096 × 2160 px assemblées (« 4 x 12G-SDI up to 8K », « Stitch together same format inputs as a single input canvas (up to 4x SDI, 2x DP, or 2x HDMI) », fiche HELIOS 2023). Autre lecture possible : en broadcast, « 4 x 12G-SDI up to 8K » désigne souvent un lien quad qui porte une seule image de 7680 × 4320 px (8K UHD), pas quatre images 4K assemblées ; une fiche détaillée devra trancher",
+      "court": "Déduit des entrées du HELIOS 8K, à confirmer",
+      "date": "2026-09-26",
+      "url": null,
+      "confiance": "déduit, à confirmer"
+    },
+    "deduit-helios-4k-canvas": {
+      "titre": "Déduit : capacité du HELIOS 4K non publiée ; canvas de 4096 × 2160 px (HDMI 2.0 et 12G-SDI « up to 4096 x 2160 », fiche HELIOS 2023), soit 8 847 360 px",
+      "court": "Déduit des entrées du HELIOS 4K",
+      "date": "2026-09-26",
+      "url": null,
+      "confiance": "déduit"
+    },
+    "deduit-helios-jr": {
+      "titre": "Déduit, à confirmer : canvas d'entrée du HELIOS Jr non publié ; mêmes entrées que le HELIOS 4K (HDMI 2.0 et 12G-SDI « up to 4096 x 2160 », fiche HELIOS 2023), donc 4096 × 2160 px",
+      "court": "Déduit comme le HELIOS 4K, à confirmer",
+      "date": "2026-09-26",
+      "url": null,
+      "confiance": "déduit, à confirmer"
+    },
+    "deduit-helios-jr-capacite": {
+      "titre": "Déduit : capacité de charge LED du HELIOS Jr non publiée ; 8 ports 1G (« 8 x 1G Copper SFP », fiche HELIOS 2023) × la capacité d'un port 1G du tableau Megapixel, à la fréquence et à la profondeur du calcul ; limite distincte du canvas d'entrée",
+      "court": "Déduit des ports du HELIOS Jr",
+      "date": "2026-09-26",
+      "url": null,
+      "confiance": "déduit"
+    },
+    "linsn-x100-v3-0": {
+      "titre": "Fiche Linsn X100 V3.0 (janvier 2020), copie colorlitled.com (dossier des PDF de spécifications Linsn ; index : colorlitled.com/linsn-led-specifications/) : « Single port supports up to 650 thousand pixels », 2 ports, 1,3 M px, 1920 × 1080, 1U, 2,1 kg, 15 W",
+      "court": "Fiche Linsn X100 V3.0 (copie)",
+      "date": "2020-01",
+      "url": "https://www.colorlitled.com/wp-content/download/linsn/specifications/",
+      "confiance": "constructeur, copie hébergée par un tiers"
+    },
+    "linsn-x8408-v3-0": {
+      "titre": "Fiche Linsn X8408 V3.0 (juillet 2020), copie colorlitled.com (dossier des PDF de spécifications Linsn ; index : colorlitled.com/linsn-led-specifications/) : « Single port supports up to 650 thousand pixels », 8 ports, 5,2 M px, 7680 × 4000, 4,2 kg, 35 W",
+      "court": "Fiche Linsn X8408 V3.0 (copie)",
+      "date": "2020-07",
+      "url": "https://www.colorlitled.com/wp-content/download/linsn/specifications/",
+      "confiance": "constructeur, copie hébergée par un tiers"
+    },
+    "linsn-x8216-v3-0": {
+      "titre": "Fiche Linsn X8216 V3.0 (janvier 2020), copie colorlitled.com (dossier des PDF de spécifications Linsn ; index : colorlitled.com/linsn-led-specifications/) : « Single port supports up to 650 thousand pixels », 16 ports, « up to 10 million », 8192 × 4000, 3 kg, 30 W",
+      "court": "Fiche Linsn X8216 V3.0 (copie)",
+      "date": "2020-01",
+      "url": "https://www.colorlitled.com/wp-content/download/linsn/specifications/",
+      "confiance": "constructeur, copie hébergée par un tiers"
+    },
+    "linsn-ts952-v1-5": {
+      "titre": "Fiche Linsn TS952 V1.5 (juillet 2018), copie colorlitled.com (dossier des PDF de spécifications Linsn ; index : colorlitled.com/linsn-led-specifications/) : 4 ports, DVI, HDMI et audio, 3 kg, 20 W ; capacité non relevée",
+      "court": "Fiche Linsn TS952 V1.5 (copie)",
+      "date": "2018-07",
+      "url": "https://www.colorlitled.com/wp-content/download/linsn/specifications/",
+      "confiance": "constructeur, copie hébergée par un tiers"
+    },
+    "linsn-page-ts802d": {
+      "titre": "Linsn, page « TS802D loading area » (consultée le 26/09/2026) : « 1 UTP Cable » = 655 360 points, « 2 UTP Cable » = 1 310 720 points ; « 30Hz and 60HZ two Mode Output »",
+      "court": "Linsn, page TS802D",
+      "date": "2026-09-26",
+      "url": "https://www.linsnled.com/ts802d-loading-area.html",
+      "confiance": "constructeur"
+    },
+    "colorlitled-linsn-ts852d": {
+      "titre": "colorlitled.com, page Linsn TS852D (consultée le 26/09/2026) : boîtier du TS802D, 4032 × 2048 px, DVI, 280 × 178 × 50 mm, 1,4 kg",
+      "court": "colorlitled.com, page TS852D",
+      "date": "2026-09-26",
+      "url": "https://www.colorlitled.com/linsn-ts852d/",
+      "confiance": "revendeur"
+    },
+    "linsn-page-x8208": {
+      "titre": "Linsn, page produit X8208 (consultée le 26/09/2026) : 2-en-1 4K, 5,2 M px, 10 bits, DP 1.2 et HDMI 2.0 4K à 60 Hz ; canvas non relevé",
+      "court": "Linsn, page X8208",
+      "date": "2026-09-26",
+      "url": "https://www.linsnled.com/linsn-x8208-led-display-processor.html",
+      "confiance": "constructeur"
+    },
+    "linsn-page-x8212": {
+      "titre": "Linsn, page produit X8212 (consultée le 26/09/2026) : 2-en-1 4K, 12 ports, 7,8 M px, 10 bits, DP 1.2 et HDMI 2.0 ; canvas non relevé",
+      "court": "Linsn, page X8212",
+      "date": "2026-09-26",
+      "url": "https://www.linsnled.com/linsn-x8212-led-screen-processor.html",
+      "confiance": "constructeur"
+    },
+    "deduit-linsn-x8208-ports": {
+      "titre": "Déduit : 8 ports pour le Linsn X8208, 5,2 M px ÷ 650 000 px par port (règle des fiches Linsn)",
+      "court": "Déduit des pixels du X8208",
+      "date": "2026-09-26",
+      "url": null,
+      "confiance": "déduit"
+    },
+    "kystar-page-envoi": {
+      "titre": "Kystar, catégorie « Sending card » (consultée le 26/09/2026) : ES6, ES10, ES20 ; unité « w » = 10 000 px",
+      "court": "Kystar, cartes d'envoi",
+      "date": "2026-09-26",
+      "url": "https://en.kystar.net/product-category/sending-card/",
+      "confiance": "constructeur"
+    },
+    "kystar-page-2en1": {
+      "titre": "Kystar, catégorie « Two in one processor » (consultée le 26/09/2026) : KLS2c à KLS24c, 2 à 24 ports, 130w à 1560w",
+      "court": "Kystar, 2-en-1",
+      "date": "2026-09-26",
+      "url": "https://en.kystar.net/product-category/two-in-one-processor/",
+      "confiance": "constructeur"
+    },
+    "deduit-kystar-650000": {
+      "titre": "Déduit : 650 000 px par port chez Kystar, total ÷ ports des KLS (130w pour 2 ports… 1560w pour 24) et de l'ES10 (6,5 M px, 10 ports) ; valeur par port non écrite",
+      "court": "Déduit des totaux Kystar",
+      "date": "2026-09-26",
+      "url": null,
+      "confiance": "déduit"
+    },
+    "mooncell-pages-envoi": {
+      "titre": "Mooncell, pages des cartes d'envoi (en.mooncell.com.cn, /product/kongzhi/fasong/91.html et 92.html, consultées le 26/09/2026) : V30 Pro et MTB200S à MTB2000E",
+      "court": "Mooncell, cartes d'envoi",
+      "date": "2026-09-26",
+      "url": "https://en.mooncell.com.cn/product/kongzhi/fasong/91.html",
+      "confiance": "constructeur"
+    },
+    "mooncell-pages-2en1": {
+      "titre": "Mooncell, pages des 2-en-1 (en.mooncell.com.cn, /product/tuxiang/erheyi/90.html et 654.html, consultées le 26/09/2026) : MVB6S à MVB12E, M40, M32",
+      "court": "Mooncell, 2-en-1",
+      "date": "2026-09-26",
+      "url": "https://en.mooncell.com.cn/product/tuxiang/erheyi/90.html",
+      "confiance": "constructeur"
+    },
+    "deduit-mooncell-650000": {
+      "titre": "Déduit : 650 000 px par port chez Mooncell, total ÷ ports de la fiche (MTB200S : 1,3 M px pour 2 ports ; MTB800E : 5,2 M px pour 8) ; valeur par port non écrite",
+      "court": "Déduit des totaux Mooncell",
+      "date": "2026-09-26",
+      "url": null,
+      "confiance": "déduit"
+    },
+    "pd-10-bits-non-publie": {
+      "titre": "Choix de conception du projet : aucune capacité par port en 10 ou 12 bits publiée par Linsn, Kystar ni Mooncell ; calcul en 8 bits seulement",
+      "court": "Choix de conception du projet",
+      "date": "2026-09-26",
+      "url": null,
+      "confiance": "choix de conception"
+    },
+    "linsn-pages-logiciels": {
+      "titre": "Linsn, pages « Download » et « LED control software » (linsnled.com/linsn-download.html et linsnled.com/led-control-software.html), citées le 27/09/2026, non relues : LEDSet (réglage des cartes) et LEDStudio (lecture)",
+      "court": "Pages logiciels Linsn [TIERS]",
+      "date": "2026-09-27",
+      "url": "https://www.linsnled.com/linsn-download.html",
+      "confiance": "tiers"
+    },
+    "kystar-page-logiciels": {
+      "titre": "eagerled.com, page « Kystar software download » (eagerled.com/kystar-software-download/), citée le 27/09/2026, non relue : Kystar Control System ; centre officiel : en.kystar.net/download/",
+      "court": "Page logiciels Kystar [TIERS]",
+      "date": "2026-09-27",
+      "url": "https://www.eagerled.com/kystar-software-download/",
+      "confiance": "tiers"
+    },
+    "mooncell-page-logiciels": {
+      "titre": "colorlitled.com, page « Mooncell software download » (colorlitled.com/mooncell-software-download/), citée le 27/09/2026, non relue : AutoLEDSetup (synchrone) ; centre officiel : en.mooncell.com.cn/service/download/",
+      "court": "Page logiciels Mooncell [TIERS]",
+      "date": "2026-09-27",
+      "url": "https://www.colorlitled.com/mooncell-software-download/",
+      "confiance": "tiers"
     }
   },
   "distributeurs": [
@@ -1289,11 +1599,182 @@
       "id": "brompton-xd",
       "marque": "Brompton",
       "modele": "XD",
+      "entree": "10G cuivre (etherCON, Cat6A 60 m ou Cat5e 30 m) ou fibre monomode 1310 nm (opticalCON DUO ou LC, 2 km, PC ou UPC), bascule automatique ; thru pour le chaînage",
       "sorties": {
         "valeur": 10,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-xd-2025-02",
+        "note": "« 10 x 1G Tessera Protocol output ports »"
       },
-      "note": "Relié au SX40 par un trunk 10G. Jusqu'à 5 XD en chaîne, avec bande passante partagée."
+      "typeSorties": "1G",
+      "capaciteNominalePort": {
+        "valeur": 525000,
+        "source": "brompton-fiche-xd-2025-02",
+        "note": "« Each 1G output is capable of 525K pixels at 8bpc, 60Hz »"
+      },
+      "chainageXdMax": {
+        "valeur": 5,
+        "source": "brompton-fiche-xd-2025-02",
+        "note": "« daisy-chaining of up to five additional XDs with shared bandwidth »"
+      },
+      "poidsKg": {
+        "valeur": 3.7,
+        "source": "brompton-fiche-xd-2025-02"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "brompton-fiche-xd-2025-02",
+        "note": "« rack ears for mounting in a 2U 19” rack »"
+      },
+      "courantAlimentation": {
+        "valeur": [
+          {
+            "courantA": 0.4,
+            "tensionV": 100
+          },
+          {
+            "courantA": 0.2,
+            "tensionV": 240
+          }
+        ],
+        "source": "brompton-fiche-xd-2025-02",
+        "note": "« 100 – 240V AC », « 0.4 – 0.2A »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "brompton-menu-produits",
+        "note": "listé au menu Products"
+      },
+      "note": "Relié au SX40 par un trunk 10G. Jusqu'à 5 XD de plus en chaîne, bande passante partagée. En rack 2U ou sur pont (colliers)."
+    },
+    {
+      "id": "brompton-xd-t",
+      "marque": "Brompton",
+      "modele": "XD-T",
+      "entree": "2 × 10G fibre In/Thru, opticalCON DUO ou LC-Duplex, monomode 1310 nm 9/125 µm, 2 km, PC ou UPC",
+      "entreeFibreSeulement": true,
+      "sorties": {
+        "valeur": 12,
+        "source": "brompton-fiche-xd-t-2026-03",
+        "note": "« 12 x 1G Tessera Protocol output ports »"
+      },
+      "sortiesAvecSX40": {
+        "valeur": 10,
+        "source": "brompton-fiche-xd-t-2026-03",
+        "note": "« SX40 (First 10 ports only) »"
+      },
+      "typeSorties": "1G",
+      "capaciteNominalePort": {
+        "valeur": 525000,
+        "source": "brompton-fiche-xd-t-2026-03",
+        "note": "« Each 1G output is capable of 525K pixels at 8bpc, 60Hz »"
+      },
+      "chainageXdMax": {
+        "valeur": 5,
+        "source": "brompton-fiche-xd-t-2026-03",
+        "note": "« Daisy-chaining of up to five additional XDs with shared bandwidth »"
+      },
+      "puissanceW": {
+        "valeur": 50,
+        "source": "brompton-fiche-xd-t-2026-03",
+        "type": "max",
+        "note": "« 50W max »"
+      },
+      "poidsKg": {
+        "valeur": 4,
+        "source": "brompton-fiche-xd-t-2026-03"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "brompton-fiche-xd-t-2026-03",
+        "note": "« 2U high 19” rack unit »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "brompton-menu-produits",
+        "note": "listé au menu Products"
+      },
+      "note": "Successeur du XD, durci, en rack 2U ou sur pont. Fiche préliminaire (mars 2026). Avec un SQ200 (via QD-S), ses 12 ports."
+    },
+    {
+      "id": "brompton-xd-s",
+      "marque": "Brompton",
+      "modele": "XD-S",
+      "entree": "2 × 10G SFP+ In/Thru (cages livrées vides)",
+      "sorties": {
+        "valeur": 12,
+        "source": "brompton-fiche-xd-s-2025-07",
+        "note": "« 12 x 1G RJ45 Tessera Protocol output ports »"
+      },
+      "sortiesAvecSX40": {
+        "valeur": 10,
+        "source": "brompton-fiche-xd-s-2025-07",
+        "note": "« SX40: First 10 ports only »"
+      },
+      "modulesSfpAvecSX40": {
+        "valeur": "10GBASE-LR",
+        "source": "brompton-fiche-xd-s-2025-07",
+        "note": "« Must use 10GBase-LR SFP+ modules »"
+      },
+      "typeSorties": "1G",
+      "capaciteNominalePort": {
+        "valeur": 525000,
+        "source": "deduit-xd-s-capacite"
+      },
+      "puissanceW": {
+        "valeur": 50,
+        "source": "brompton-fiche-xd-s-2025-07",
+        "type": "max",
+        "note": "« 50W max »"
+      },
+      "poidsKg": {
+        "valeur": 1.5,
+        "source": "brompton-fiche-xd-s-2025-07"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "brompton-fiche-xd-s-2025-07",
+        "note": "« 1U high, half rack width »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "brompton-menu-produits",
+        "note": "listé au menu Products"
+      },
+      "note": "Demi-rack 1U, conçu pour le QD-S (SQ200). Fiche préliminaire (juillet 2025) : capacité par port et chaînage non écrits."
+    },
+    {
+      "id": "brompton-qd-s",
+      "marque": "Brompton",
+      "modele": "QD-S",
+      "statut": "information",
+      "entree": "2 × 100G QSFP28 (SQ200 ; redondance et chaînage)",
+      "sorties": {
+        "valeur": 12,
+        "source": "brompton-fiche-qd-s-2026-06",
+        "note": "« 12 10G SFP+ ports for connection to XD-S Data Distribution Units or directly to fixtures fitted with G1 receiver cards »"
+      },
+      "typeSorties": "10G",
+      "puissanceW": {
+        "valeur": 100,
+        "source": "brompton-fiche-qd-s-2026-06",
+        "type": "max",
+        "note": "« 100W max »"
+      },
+      "poidsKg": {
+        "valeur": 1.75,
+        "source": "brompton-fiche-qd-s-2026-06"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "brompton-fiche-qd-s-2026-06",
+        "note": "« 1U high, half rack wide »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "brompton-menu-produits",
+        "note": "listé au menu Products"
+      },
+      "note": "Fiche d'information (fiche préliminaire de juin 2026) : distribution 100G vers 10G du SQ200, jamais utilisée dans un calcul."
     },
     {
       "id": "novastar-cvt10",
@@ -1567,15 +2048,18 @@
       },
       "ports": {
         "valeur": 1,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-t1-2021-11",
+        "note": "« One 1G Tessera output port »"
       },
       "largeurMaxPx": {
         "valeur": 1920,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-t1-2021-11",
+        "note": "« Up to 1920 x 1080 @ 60Hz »"
       },
       "hauteurMaxPx": {
         "valeur": 1080,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-t1-2021-11",
+        "note": "« Up to 1920 x 1080 @ 60Hz »"
       },
       "canvasFixe": true,
       "nomCanvasNatif": "1920 × 1080 (natif)",
@@ -1626,10 +2110,58 @@
         "valeur": [
           "dvi-single"
         ],
-        "source": "cahier-des-charges-brompton",
+        "source": "brompton-fiche-t1-2021-11",
         "note": "DVI-D compté en single link (plus prudent)."
       },
       "latence": "3 trames, 2 en Low Latency",
+      "capaciteNominalePort": {
+        "valeur": 525000,
+        "source": "brompton-fiche-t1-2021-11",
+        "note": "« nominal 525K pixels at 8 bits per colour, 60Hz »"
+      },
+      "latenceMinImages": {
+        "valeur": 2,
+        "source": "brompton-fiche-t1-2021-11",
+        "note": "« 2 frames end-to-end system latency in low-latency mode (restricted features) »"
+      },
+      "latenceMaxImages": {
+        "valeur": 3,
+        "source": "brompton-fiche-t1-2021-11",
+        "note": "« 3 frames end-to-end system latency (all features) »"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "brompton-page-legacy",
+        "note": "rubrique Legacy du site Brompton ; encore courant en parc"
+      },
+      "poidsKg": {
+        "valeur": 3.1,
+        "source": "brompton-fiche-t1-2021-11"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "deduit-hauteur-u",
+        "note": "44,5 mm"
+      },
+      "courantAlimentation": {
+        "valeur": [
+          {
+            "courantA": 0.4,
+            "tensionV": 100
+          },
+          {
+            "courantA": 0.2,
+            "tensionV": 240
+          }
+        ],
+        "source": "brompton-fiche-t1-2021-11",
+        "note": "« 100 - 240V AC », « 0.4 - 0.2A »"
+      },
+      "ullPossible": {
+        "valeur": false,
+        "source": "brompton-aide-tessera-12-2-4",
+        "note": "« Ultra Low Latency is a Tessera SX40 and S8 only feature »"
+      },
       "note": "Canvas fixe : 1920 × 1080 natif ; 1080 × 1920, 1600 × 1200, 2880 × 720 et 720 × 2880 forcent le Low Latency Mode."
     },
     {
@@ -1648,15 +2180,18 @@
       },
       "ports": {
         "valeur": 4,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-s4-2025-03",
+        "note": "« Four 1G Tessera output ports »"
       },
       "largeurMaxPx": {
         "valeur": 1920,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-s4-2025-03",
+        "note": "« Up to 1920 x 1080 at 60Hz »"
       },
       "hauteurMaxPx": {
         "valeur": 1080,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-s4-2025-03",
+        "note": "« Up to 1920 x 1080 at 60Hz »"
       },
       "canvasFixe": true,
       "nomCanvasNatif": "1920 × 1080 (natif)",
@@ -1699,10 +2234,58 @@
         "valeur": [
           "dvi-single"
         ],
-        "source": "cahier-des-charges-brompton",
+        "source": "brompton-fiche-s4-2025-03",
         "note": "DVI-D compté en single link (plus prudent)."
       },
       "latence": "2 trames",
+      "capaciteNominalePort": {
+        "valeur": 525000,
+        "source": "brompton-fiche-s4-2025-03",
+        "note": "« nominal 525K pixels at 8 bits per colour, 60Hz »"
+      },
+      "latenceMinImages": {
+        "valeur": 2,
+        "source": "brompton-fiche-s4-2025-03",
+        "note": "« 2 frames end-to-end system latency »"
+      },
+      "latenceMaxImages": {
+        "valeur": 2,
+        "source": "brompton-fiche-s4-2025-03",
+        "note": "« 2 frames end-to-end system latency »"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "brompton-page-legacy",
+        "note": "rubrique Legacy du site Brompton ; encore courant en parc"
+      },
+      "poidsKg": {
+        "valeur": 3.1,
+        "source": "brompton-fiche-s4-2025-03"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "brompton-fiche-s4-2025-03",
+        "note": "« compact 1U package »"
+      },
+      "courantAlimentation": {
+        "valeur": [
+          {
+            "courantA": 0.4,
+            "tensionV": 100
+          },
+          {
+            "courantA": 0.2,
+            "tensionV": 240
+          }
+        ],
+        "source": "brompton-fiche-s4-2025-03",
+        "note": "« 100 - 240V AC », « 0.4 - 0.2A »"
+      },
+      "ullPossible": {
+        "valeur": false,
+        "source": "brompton-aide-tessera-12-2-4",
+        "note": "« Ultra Low Latency is a Tessera SX40 and S8 only feature »"
+      },
       "note": "Canvas fixe : 1920 × 1080 natif ; 1080 × 1920, 1600 × 1200, 2880 × 720 et 720 × 2880 forcent le Low Latency Mode."
     },
     {
@@ -1721,15 +2304,18 @@
       },
       "ports": {
         "valeur": 4,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-m2-2021-01",
+        "note": "« Four 1 Gigabit Ethernet output ports »"
       },
       "largeurMaxPx": {
         "valeur": 1920,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-m2-2021-01",
+        "note": "« Up to 1920 x 1080 at 60Hz »"
       },
       "hauteurMaxPx": {
         "valeur": 1080,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-m2-2021-01",
+        "note": "« Up to 1920 x 1080 at 60Hz »"
       },
       "canvasFixe": true,
       "nomCanvasNatif": "1920 × 1080 (natif)",
@@ -1781,10 +2367,58 @@
           "dvi-single",
           "3g-sdi"
         ],
-        "source": "cahier-des-charges-brompton",
+        "source": "brompton-fiche-m2-2021-01",
         "note": "DVI-I compté en single link (plus prudent)."
       },
       "latence": "3 trames, 2 en Low Latency",
+      "capaciteNominalePort": {
+        "valeur": 525000,
+        "source": "brompton-fiche-m2-2021-01",
+        "note": "« nominal 525K pixels at 8 bits per colour, 60Hz »"
+      },
+      "latenceMinImages": {
+        "valeur": 2,
+        "source": "brompton-fiche-m2-2021-01",
+        "note": "« 2 frames end-to-end system latency in low-latency mode (restricted features) »"
+      },
+      "latenceMaxImages": {
+        "valeur": 3,
+        "source": "brompton-fiche-m2-2021-01",
+        "note": "« 3 frames end-to-end system latency (all features) »"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "brompton-page-legacy",
+        "note": "rubrique Legacy du site Brompton ; encore courant en parc"
+      },
+      "poidsKg": {
+        "valeur": 9,
+        "source": "brompton-fiche-m2-2021-01"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "brompton-fiche-m2-2021-01",
+        "note": "« 2U rack-mount »"
+      },
+      "courantAlimentation": {
+        "valeur": [
+          {
+            "courantA": 1,
+            "tensionV": 100
+          },
+          {
+            "courantA": 0.5,
+            "tensionV": 240
+          }
+        ],
+        "source": "brompton-fiche-m2-2021-01",
+        "note": "« 100 - 240V AC », « 1 - 0.5A »"
+      },
+      "ullPossible": {
+        "valeur": false,
+        "source": "brompton-aide-tessera-12-2-4",
+        "note": "« Ultra Low Latency is a Tessera SX40 and S8 only feature »"
+      },
       "note": "Canvas fixe : 1920 × 1080 natif ; 1080 × 1920, 1600 × 1200, 2880 × 720 et 720 × 2880 forcent le Low Latency Mode."
     },
     {
@@ -1803,7 +2437,8 @@
       },
       "ports": {
         "valeur": 8,
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-s8-2025-03",
+        "note": "« Eight 1 Gigabit Ethernet output ports »"
       },
       "largeurMaxPx": {
         "valeur": 4094,
@@ -1837,9 +2472,78 @@
           "hdmi-2.0",
           "12g-sdi"
         ],
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-s8-2025-03"
       },
       "latence": "2 trames, 1 en ULL",
+      "capaciteNominalePort": {
+        "valeur": 525000,
+        "source": "brompton-fiche-s8-2025-03",
+        "note": "« nominal 525K pixels at 8 bits per colour, 60Hz »"
+      },
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "brompton-aide-tessera-12-2-4",
+        "note": "ULL : « reduces the end-to-end latency to 1 frame » (absent de la fiche S8)"
+      },
+      "latenceMaxImages": {
+        "valeur": 2,
+        "source": "brompton-fiche-s8-2025-03",
+        "note": "« 2 frames end-to-end system latency (all features) »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "brompton-menu-produits",
+        "note": "listé au menu Products"
+      },
+      "poidsKg": {
+        "valeur": 7.5,
+        "source": "brompton-fiche-s8-2025-03"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "deduit-hauteur-u",
+        "note": "88,9 mm"
+      },
+      "courantAlimentation": {
+        "valeur": [
+          {
+            "courantA": 1.2,
+            "tensionV": 100
+          },
+          {
+            "courantA": 0.6,
+            "tensionV": 240
+          }
+        ],
+        "source": "brompton-fiche-s8-2025-03",
+        "note": "« 100 - 240V AC », « 1.2 - 0.6A »"
+      },
+      "ullHauteurMaxPx": {
+        "valeur": 2047,
+        "source": "brompton-aide-tessera-12-2-4",
+        "note": "canvas de 720 à 2047 px de haut : l'EDID fait deux fois la hauteur du canvas"
+      },
+      "ullEntrees": {
+        "valeur": [
+          "hdmi"
+        ],
+        "source": "brompton-aide-tessera-12-2-4",
+        "note": "« HDMI can be used but not SDI »"
+      },
+      "hfrPxMaxDalle": {
+        "valeur": 108000,
+        "source": "brompton-aide-tessera-12-2-5",
+        "note": "« approximately 108,000 pixels or fewer »"
+      },
+      "ullPossible": {
+        "valeur": true,
+        "source": "brompton-aide-tessera-12-2-4",
+        "note": "« Ultra Low Latency is a Tessera SX40 and S8 only feature »"
+      },
+      "capaciteSelonFrequence": {
+        "valeur": [],
+        "source": "deduit-s8-capacite-frequence"
+      },
       "note": "Canvas libre de 720 à 4094 px de large (valeur paire) et de 720 à 4095 px de haut."
     },
     {
@@ -1853,8 +2557,17 @@
         "source": "brompton-aide-tessera-13-1-4"
       },
       "pixelsMax": {
-        "valeur": 9000000,
-        "source": "tessera-manuel-v3-5"
+        "valeurs": [
+          {
+            "valeur": 9000000,
+            "source": "tessera-manuel-v3-5"
+          },
+          {
+            "valeur": 9000000,
+            "source": "brompton-fiche-sx40-2025-02",
+            "note": "« Supports nominally 9 million pixels at 36 bits per pixel @ 60Hz »"
+          }
+        ]
       },
       "ports": {
         "valeur": 40,
@@ -1910,9 +2623,88 @@
           "hdmi-2.0",
           "12g-sdi"
         ],
-        "source": "cahier-des-charges-brompton"
+        "source": "brompton-fiche-sx40-2025-02"
       },
       "latence": "2 trames, 1 en ULL",
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "brompton-fiche-sx40-2025-02",
+        "note": "« 1 frame end to end in Ultra Low Latency mode »"
+      },
+      "latenceMaxImages": {
+        "valeur": 2,
+        "source": "brompton-fiche-sx40-2025-02",
+        "note": "« 2 frames end-to-end system latency (all features) »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "brompton-menu-produits",
+        "note": "listé au menu Products"
+      },
+      "poidsKg": {
+        "valeur": 7.5,
+        "source": "brompton-fiche-sx40-2025-02"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "brompton-fiche-sx40-2025-02",
+        "note": "« standard 2U rack form »"
+      },
+      "courantAlimentation": {
+        "valeur": [
+          {
+            "courantA": 1.2,
+            "tensionV": 100
+          },
+          {
+            "courantA": 0.6,
+            "tensionV": 240
+          }
+        ],
+        "source": "brompton-fiche-sx40-2025-02",
+        "note": "« 100 - 240V AC », « 1.2 - 0.6A »"
+      },
+      "ullHauteurMaxPx": {
+        "valeur": 2047,
+        "source": "brompton-aide-tessera-12-2-4",
+        "note": "canvas de 720 à 2047 px de haut : l'EDID fait deux fois la hauteur du canvas"
+      },
+      "ullEntrees": {
+        "valeur": [
+          "hdmi"
+        ],
+        "source": "brompton-aide-tessera-12-2-4",
+        "note": "« HDMI can be used but not SDI »"
+      },
+      "hfrPxMaxDalle": {
+        "valeur": 108000,
+        "source": "brompton-aide-tessera-12-2-5",
+        "note": "« approximately 108,000 pixels or fewer »"
+      },
+      "distributeursPossibles": [
+        "brompton-xd",
+        "brompton-xd-t",
+        "brompton-xd-s"
+      ],
+      "ullPossible": {
+        "valeur": true,
+        "source": "brompton-aide-tessera-12-2-4",
+        "note": "« Ultra Low Latency is a Tessera SX40 and S8 only feature »"
+      },
+      "capaciteSelonFrequence": {
+        "valeur": [
+          {
+            "frequenceHz": 120,
+            "pixels": 4500000
+          },
+          {
+            "frequenceHz": 250,
+            "pixels": 2150000
+          }
+        ],
+        "source": "brompton-aide-tessera-12-2-5",
+        "note": "« at 60Hz is approximately 9 million pixels. By doubling the frame rate to 120 Hz, this halves to 4.5 million pixels. At the maximum of 250 Hz, the capacity is 2.15 million pixels »"
+      },
       "note": "4 trunks 10G vers des XD de 10 sorties 1G : 40 ports 1G avec un XD par trunk. En redondance : 20 ports principaux sur les trunks A et C, doublés par 2 XD miroirs sur B et D, soit 4 XD par SX40. Canvas libre de 720 à 4094 px de large (valeur paire) et de 720 à 4095 px de haut."
     },
     {
@@ -12376,6 +13168,2204 @@
         "note": "nom du modèle"
       },
       "note": "Processeur de montage (splicer) à 18 cartes de sortie : 10 × 1G (6,55 M px, 10 ports), 2 × 10G fibre (1 principale, 1 de secours, un H10FN2 de 10 ports) ou 4 × 5G (ancienne version de fiche : 5,89 M px, 2 ports actifs et 2 de secours). Largeur et hauteur maxi d'une carte prises pour tout le processeur, par prudence. Fiche 11U : copie V1.1 seulement (pas de version 2.0 relevée) ; statut non renseigné."
+    },
+    {
+      "id": "megapixel-helios-jr",
+      "marque": "Megapixel",
+      "modele": "HELIOS Jr",
+      "gamme": "HELIOS",
+      "famille": "megapixel",
+      "alias": [
+        "HELIOS Junior"
+      ],
+      "capacitesHelios": {
+        "valeur": [
+          {
+            "frequenceHz": 24,
+            "bits10": [
+              1275000,
+              3187500,
+              8500000
+            ],
+            "bits12": [
+              1062500,
+              2656250,
+              8500000
+            ]
+          },
+          {
+            "frequenceHz": 25,
+            "bits10": [
+              1225000,
+              3062500,
+              8500000
+            ],
+            "bits12": [
+              1020000,
+              2550000,
+              8500000
+            ]
+          },
+          {
+            "frequenceHz": 30,
+            "bits10": [
+              1020000,
+              2550000,
+              8500000
+            ],
+            "bits12": [
+              850000,
+              2125000,
+              8500000
+            ]
+          },
+          {
+            "frequenceHz": 48,
+            "bits10": [
+              635000,
+              1587500,
+              6350000
+            ],
+            "bits12": [
+              531000,
+              1328125,
+              5312500
+            ]
+          },
+          {
+            "frequenceHz": 50,
+            "bits10": [
+              610000,
+              1525000,
+              6100000
+            ],
+            "bits12": [
+              510000,
+              1275000,
+              5100000
+            ]
+          },
+          {
+            "frequenceHz": 60,
+            "bits10": [
+              510000,
+              1275000,
+              5100000
+            ],
+            "bits12": [
+              425000,
+              1062500,
+              4250000
+            ]
+          },
+          {
+            "frequenceHz": 120,
+            "bits10": [
+              240000,
+              600000,
+              2400000
+            ],
+            "bits12": [
+              200000,
+              500000,
+              2000000
+            ]
+          },
+          {
+            "frequenceHz": 144,
+            "bits10": [
+              195000,
+              487500,
+              1950000
+            ],
+            "bits12": [
+              160000,
+              400000,
+              1600000
+            ]
+          },
+          {
+            "frequenceHz": 180,
+            "bits10": [
+              148000,
+              370000,
+              1480000
+            ],
+            "bits12": [
+              126000,
+              315000,
+              1260000
+            ]
+          },
+          {
+            "frequenceHz": 200,
+            "bits10": [
+              128000,
+              320000,
+              1280000
+            ],
+            "bits12": [
+              112000,
+              280000,
+              1120000
+            ]
+          },
+          {
+            "frequenceHz": 240,
+            "bits10": [
+              100000,
+              250000,
+              1000000
+            ],
+            "bits12": [
+              90000,
+              225000,
+              900000
+            ]
+          }
+        ],
+        "source": "megapixel-support-capacite",
+        "note": "tableau J.15 du guide HELIOS, relevé sur la page de support : pixels par port, colonnes 1G, 2,5G et 10G ; pas de colonne 8 bits"
+      },
+      "pixelsMaxParPorts": {
+        "valeur": true,
+        "source": "deduit-helios-jr-capacite",
+        "note": "8 ports × capacité d'un port 1G du tableau Megapixel ; limite distincte du canvas d'entrée (4096 × 2160)"
+      },
+      "ports": {
+        "valeur": 8,
+        "source": "megapixel-fiche-helios-2023",
+        "note": "« 8 x 1G Copper SFP », en direct vers les dalles"
+      },
+      "largeurMaxPx": {
+        "valeur": 4096,
+        "source": "deduit-helios-jr"
+      },
+      "hauteurMaxPx": {
+        "valeur": 2160,
+        "source": "deduit-helios-jr"
+      },
+      "sortiesFibre": {
+        "valeur": "aucune",
+        "source": "megapixel-fiche-helios-2023",
+        "note": "8 ports 1G en cuivre (« 8 x 1G Copper SFP ») : pas de sortie fibre"
+      },
+      "entrees": "DisplayPort 1.4 (5K à 60 Hz ou 8K à 30 Hz), HDMI 2.0 (4096 × 2160), 1 × 12G-SDI (4096 × 2160)",
+      "entreesTypes": {
+        "valeur": [
+          "dp-1.4",
+          "hdmi-2.0",
+          "12g-sdi"
+        ],
+        "source": "megapixel-fiche-helios-2023"
+      },
+      "entreesFormats": {
+        "valeur": [
+          {
+            "type": "dp-1.4",
+            "nom": "DP 1.4",
+            "largeurPx": 5120,
+            "hauteurPx": 2880,
+            "frequenceHz": 60,
+            "largeurMaxPx": 5120,
+            "hauteurMaxPx": 2880,
+            "condition": "« HBR3 support up to 5K @ 60Hz »"
+          },
+          {
+            "type": "dp-1.4",
+            "nom": "DP 1.4",
+            "largeurPx": 7680,
+            "hauteurPx": 4320,
+            "frequenceHz": 30,
+            "largeurMaxPx": 7680,
+            "hauteurMaxPx": 4320,
+            "condition": "« or 8K @ 30Hz »"
+          },
+          {
+            "type": "hdmi-2.0",
+            "nom": "HDMI 2.0",
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4096,
+            "hauteurMaxPx": 2160
+          },
+          {
+            "type": "12g-sdi",
+            "nom": "12G-SDI",
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4096,
+            "hauteurMaxPx": 2160
+          }
+        ],
+        "source": "megapixel-fiche-helios-2023"
+      },
+      "latenceMinImages": {
+        "valeur": 3,
+        "source": "megapixel-guide-helios-2020",
+        "note": "« 3 frames ( @ 60Hz = 50ms | @ 120Hz = 25 ms) »"
+      },
+      "latenceMaxImages": {
+        "valeur": 3,
+        "source": "megapixel-guide-helios-2020",
+        "note": "« 3 frames ( @ 60Hz = 50ms | @ 120Hz = 25 ms) »"
+      },
+      "poidsKg": {
+        "valeur": 5.7,
+        "source": "megapixel-fiche-helios-2023"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "megapixel-fiche-helios-2023",
+        "note": "« Only 1RU »"
+      },
+      "courantAlimentation": {
+        "valeur": [
+          {
+            "courantA": 3,
+            "tensionMinV": 100,
+            "tensionMaxV": 240
+          }
+        ],
+        "source": "megapixel-fiche-helios-2023",
+        "note": "« 100 - 240V AC, 50Hz/60Hz, 3A | Redundant internal power supplies »"
+      },
+      "statutCommercial": {
+        "valeur": "non renseigné",
+        "source": "megapixel-page-helios",
+        "note": "absent de la page HELIOS, qui ne présente que le modèle 8 × 10G ; fiche 2023 encore en ligne"
+      },
+      "note": "Ports 1G en cuivre branchés en direct sur les dalles, sans switch. Entrées assemblées en un seul canvas (2 × DP ou 2 × HDMI)."
+    },
+    {
+      "id": "megapixel-helios-4k",
+      "marque": "Megapixel",
+      "modele": "HELIOS 4K",
+      "gamme": "HELIOS",
+      "famille": "megapixel",
+      "capacitesHelios": {
+        "valeur": [
+          {
+            "frequenceHz": 24,
+            "bits10": [
+              1275000,
+              3187500,
+              8500000
+            ],
+            "bits12": [
+              1062500,
+              2656250,
+              8500000
+            ]
+          },
+          {
+            "frequenceHz": 25,
+            "bits10": [
+              1225000,
+              3062500,
+              8500000
+            ],
+            "bits12": [
+              1020000,
+              2550000,
+              8500000
+            ]
+          },
+          {
+            "frequenceHz": 30,
+            "bits10": [
+              1020000,
+              2550000,
+              8500000
+            ],
+            "bits12": [
+              850000,
+              2125000,
+              8500000
+            ]
+          },
+          {
+            "frequenceHz": 48,
+            "bits10": [
+              635000,
+              1587500,
+              6350000
+            ],
+            "bits12": [
+              531000,
+              1328125,
+              5312500
+            ]
+          },
+          {
+            "frequenceHz": 50,
+            "bits10": [
+              610000,
+              1525000,
+              6100000
+            ],
+            "bits12": [
+              510000,
+              1275000,
+              5100000
+            ]
+          },
+          {
+            "frequenceHz": 60,
+            "bits10": [
+              510000,
+              1275000,
+              5100000
+            ],
+            "bits12": [
+              425000,
+              1062500,
+              4250000
+            ]
+          },
+          {
+            "frequenceHz": 120,
+            "bits10": [
+              240000,
+              600000,
+              2400000
+            ],
+            "bits12": [
+              200000,
+              500000,
+              2000000
+            ]
+          },
+          {
+            "frequenceHz": 144,
+            "bits10": [
+              195000,
+              487500,
+              1950000
+            ],
+            "bits12": [
+              160000,
+              400000,
+              1600000
+            ]
+          },
+          {
+            "frequenceHz": 180,
+            "bits10": [
+              148000,
+              370000,
+              1480000
+            ],
+            "bits12": [
+              126000,
+              315000,
+              1260000
+            ]
+          },
+          {
+            "frequenceHz": 200,
+            "bits10": [
+              128000,
+              320000,
+              1280000
+            ],
+            "bits12": [
+              112000,
+              280000,
+              1120000
+            ]
+          },
+          {
+            "frequenceHz": 240,
+            "bits10": [
+              100000,
+              250000,
+              1000000
+            ],
+            "bits12": [
+              90000,
+              225000,
+              900000
+            ]
+          }
+        ],
+        "source": "megapixel-support-capacite",
+        "note": "tableau J.15 du guide HELIOS, relevé sur la page de support : pixels par port, colonnes 1G, 2,5G et 10G ; pas de colonne 8 bits"
+      },
+      "pixelsMax": {
+        "valeur": 8847360,
+        "source": "deduit-helios-4k-canvas",
+        "note": "capacité du 4K non publiée : canvas de 4096 × 2160 px"
+      },
+      "sorties10G": {
+        "valeur": 3,
+        "source": "megapixel-fiche-helios-2023",
+        "note": "« 3 x 10G Fiber SFP+ »"
+      },
+      "largeurMaxPx": {
+        "valeur": 4096,
+        "source": "deduit-helios-4k-canvas"
+      },
+      "hauteurMaxPx": {
+        "valeur": 2160,
+        "source": "deduit-helios-4k-canvas"
+      },
+      "distributeur": "netgear-m4250-msm4214x",
+      "distributeurObligatoire": true,
+      "distributeursPossibles": [
+        "netgear-m4250-msm4214x",
+        "netgear-m4200-gsm4210p"
+      ],
+      "switchesHelios": {
+        "valeur": [
+          "M4250 (MSM4214X)",
+          "M4200 (GSM4210P)"
+        ],
+        "source": "megapixel-notes-v25-11-0",
+        "note": "switches pris en charge, mis à jour par HELIOS"
+      },
+      "entrees": "DisplayPort 1.4 (5K à 60 Hz ou 8K à 30 Hz), HDMI 2.0 (4096 × 2160), 1 × 12G-SDI (4096 × 2160)",
+      "entreesTypes": {
+        "valeur": [
+          "dp-1.4",
+          "hdmi-2.0",
+          "12g-sdi"
+        ],
+        "source": "megapixel-fiche-helios-2023"
+      },
+      "entreesFormats": {
+        "valeur": [
+          {
+            "type": "dp-1.4",
+            "nom": "DP 1.4",
+            "largeurPx": 5120,
+            "hauteurPx": 2880,
+            "frequenceHz": 60,
+            "largeurMaxPx": 5120,
+            "hauteurMaxPx": 2880,
+            "condition": "« HBR3 support up to 5K @ 60Hz »"
+          },
+          {
+            "type": "dp-1.4",
+            "nom": "DP 1.4",
+            "largeurPx": 7680,
+            "hauteurPx": 4320,
+            "frequenceHz": 30,
+            "largeurMaxPx": 7680,
+            "hauteurMaxPx": 4320,
+            "condition": "« or 8K @ 30Hz »"
+          },
+          {
+            "type": "hdmi-2.0",
+            "nom": "HDMI 2.0",
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4096,
+            "hauteurMaxPx": 2160
+          },
+          {
+            "type": "12g-sdi",
+            "nom": "12G-SDI",
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4096,
+            "hauteurMaxPx": 2160
+          }
+        ],
+        "source": "megapixel-fiche-helios-2023"
+      },
+      "latenceMinImages": {
+        "valeur": 3,
+        "source": "megapixel-guide-helios-2020",
+        "note": "« 3 frames ( @ 60Hz = 50ms | @ 120Hz = 25 ms) »"
+      },
+      "latenceMaxImages": {
+        "valeur": 3,
+        "source": "megapixel-guide-helios-2020",
+        "note": "« 3 frames ( @ 60Hz = 50ms | @ 120Hz = 25 ms) »"
+      },
+      "poidsKg": {
+        "valeur": 5.7,
+        "source": "megapixel-fiche-helios-2023"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "megapixel-fiche-helios-2023",
+        "note": "« Only 1RU »"
+      },
+      "courantAlimentation": {
+        "valeur": [
+          {
+            "courantA": 3,
+            "tensionMinV": 100,
+            "tensionMaxV": 240
+          }
+        ],
+        "source": "megapixel-fiche-helios-2023",
+        "note": "« 100 - 240V AC, 50Hz/60Hz, 3A | Redundant internal power supplies »"
+      },
+      "statutCommercial": {
+        "valeur": "non renseigné",
+        "source": "megapixel-page-helios",
+        "note": "absent de la page HELIOS, qui ne présente que le modèle 8 × 10G ; fiche 2023 encore en ligne"
+      },
+      "note": "3 sorties fibre 10G vers des switches. Entrées assemblées en un seul canvas (2 × DP ou 2 × HDMI)."
+    },
+    {
+      "id": "megapixel-helios-8k",
+      "marque": "Megapixel",
+      "modele": "HELIOS 8K",
+      "gamme": "HELIOS",
+      "famille": "megapixel",
+      "alias": [
+        "HELIOS",
+        "HELIOS Standard"
+      ],
+      "capacitesHelios": {
+        "valeur": [
+          {
+            "frequenceHz": 24,
+            "bits10": [
+              1275000,
+              3187500,
+              8500000
+            ],
+            "bits12": [
+              1062500,
+              2656250,
+              8500000
+            ]
+          },
+          {
+            "frequenceHz": 25,
+            "bits10": [
+              1225000,
+              3062500,
+              8500000
+            ],
+            "bits12": [
+              1020000,
+              2550000,
+              8500000
+            ]
+          },
+          {
+            "frequenceHz": 30,
+            "bits10": [
+              1020000,
+              2550000,
+              8500000
+            ],
+            "bits12": [
+              850000,
+              2125000,
+              8500000
+            ]
+          },
+          {
+            "frequenceHz": 48,
+            "bits10": [
+              635000,
+              1587500,
+              6350000
+            ],
+            "bits12": [
+              531000,
+              1328125,
+              5312500
+            ]
+          },
+          {
+            "frequenceHz": 50,
+            "bits10": [
+              610000,
+              1525000,
+              6100000
+            ],
+            "bits12": [
+              510000,
+              1275000,
+              5100000
+            ]
+          },
+          {
+            "frequenceHz": 60,
+            "bits10": [
+              510000,
+              1275000,
+              5100000
+            ],
+            "bits12": [
+              425000,
+              1062500,
+              4250000
+            ]
+          },
+          {
+            "frequenceHz": 120,
+            "bits10": [
+              240000,
+              600000,
+              2400000
+            ],
+            "bits12": [
+              200000,
+              500000,
+              2000000
+            ]
+          },
+          {
+            "frequenceHz": 144,
+            "bits10": [
+              195000,
+              487500,
+              1950000
+            ],
+            "bits12": [
+              160000,
+              400000,
+              1600000
+            ]
+          },
+          {
+            "frequenceHz": 180,
+            "bits10": [
+              148000,
+              370000,
+              1480000
+            ],
+            "bits12": [
+              126000,
+              315000,
+              1260000
+            ]
+          },
+          {
+            "frequenceHz": 200,
+            "bits10": [
+              128000,
+              320000,
+              1280000
+            ],
+            "bits12": [
+              112000,
+              280000,
+              1120000
+            ]
+          },
+          {
+            "frequenceHz": 240,
+            "bits10": [
+              100000,
+              250000,
+              1000000
+            ],
+            "bits12": [
+              90000,
+              225000,
+              900000
+            ]
+          }
+        ],
+        "source": "megapixel-support-capacite",
+        "note": "tableau J.15 du guide HELIOS, relevé sur la page de support : pixels par port, colonnes 1G, 2,5G et 10G ; pas de colonne 8 bits"
+      },
+      "pixelsMax": {
+        "valeur": 35000000,
+        "source": "megapixel-support-capacite",
+        "note": "« a maximum of 35 million pixels per HELIOS »"
+      },
+      "sorties10G": {
+        "valeur": 8,
+        "source": "megapixel-fiche-helios-2023",
+        "note": "« 8 x 10G Fiber SFP+ »"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "deduit-helios-8k-canvas"
+      },
+      "hauteurMaxPx": {
+        "valeur": 4320,
+        "source": "deduit-helios-8k-canvas"
+      },
+      "distributeur": "netgear-m4250-msm4214x",
+      "distributeurObligatoire": true,
+      "distributeursPossibles": [
+        "netgear-m4250-msm4214x",
+        "netgear-m4200-gsm4210p"
+      ],
+      "switchesHelios": {
+        "valeur": [
+          "M4250 (MSM4214X)",
+          "M4200 (GSM4210P)"
+        ],
+        "source": "megapixel-notes-v25-11-0",
+        "note": "switches pris en charge, mis à jour par HELIOS"
+      },
+      "entrees": "DisplayPort 1.4 (5K à 60 Hz ou 8K à 30 Hz), HDMI 2.0 (4096 × 2160), 4 × 12G-SDI (assemblées jusqu'à 8K)",
+      "entreesTypes": {
+        "valeur": [
+          "dp-1.4",
+          "hdmi-2.0",
+          "12g-sdi"
+        ],
+        "source": "megapixel-fiche-helios-2023"
+      },
+      "entreesFormats": {
+        "valeur": [
+          {
+            "type": "dp-1.4",
+            "nom": "DP 1.4",
+            "largeurPx": 5120,
+            "hauteurPx": 2880,
+            "frequenceHz": 60,
+            "largeurMaxPx": 5120,
+            "hauteurMaxPx": 2880,
+            "condition": "« HBR3 support up to 5K @ 60Hz »"
+          },
+          {
+            "type": "dp-1.4",
+            "nom": "DP 1.4",
+            "largeurPx": 7680,
+            "hauteurPx": 4320,
+            "frequenceHz": 30,
+            "largeurMaxPx": 7680,
+            "hauteurMaxPx": 4320,
+            "condition": "« or 8K @ 30Hz »"
+          },
+          {
+            "type": "hdmi-2.0",
+            "nom": "HDMI 2.0",
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4096,
+            "hauteurMaxPx": 2160
+          },
+          {
+            "type": "12g-sdi",
+            "nom": "12G-SDI",
+            "largeurPx": 4096,
+            "hauteurPx": 2160,
+            "frequenceHz": 60,
+            "largeurMaxPx": 4096,
+            "hauteurMaxPx": 2160
+          }
+        ],
+        "source": "megapixel-fiche-helios-2023"
+      },
+      "latenceMinImages": {
+        "valeur": 3,
+        "source": "megapixel-guide-helios-2020",
+        "note": "« 3 frames ( @ 60Hz = 50ms | @ 120Hz = 25 ms) »"
+      },
+      "latenceMaxImages": {
+        "valeur": 3,
+        "source": "megapixel-guide-helios-2020",
+        "note": "« 3 frames ( @ 60Hz = 50ms | @ 120Hz = 25 ms) »"
+      },
+      "poidsKg": {
+        "valeur": 5.7,
+        "source": "megapixel-fiche-helios-2023"
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "megapixel-fiche-helios-2023",
+        "note": "« Only 1RU »"
+      },
+      "courantAlimentation": {
+        "valeur": [
+          {
+            "courantA": 3,
+            "tensionMinV": 100,
+            "tensionMaxV": 240
+          }
+        ],
+        "source": "megapixel-fiche-helios-2023",
+        "note": "« 100 - 240V AC, 50Hz/60Hz, 3A | Redundant internal power supplies »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "megapixel-page-helios",
+        "note": "seul modèle de la page HELIOS (« 8x10G Fiber Output »)"
+      },
+      "note": "8 sorties fibre 10G vers des switches. Entrées assemblées en un seul canvas (4 × SDI, 2 × DP ou 2 × HDMI) : un canvas 8K demande plusieurs sources. ST 2110 « Coming Soon » sur la fiche 2023 (entrée 100G QSFP sur la page HELIOS). Mode « Processor Low Latency » : câblage en colonnes verticales, à valider avec le support Megapixel."
+    },
+    {
+      "id": "linsn-ts852d",
+      "marque": "Linsn",
+      "modele": "TS852D (carte TS802D)",
+      "gamme": "TS (cartes d'envoi)",
+      "famille": "linsn",
+      "alias": [
+        "TS802D"
+      ],
+      "capacitePort60Hz8bits": {
+        "valeurs": [
+          {
+            "valeur": 650000,
+            "source": "linsn-x8216-v3-0"
+          },
+          {
+            "valeur": 655360,
+            "source": "linsn-page-ts802d"
+          }
+        ],
+        "note": "650 000 px par port, règle des fiches Linsn, retenu (le plus défavorable) ; 655 360 de la page TS802D visible"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 1310720,
+        "source": "linsn-page-ts802d",
+        "note": "« 2 UTP Cable » = 1 310 720 points"
+      },
+      "ports": {
+        "valeur": 2,
+        "source": "linsn-page-ts802d"
+      },
+      "largeurMaxPx": {
+        "valeur": 4032,
+        "source": "colorlitled-linsn-ts852d"
+      },
+      "hauteurMaxPx": {
+        "valeur": 2048,
+        "source": "colorlitled-linsn-ts852d"
+      },
+      "entrees": "DVI",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single"
+        ],
+        "source": "colorlitled-linsn-ts852d",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "poidsKg": {
+        "valeur": 1.4,
+        "source": "colorlitled-linsn-ts852d"
+      },
+      "logicielReglage": {
+        "valeur": "LEDSet",
+        "source": "linsn-pages-logiciels",
+        "note": "LEDSet (réglage des cartes) et LEDStudio (lecture)"
+      },
+      "bitsNonPublies": true,
+      "note": "Boîtier 280 × 178 × 50 mm, carte TS802D. « 30Hz and 60HZ two Mode Output » (page TS802D)."
+    },
+    {
+      "id": "linsn-ts952",
+      "marque": "Linsn",
+      "modele": "TS952",
+      "gamme": "TS (cartes d'envoi)",
+      "famille": "linsn",
+      "statut": "à compléter",
+      "ports": {
+        "valeur": 4,
+        "source": "linsn-ts952-v1-5"
+      },
+      "entrees": "DVI, HDMI, audio",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "hdmi"
+        ],
+        "source": "linsn-ts952-v1-5"
+      },
+      "poidsKg": {
+        "valeur": 3,
+        "source": "linsn-ts952-v1-5"
+      },
+      "puissanceW": {
+        "valeur": 20,
+        "source": "linsn-ts952-v1-5"
+      },
+      "logicielReglage": {
+        "valeur": "LEDSet",
+        "source": "linsn-pages-logiciels",
+        "note": "LEDSet (réglage des cartes) et LEDStudio (lecture)"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : capacité, pixels maxi et canvas non relevés sur la fiche V1.5."
+    },
+    {
+      "id": "linsn-x100",
+      "marque": "Linsn",
+      "modele": "X100",
+      "gamme": "X (2-en-1)",
+      "famille": "linsn",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "linsn-x100-v3-0",
+        "note": "« Single port supports up to 650 thousand pixels »"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 1300000,
+        "source": "linsn-x100-v3-0"
+      },
+      "ports": {
+        "valeur": 2,
+        "source": "linsn-x100-v3-0"
+      },
+      "largeurMaxPx": {
+        "valeur": 1920,
+        "source": "linsn-x100-v3-0"
+      },
+      "hauteurMaxPx": {
+        "valeur": 1080,
+        "source": "linsn-x100-v3-0"
+      },
+      "entrees": "DVI, VGA, CVBS, HDMI 1.3",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "hdmi-1.3"
+        ],
+        "source": "linsn-x100-v3-0",
+        "note": "DVI compté en single link ; VGA et CVBS non contrôlés."
+      },
+      "hauteurU": {
+        "valeur": 1,
+        "source": "linsn-x100-v3-0",
+        "note": "482,6 × 241,2 × 44,5 mm (1U)"
+      },
+      "poidsKg": {
+        "valeur": 2.1,
+        "source": "linsn-x100-v3-0"
+      },
+      "puissanceW": {
+        "valeur": 15,
+        "source": "linsn-x100-v3-0"
+      },
+      "logicielReglage": {
+        "valeur": "LEDSet",
+        "source": "linsn-pages-logiciels",
+        "note": "LEDSet (réglage des cartes) et LEDStudio (lecture)"
+      },
+      "bitsNonPublies": true,
+      "note": "Processeur 2-en-1. Ne pas confondre avec un processeur Colorlight : le « X100 » sans « Pro » est un Linsn."
+    },
+    {
+      "id": "linsn-x8408",
+      "marque": "Linsn",
+      "modele": "X8408",
+      "gamme": "X (2-en-1)",
+      "famille": "linsn",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "linsn-x8408-v3-0",
+        "note": "« Single port supports up to 650 thousand pixels »"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 5200000,
+        "source": "linsn-x8408-v3-0"
+      },
+      "ports": {
+        "valeur": 8,
+        "source": "linsn-x8408-v3-0"
+      },
+      "largeurMaxPx": {
+        "valeur": 7680,
+        "source": "linsn-x8408-v3-0"
+      },
+      "hauteurMaxPx": {
+        "valeur": 4000,
+        "source": "linsn-x8408-v3-0"
+      },
+      "entrees": "4 × DVI, HDMI 2.0",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "hdmi-2.0"
+        ],
+        "source": "linsn-x8408-v3-0",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "poidsKg": {
+        "valeur": 4.2,
+        "source": "linsn-x8408-v3-0"
+      },
+      "puissanceW": {
+        "valeur": 35,
+        "source": "linsn-x8408-v3-0"
+      },
+      "logicielReglage": {
+        "valeur": "LEDSet",
+        "source": "linsn-pages-logiciels",
+        "note": "LEDSet (réglage des cartes) et LEDStudio (lecture)"
+      },
+      "bitsNonPublies": true,
+      "note": "Processeur 2-en-1, 482 × 315 × 66,4 mm. Même série : X8406, X8414 (non relevés)."
+    },
+    {
+      "id": "linsn-x8216",
+      "marque": "Linsn",
+      "modele": "X8216",
+      "gamme": "X (2-en-1)",
+      "famille": "linsn",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "linsn-x8216-v3-0",
+        "note": "« Single port supports up to 650 thousand pixels »"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 10000000,
+        "source": "linsn-x8216-v3-0",
+        "note": "« up to 10 million » : plafond de l'appareil (16 × 650 000 = 10,4 M, mais la fiche annonce 10 M), comme le total de 2,3 M des VX4S Novastar"
+      },
+      "ports": {
+        "valeur": 16,
+        "source": "linsn-x8216-v3-0"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "linsn-x8216-v3-0"
+      },
+      "hauteurMaxPx": {
+        "valeur": 4000,
+        "source": "linsn-x8216-v3-0"
+      },
+      "entrees": "HDMI 1.4, HDMI 2.0, 2 × DVI, DP, VGA",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-1.4",
+          "hdmi-2.0",
+          "dvi-single",
+          "dp"
+        ],
+        "source": "linsn-x8216-v3-0",
+        "note": "DVI compté en single link ; VGA non contrôlé."
+      },
+      "poidsKg": {
+        "valeur": 3,
+        "source": "linsn-x8216-v3-0"
+      },
+      "puissanceW": {
+        "valeur": 30,
+        "source": "linsn-x8216-v3-0"
+      },
+      "logicielReglage": {
+        "valeur": "LEDSet",
+        "source": "linsn-pages-logiciels",
+        "note": "LEDSet (réglage des cartes) et LEDStudio (lecture)"
+      },
+      "bitsNonPublies": true,
+      "note": "Processeur 2-en-1 4K, 482 × 330,5 × 66,4 mm."
+    },
+    {
+      "id": "linsn-x8208",
+      "marque": "Linsn",
+      "modele": "X8208",
+      "gamme": "X (2-en-1)",
+      "famille": "linsn",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "linsn-x8216-v3-0",
+        "note": "règle des fiches Linsn"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 5200000,
+        "source": "linsn-page-x8208"
+      },
+      "ports": {
+        "valeur": 8,
+        "source": "deduit-linsn-x8208-ports"
+      },
+      "entrees": "DP 1.2, HDMI 2.0 (4K à 60 Hz)",
+      "entreesTypes": {
+        "valeur": [
+          "dp-1.2",
+          "hdmi-2.0"
+        ],
+        "source": "linsn-page-x8208"
+      },
+      "logicielReglage": {
+        "valeur": "LEDSet",
+        "source": "linsn-pages-logiciels",
+        "note": "LEDSet (réglage des cartes) et LEDStudio (lecture)"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : canvas non relevé. Traitement 10 bits annoncé ; capacité 10 bits non publiée."
+    },
+    {
+      "id": "linsn-x8212",
+      "marque": "Linsn",
+      "modele": "X8212",
+      "gamme": "X (2-en-1)",
+      "famille": "linsn",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "linsn-x8216-v3-0",
+        "note": "règle des fiches Linsn"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 7800000,
+        "source": "linsn-page-x8212"
+      },
+      "ports": {
+        "valeur": 12,
+        "source": "linsn-page-x8212"
+      },
+      "entrees": "DP 1.2, HDMI 2.0",
+      "entreesTypes": {
+        "valeur": [
+          "dp-1.2",
+          "hdmi-2.0"
+        ],
+        "source": "linsn-page-x8212"
+      },
+      "logicielReglage": {
+        "valeur": "LEDSet",
+        "source": "linsn-pages-logiciels",
+        "note": "LEDSet (réglage des cartes) et LEDStudio (lecture)"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : canvas non relevé. Traitement 10 bits annoncé ; capacité 10 bits non publiée."
+    },
+    {
+      "id": "kystar-es6",
+      "marque": "Kystar",
+      "modele": "ES6",
+      "gamme": "ES (cartes d'envoi)",
+      "famille": "kystar",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-kystar-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 2350000,
+        "source": "kystar-page-envoi"
+      },
+      "ports": {
+        "valeur": 6,
+        "source": "kystar-page-envoi"
+      },
+      "largeurMaxPx": {
+        "valeur": 4000,
+        "source": "kystar-page-envoi"
+      },
+      "hauteurMaxPx": {
+        "valeur": 4000,
+        "source": "kystar-page-envoi"
+      },
+      "entrees": "HDMI 1.3, DVI",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-1.3",
+          "dvi-single"
+        ],
+        "source": "kystar-page-envoi",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "logicielReglage": {
+        "valeur": "Kystar Control System",
+        "source": "kystar-page-logiciels",
+        "note": "Kystar Control System"
+      },
+      "bitsNonPublies": true,
+      "note": "Carte ou boîtier d'envoi, sans fibre. 235w."
+    },
+    {
+      "id": "kystar-es10",
+      "marque": "Kystar",
+      "modele": "ES10",
+      "gamme": "ES (cartes d'envoi)",
+      "famille": "kystar",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-kystar-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 6500000,
+        "source": "kystar-page-envoi"
+      },
+      "ports": {
+        "valeur": 10,
+        "source": "kystar-page-envoi"
+      },
+      "largeurMaxPx": {
+        "valeur": 8000,
+        "source": "kystar-page-envoi"
+      },
+      "hauteurMaxPx": {
+        "valeur": 8000,
+        "source": "kystar-page-envoi"
+      },
+      "entrees": "HDMI 2.0, 2 × DVI, boucle HDMI",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dvi-single"
+        ],
+        "source": "kystar-page-envoi",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "logicielReglage": {
+        "valeur": "Kystar Control System",
+        "source": "kystar-page-logiciels",
+        "note": "Kystar Control System"
+      },
+      "bitsNonPublies": true,
+      "note": "Carte d'envoi, sans fibre. 650w."
+    },
+    {
+      "id": "kystar-es20",
+      "marque": "Kystar",
+      "modele": "ES20",
+      "gamme": "ES (cartes d'envoi)",
+      "famille": "kystar",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-kystar-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 8850000,
+        "source": "kystar-page-envoi",
+        "note": "885w : plafond de l'appareil, 4K pixel à pixel (20 × 650 000 = 13 M) ; la fibre n'ajoute aucune capacité"
+      },
+      "ports": {
+        "valeur": 20,
+        "source": "kystar-page-envoi"
+      },
+      "largeurMaxPx": {
+        "valeur": 8000,
+        "source": "kystar-page-envoi"
+      },
+      "hauteurMaxPx": {
+        "valeur": 8000,
+        "source": "kystar-page-envoi"
+      },
+      "entrees": "DP 1.2, HDMI 2.0, boucle HDMI",
+      "entreesTypes": {
+        "valeur": [
+          "dp-1.2",
+          "hdmi-2.0"
+        ],
+        "source": "kystar-page-envoi",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "logicielReglage": {
+        "valeur": "Kystar Control System",
+        "source": "kystar-page-logiciels",
+        "note": "Kystar Control System"
+      },
+      "bitsNonPublies": true,
+      "note": "Carte d'envoi. 4 × 10G en fibre : rôle non précisé (copie des ports ou ports en plus), aucune capacité ajoutée ni convertisseur compté. 885w."
+    },
+    {
+      "id": "kystar-kls2c",
+      "marque": "Kystar",
+      "modele": "KLS2c",
+      "gamme": "KLS (2-en-1)",
+      "famille": "kystar",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-kystar-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 1300000,
+        "source": "kystar-page-2en1",
+        "note": "130w"
+      },
+      "ports": {
+        "valeur": 2,
+        "source": "kystar-page-2en1"
+      },
+      "entrees": "HDMI 1.3, 1.4a ou 2.0, DVI, DP selon le modèle",
+      "logicielReglage": {
+        "valeur": "Kystar Control System",
+        "source": "kystar-page-logiciels",
+        "note": "Kystar Control System"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : canvas (largeur et hauteur maxi) et entrées exactes non relevés."
+    },
+    {
+      "id": "kystar-kls4c",
+      "marque": "Kystar",
+      "modele": "KLS4c",
+      "gamme": "KLS (2-en-1)",
+      "famille": "kystar",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-kystar-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 2600000,
+        "source": "kystar-page-2en1",
+        "note": "260w"
+      },
+      "ports": {
+        "valeur": 4,
+        "source": "kystar-page-2en1"
+      },
+      "entrees": "HDMI 1.3, 1.4a ou 2.0, DVI, DP selon le modèle",
+      "logicielReglage": {
+        "valeur": "Kystar Control System",
+        "source": "kystar-page-logiciels",
+        "note": "Kystar Control System"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : canvas (largeur et hauteur maxi) et entrées exactes non relevés."
+    },
+    {
+      "id": "kystar-kls6c",
+      "marque": "Kystar",
+      "modele": "KLS6c",
+      "gamme": "KLS (2-en-1)",
+      "famille": "kystar",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-kystar-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 3900000,
+        "source": "kystar-page-2en1",
+        "note": "390w"
+      },
+      "ports": {
+        "valeur": 6,
+        "source": "kystar-page-2en1"
+      },
+      "entrees": "HDMI 1.3, 1.4a ou 2.0, DVI, DP selon le modèle",
+      "logicielReglage": {
+        "valeur": "Kystar Control System",
+        "source": "kystar-page-logiciels",
+        "note": "Kystar Control System"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : canvas (largeur et hauteur maxi) et entrées exactes non relevés."
+    },
+    {
+      "id": "kystar-kls8c",
+      "marque": "Kystar",
+      "modele": "KLS8c",
+      "gamme": "KLS (2-en-1)",
+      "famille": "kystar",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-kystar-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 5200000,
+        "source": "kystar-page-2en1",
+        "note": "520w"
+      },
+      "ports": {
+        "valeur": 8,
+        "source": "kystar-page-2en1"
+      },
+      "entrees": "HDMI 1.3, 1.4a ou 2.0, DVI, DP selon le modèle",
+      "logicielReglage": {
+        "valeur": "Kystar Control System",
+        "source": "kystar-page-logiciels",
+        "note": "Kystar Control System"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : canvas (largeur et hauteur maxi) et entrées exactes non relevés."
+    },
+    {
+      "id": "kystar-kls12c",
+      "marque": "Kystar",
+      "modele": "KLS12c",
+      "gamme": "KLS (2-en-1)",
+      "famille": "kystar",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-kystar-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 7800000,
+        "source": "kystar-page-2en1",
+        "note": "780w"
+      },
+      "ports": {
+        "valeur": 12,
+        "source": "kystar-page-2en1"
+      },
+      "entrees": "HDMI 1.3, 1.4a ou 2.0, DVI, DP selon le modèle",
+      "logicielReglage": {
+        "valeur": "Kystar Control System",
+        "source": "kystar-page-logiciels",
+        "note": "Kystar Control System"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : canvas (largeur et hauteur maxi) et entrées exactes non relevés."
+    },
+    {
+      "id": "kystar-kls16c",
+      "marque": "Kystar",
+      "modele": "KLS16c",
+      "gamme": "KLS (2-en-1)",
+      "famille": "kystar",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-kystar-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 10400000,
+        "source": "kystar-page-2en1",
+        "note": "1040w"
+      },
+      "ports": {
+        "valeur": 16,
+        "source": "kystar-page-2en1"
+      },
+      "entrees": "HDMI 1.3, 1.4a ou 2.0, DVI, DP selon le modèle",
+      "logicielReglage": {
+        "valeur": "Kystar Control System",
+        "source": "kystar-page-logiciels",
+        "note": "Kystar Control System"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : canvas (largeur et hauteur maxi) et entrées exactes non relevés."
+    },
+    {
+      "id": "kystar-kls24c",
+      "marque": "Kystar",
+      "modele": "KLS24c",
+      "gamme": "KLS (2-en-1)",
+      "famille": "kystar",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-kystar-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 15600000,
+        "source": "kystar-page-2en1",
+        "note": "1560w"
+      },
+      "ports": {
+        "valeur": 24,
+        "source": "kystar-page-2en1"
+      },
+      "entrees": "HDMI 1.3, 1.4a ou 2.0, DVI, DP selon le modèle",
+      "logicielReglage": {
+        "valeur": "Kystar Control System",
+        "source": "kystar-page-logiciels",
+        "note": "Kystar Control System"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : canvas (largeur et hauteur maxi) et entrées exactes non relevés."
+    },
+    {
+      "id": "mooncell-mtb200s",
+      "marque": "Mooncell",
+      "modele": "MTB200S",
+      "gamme": "MTB (cartes d'envoi)",
+      "famille": "mooncell",
+      "alias": [
+        "V30 Pro"
+      ],
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 1300000,
+        "source": "mooncell-pages-envoi"
+      },
+      "ports": {
+        "valeur": 2,
+        "source": "mooncell-pages-envoi"
+      },
+      "largeurMaxPx": {
+        "valeur": 4096,
+        "source": "mooncell-pages-envoi"
+      },
+      "hauteurMaxPx": {
+        "valeur": 4096,
+        "source": "mooncell-pages-envoi"
+      },
+      "entrees": "DVI (1920 × 1200 à 60 Hz)",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single"
+        ],
+        "source": "mooncell-pages-envoi",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "Carte d'envoi."
+    },
+    {
+      "id": "mooncell-mtb400e",
+      "marque": "Mooncell",
+      "modele": "MTB400E",
+      "gamme": "MTB (cartes d'envoi)",
+      "famille": "mooncell",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 2600000,
+        "source": "mooncell-pages-envoi"
+      },
+      "ports": {
+        "valeur": 4,
+        "source": "mooncell-pages-envoi"
+      },
+      "largeurMaxPx": {
+        "valeur": 4096,
+        "source": "mooncell-pages-envoi"
+      },
+      "hauteurMaxPx": {
+        "valeur": 4096,
+        "source": "mooncell-pages-envoi"
+      },
+      "entrees": "DVI, HDMI",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "hdmi"
+        ],
+        "source": "mooncell-pages-envoi",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "Carte d'envoi."
+    },
+    {
+      "id": "mooncell-mtb600e",
+      "marque": "Mooncell",
+      "modele": "MTB600E",
+      "gamme": "MTB (cartes d'envoi)",
+      "famille": "mooncell",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 2600000,
+        "source": "mooncell-pages-envoi",
+        "note": "« 2.6 Million » sur la page ; 6 × 650 000 = 3,9 M attendu : coquille probable, à vérifier ; 2,6 M retenu (valeur publiée, la plus défavorable)"
+      },
+      "ports": {
+        "valeur": 6,
+        "source": "mooncell-pages-envoi"
+      },
+      "largeurMaxPx": {
+        "valeur": 4096,
+        "source": "mooncell-pages-envoi"
+      },
+      "hauteurMaxPx": {
+        "valeur": 4096,
+        "source": "mooncell-pages-envoi"
+      },
+      "entrees": "DVI, HDMI",
+      "entreesTypes": {
+        "valeur": [
+          "dvi-single",
+          "hdmi"
+        ],
+        "source": "mooncell-pages-envoi",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "Carte d'envoi."
+    },
+    {
+      "id": "mooncell-mtb800e",
+      "marque": "Mooncell",
+      "modele": "MTB800E",
+      "gamme": "MTB (cartes d'envoi)",
+      "famille": "mooncell",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 5200000,
+        "source": "mooncell-pages-envoi"
+      },
+      "ports": {
+        "valeur": 8,
+        "source": "mooncell-pages-envoi"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "mooncell-pages-envoi"
+      },
+      "hauteurMaxPx": {
+        "valeur": 8192,
+        "source": "mooncell-pages-envoi"
+      },
+      "entrees": "HDMI 2.0, DP 1.2 (4K×2K à 60 Hz)",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2"
+        ],
+        "source": "mooncell-pages-envoi"
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "Carte d'envoi 4K."
+    },
+    {
+      "id": "mooncell-mtb1200e",
+      "marque": "Mooncell",
+      "modele": "MTB1200E",
+      "gamme": "MTB (cartes d'envoi)",
+      "famille": "mooncell",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 7800000,
+        "source": "mooncell-pages-envoi"
+      },
+      "ports": {
+        "valeur": 12,
+        "source": "mooncell-pages-envoi"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "mooncell-pages-envoi"
+      },
+      "hauteurMaxPx": {
+        "valeur": 8192,
+        "source": "mooncell-pages-envoi"
+      },
+      "entrees": "HDMI 2.0, DP 1.2 (4K×2K à 60 Hz)",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2"
+        ],
+        "source": "mooncell-pages-envoi"
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "Carte d'envoi 4K."
+    },
+    {
+      "id": "mooncell-mtb2000e",
+      "marque": "Mooncell",
+      "modele": "MTB2000E",
+      "gamme": "MTB (cartes d'envoi)",
+      "famille": "mooncell",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeurs": [
+          {
+            "valeur": 8290000,
+            "source": "mooncell-pages-envoi"
+          },
+          {
+            "valeur": 10400000,
+            "source": "mooncell-pages-envoi"
+          }
+        ],
+        "note": "« 10.40 Million Pixels(Scaling) 8.29 Million Pixels(Pixel to Pixel) » : pixel à pixel retenu (le plus défavorable)"
+      },
+      "ports": {
+        "valeur": 20,
+        "source": "mooncell-pages-envoi"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "mooncell-pages-envoi"
+      },
+      "hauteurMaxPx": {
+        "valeur": 8192,
+        "source": "mooncell-pages-envoi"
+      },
+      "entrees": "HDMI 2.0, DP 1.2",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2"
+        ],
+        "source": "mooncell-pages-envoi"
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "Carte d'envoi 4K : plafond « 4K pixel à pixel »."
+    },
+    {
+      "id": "mooncell-mvb6s",
+      "marque": "Mooncell",
+      "modele": "MVB6S",
+      "gamme": "MVB (2-en-1)",
+      "famille": "mooncell",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 3900000,
+        "source": "mooncell-pages-2en1"
+      },
+      "ports": {
+        "valeur": 6,
+        "source": "mooncell-pages-2en1"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "mooncell-pages-2en1"
+      },
+      "hauteurMaxPx": {
+        "valeur": 3840,
+        "source": "mooncell-pages-2en1"
+      },
+      "entrees": "HDMI, DVI, DP (3840 × 2160 à 60 Hz)",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi",
+          "dvi-single",
+          "dp"
+        ],
+        "source": "mooncell-pages-2en1",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "Processeur 2-en-1."
+    },
+    {
+      "id": "mooncell-mvb8s",
+      "marque": "Mooncell",
+      "modele": "MVB8S",
+      "gamme": "MVB (2-en-1)",
+      "famille": "mooncell",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 5200000,
+        "source": "mooncell-pages-2en1"
+      },
+      "ports": {
+        "valeur": 8,
+        "source": "mooncell-pages-2en1"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "mooncell-pages-2en1"
+      },
+      "hauteurMaxPx": {
+        "valeur": 3840,
+        "source": "mooncell-pages-2en1"
+      },
+      "entrees": "HDMI, DVI, DP (3840 × 2160 à 60 Hz)",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi",
+          "dvi-single",
+          "dp"
+        ],
+        "source": "mooncell-pages-2en1",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "Processeur 2-en-1."
+    },
+    {
+      "id": "mooncell-mvb10e",
+      "marque": "Mooncell",
+      "modele": "MVB10E",
+      "gamme": "MVB (2-en-1)",
+      "famille": "mooncell",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 6500000,
+        "source": "mooncell-pages-2en1"
+      },
+      "ports": {
+        "valeur": 10,
+        "source": "mooncell-pages-2en1"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "mooncell-pages-2en1"
+      },
+      "hauteurMaxPx": {
+        "valeur": 3840,
+        "source": "mooncell-pages-2en1"
+      },
+      "entrees": "HDMI, DVI, DP (3840 × 2160 à 60 Hz)",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi",
+          "dvi-single",
+          "dp"
+        ],
+        "source": "mooncell-pages-2en1",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "Processeur 2-en-1."
+    },
+    {
+      "id": "mooncell-mvb12e",
+      "marque": "Mooncell",
+      "modele": "MVB12E",
+      "gamme": "MVB (2-en-1)",
+      "famille": "mooncell",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 7800000,
+        "source": "mooncell-pages-2en1"
+      },
+      "ports": {
+        "valeur": 12,
+        "source": "mooncell-pages-2en1"
+      },
+      "largeurMaxPx": {
+        "valeur": 8192,
+        "source": "mooncell-pages-2en1"
+      },
+      "hauteurMaxPx": {
+        "valeur": 3840,
+        "source": "mooncell-pages-2en1"
+      },
+      "entrees": "HDMI, DVI, DP (3840 × 2160 à 60 Hz)",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi",
+          "dvi-single",
+          "dp"
+        ],
+        "source": "mooncell-pages-2en1",
+        "note": "DVI compté en single link (plus prudent)."
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "Processeur 2-en-1."
+    },
+    {
+      "id": "mooncell-m40",
+      "marque": "Mooncell",
+      "modele": "M40",
+      "gamme": "M (2-en-1)",
+      "famille": "mooncell",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "pixelsMax": {
+        "valeur": 26000000,
+        "source": "mooncell-pages-2en1"
+      },
+      "ports": {
+        "valeur": 40,
+        "source": "mooncell-pages-2en1"
+      },
+      "entrees": "2 × HDMI 2.0, DP 1.2, 2 × DVI, 2 × HDMI 1.3",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2",
+          "dvi-single",
+          "hdmi-1.3"
+        ],
+        "source": "mooncell-pages-2en1"
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : canvas non relevé."
+    },
+    {
+      "id": "mooncell-m32",
+      "marque": "Mooncell",
+      "modele": "M32",
+      "gamme": "M (2-en-1)",
+      "famille": "mooncell",
+      "statut": "à compléter",
+      "capacitePort60Hz8bits": {
+        "valeur": 650000,
+        "source": "deduit-mooncell-650000"
+      },
+      "bitsReseauPossibles": {
+        "valeur": [
+          8
+        ],
+        "source": "pd-10-bits-non-publie",
+        "note": "capacité 10 et 12 bits non publiée"
+      },
+      "ports": {
+        "valeur": 32,
+        "source": "mooncell-pages-2en1"
+      },
+      "entrees": "2 × HDMI 2.0, DP 1.2, 2 × DVI, 2 × HDMI 1.3",
+      "entreesTypes": {
+        "valeur": [
+          "hdmi-2.0",
+          "dp-1.2",
+          "dvi-single",
+          "hdmi-1.3"
+        ],
+        "source": "mooncell-pages-2en1"
+      },
+      "logicielReglage": {
+        "valeur": "AutoLEDSetup",
+        "source": "mooncell-page-logiciels",
+        "note": "AutoLEDSetup (synchrone)"
+      },
+      "bitsNonPublies": true,
+      "note": "À compléter : pixels maxi et canvas non relevés."
     }
   ],
   "informations": [
@@ -12471,6 +15461,64 @@
         "note": "absent du menu Produits"
       },
       "note": "Page revendeur seulement : 4 sorties fibre 10G, nombre de ports 1G non donné. Fiche d'information, à compléter avec une fiche Colorlight (le Z6 PRO-G2 lui succède)."
+    },
+    {
+      "id": "brompton-sq200",
+      "marque": "Brompton",
+      "modele": "SQ200",
+      "gamme": "Tessera",
+      "famille": "brompton",
+      "statut": "information",
+      "licencesPx": {
+        "valeur": [
+          9000000,
+          18000000,
+          27000000,
+          36000000
+        ],
+        "source": "brompton-fiche-sq200-2025-10",
+        "note": "« Pixel Output Capacity » : 9 M (« Equivalent to the SX40 »), 18 M, 27 M et 36 M (8K), selon la licence"
+      },
+      "entrees": "jusqu'à 4 cartes d'entrée (HDMI 2.1, DisplayPort 2.1 et 12G-SDI, une active par carte) ; ST 2110 et IPMX sur 2 × 100G QSFP28",
+      "latenceMinImages": {
+        "valeur": 1,
+        "source": "brompton-fiche-sq200-2025-10",
+        "note": "« 1 frame end to end in Ultra Low Latency mode »"
+      },
+      "latenceMaxImages": {
+        "valeur": 2,
+        "source": "brompton-fiche-sq200-2025-10",
+        "note": "« 2 frames end-to-end system latency (all features) »"
+      },
+      "poidsKg": {
+        "valeur": 8.7,
+        "source": "brompton-fiche-sq200-2025-10"
+      },
+      "hauteurU": {
+        "valeur": 2,
+        "source": "deduit-hauteur-u",
+        "note": "88,9 mm"
+      },
+      "courantAlimentation": {
+        "valeur": [
+          {
+            "courantA": 4,
+            "tensionV": 115
+          },
+          {
+            "courantA": 2,
+            "tensionV": 230
+          }
+        ],
+        "source": "brompton-fiche-sq200-2025-10",
+        "note": "« Max 4A @ 115 VAC, 2A @ 230 VAC »"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "brompton-menu-produits",
+        "note": "listé au menu Products"
+      },
+      "note": "Fiche d'information : la fiche SQ200 (octobre 2025, celle de la page produit) est préliminaire ; il devient calculable quand Brompton publie une fiche définitive. Sorties : 2 × 100G QSFP28 vers des QD-S (« up to 36 million pixels with Closed Loop Redundancy »), puis XD-S, XD ou dalles à carte G1. La brochure de janvier 2026 reprend ces valeurs sans la mention « PRELIMINARY », mais ce n'est pas une fiche technique."
     }
   ],
   "cartesReception": [
@@ -12661,6 +15709,38 @@
         "source": "novastar-xa50-pro-v1-0-3"
       },
       "note": "Capacité d'une carte à 60 Hz ; « non précisé » quand la fiche ne donne pas la profondeur."
+    },
+    {
+      "id": "brompton-r2",
+      "marque": "Brompton",
+      "modele": "R2",
+      "typePorts": "1G",
+      "capacites": {
+        "valeur": [
+          {
+            "pixels": 262144
+          }
+        ],
+        "source": "brompton-fiche-r2-2021-01",
+        "note": "« 262,144 RGB pixels capacity » ; la même quelle que soit la profondeur, inchangée en ULL (aide en ligne Tessera 12.2.4)"
+      },
+      "note": "Carte de réception Brompton plus ancienne que la R2+, toujours répandue en parc (2 × 1G). Capacité en pixels : contrôle sur le total de la dalle, une carte par dalle."
+    },
+    {
+      "id": "brompton-r2-plus",
+      "marque": "Brompton",
+      "modele": "R2+",
+      "typePorts": "1G",
+      "capacites": {
+        "valeur": [
+          {
+            "pixels": 262144
+          }
+        ],
+        "source": "brompton-fiche-r2-r2plus-2025-03",
+        "note": "« 262,144 RGB pixels capacity » ; la même quelle que soit la profondeur, inchangée en ULL (aide en ligne Tessera 12.2.4)"
+      },
+      "note": "Carte de réception Brompton (2 × 1G, 144 canaux de sortie). Capacité en pixels : contrôle sur le total de la dalle, une carte par dalle."
     }
   ]
 }

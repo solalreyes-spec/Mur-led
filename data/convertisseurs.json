@@ -243,6 +243,13 @@
       "date": "2026-09-26",
       "url": "https://www.lightware.com/en/products/Extenders/hdmi-tps-tx210",
       "confiance": "constructeur"
+    },
+    "decimator-12g-cross-page": {
+      "titre": "Decimator Design, page produit 12G-CROSS, consultée le 26/09/2026 : « Includes 4 x (12G/6G/3G/HD/SD)-SDI outputs, that allow it to be used as a 1 to 4 distribution amplifier », « (3840 or 4096) x 2160p50/59.94/60 via HDMI or 12G-SDI »",
+      "court": "Page Decimator 12G-CROSS",
+      "date": "2026-09-26",
+      "url": "https://decimator.com/Products/MiniConverters/12G-CROSS/12G-CROSS.html",
+      "confiance": "constructeur"
     }
   },
   "appareils": [
@@ -1484,10 +1491,17 @@
       ],
       "sorties": [
         {
-          "type": "3g-sdi",
+          "type": "12g-sdi",
           "nombre": 4,
-          "source": "decimator-12g-cross-brochure",
-          "note": "3G retenue, la plus défavorable : « Includes 4 x (3G/HD/SD)-SDI outputs » (brochure, texte) ; 12G non retenue : « 2 x (12G/6G/3G/HD/SD)-SDI Re-clocked Loop-through » et « 2 x (12G/6G/3G/HD/SD)-SDI » (brochure, tableau), « 4 x (12G/6G/3G/HD/SD)-SDI outputs » (page du site)"
+          "source": "decimator-12g-cross-page",
+          "note": "« Includes 4 x (12G/6G/3G/HD/SD)-SDI outputs » (page du site) ; « 2 x (12G/6G/3G/HD/SD)-SDI Re-clocked Loop-through » et « 2 x (12G/6G/3G/HD/SD)-SDI » (brochure V1.1, tableau)",
+          "nonRetenue": [
+            {
+              "type": "3g-sdi",
+              "source": "decimator-12g-cross-brochure",
+              "note": "« Includes 4 x (3G/HD/SD)-SDI outputs » (brochure V1.1, texte) : copier-coller de la brochure MD-HX"
+            }
+          ]
         },
         {
           "type": "hdmi-2.0",

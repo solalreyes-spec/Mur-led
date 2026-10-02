@@ -8,8 +8,12 @@ import {
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
 import { alertesSansManques, ligneManques } from './manques.js';
-import { resumeData, consommationProcesseur, resumeAvantDePartir, texteCapaciteAppareil, texteLatence } from './resumes.js';
-import { configsDuMur, logicielDuProcesseur, texteLogicielParc, avantDePartir, arbreProcesseurs, MARQUES_FAMILLE } from './fiches.js';
+import {
+  resumeData, consommationProcesseur, resumeAvantDePartir, texteCapaciteAppareil, texteLatence, texteAlimentation, texteWatts, texteLogicielReglage,
+} from './resumes.js';
+import {
+  configsDuMur, logicielDuProcesseur, texteLogicielParc, avantDePartir, arbreProcesseurs, MARQUES_FAMILLE, LOGICIELS,
+} from './fiches.js';
 import { listerFichiers } from './stockage.js';
 import { rappelsConfig } from './rappels.js';
 
@@ -46,7 +50,9 @@ let contexteLots = { base: null, parcId: null };
 let presents = null;
 let derniereListe = null;
 
-const NOMS_FAMILLE = { brompton: 'Brompton', novastar: 'Novastar et COEX', colorlight: 'Colorlight' };
+const NOMS_FAMILLE = {
+  brompton: 'Brompton', novastar: 'Novastar et COEX', colorlight: 'Colorlight', megapixel: 'Megapixel', linsn: 'Linsn', kystar: 'Kystar', mooncell: 'Mooncell',
+};
 const LIBELLES_MANQUANTS = {
   capacite: 'capacité par port',
   pixelsMax: 'pixels maxi',
@@ -81,6 +87,10 @@ function lireFormulaire() {
     cartesPro: d.has('cartesPro'),
     modeOptique: d.has('modeOptique'),
     carteSortie: d.get('carteSortie') || 'auto',
+    distributeur: d.get('distributeur') || null,
+    switchMegapixel: d.get('switchMegapixel') || null,
+    lienMegapixel: d.has('lien25G') ? '2.5G' : '1G',
+    mode20G: d.has('mode20G'),
     reseau: {
       switches: Math.max(0, Math.floor(lireNombre(d.get('reseauSwitches')) || 0)),
       convertisseursFibre: Math.max(0, Math.floor(lireNombre(d.get('reseauConvertisseurs')) || 0)),
@@ -398,6 +408,7 @@ function sectionProcesseur(r, conseil) {
       proc.sortiesFibre === 'aucune' ? ` Sorties fibre : aucune, ${proc.sources?.sortiesFibre?.note ?? 'pas de sortie fibre'}.` : null,
       texteLatence(proc) ? ` Latence : ${texteLatence(proc)}${proc.latence ? `, ${proc.latence}` : ''}.` : (proc.latence ? ` Latence : ${proc.latence}.` : null),
       proc.statutCommercial ? ` Statut : ${proc.statutCommercial}${proc.sources?.statutCommercial?.note ? `, ${proc.sources.statutCommercial.note}` : ''}.` : null,
+      texteLogicielReglage(proc) ? ` ${texteLogicielReglage(proc)}` : null,
       proc.note ? ` ${proc.note}` : null,
     ].filter(Boolean).join('')),
     consoLigne(r),
@@ -405,16 +416,18 @@ function sectionProcesseur(r, conseil) {
       `${x.texte} : ${x.ok ? 'passe' : 'dépassé'}${x.note ? `. ${x.note}` : ''}. Source : ${x.carte.sources?.capacites?.sources.map(sourceCourte).join(', ') ?? 'fiche de la carte'}.`)));
 }
 
-// Consommation et poids du processeur et de ses convertisseurs, affichés sans calcul.
+// Consommation et poids du processeur et de ses convertisseurs, affichés sans calcul ; courant de l'alimentation
+// quand la fiche ne donne que lui (Brompton), jamais converti en watts.
 function consoLigne(r) {
   const d = distributeurs.get(r.processeur.distributeur);
   const texte = [
     consommationProcesseur(r.processeur),
     d?.puissanceW || d?.poidsKg
-      ? `${d.modele} : ${[d.puissanceW ? `${nombreCourt(d.puissanceW)} W` : null, d.poidsKg ? `${nombreCourt(d.poidsKg, 2)} kg` : null].filter(Boolean).join(', ')} chacun`
+      ? `${d.modele} : ${[texteWatts(d), d.poidsKg ? `${nombreCourt(d.poidsKg, 2)} kg` : null].filter(Boolean).join(', ')} chacun`
       : null,
   ].filter(Boolean).join(' ; ');
-  return texte ? el('p', { class: 'source' }, `Consommation et poids : ${texte}.`) : null;
+  const alimentations = [r.processeur, d].filter((x) => texteAlimentation(x)).map((x) => el('p', { class: 'source' }, `Alimentation ${x.modele} : ${texteAlimentation(x)}.`));
+  return [texte ? el('p', { class: 'source' }, `Consommation et poids : ${texte}.`) : null, ...alimentations];
 }
 
 // Lots et configs du mur pour le logiciel du processeur retenu, version relevée dans le parc, rappels sourcés.
@@ -422,6 +435,14 @@ function configsData(choisie) {
   const { base, parcId } = contexteLots;
   if (!base || base.parcs.length === 0) return null;
   const logiciel = logicielDuProcesseur(choisie.processeur);
+  // HELIOS, LEDSet, Kystar Control System, AutoLEDSetup : configs pas encore gérées par l'appli (le logiciel et sa
+  // source s'affichent avec le processeur).
+  if (!LOGICIELS.includes(logiciel)) {
+    return {
+      logiciel, note: `Configs ${logiciel} : pas encore gérées par l'appli.`, lignes: [], alertes: [],
+      version: texteLogicielParc(base, parcId, choisie.processeur), rappels: [],
+    };
+  }
   const groupes = (etatMur?.lots ?? []).map((g) => ({ g, c: configsDuMur(base, parcId, g.dalleId, g.n, { coches: g.coches, logiciel }) }));
   const prefixe = (g, texte) => (g.libelle ? `${g.libelle} : ${texte.charAt(0).toLowerCase()}${texte.slice(1)}` : texte);
   return {
@@ -538,6 +559,11 @@ function calculer(e) {
   const reglages = {
     frequenceHz: e.frequenceHz, bits: e.bits, ull: e.ull, cartesPro: e.cartesPro, redondance: e.redondance, modeOptique: e.modeOptique,
     carteSortie: e.carteSortie,
+    distributeur: e.distributeur,
+    switchMegapixel: e.switchMegapixel,
+    lienMegapixel: e.lienMegapixel,
+    mode20G: e.mode20G,
+    distributeurs: [...distributeurs.values()],
     cartesReception,
     departCablage: departData,
   };
@@ -580,7 +606,11 @@ function calculer(e) {
   for (const texte of choisie?.notes ?? []) alertes.push(alerte(texte, 'alerte-info'));
   // Réseau Brompton (aide en ligne Tessera) : switches, fibre et cuivre 10G entre le processeur et les dalles.
   const reseau = choisie?.processeur.famille === 'brompton'
-    ? reseauBrompton({ ...e.reseau, xd: choisie.processeur.distributeur === 'brompton-xd' ? 1 : 0 }) : null;
+    ? reseauBrompton({
+      ...e.reseau,
+      xd: /^brompton-xd/.test(choisie.processeur.distributeur ?? '') ? 1 : 0,
+      distributeur: distributeurs.get(choisie.processeur.distributeur) ?? null,
+    }) : null;
   for (const texte of reseau?.refus ?? []) alertes.push(alerte(texte, 'alerte-erreur'));
   for (const texte of reseau?.alertes ?? []) alertes.push(alerte(texte));
   if (!choisie) {
@@ -613,6 +643,7 @@ function calculer(e) {
   afficherDepart(avecParcs ? avantDePartir(base, parcId, etatMur.lots ?? [], choisie.processeur, { presents }) : null, avecParcs);
   dernier = {
     choisie, conseille: choisie === conseil, distributeur: nomDistributeur(choisie),
+    distributeurFiche: distributeurs.get(choisie.processeur.distributeur) ?? null,
     puissanceDistributeurW: distributeurs.get(choisie.processeur.distributeur)?.puissanceW ?? null,
     origineBits: origineBits(choisie.processeur.famille, choisie.reglages.bits),
     gainDixBits: gain,

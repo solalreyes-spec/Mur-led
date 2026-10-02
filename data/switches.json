@@ -9,6 +9,41 @@
       "date": "2026-09-26",
       "url": "https://acamericas.com/products/gigacore-16xt/",
       "confiance": "revendeur"
+    },
+    "netgear-msm4214x": {
+      "titre": "Netgear, page produit MSM4214X (M4250-12M2XF), gamme « Fully Managed », consultée le 26/09/2026 : « 12 x 2.5G », « 2 x SFP+ », « System Full Load: 37.9W », 1,745 kg, 440 × 100 × 43,2 mm",
+      "court": "Netgear, page MSM4214X",
+      "date": "2026-09-26",
+      "url": "https://www.netgear.com/business/wired/switches/fully-managed/msm4214x/",
+      "confiance": "constructeur"
+    },
+    "netgear-support-gsm4210p": {
+      "titre": "Netgear, page support GSM4210P (consultée le 26/09/2026) : plus de page produit, rangé dans « Products End of Service »",
+      "court": "Netgear, support GSM4210P",
+      "date": "2026-09-26",
+      "url": "https://www.netgear.com/support/product/gsm4210p",
+      "confiance": "constructeur"
+    },
+    "megapixel-notes-v25-11-0": {
+      "titre": "Megapixel, notes de version HELIOS v25.11.0 (28/11/2025), p. 59 : « 20G switch aggregated 2 x 10G support », « Connect an additional 10G link to a M4250 switch to get twice the bandwidth », « ports 1-6 using the first 10G link and ports 7-12 using the second 10G link », « NOT available with the older 8-port M4200 switches »",
+      "court": "Notes de version HELIOS v25.11.0",
+      "date": "2025-11-28",
+      "url": "https://megapixelvr.com/downloads/HELIOS_Release_Notes_v25.11.0.pdf",
+      "confiance": "constructeur"
+    },
+    "megapixel-guide-helios-2020": {
+      "titre": "Guide HELIOS 20.09.0.20886 du 19/10/2020, document Megapixel hébergé par atcomms.co.uk : Netgear M4200 GSM4210P, « one 10Gb fiber LC SFP+ », 8 ports 1G en cuivre",
+      "court": "Guide HELIOS 2020, copie tierce",
+      "date": "2020-10-19",
+      "url": "https://www.atcomms.co.uk/wp-content/uploads/2023/01/HELIOS-SPEC-SHEET.pdf",
+      "confiance": "copie tierce"
+    },
+    "megapixel-page-helios": {
+      "titre": "Site Megapixel, page HELIOS (consultée le 26/09/2026) : switch durci RS12, « 12 x 1G/2.5G CAT6A IP65 Neutrik™ etherCONs » et « 1 x Neutrik™ opticalCON DUO for SM Fiber »",
+      "court": "Site Megapixel, page HELIOS",
+      "date": "2026-09-26",
+      "url": "https://megapixelvr.com/helios/",
+      "confiance": "constructeur"
     }
   },
   "appareils": [
@@ -46,6 +81,106 @@
         "note": "arrêté en janvier 2024, remplacé par le GigaCore 20t"
       },
       "note": "Switch manageable : refusé entre un processeur Brompton et ses dalles (« ONLY with unmanaged switches », aide Tessera). Page d'un revendeur, à vérifier sur la fiche Luminex."
+    },
+    {
+      "id": "netgear-m4250-msm4214x",
+      "famille": "switch",
+      "marque": "Netgear",
+      "modele": "M4250 (MSM4214X)",
+      "role": "Switch réseau (Megapixel HELIOS)",
+      "position": "aval",
+      "ports": {
+        "valeur": 12,
+        "source": "netgear-msm4214x",
+        "note": "« 12 x 2.5G »"
+      },
+      "lien25G": {
+        "valeur": true,
+        "source": "netgear-msm4214x",
+        "note": "ports 1G ou 2,5G"
+      },
+      "portsSFP": {
+        "valeur": 2,
+        "source": "netgear-msm4214x",
+        "note": "« 2 x SFP+ »"
+      },
+      "mode20G": {
+        "valeur": true,
+        "source": "megapixel-notes-v25-11-0",
+        "note": "« ports 1-6 using the first 10G link and ports 7-12 using the second 10G link » ; « First 10G link is still used for switch management »"
+      },
+      "manageable": {
+        "valeur": true,
+        "source": "netgear-msm4214x",
+        "note": "gamme « Fully Managed »"
+      },
+      "puissanceW": {
+        "valeur": 37.9,
+        "source": "netgear-msm4214x",
+        "type": "max",
+        "note": "« System Full Load: 37.9W »"
+      },
+      "poidsKg": {
+        "valeur": 1.745,
+        "source": "netgear-msm4214x"
+      },
+      "statutCommercial": {
+        "valeur": "actuel",
+        "source": "netgear-msm4214x",
+        "note": "page produit en ligne"
+      },
+      "note": "Switch de distribution des HELIOS 8K et 4K : une fibre 10G en entrée (deux en mode 20G). Manageable : jamais entre un processeur Brompton et ses dalles."
+    },
+    {
+      "id": "netgear-m4200-gsm4210p",
+      "famille": "switch",
+      "marque": "Netgear",
+      "modele": "M4200 (GSM4210P)",
+      "role": "Switch réseau (Megapixel HELIOS)",
+      "position": "aval",
+      "ports": {
+        "valeur": 8,
+        "source": "megapixel-notes-v25-11-0",
+        "note": "« the older 8-port M4200 switches »"
+      },
+      "vitessePorts": {
+        "valeur": "1G",
+        "source": "megapixel-guide-helios-2020",
+        "note": "8 ports 1G en cuivre, « one 10Gb fiber LC SFP+ »"
+      },
+      "mode20G": {
+        "valeur": false,
+        "source": "megapixel-notes-v25-11-0",
+        "note": "« NOT available with the older 8-port M4200 switches due to switch firmware limitation »"
+      },
+      "manageable": {
+        "valeur": true,
+        "source": "megapixel-notes-v25-11-0",
+        "note": "switch Netgear M4200, géré par HELIOS"
+      },
+      "statutCommercial": {
+        "valeur": "ancien",
+        "source": "netgear-support-gsm4210p",
+        "note": "« Products End of Service »"
+      },
+      "note": "Ancien switch de distribution des HELIOS : 8 ports 1G, pas de 2,5G (guide HELIOS 2020, copie tierce), pas de mode 20G."
+    }
+  ],
+  "informations": [
+    {
+      "id": "megapixel-rs12",
+      "famille": "switch",
+      "marque": "Megapixel",
+      "modele": "RS12",
+      "role": "Switch réseau durci (Megapixel HELIOS)",
+      "position": "aval",
+      "statut": "information",
+      "ports": {
+        "valeur": 12,
+        "source": "megapixel-page-helios",
+        "note": "« 12 x 1G/2.5G CAT6A IP65 Neutrik™ etherCONs »"
+      },
+      "note": "Fiche d'information : switch durci Megapixel, une entrée fibre (« 1 x Neutrik™ opticalCON DUO for SM Fiber ») ; mode 20G cité par l'actualité Megapixel du 18/03/2024 ; pas de fiche technique, aucun calcul."
     }
   ]
 }

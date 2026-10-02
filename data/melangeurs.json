@@ -219,6 +219,34 @@
       "date": "2026-09-26",
       "url": "https://proav.roland.com/global/products/v-1200hd/specifications/",
       "confiance": "constructeur"
+    },
+    "roland-kb-v-600uhd-sorties": {
+      "titre": "Base de connaissances Roland, « V-600UHD: How To Setup Picture In Picture, Chroma Key, and AUX Video Output », consultée le 26/09/2026 : « The default bus assignments for the outputs are as follows, and can be changed in the Output menu: HDMI OUT 1 - PGM, HDMI OUT 2 - PVW, HDMI OUT 3 - AUX, SDI OUT - PGM », « The four assignable outputs »",
+      "court": "Base de connaissances Roland, V-600UHD, sorties",
+      "date": "2026-09-26",
+      "url": "https://support.roland.com/hc/en-us/articles/360030918992",
+      "confiance": "constructeur"
+    },
+    "roland-kb-v-8hd-mix-minus": {
+      "titre": "Base de connaissances Roland, « V-8HD: How to Set Up an Audio Mix Minus » (« Video Output > Output 2 > Output Assign > PROGRAM ») et « V-8HD: Troubleshooting HDMI Output » (« Output 1 > Output Assign > Program », réglage par défaut), consultées le 26/09/2026",
+      "court": "Base de connaissances Roland, V-8HD, sorties",
+      "date": "2026-09-26",
+      "url": "https://support.roland.com/hc/en-us/articles/360047589911",
+      "confiance": "constructeur"
+    },
+    "roland-kb-v-80hd-pgm-aux": {
+      "titre": "Base de connaissances Roland, « V-80HD: How can I instantly switch between PGM and AUX assignments for the output connectors? », consultée le 26/09/2026 : sorties affectées au PGM ou à l'AUX, sans la liste des connecteurs",
+      "court": "Base de connaissances Roland, V-80HD, PGM et AUX",
+      "date": "2026-09-26",
+      "url": "https://support.roland.com/hc/en-us/articles/26008406209947",
+      "confiance": "constructeur"
+    },
+    "roland-kb-v-1200hd-sorties": {
+      "titre": "Base de connaissances Roland, « V-1200HD: Troubleshooting No Video Output », consultée le 26/09/2026 : sorties réglées par la patchbay (« Are the patchbay settings correct? »), sans la liste des connecteurs",
+      "court": "Base de connaissances Roland, V-1200HD, sorties",
+      "date": "2026-09-26",
+      "url": "https://support.roland.com/hc/en-us/articles/213125206",
+      "confiance": "constructeur"
     }
   },
   "appareils": [
@@ -1505,9 +1533,9 @@
         }
       ],
       "sortiesVersProcesseurs": {
-        "valeur": 1,
-        "source": "roland-v-8hd-specs",
-        "note": "OUTPUT 1 ; autres sorties assignables : à vérifier"
+        "valeur": 2,
+        "source": "roland-kb-v-8hd-mix-minus",
+        "note": "Output 1 (Program par défaut) et Output 2 (« Output Assign > PROGRAM ») ; Output 3 à vérifier"
       },
       "formatsSortie": {
         "valeur": [
@@ -1665,8 +1693,8 @@
       ],
       "sortiesVersProcesseurs": {
         "valeur": 1,
-        "source": "roland-v-80hd-specs",
-        "note": "une sortie Program ; autres sorties assignables : à vérifier"
+        "source": "roland-kb-v-80hd-pgm-aux",
+        "note": "une sortie Program ; sorties affectables au PGM ou à l'AUX, liste des connecteurs non donnée : autres sorties assignables : à vérifier (manuel)"
       },
       "formatsSortie": {
         "valeur": [
@@ -1839,9 +1867,9 @@
         }
       ],
       "sortiesVersProcesseurs": {
-        "valeur": 1,
-        "source": "roland-v-600uhd-specs",
-        "note": "HDMI OUT 1 ; autres sorties assignables : à vérifier"
+        "valeur": 4,
+        "source": "roland-kb-v-600uhd-sorties",
+        "note": "« The four assignable outputs » : HDMI OUT 1 à 3 et SDI OUT, affectation « can be changed in the Output menu »"
       },
       "formatsSortie": {
         "valeur": [
@@ -1919,8 +1947,8 @@
       ],
       "sortiesVersProcesseurs": {
         "valeur": 1,
-        "source": "roland-v-1200hd-specs",
-        "note": "une sortie Program ; autres sorties assignables : à vérifier"
+        "source": "roland-kb-v-1200hd-sorties",
+        "note": "une sortie Program ; sorties par la patchbay, liste non donnée : autres sorties assignables : à vérifier (manuel)"
       },
       "formatsSortie": {
         "valeur": [

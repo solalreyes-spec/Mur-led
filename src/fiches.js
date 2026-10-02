@@ -1,7 +1,9 @@
 // Base locale : fiches de l'utilisateur, validation, fusion avec la base de départ, export et import, parcs.
 // Fonctions pures, sans accès au stockage ni à l'interface. La base de départ (data/) reste en lecture seule.
 
-import { resoudreFiche, champsManquants, champsManquantsRegie, BIT_DEPTH_PAR_DEFAUT, ErreurSaisie, PLUS_DEFAVORABLE } from './calculs.js';
+import {
+  resoudreFiche, champsManquants, champsManquantsRegie, BIT_DEPTH_PAR_DEFAUT, ErreurSaisie, PLUS_DEFAVORABLE, pixelsPourClassement,
+} from './calculs.js';
 import { nombre, dateCourte } from './format.js';
 
 export const TYPES = ['dalle', 'processeur', 'regie', 'bumper'];
@@ -50,7 +52,10 @@ export const CHAMPS = {
   processeur: [
     { nom: 'marque', libelle: 'Marque', genre: 'brut', niveau: 'enregistrer' },
     { nom: 'modele', libelle: 'Modèle', genre: 'brut', niveau: 'enregistrer' },
-    { nom: 'famille', libelle: 'Famille (brompton, novastar ou colorlight)', genre: 'brut', niveau: 'enregistrer', valeurs: ['brompton', 'novastar', 'colorlight'] },
+    {
+      nom: 'famille', libelle: 'Famille (brompton, novastar, colorlight, megapixel, linsn, kystar ou mooncell)', genre: 'brut', niveau: 'enregistrer',
+      valeurs: ['brompton', 'novastar', 'colorlight', 'megapixel', 'linsn', 'kystar', 'mooncell'],
+    },
     { nom: 'gamme', libelle: 'Gamme (MCTRL, VX Pro, Tessera…)', genre: 'brut' },
     { nom: 'pixelsMax', libelle: 'Pixels maxi', genre: 'entier', unite: 'px' },
     { nom: 'ports', libelle: 'Nombre de ports', genre: 'entier' },
@@ -511,7 +516,11 @@ export function reglerDalleParc(base, parcId, dalleId, reglage) {
 // Profondeur réseau d'un parc, par marque de processeur (Brompton réglé dans l'onglet Base) : 8, 10 ou 12 bits ;
 // vide ou autre valeur = défaut de la marque.
 const BITS_RESEAU = [8, 10, 12];
-const SOURCE_DEFAUT_BITS = { brompton: 'défaut (livraison Tessera)', novastar: 'défaut Novastar', colorlight: 'défaut Colorlight' };
+const SOURCE_DEFAUT_BITS = {
+  brompton: 'défaut (livraison Tessera)', novastar: 'défaut Novastar', colorlight: 'défaut Colorlight',
+  megapixel: 'défaut Megapixel (le plus défavorable, aucun défaut publié)',
+  linsn: 'défaut Linsn (seule capacité publiée)', kystar: 'défaut Kystar (seule capacité publiée)', mooncell: 'défaut Mooncell (seule capacité publiée)',
+};
 
 export function reglerBitsParc(base, parcId, famille, valeur) {
   const bits = Number(valeur);
@@ -721,10 +730,17 @@ export function migrerFichiersConfig(base) {
   };
 }
 
-// Logiciel qui règle un processeur : Tessera (Brompton), VMP (COEX), NovaLCT (Novastar), LEDVISION (Colorlight).
+// Logiciel qui règle un processeur : Tessera (Brompton), VMP (COEX), NovaLCT (Novastar), LEDVISION (Colorlight),
+// HELIOS (Megapixel, interface web). Linsn, Kystar, Mooncell : logiciel de réglage de la fiche (`logicielReglage` :
+// LEDSet, Kystar Control System, AutoLEDSetup ; pages de téléchargement citées, non relues [TIERS]).
+// Configs HELIOS, Linsn, Kystar et Mooncell : pas encore gérées par l'appli.
 export function logicielDuProcesseur(proc) {
   if (proc.famille === 'brompton') return 'Tessera';
   if (proc.famille === 'colorlight') return 'LEDVISION';
+  if (proc.famille === 'megapixel') return 'HELIOS';
+  const reglage = typeof proc.logicielReglage === 'object' ? proc.logicielReglage?.valeur : proc.logicielReglage;
+  if (reglage) return reglage;
+  if (['linsn', 'kystar', 'mooncell'].includes(proc.famille)) return `logiciel ${MARQUES_FAMILLE[proc.famille]}`;
   return proc.logiciel === 'VMP' ? 'VMP' : 'NovaLCT';
 }
 
@@ -910,7 +926,9 @@ export function avantDePartir(base, parcId, groupes, proc, { presents = null } =
     }
     return false;
   };
-  for (const g of groupes) {
+  // Logiciel sans configs dans l'appli (HELIOS) : une seule ligne à vérifier.
+  if (!LOGICIELS.includes(logiciel)) ajouter(`Configs ${logiciel} : pas encore gérées par l'appli ; vérifie les dalles et leur firmware dans ${logiciel}`, null);
+  for (const g of LOGICIELS.includes(logiciel) ? groupes : []) {
     const debut = lignes.length;
     const c = configsDuMur(base, parcId, g.dalleId, g.n, { coches: g.coches, logiciel });
     if (c.lots.length === 0) ajouter(`Aucun fichier de config pour cette dalle dans le parc ${parc.nom} : ajoute-le dans l'onglet Base`, false);
@@ -1076,7 +1094,9 @@ export function arbreDalles(dalles, { informations = [], parc = null, recherche 
 // ---------------------------------------------------------------------------
 
 // Marque affichée : la famille de calcul (COEX est une gamme Novastar).
-export const MARQUES_FAMILLE = { brompton: 'Brompton', novastar: 'Novastar', colorlight: 'Colorlight' };
+export const MARQUES_FAMILLE = {
+  brompton: 'Brompton', novastar: 'Novastar', colorlight: 'Colorlight', megapixel: 'Megapixel', linsn: 'Linsn', kystar: 'Kystar', mooncell: 'Mooncell',
+};
 const compact = (texte) => sansAccents(texte).replace(/[\s-]+/g, '');
 
 // Processeurs (et fiches d'information, grisées, en dernier) rangés par marque, puis par gamme, du plus petit au plus
@@ -1095,7 +1115,7 @@ export function arbreProcesseurs(processeurs, { informations = [], recherche = '
     if (!gammes.has(gamme)) gammes.set(gamme, []);
     gammes.get(gamme).push({
       id: p.id, modele: p.modele, statut: p.statutCommercial ?? null, libelle: `${p.modele}${p.statutCommercial ? ` (${p.statutCommercial})` : ''}`,
-      information, aCompleter: !information && champsManquants(p).length > 0, pixels: p.pixelsMax ?? null,
+      information, aCompleter: !information && champsManquants(p).length > 0, pixels: pixelsPourClassement(p),
       statutBase: p.statutBase ?? null, calculHorsAppli: p.calculHorsAppli ?? null,
     });
   }
