@@ -4217,6 +4217,107 @@ export const REGLES = [
       v.egal('conseil toutes marques : Linsn, Kystar et Mooncell à 8 bits', [...new Set(toutes.filter((x) => ['linsn', 'kystar', 'mooncell'].includes(x.processeur.famille)).map((x) => x.reglages.bits))], [8]);
     },
   },
+  {
+    id: 'R211',
+    titre: 'MX6000 Pro avec la carte MX_8×5G_Base-T (choix « 8×5G Base-T » dans Data) : 8 ports 5G par carte en direct, sans CVT8-5G ; capacité par port selon la carte de réception comme la carte 1 × 40G ; plafond d\'une carte (17 694 720 px en 8 bits), fixe hors 60 Hz (déduit) ; carte 1G refusée ; Cat6A, longueur maxi non publiée ; MX2000 Pro : carte non proposée, alerte',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const mx6000 = processeurDeBase(contexte, 'coex-mx6000-pro');
+      const dalle = (modele, pxH = 512, pxV = 512) => ({ ...DALLE_CAS_7, id: `fictive-${modele}`, nom: `Dalle ${pxH} × ${pxV} à carte ${modele}`, pxH, pxV,
+        carteReceptionMarque: 'Novastar', carteReceptionModele: modele });
+      // 16 colonnes de 11 dalles de 512 × 512 px : 11 dalles par port à 60 Hz en 8 bits avec une XA50 Pro (2 951 200 px), une colonne par port.
+      const m = calculs.mur(dalle('XA50 Pro'), 16, 11);
+      const e = (d, reglages = {}) => calculs.evaluerProcesseur(m, d, mx6000, { ...NOVASTAR_60_8, carteSortie: '8x5g-base-t', ...reglages });
+      const xa = e(dalle('XA50 Pro'));
+      v.egal('XA50 Pro : 2 951 200 px par port, 64 ports (8 cartes × 8), aucun convertisseur', [calculs.entierInferieur(xa.capacite), xa.processeur.ports, xa.processeur.distributeur ?? null, xa.totaux?.distributeurs ?? null],
+        [2951200, 64, null, null]);
+      v.egal('plafond de la carte : 6 colonnes au plus par carte (6 × 11 × 262 144 = 17,3 M ≤ 17 694 720), donc 3 cartes et non 2', [xa.nombre, xa.totaux?.ports.colonnes, xa.totaux?.cartesSortie], [1, 16, 3]);
+      v.egal('configuration : MX6000 Pro + 3 cartes 8×5G Base-T, sans convertisseur', xa.configuration, 'MX6000 Pro + 3 cartes 8×5G Base-T');
+      v.vrai('note : 17 694 720 px au plus par carte, manuel V1.5.1', xa.notes.some((x) => /17\s694\s720 px/.test(x) && x.includes('manuel MX6000 Pro V1.5.1')));
+      const inconnue = e({ ...dalle('XA50 Pro'), carteReceptionModele: undefined, carteReceptionMarque: undefined });
+      v.egal('carte inconnue : 2 592 000 px par port (la plus basse des fiches), comme la carte 1 × 40G', calculs.entierInferieur(inconnue.capacite), 2592000);
+      v.vrai('carte 1G (A10s Pro) : refusée', /5G/.test(e(dalle('A10s Pro')).impossible ?? ''));
+      const f50 = e(dalle('XA50 Pro'), { frequenceHz: 50 });
+      v.egal('50 Hz : 3 541 440 px par port, déduit ; plafond de la carte inchangé, déduit', [calculs.entierInferieur(f50.capacite), f50.capaciteDeduite, f50.notes.some((x) => /17\s694\s720 px/.test(x) && x.includes('déduit'))],
+        [3541440, true, true]);
+      v.vrai('câble : Cat6A (wiki COEX), longueur maxi non publiée, seuil de 100 m de la norme 5GBASE-T', xa.alertes.some((x) => x.includes('Cat6A') && x.includes('non publiée')
+        && x.includes('(seuil de 100 m : norme 5GBASE-T, IEEE 802.3bz)')));
+      v.egal('12 bits : plafond de 11 804 800 px (8 × 1 475 600)', e(dalle('XA50 Pro'), { bits: 12 }).processeur.carteSortie.pixelsMax, 11804800);
+      v.egal('sans choix : carte 1 × 40G et CVT8-5G, comme avant', calculs.evaluerProcesseur(m, dalle('XA50 Pro'), mx6000, NOVASTAR_60_8).processeur.distributeur, 'coex-cvt8-5g');
+      const mx2000 = calculs.evaluerProcesseur(m, dalle('XA50 Pro'), processeurDeBase(contexte, 'coex-mx2000-pro'), { ...NOVASTAR_60_8, carteSortie: '8x5g-base-t' });
+      v.vrai('MX2000 Pro avec « 8×5G Base-T » : carte non proposée, carte par défaut et alerte « à vérifier »', mx2000.processeur.carteSortie?.id !== '8x5g-base-t'
+        && mx2000.alertes.some((x) => x.includes('MX_8×5G_Base-T') && x.includes('à vérifier')));
+    },
+  },
+  {
+    id: 'R212',
+    titre: 'Plafond d\'une carte de sortie COEX (manuel MX6000 Pro V1.5.1, p. 15 et 16) : MX_4x10G 17 694 720 px en 8 et 10 bits, 13 194 440 en 12 bits ; 1 × 40G et 8×5G Base-T 17 694 720 et 11 804 800 ; MX2000 Pro, mêmes cartes, déduit ; une carte qui tiendrait par ses ports mais dépasse son plafond en demande une de plus ; CVT10 comptés carte par carte, ports répartis en groupes complets de 10 d\'abord',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const mx6000 = processeurDeBase(contexte, 'coex-mx6000-pro');
+      const mx2000 = processeurDeBase(contexte, 'coex-mx2000-pro');
+      v.egal('MX6000 Pro : plafonds des cartes 4x10G et 1 × 40G (8, 10, 12 bits)', [[8, 10, 12].map((b) => mx6000.pixelsMaxCarte1G?.[b]), [8, 10, 12].map((b) => mx6000.pixelsMaxCarte5G?.[b])],
+        [[17694720, 17694720, 13194440], [17694720, 17694720, 11804800]]);
+      v.egal('sources : manuel V1.5.1, p. 15 et p. 16, constructeur ; MX2000 Pro déduit (mêmes cartes)', [mx6000.sources.pixelsMaxCarte1G?.source.id, /^p\. 15/.test(mx6000.sources.pixelsMaxCarte1G?.note ?? ''),
+        /^p\. 16/.test(mx6000.sources.pixelsMaxCarte5G?.note ?? ''), mx2000.sources.pixelsMaxCarte1G?.source.confiance, mx2000.pixelsMaxCarte1G?.[12]],
+      ['coex-mx6000-pro-manuel-v1-5-1', true, true, 'déduit', 13194440]);
+      v.egal('recoupements : 40 × 329 861 = 13 194 440 ; 8192 × 2160 = 17 694 720 ; MX2000 Pro ≈ 2 cartes ; MX6000 Pro ≈ 8 cartes',
+        [40 * 329861, 8192 * 2160, Math.abs(2 * mx2000.pixelsMaxCarte1G?.[8] - mx2000.pixelsMax) / mx2000.pixelsMax < 0.001, Math.abs(8 * mx6000.pixelsMaxCarte1G?.[8] - mx6000.pixelsMax) / mx6000.pixelsMax < 0.005],
+        [13194440, 17694720, true, true]);
+      // 30 colonnes de 10 dalles de 256 × 256 px : 10 dalles par port à 60 Hz en 8 bits (659 722 px), une colonne par port, 30 ports ;
+      // 19,66 M px, plus que les 17 694 720 d'une carte 4x10G.
+      const dalle = { ...DALLE_CAS_7, id: 'fictive-256-a10s-pro', nom: 'Dalle 256 × 256 px à carte A10s Pro', pxH: 256, pxV: 256, carteReceptionMarque: 'Novastar', carteReceptionModele: 'A10s Pro' };
+      const m = calculs.mur(dalle, 30, 10);
+      const e = (proc, reglages = {}) => calculs.evaluerProcesseur(m, dalle, proc, { ...NOVASTAR_60_8, carteSortie: '4x10g', ...reglages });
+      const a = e(mx6000);
+      v.egal('MX6000 Pro, 4x10G : 30 ports, 2 cartes (27 colonnes au plus par carte) ; 20 ports puis 10, soit 3 CVT10, pas 4 (27 + 3)', [a.nombre, a.totaux?.ports.colonnes, a.totaux?.cartesSortie, a.totaux?.distributeurs?.colonnes],
+        [1, 30, 2, 3]);
+      v.vrai('note : 17 694 720 px au plus par carte, manuel V1.5.1, p. 15', a.notes.some((x) => /MX_4x10G_Fiber : 17\s694\s720 px au plus par carte/.test(x) && x.includes('manuel MX6000 Pro V1.5.1, p. 15')));
+      const b = e(mx2000);
+      v.egal('MX2000 Pro, 4x10G : 2 cartes (plafond de la carte, déduit), un seul processeur, 3 CVT10', [b.nombre, b.totaux?.cartesSortie, b.totaux?.distributeurs?.colonnes,
+        b.notes.some((x) => /17\s694\s720 px au plus par carte/.test(x) && x.includes('déduit'))], [1, 2, 3, true]);
+      // 50 colonnes de 10 dalles de 128 × 512 px : 655 360 px par port, 50 ports (32,8 M px) ; 27 ports au plus par carte (17 694 720 px).
+      // Aucune répartition en groupes complets de 10 ne tient (30 ports font 19,7 M px) : 6 CVT10 (27 + 23 ou 25 + 25), pas 5.
+      const etroite = { ...dalle, id: 'fictive-128x512-a10s-pro', nom: 'Dalle 128 × 512 px à carte A10s Pro', pxH: 128, pxV: 512 };
+      const m50 = calculs.evaluerProcesseur(calculs.mur(etroite, 50, 10), etroite, mx2000, { ...NOVASTAR_60_8, carteSortie: '4x10g' });
+      v.egal('MX2000 Pro, 50 ports à 655 360 px : 1 processeur, 2 cartes, 6 CVT10 (le compte par ports en donnerait 5)', [m50.nombre, m50.totaux?.ports.colonnes, m50.totaux?.cartesSortie, m50.totaux?.distributeurs?.colonnes],
+        [1, 50, 2, 6]);
+      const cvtSchema = (mur, d, ev) => new Set(calculs.cablageData(mur, d, ev, { depart: 'bas-gauche' }).variantes.find((x) => x.mode === 'colonnes').processeurs[0].ports
+        .map((x) => x.libelle.match(/CVT10 (\d+)/)?.[1])).size;
+      v.egal('Schéma : mêmes CVT10 que Data, numérotés carte par carte (3 puis 6)', [cvtSchema(m, dalle, a), cvtSchema(calculs.mur(etroite, 50, 10), etroite, m50)], [3, 6]);
+      v.vrai('une seule carte de sortie par processeur : jamais de cartes 1G et 5G sur le même écran (manuel V1.5.1, p. 18)', [a, b, m50].every((x) => !Array.isArray(x.processeur.carteSortie)
+        && x.processeur.typePorts === x.processeur.carteSortie.typePorts));
+      v.egal('12 bits : plafond de la 4x10G = 40 ports × 329 861 px', e(mx6000, { bits: 12 }).processeur.carteSortie.pixelsMax, 13194440);
+      const dalle5G = { ...dalle, id: 'fictive-512-xa50', nom: 'Dalle 512 × 512 px à carte XA50 Pro', pxH: 512, pxV: 512, carteReceptionModele: 'XA50 Pro' };
+      const c = calculs.evaluerProcesseur(calculs.mur(dalle5G, 16, 11), dalle5G, mx6000, { ...NOVASTAR_60_8, carteSortie: '1x40g' });
+      v.egal('MX6000 Pro, 1 × 40G : plafond comme la Base-T, 3 cartes et 3 CVT8-5G', c.configuration, 'MX6000 Pro + 3 cartes 1 × 40G + 3 CVT8-5G');
+    },
+  },
+  {
+    id: 'R213',
+    titre: 'Règle des 128 px sur les ports 5G (manuel MX6000 Pro V1.5.1, p. 49) : MX6000 Pro (cartes 1 × 40G et 8×5G Base-T), sourcée ; CX40 Pro et MX2000 Pro, déduit par analogie (elle ne peut que réduire la capacité) ; règle 1G inchangée',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const mx6000 = processeurDeBase(contexte, 'coex-mx6000-pro');
+      // 10 colonnes de 140 dalles de 96 × 96 px à carte XA50 Pro : en 12 bits, 160 dalles par port (1 475 600 px), une colonne par port ;
+      // un port de 96 px de large perd (128 − 96) × 13 440 = 430 080 px : chaque colonne passe sur 2 ports.
+      const dalle = { ...DALLE_CAS_7, id: 'fictive-96-xa50', nom: 'Dalle 96 × 96 px à carte XA50 Pro', pxH: 96, pxV: 96, carteReceptionMarque: 'Novastar', carteReceptionModele: 'XA50 Pro' };
+      const m = calculs.mur(dalle, 10, 140);
+      const e = (proc, carteSortie = '1x40g') => calculs.evaluerProcesseur(m, dalle, proc, { frequenceHz: 60, bits: 12, carteSortie });
+      const sansRegle = e({ ...mx6000, largeurChargeeMinPx5G: undefined });
+      const avec = e(mx6000);
+      v.egal('MX6000 Pro, 1 × 40G : 20 ports au lieu de 10 (chaque colonne de 96 px coupée en 2)', [sansRegle.totaux?.ports.colonnes, avec.totaux?.ports.colonnes], [10, 20]);
+      v.vrai('alerte « Ports 5G », manuel MX6000 Pro V1.5.1, p. 49', avec.alertes.some((x) => x.startsWith('Ports 5G du COEX MX6000 Pro') && x.includes('manuel MX6000 Pro V1.5.1, p. 49')));
+      v.egal('carte 8×5G Base-T : même règle', e(mx6000, '8x5g-base-t').totaux?.ports.colonnes, 20);
+      const deduit = (id) => e(processeurDeBase(contexte, id)).alertes.some((x) => x.startsWith('Ports 5G du') && x.includes('par analogie') && x.includes('déduit'));
+      v.egal('CX40 Pro et MX2000 Pro (1 × 40G) : règle appliquée, déduit par analogie', [deduit('coex-cx40-pro'), deduit('coex-mx2000-pro')], [true, true]);
+      const cx40 = processeurDeBase(contexte, 'coex-cx40-pro');
+      v.egal('CX40 Pro : 128 px, source déduite', [cx40.largeurChargeeMinPx, cx40.sources.largeurChargeeMinPx?.source.confiance], [128, 'déduit']);
+      const dalle1G = { ...dalle, id: 'fictive-96-a10s', carteReceptionModele: 'A10s Pro', nom: 'Dalle 96 × 96 px à carte A10s Pro' };
+      const mx40 = calculs.evaluerProcesseur(calculs.mur(dalle1G, 4, 40), dalle1G, processeurDeBase(contexte, 'coex-mx40-pro'), { frequenceHz: 60, bits: 8 });
+      v.vrai('MX40 Pro (1G) : alerte inchangée (« Ports 1G », fiche MX40 Pro V1.5.0, wiki COEX)', mx40.alertes.some((x) => x.startsWith('Ports 1G du COEX MX40 Pro') && x.includes('fiche MX40 Pro V1.5.0, wiki COEX')));
+    },
+  },
 ];
 
 // Message de l'erreur levée par `f`, ou chaîne vide.

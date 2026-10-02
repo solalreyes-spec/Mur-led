@@ -699,29 +699,51 @@ function processeurAvecCartesLED(proc, choix, dalle) {
 
 // MX2000 Pro, MX6000 Pro : processeur vu avec ses cartes de sortie. Carte des dalles 5G (CA50E, XA50 Pro…) :
 // cartes 1 × 40G et CVT8-5G ; sinon cartes 4x10G et CVT10 (carte inconnue : 4x10G, avec une alerte).
-// `choix` : 'auto', '4x10g' ou '1x40g'. Ports = emplacements × convertisseurs par carte × ports par convertisseur.
-function processeurAvecCartes(proc, dalle, choix = 'auto') {
+// `choix` : 'auto', '4x10g', '1x40g' ou '8x5g-base-t' (MX6000 Pro seulement, manuel V1.5.1 : 8 ports 5G en cuivre,
+// en direct, sans CVT8-5G ; plafond de la carte selon la profondeur, fixe hors 60 Hz, déduit).
+// Ports = emplacements × ports d'une carte (convertisseurs par carte × ports par convertisseur, ou ports en direct).
+function processeurAvecCartes(proc, dalle, choix = 'auto', { bits = BIT_DEPTH_PAR_DEFAUT[proc.famille], frequenceHz = 60 } = {}) {
   const c1 = proc.carteSortie1G ?? null;
   const c5 = proc.carteSortie5G ?? null;
+  const cb = proc.carteSortie5GBaseT ?? null;
   const carteDalle = dalle.carteReceptionModele ?? null;
   const dalle5G = Boolean(carteDalle && c5?.cartesReception?.includes(carteDalle));
   let carte = dalle5G ? c5 : (c1 ?? c5);
   if (choix === '4x10g' && c1) carte = c1;
   if (choix === '1x40g' && c5) carte = c5;
-  const alerte = (!choix || choix === 'auto') && !carteDalle && c1 && c5
-    ? `Carte de réception inconnue : cartes de sortie ${c1.nomCourt} (ports 1G, CVT10) par défaut ; choisis ${c5.nomCourt} si les dalles ont des cartes 5G.`
-    : null;
-  const cle = carte === c1 ? 'carteSortie1G' : 'carteSortie5G';
+  if (choix === '8x5g-base-t' && cb) carte = cb;
+  const alertes = [];
+  if ((!choix || choix === 'auto') && !carteDalle && c1 && c5) {
+    alertes.push(`Carte de réception inconnue : cartes de sortie ${c1.nomCourt} (ports 1G, CVT10) par défaut ; choisis ${c5.nomCourt} si les dalles ont des cartes 5G.`);
+  }
+  if (choix === '8x5g-base-t' && !cb) {
+    alertes.push(`Carte MX_8×5G_Base-T : non confirmée sur le ${proc.modele} (sa page officielle ne liste que la MX_4x10G), à vérifier ; carte ${carte.nomCourt} retenue.`);
+  }
+  const cle = { [c1?.id]: 'carteSortie1G', [c5?.id]: 'carteSortie5G', [cb?.id]: 'carteSortie5GBaseT' }[carte.id];
+  const portsParCarte = carte.ports ?? carte.convertisseursParCarte * carte.portsParConvertisseur;
   const effectif = {
     ...proc,
     sources: { ...proc.sources, ports: proc.sources?.[cle], sortiesParDistributeur: proc.sources?.[cle] },
-    ports: proc.emplacementsSortie * carte.convertisseursParCarte * carte.portsParConvertisseur,
+    ports: proc.emplacementsSortie * portsParCarte,
     typePorts: carte.typePorts,
-    distributeur: carte.convertisseur,
-    sortiesParDistributeur: carte.portsParConvertisseur,
-    distributeurObligatoire: true,
+    distributeur: carte.convertisseur ?? undefined,
+    sortiesParDistributeur: carte.convertisseur ? carte.portsParConvertisseur : undefined,
+    distributeurObligatoire: Boolean(carte.convertisseur),
     carteSortie: carte,
   };
+  // Plafond d'une carte (manuel MX6000 Pro V1.5.1) : MX_4x10G 17 694 720 px en 8 et 10 bits, 13 194 440 en 12 bits ;
+  // 1 × 40G et 8×5G Base-T 17 694 720 et 11 804 800 ; MX2000 Pro, mêmes cartes (déduit). Hors 60 Hz, la capacité
+  // d'un port suit la fréquence mais le plafond reste fixe (déduit).
+  const notes = [];
+  const cleCarte = carte.pixelsMaxCarte ? cle : (carte === c1 ? 'pixelsMaxCarte1G' : 'pixelsMaxCarte5G');
+  const plafondCarte = (carte.pixelsMaxCarte ?? proc[cleCarte])?.[bits];
+  if (plafondCarte) {
+    const s = proc.sources?.[cleCarte];
+    const origine = [minuscule(s?.source.court), s?.note?.split(' :')[0]].filter(Boolean).join(', ') || 'fiche';
+    notes.push(`Carte ${carte.nom} : ${nombreCourt(plafondCarte)} px au plus par carte en ${bits} bits (${origine})`
+      + `${Math.abs(frequenceHz - 60) > EPS ? `, valeur à 60 Hz gardée à ${nombreCourt(frequenceHz)} Hz : déduit` : ''}.`);
+  }
+  if (plafondCarte) effectif.carteSortie = { ...effectif.carteSortie, pixelsMax: plafondCarte, portsParCarte };
   // MX6000 Pro : zone de 16 384 px par carte de sortie ; l'appareil, ses cartes côte à côte (déduit).
   const zone = proc.zoneCarteSortiePx;
   if (zone) {
@@ -729,7 +751,7 @@ function processeurAvecCartes(proc, dalle, choix = 'auto') {
     const coteACote = (note) => ({
       ...source, source: { ...source?.source, court: `${source?.source.court ?? 'fiche'}, déduit : cartes côte à côte`, confiance: 'déduit' }, note,
     });
-    effectif.carteSortie = { ...carte, portsParCarte: carte.convertisseursParCarte * carte.portsParConvertisseur, largeurMaxPx: zone, hauteurMaxPx: zone };
+    effectif.carteSortie = { ...carte, portsParCarte, largeurMaxPx: zone, hauteurMaxPx: zone, ...(plafondCarte ? { pixelsMax: plafondCarte } : {}) };
     effectif.largeurMaxPx = proc.emplacementsSortie * zone;
     effectif.hauteurMaxPx = proc.emplacementsSortie * zone;
     effectif.sources.largeurMaxPx = coteACote(`${proc.emplacementsSortie} cartes de ${zone} px de large`);
@@ -745,10 +767,14 @@ function processeurAvecCartes(proc, dalle, choix = 'auto') {
       effectif.sources[`capaciteHaute60Hz${b}bits`] = proc.sources?.[`capacite5GHaute60Hz${b}bits`];
     }
     effectif.cartesCapaciteHaute = proc.cartes5GCapaciteHaute;
-    effectif.cartesCompatibles = c5.cartesReception;
-    delete effectif.largeurChargeeMinPx;
+    effectif.cartesCompatibles = carte.cartesReception ?? c5.cartesReception;
+    // Règle des 128 px sur les ports 5G : manuel MX6000 Pro V1.5.1 (p. 49) ; MX2000 Pro par analogie (déduit).
+    if (proc.largeurChargeeMinPx5G) {
+      effectif.largeurChargeeMinPx = proc.largeurChargeeMinPx5G;
+      effectif.sources.largeurChargeeMinPx = proc.sources?.largeurChargeeMinPx5G;
+    } else delete effectif.largeurChargeeMinPx;
   }
-  return { proc: effectif, alerte };
+  return { proc: effectif, alerte: alertes, notes };
 }
 
 // Carte de réception connue de la base : les dimensions de la dalle face à la capacité d'une carte à la profondeur
@@ -1114,10 +1140,12 @@ function sousMur(m, dalle, colonnes, premiereRangee, nbRangees) {
 }
 
 // Cartes de sortie pour un nombre de ports : par ports d'une carte (série H), sinon par convertisseurs (MX2000 Pro, MX6000 Pro).
-function cartesPour(proc, ports) {
+// Cartes de sortie d'un bloc sans zones (MX2000 Pro) : par les ports, et par le plafond d'une carte quand il est connu.
+function cartesPour(proc, ports, px = 0) {
   const carte = proc.carteSortie;
-  if (carte.portsParCarte) return Math.ceil(ports / carte.portsParCarte);
-  return Math.ceil(Math.ceil(ports / proc.sortiesParDistributeur) / carte.convertisseursParCarte);
+  const parPixels = carte.pixelsMax ? Math.ceil(px / carte.pixelsMax - EPS) : 0;
+  if (carte.portsParCarte) return Math.max(Math.ceil(ports / carte.portsParCarte), parPixels);
+  return Math.max(Math.ceil(Math.ceil(ports / proc.sortiesParDistributeur) / carte.convertisseursParCarte), parPixels);
 }
 
 // Cartes de sortie d'un bloc quand chaque carte a sa zone (série H, X100 Pro, Z8t) : les ports, dans l'ordre du
@@ -1125,6 +1153,63 @@ function cartesPour(proc, ports) {
 // zone qu'elle charge reste dans sa largeur et sa hauteur maxi ; sinon sur la carte suivante. En redondance sans
 // secours dédiés, les secours occupent la moitié des ports d'une carte. Renvoie le nombre de ports principaux de
 // chaque carte (les convertisseurs se comptent carte par carte), ou null si un port seul dépasse une carte.
+// Ports répartis sur les cartes de sortie, dans l'ordre du câblage : chaque carte prend des ports qui se suivent.
+// D'abord le moins de cartes (chaque carte prend autant de ports qu'elle peut) ; puis, quand `sorties` est donné
+// (MX2000 Pro, MX6000 Pro : CVT10 de 10 ports), la répartition au même nombre de cartes qui demande le moins de
+// convertisseurs, comptés carte par carte (groupes complets d'abord, à égalité les premières cartes les plus pleines).
+// `zones` : une zone par port ; `fusion(a, b)` : la zone qui contient a et b ; `tient(z, n)` : n ports de zone z sur une
+// carte. Renvoie le nombre de ports de chaque carte, ou null si un port seul ne tient pas sur une carte.
+function repartirSurCartes(zones, fusion, tient, { sorties = null, facteur = 1 } = {}) {
+  const cartes = [];
+  let zone = null;
+  for (const z of zones) {
+    const essai = zone && fusion(zone, z);
+    if (essai && tient(essai, cartes[cartes.length - 1] + 1)) {
+      zone = essai;
+      cartes[cartes.length - 1] += 1;
+    } else {
+      if (!tient(z, 1)) return null;
+      zone = z;
+      cartes.push(1);
+    }
+  }
+  if (!sorties || cartes.length < 2) return cartes;
+  // Plus longue suite de ports qui tient sur une carte à partir de chaque port (les limites ne font que croître).
+  const n = zones.length;
+  const longueur = zones.map((z, a) => {
+    let b = a + 1;
+    for (let union = z; b < n; b += 1) {
+      const essai = fusion(union, zones[b]);
+      if (!tient(essai, b - a + 1)) break;
+      union = essai;
+    }
+    return b - a;
+  });
+  const k = cartes.length;
+  const cout = Array.from({ length: k + 1 }, () => new Array(n + 1).fill(Infinity));
+  const choix = Array.from({ length: k + 1 }, () => new Array(n + 1).fill(null));
+  cout[0][n] = 0;
+  for (let j = 1; j <= k; j += 1) {
+    for (let a = n - 1; a >= 0; a -= 1) {
+      for (let b = a + longueur[a]; b > a; b -= 1) {
+        const total = Math.ceil((facteur * (b - a)) / sorties) + cout[j - 1][b];
+        if (total < cout[j][a]) {
+          cout[j][a] = total;
+          choix[j][a] = b;
+        }
+      }
+    }
+  }
+  if (!Number.isFinite(cout[k][0])) return cartes;
+  const repartition = [];
+  for (let j = k, a = 0; j >= 1; j -= 1) {
+    const b = choix[j][a];
+    repartition.push(b - a);
+    a = b;
+  }
+  return repartition;
+}
+
 function cartesParZones(proc, sous, c, dalle, { redondance = false } = {}) {
   const carte = proc.carteSortie;
   const hauteurs = sous.rangees.map((t) => (t === 'demi' ? sous.demi.pxV : dalle.pxV));
@@ -1144,25 +1229,18 @@ function cartesParZones(proc, sous, c, dalle, { redondance = false } = {}) {
     }
   }
   const parCarte = redondance && !proc.portsRedondance ? Math.floor(carte.portsParCarte / 2) : carte.portsParCarte;
-  const tient = (z) => z.n <= parCarte && z.px <= (carte.pixelsMax ?? Infinity)
-    && (z.c1 - z.c0 + 1) * dalle.pxH <= carte.largeurMaxPx && somme(hauteurs, z.r0, z.r1) <= carte.hauteurMaxPx;
-  const cartes = [];
-  let zone = null;
-  for (const p of ports) {
-    const px = (p.c1 - p.c0 + 1) * somme(pxRangees, p.r0, p.r1);
-    const essai = zone && {
-      c0: Math.min(zone.c0, p.c0), c1: Math.max(zone.c1, p.c1), r0: Math.min(zone.r0, p.r0), r1: Math.max(zone.r1, p.r1), n: zone.n + 1, px: zone.px + px,
-    };
-    if (essai && tient(essai)) {
-      zone = essai;
-      cartes[cartes.length - 1] = zone.n;
-    } else {
-      zone = { ...p, n: 1, px };
-      if (!tient(zone)) return null;
-      cartes.push(1);
-    }
-  }
-  return cartes;
+  // MX2000 Pro : pas de zone par carte, seulement ses ports et son plafond.
+  const tient = (z, n) => n <= parCarte && z.px <= (carte.pixelsMax ?? Infinity)
+    && (z.c1 - z.c0 + 1) * dalle.pxH <= (carte.largeurMaxPx ?? Infinity) && somme(hauteurs, z.r0, z.r1) <= (carte.hauteurMaxPx ?? Infinity);
+  const zones = ports.map((p) => ({ ...p, px: (p.c1 - p.c0 + 1) * somme(pxRangees, p.r0, p.r1) }));
+  const fusion = (a, b) => ({ c0: Math.min(a.c0, b.c0), c1: Math.max(a.c1, b.c1), r0: Math.min(a.r0, b.r0), r1: Math.max(a.r1, b.r1), px: a.px + b.px });
+  return repartirSurCartes(zones, fusion, tient, optionsConvertisseurs(proc, redondance));
+}
+
+// MX2000 Pro et MX6000 Pro : CVT10 comptés carte par carte, avec la répartition qui en demande le moins.
+function optionsConvertisseurs(proc, redondance) {
+  if (!(proc.carteSortie1G || proc.carteSortie5G) || !proc.sortiesParDistributeur) return {};
+  return { sorties: proc.sortiesParDistributeur, facteur: redondance && !proc.portsRedondance ? 2 : 1 };
 }
 
 function blocProcesseur(m, dalle, proc, contexte, { colonnes, premiereColonne, rangees, premiereRangee }) {
@@ -1175,7 +1253,7 @@ function blocProcesseur(m, dalle, proc, contexte, { colonnes, premiereColonne, r
   const xPx = (premiereColonne - 1) * dalle.pxH;
   const yPx = premiereRangee > 1 ? sousMur(m, dalle, 1, 1, premiereRangee - 1).pxHauteur : 0;
   // Série H, X100 Pro, Z8t : cartes comptées par zones, convertisseurs carte par carte.
-  const parZones = proc.carteSortie?.largeurMaxPx ? {
+  const parZones = proc.carteSortie?.largeurMaxPx || proc.carteSortie?.pixelsMax ? {
     colonnes: cartesParZones(proc, sous, c, dalle),
     redondance: cartesParZones(proc, sous, c, dalle, { redondance: true }),
   } : null;
@@ -1212,8 +1290,8 @@ function blocProcesseur(m, dalle, proc, contexte, { colonnes, premiereColonne, r
     } : null,
     // MX2000 Pro, MX6000 Pro : cartes de sortie qui portent ces convertisseurs ; série H : ports par carte.
     cartesSortie: zones ?? (proc.carteSortie ? {
-      colonnes: cartesPour(proc, c.colonnes.ports),
-      redondance: cartesPour(proc, proc.portsRedondance ? c.colonnes.ports : 2 * c.colonnes.ports),
+      colonnes: cartesPour(proc, c.colonnes.ports, sous.pxTotal),
+      redondance: cartesPour(proc, proc.portsRedondance ? c.colonnes.ports : 2 * c.colonnes.ports, sous.pxTotal),
     } : null),
     chargeMax: chargePx(c.colonnes.pxMaxParPort, contexte.capacite),
     ok,
@@ -1458,7 +1536,9 @@ function notesDistributeur(d, proc) {
 // Réglages : frequenceHz, bits, ull (Brompton), cartesPro et modeOptique (MX40 Pro), redondance.
 export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   // MX2000 Pro, MX6000 Pro : ports, convertisseurs et capacité selon la carte de sortie retenue.
-  let avecCartes = procFiche.carteSortie1G || procFiche.carteSortie5G ? processeurAvecCartes(procFiche, dalle, reglages.carteSortie) : null;
+  let avecCartes = procFiche.carteSortie1G || procFiche.carteSortie5G
+    ? processeurAvecCartes(procFiche, dalle, reglages.carteSortie, { bits: reglages.bits ?? BIT_DEPTH_PAR_DEFAUT[procFiche.famille], frequenceHz: reglages.frequenceHz ?? 60 })
+    : null;
   if (procFiche.cartesSortieLED?.length && procFiche.emplacementsSortie > 0) avecCartes = processeurAvecCartesLED(procFiche, reglages.carteSortie, dalle);
   let proc = avecCartes?.proc ?? procFiche;
   const {
@@ -1582,7 +1662,7 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   // Informations sans alerte (Colorlight : règle des 1280 px de la fiche S20 sur un autre modèle).
   const notes = [];
   if (noteCapacite) notes.push(noteCapacite);
-  notes.push(...(megapixel?.notes ?? []));
+  notes.push(...(megapixel?.notes ?? []), ...(avecCartes?.notes ?? []));
   if (proc.famille === 'megapixel' && redondance) {
     alertes.push('Redondance Megapixel (SeamlessLoop) : non modélisée par l\'appli ; ports doublés par prudence, vérifie la configuration dans HELIOS.');
   }
@@ -1676,10 +1756,15 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     const largeur = (col.colonnesParPort ?? 1) * dalle.pxH;
     const hauteur = col.colonnesParPort ? m.pxHauteur : Math.max(...col.segments) * dalle.pxV;
     if (largeur < lmin) {
-      alertes.push(`Ports 1G du ${proc.nom} : un port charge ${nombreCourt(largeur)} px de large, moins de ${lmin} px ; sa capacité baisse de `
+      // Ports 5G : manuel MX6000 Pro V1.5.1 (p. 49), ou la même règle par analogie (CX40 Pro, MX2000 Pro).
+      const s = proc.sources?.largeurChargeeMinPx;
+      const deduit = /déduit/.test(s?.source.confiance ?? '');
+      let origine = deduit ? 'règle de la fiche MX40 Pro, appliquée par analogie : déduit' : 'fiche MX40 Pro V1.5.0, wiki COEX';
+      if (proc.typePorts === '5G') origine = deduit ? 'règle du manuel MX6000 Pro V1.5.1, p. 49, pour les ports 5G, appliquée par analogie : déduit'
+        : `${minuscule(s?.source.court) ?? 'fiche'}${s?.note ? `, ${s.note}` : ''}`;
+      alertes.push(`Ports ${proc.typePorts === '5G' ? '5G' : '1G'} du ${proc.nom} : un port charge ${nombreCourt(largeur)} px de large, moins de ${lmin} px ; sa capacité baisse de `
         + `(${lmin} − ${nombreCourt(largeur)}) × ${nombreCourt(hauteur)} = ${nombreCourt(penaliteLargeurChargee(largeur, hauteur, lmin))} px `
-        + `(${/déduit/.test(proc.sources?.largeurChargeeMinPx?.source.confiance ?? '')
-          ? 'règle de la fiche MX40 Pro, appliquée par analogie : déduit' : 'fiche MX40 Pro V1.5.0, wiki COEX'}). Colonnes comptées en conséquence.`);
+        + `(${origine}). Colonnes comptées en conséquence.`);
     }
   }
   // Colorlight : zone d'un port limitée en largeur et en hauteur ; alerte chiffrée quand la limite coûte des ports.
@@ -3168,7 +3253,10 @@ const LIMITE_CUIVRE_M = 100;
 // Câble des ports 5G (CX40 Pro, CVT8-5G) : le Cat6A du wiki COEX, le plus exigeant ; 100 m de la fiche CVT8-5G.
 const TEXTE_CABLE_5G = 'Cat6A obligatoire (wiki COEX) ; 100 m au plus (fiche CVT8-5G V1.1.0, copie non officielle, qui accepte le Cat6 jusqu\'à 100 m)';
 // Colorlight 5G : câble blindé Cat6 ou mieux, longueur de la fiche (80 m sur les fiches Z3 et Z8t, déduit ailleurs).
+// Carte MX_8×5G_Base-T : ports 5G en cuivre en direct, longueur maxi non publiée par Novastar ; seuil de 100 m de la norme.
+const TEXTE_CABLE_5G_BASE_T = 'Cat6A obligatoire (wiki COEX) ; longueur maxi non publiée pour la carte MX_8×5G_Base-T (seuil de 100 m : norme 5GBASE-T, IEEE 802.3bz)';
 export function texteCable5G(proc) {
+  if (proc.carteSortie?.longueurCableNonPubliee) return TEXTE_CABLE_5G_BASE_T;
   if (!proc.longueurCable5GM) return TEXTE_CABLE_5G;
   return `câble blindé Cat6 ou mieux, ${proc.longueurCable5GM} m au plus (${proc.sources?.longueurCable5GM?.source.court ?? 'fiche'})`;
 }
@@ -3438,31 +3526,27 @@ export function cablageData(m, dalle, evaluation, {
   };
   const numerotationParCartes = (groupes) => {
     const carte = proc.carteSortie;
-    if (!surDistributeur || !carte?.largeurMaxPx) return null;
+    if (!surDistributeur || !(carte?.largeurMaxPx || carte?.pixelsMax)) return null;
     const parCarte = redondance && !proc.portsRedondance ? Math.floor(carte.portsParCarte / 2) : carte.portsParCarte;
-    const tient = (z) => z.n <= parCarte && z.px <= (carte.pixelsMax ?? Infinity) + EPS
-      && z.x1 - z.x0 <= carte.largeurMaxPx && z.y1 - z.y0 <= carte.hauteurMaxPx;
-    const resultat = [];
-    let zone = null;
-    let avant = 0;
-    for (const grp of groupes) {
+    const tient = (z, n) => n <= parCarte && z.px <= (carte.pixelsMax ?? Infinity) + EPS
+      && z.x1 - z.x0 <= (carte.largeurMaxPx ?? Infinity) && z.y1 - z.y0 <= (carte.hauteurMaxPx ?? Infinity);
+    const zones = groupes.map((grp) => {
       const t = grp.map(tuile);
-      const p = {
+      return {
         x0: Math.min(...t.map((d) => d.px.x)), x1: Math.max(...t.map((d) => d.px.x + d.px.largeur)),
         y0: Math.min(...t.map((d) => d.px.y)), y1: Math.max(...t.map((d) => d.px.y + d.px.hauteur)),
         px: grp.reduce((somme, q) => somme + poids(q), 0),
       };
-      const essai = zone && {
-        x0: Math.min(zone.x0, p.x0), x1: Math.max(zone.x1, p.x1), y0: Math.min(zone.y0, p.y0), y1: Math.max(zone.y1, p.y1), n: zone.n + 1, px: zone.px + p.px,
-      };
-      if (essai && tient(essai)) {
-        zone = essai;
-      } else {
-        if (zone) avant += Math.ceil(zone.n / sorties);
-        zone = { ...p, n: 1 };
-      }
-      const k = zone.n - 1;
-      resultat.push({ conv: avant + Math.floor(k / sorties) + 1, port: (k % sorties) + 1 });
+    });
+    const fusion = (a, b) => ({ x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), y0: Math.min(a.y0, b.y0), y1: Math.max(a.y1, b.y1), px: a.px + b.px });
+    const cartes = repartirSurCartes(zones, fusion, tient, optionsConvertisseurs(proc, redondance));
+    if (!cartes) return null;
+    // Convertisseurs numérotés carte par carte, dans l'ordre des ports.
+    const resultat = [];
+    let avant = 0;
+    for (const nCarte of cartes) {
+      for (let k = 0; k < nCarte; k += 1) resultat.push({ conv: avant + Math.floor(k / sorties) + 1, port: (k % sorties) + 1 });
+      avant += Math.ceil(nCarte / sorties);
     }
     return resultat;
   };

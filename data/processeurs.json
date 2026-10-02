@@ -1592,6 +1592,27 @@
       "date": "2026-09-27",
       "url": "https://www.colorlitled.com/mooncell-software-download/",
       "confiance": "tiers"
+    },
+    "coex-mx6000-pro-manuel-v1-5-1": {
+      "titre": "Manuel utilisateur COEX MX6000 Pro (« MX6000 Pro LED Display Controller User Manual ») V1.5.1 du 30/04/2026 : carte de sortie MX_8×5G_Base-T, p. 16 (8 ports 5G Base-T ; par port à 60 Hz, 2 951 200 px en 8 bits, 2 291 312 en 10 bits, 1 475 600 en 12 bits ; par carte, 17 694 720 px en 8 et 10 bits, 11 804 800 en 12 bits ; 16 384 px de large ou de haut) ; capacité 5G avec les cartes XA50 Pro et CA50E, p. 48",
+      "court": "Manuel MX6000 Pro V1.5.1",
+      "date": "2026-04-30",
+      "url": "https://en-website001.oss-us-east-1.aliyuncs.com/Specification/MX6000%20Pro%20LED%20Display%20Controller%20User%20Manual-V1.5.1.pdf",
+      "confiance": "constructeur"
+    },
+    "coex-cartes-sortie-analogie": {
+      "titre": "Déduit : le MX2000 Pro prend les mêmes cartes MX_4x10G et 1 × 40G que le MX6000 Pro ; plafond par carte du manuel MX6000 Pro V1.5.1 (30/04/2026, p. 15 et 16), cohérent avec les 35,38 M px du MX2000 Pro (2 × 17 694 720)",
+      "court": "Déduit : mêmes cartes que le MX6000 Pro",
+      "date": "2026-10-02",
+      "url": null,
+      "confiance": "déduit"
+    },
+    "coex-largeur-chargee-5g-analogie": {
+      "titre": "Règle des 128 px de largeur chargée sur les ports 5G, par analogie avec le manuel MX6000 Pro V1.5.1 (30/04/2026, p. 49) ; prudente : elle ne peut que réduire la capacité",
+      "court": "Déduit du manuel MX6000 Pro V1.5.1",
+      "date": "2026-10-02",
+      "url": null,
+      "confiance": "déduit"
     }
   },
   "distributeurs": [
@@ -6805,7 +6826,6 @@
       },
       "latence": "1 trame en mode tout-en-un",
       "logiciel": "VMP",
-      "note": "6 sorties 5G et fibre 40G. 16 384 px de large ou de haut, dans la limite de 9 M px. Cartes de réception 5G seulement. Capacité par port selon la carte : XA50 Pro ou CA50E (fiche V1.5.0) ; CA50C, XA50 ou carte inconnue, la plus basse des fiches V1.0.1 et V1.5.0.",
       "latenceMinImages": {
         "valeur": 0,
         "source": "coex-cx40-pro-v1-5-0",
@@ -6820,7 +6840,13 @@
         "valeur": "actuel",
         "source": "coex-wiki-product-menu",
         "note": "listé au Product Menu du wiki COEX"
-      }
+      },
+      "largeurChargeeMinPx": {
+        "valeur": 128,
+        "source": "coex-largeur-chargee-5g-analogie",
+        "note": "par analogie"
+      },
+      "note": "6 sorties 5G et fibre 40G. 16 384 px de large ou de haut, dans la limite de 9 M px. Cartes de réception 5G seulement. Capacité par port selon la carte : XA50 Pro ou CA50E (fiche V1.5.0) ; CA50C, XA50 ou carte inconnue, la plus basse des fiches V1.0.1 et V1.5.0."
     },
     {
       "id": "coex-ku20",
@@ -6973,6 +6999,29 @@
         },
         "source": "coex-wiki-mx2000-pro"
       },
+      "pixelsMaxCarte1G": {
+        "valeur": {
+          "8": 17694720,
+          "10": 17694720,
+          "12": 13194440
+        },
+        "source": "coex-cartes-sortie-analogie",
+        "note": "manuel MX6000 Pro V1.5.1, p. 15"
+      },
+      "pixelsMaxCarte5G": {
+        "valeur": {
+          "8": 17694720,
+          "10": 17694720,
+          "12": 11804800
+        },
+        "source": "coex-cartes-sortie-analogie",
+        "note": "manuel MX6000 Pro V1.5.1, p. 16"
+      },
+      "largeurChargeeMinPx5G": {
+        "valeur": 128,
+        "source": "coex-largeur-chargee-5g-analogie",
+        "note": "par analogie"
+      },
       "capacite5G60Hz8bits": {
         "valeur": 2592000,
         "source": "coex-regle-5g"
@@ -7079,7 +7128,7 @@
         "source": "coex-mx2000-pro-v1-1-1"
       },
       "latence": "0 trame",
-      "note": "2 emplacements de sortie : carte MX_4x10G_Fiber (4 × 10G, chacun vers un CVT10 ou CVT10 Pro, 10 ports 1G), ou carte 1 × 40G vers un CVT8-5G (8 ports 5G), citée par le wiki COEX. 8192 px de large ou de haut sur la fiche : peut être une limite par entrée comme sur le MX6000 Pro, à confirmer.",
+      "note": "2 emplacements de sortie : carte MX_4x10G_Fiber (4 × 10G, chacun vers un CVT10 ou CVT10 Pro, 10 ports 1G), ou carte 1 × 40G vers un CVT8-5G (8 ports 5G), citée par le wiki COEX. 8192 px de large ou de haut sur la fiche : peut être une limite par entrée comme sur le MX6000 Pro, à confirmer. Carte MX_8×5G_Base-T : non confirmée sur le MX2000 Pro (sa page officielle ne liste que la MX_4x10G ; la liste d'un revendeur qui la cite aussi pour des processeurs sans emplacement de carte n'est pas fiable), à vérifier.",
       "latenceMinImages": {
         "valeur": 0,
         "source": "coex-mx2000-pro-v1-1-1",
@@ -7180,6 +7229,52 @@
           ]
         },
         "source": "coex-mx6000-pro-v1-5-0"
+      },
+      "carteSortie5GBaseT": {
+        "valeur": {
+          "id": "8x5g-base-t",
+          "nom": "MX_8×5G_Base-T",
+          "nomCourt": "8×5G Base-T",
+          "typePorts": "5G",
+          "ports": 8,
+          "cartesReception": [
+            "CA50E",
+            "CA50C",
+            "XA50",
+            "XA50 Pro"
+          ],
+          "pixelsMaxCarte": {
+            "8": 17694720,
+            "10": 17694720,
+            "12": 11804800
+          },
+          "longueurCableNonPubliee": true
+        },
+        "source": "coex-mx6000-pro-manuel-v1-5-1",
+        "note": "p. 16 : 8 ports 5G Base-T (RJ45) en direct vers les dalles, sans CVT8-5G ; plafond de la carte : 8192 × 2160 = 17 694 720 px en 8 et 10 bits, 8 × 1 475 600 = 11 804 800 px en 12 bits"
+      },
+      "pixelsMaxCarte1G": {
+        "valeur": {
+          "8": 17694720,
+          "10": 17694720,
+          "12": 13194440
+        },
+        "source": "coex-mx6000-pro-manuel-v1-5-1",
+        "note": "p. 15"
+      },
+      "pixelsMaxCarte5G": {
+        "valeur": {
+          "8": 17694720,
+          "10": 17694720,
+          "12": 11804800
+        },
+        "source": "coex-mx6000-pro-manuel-v1-5-1",
+        "note": "p. 16"
+      },
+      "largeurChargeeMinPx5G": {
+        "valeur": 128,
+        "source": "coex-mx6000-pro-manuel-v1-5-1",
+        "note": "p. 49"
       },
       "capacite5G60Hz8bits": {
         "valeurs": [
@@ -7330,7 +7425,7 @@
         "source": "coex-mx6000-pro-v1-5-0"
       },
       "latence": "0 trame",
-      "note": "8 emplacements de sortie : carte MX_4x10G_Fiber (4 × 10G, chacun vers un CVT10 ou CVT10 Pro, 10 ports 1G) ou CX_1x40G_Fiber (vers un CVT8-5G, 8 ports 5G). 16 384 px de large ou de haut par carte de sortie, 141 M px en tout ; 8192 px maxi par entrée : au-delà, plusieurs sources. Poids de 31 kg sans cartes.",
+      "note": "8 emplacements de sortie : carte MX_4x10G_Fiber (4 × 10G, chacun vers un CVT10 ou CVT10 Pro, 10 ports 1G) ou CX_1x40G_Fiber (vers un CVT8-5G, 8 ports 5G), ou MX_8×5G_Base-T (8 ports 5G en cuivre, en direct, manuel V1.5.1). 16 384 px de large ou de haut par carte de sortie, 141 M px en tout ; 8192 px maxi par entrée : au-delà, plusieurs sources. Poids de 31 kg sans cartes.",
       "latenceMinImages": {
         "valeur": 0,
         "source": "coex-mx6000-pro-v1-1-1",

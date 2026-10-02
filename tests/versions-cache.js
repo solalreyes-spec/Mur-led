@@ -7,4 +7,5 @@ export const VERSIONS_CACHE = [
   { version: 5, empreinte: '24c7f4a394ea4e6ed6883c2ccc067f0797715d96c61567aacbd468dd2ef23791', date: '2026-09-26', note: 'Processeurs : Novastar relevés, choix du processeur, fiches PDF relues, Colorlight' },
   { version: 6, empreinte: '33f6d08ee3b133221328604eae661cece8c93bf7c7c1e831f50d5b0a0937dc45', date: '2026-09-26', note: 'Amont et aval : fréquence pixel, budgets des régies, chaîne, régies, mélangeurs, convertisseurs, serveurs, HDBaseT' },
   { version: 7, empreinte: 'e1c555deebcd61312f404c0bb5a6faa093bd3057a0b61c7511b212f360bbe465', date: '2026-10-02', note: 'Processeurs : Brompton relu (XD-T, XD-S, HFR, ULL, R2), Megapixel HELIOS et switches, Linsn, Kystar, Mooncell' },
+  { version: 8, empreinte: 'a37a68ebc691e00016c644c6a73b2d97338bb4a78036cb1e34d566d977326753', date: '2026-10-02', note: 'COEX : carte MX_8×5G_Base-T, plafond par carte de sortie, CVT10 comptés carte par carte, règle des 128 px en 5G' },
 ];

@@ -1502,5 +1502,25 @@ export const DONNEES = [
       const sources = [...new Set(ids.flatMap((id) => Object.values(brute(id)).flatMap((x) => (x && typeof x === 'object' && !Array.isArray(x) ? (x.valeurs ?? [x]).map((y) => y.source) : [])).filter(Boolean)))];
       v.egal('sources : toutes connues, avec date ; adresse sauf règles déduites ou choix de conception', sources.filter((id) => !bp.sources[id] || !bp.sources[id].date || (!bp.sources[id].url && !/déduit|choix de conception/.test(bp.sources[id].confiance))), []);
     },
+  },  {
+    id: 'D50',
+    titre: 'Carte de sortie COEX MX_8×5G_Base-T du MX6000 Pro (manuel utilisateur V1.5.1 du 30/04/2026, p. 16) : 8 ports 5G Base-T en direct, sans convertisseur ; 2 951 200, 2 291 312 et 1 475 600 px par port à 60 Hz ; 17 694 720 px par carte en 8 et 10 bits, 11 804 800 en 12 bits ; cartes de réception 5G ; jamais sur le MX2000 Pro (non confirmée, à vérifier)',
+    etape: 'processeurs',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const p = (id) => calculs.resoudreFiche(bp.processeurs.find((x) => x.id === id), bp.sources);
+      const mx6000 = p('coex-mx6000-pro');
+      const c = mx6000.carteSortie5GBaseT;
+      v.egal('MX6000 Pro : carte MX_8×5G_Base-T, 8 ports 5G, sans convertisseur', [c?.id, c?.nom, c?.typePorts, c?.ports, c?.convertisseur ?? null], ['8x5g-base-t', 'MX_8×5G_Base-T', '5G', 8, null]);
+      v.egal('plafond d\'une carte : 17 694 720 px en 8 et 10 bits, 11 804 800 en 12 bits', [c?.pixelsMaxCarte?.[8], c?.pixelsMaxCarte?.[10], c?.pixelsMaxCarte?.[12]], [17694720, 17694720, 11804800]);
+      v.egal('cohérence : 8 cartes × plafond de la fiche de la carte = 141,6 M, pour 141 M annoncés', [mx6000.emplacementsSortie * c?.pixelsMaxCarte?.[8], mx6000.pixelsMax], [141557760, 141000000]);
+      v.egal('cartes de réception 5G seulement', c?.cartesReception, ['CA50E', 'CA50C', 'XA50', 'XA50 Pro']);
+      v.egal('câble : longueur maxi non publiée', c?.longueurCableNonPubliee, true);
+      const s = mx6000.sources.carteSortie5GBaseT?.source;
+      v.egal('source : manuel V1.5.1 du 30/04/2026, p. 16, constructeur, avec son adresse', [s?.id, s?.date, s?.confiance, /MX6000%20Pro%20LED%20Display%20Controller%20User%20Manual-V1\.5\.1\.pdf$/.test(s?.url ?? ''), /p\. 16/.test(s?.titre ?? '')],
+        ['coex-mx6000-pro-manuel-v1-5-1', '2026-04-30', 'constructeur', true, true]);
+      const mx2000 = p('coex-mx2000-pro');
+      v.egal('MX2000 Pro : pas de carte MX_8×5G_Base-T, point « à vérifier » dans sa note', [mx2000.carteSortie5GBaseT, /MX_8×5G_Base-T/.test(mx2000.note ?? '') && /à vérifier/.test(mx2000.note ?? '')], [undefined, true]);
+    },
   },
 ];
