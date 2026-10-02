@@ -3,8 +3,9 @@
 
 import {
   evaluerProcesseur, evaluerToutesMarques, processeurConseille, entierInferieur,
-  BIT_DEPTH_PAR_DEFAUT, rappelTessera, gainDixBits, LIBELLES_COIN, ErreurSaisie, reseauBrompton, alternativeSX40,
+  BIT_DEPTH_PAR_DEFAUT, rappelTessera, gainDixBits, LIBELLES_COIN, ErreurSaisie, reseauBrompton, alternativeSX40, cablageData,
 } from './calculs.js';
+import { portsEnCouleurs } from './couleurs.js';
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
 import { alertesSansManques, ligneManques } from './manques.js';
@@ -108,7 +109,7 @@ function lireFormulaire() {
 // Change de marque : bit depth par défaut de la marque et réglages propres à sa famille (ULL, cartes de sortie…).
 function preparerFamille(famille, garderReglages = false) {
   if (!garderReglages) cocherBits(defautBits(famille).bits);
-  for (const bloc of formulaire.querySelectorAll('[data-famille]')) bloc.hidden = !bloc.dataset.famille.split(' ').includes(famille);
+  for (const bloc of formulaire.querySelectorAll('[data-famille]:not([data-sx40])')) bloc.hidden = !bloc.dataset.famille.split(' ').includes(famille);
   familleAffichee = famille;
 }
 
@@ -304,6 +305,20 @@ function sectionPorts(e, dalle, r) {
       g.seuil.dallesEnMoins !== null
         ? tuile('Seuil', pluriel(g.seuil.dallesEnMoins, 'dalle', 'dalles'), 'en moins évitent un port (au plus juste)')
         : null));
+}
+
+// Ports du câblage retenu (colonnes entières, comme le Schéma), chacun avec la couleur de son trajet.
+function sectionCouleurs(ports) {
+  if (!ports.length) return null;
+  const plusieurs = new Set(ports.map((p) => p.processeur)).size > 1;
+  return el('section', { class: 'bloc-resultats' },
+    el('h4', {}, 'Ports et couleurs, comme le Schéma'),
+    el('ul', { class: 'ports-couleurs' }, ports.map((p) => el('li', {},
+      el('span', { class: 'pastille-port', style: `background: var(--${p.couleur.cle})`, 'aria-hidden': 'true' }),
+      el('span', {},
+        el('strong', {}, `${plusieurs ? `${p.modele} n° ${p.processeur}, ` : ''}${p.libelle.charAt(0).toUpperCase()}${p.libelle.slice(1)}`),
+        ` · ${p.couleur.nom}`, el('br'),
+        `${pluriel(p.dalles.length, 'dalle', 'dalles')}, de ${p.dalles[0]} à ${p.dalles[p.dalles.length - 1]}`)))));
 }
 
 function tableControles(r) {
@@ -637,12 +652,15 @@ function calculer(e) {
   }
   if (choisie.global) {
     const { colonnes } = choisie.global.chargeMax;
+    const serpentin = choisie.global.serpentin.chargeMax;
     if (choisie.global.serpentin.ecart) alertes.push(alerte(choisie.global.serpentin.ecart, 'alerte-info'));
-    for (const [charge, cablage] of [[colonnes, 'en colonnes entières'], [choisie.global.serpentin.chargeMax, 'au plus juste']]) {
-      if (charge.auDela95) {
-        alertes.push(alerte(`Câblage ${cablage} : un port est chargé à ${nombre(charge.taux * 100, 1)} %, `
-          + 'au-delà de 95 %. Garde de la marge.'));
-      }
+    // Alerte sur le câblage retenu (colonnes entières, comme le Schéma) ; la variante au plus juste n'est qu'une note.
+    if (colonnes.auDela95) {
+      alertes.push(alerte(`Câblage retenu, en colonnes entières : un port est chargé à ${nombre(colonnes.taux * 100, 1)} %, `
+        + 'au-delà de 95 %. Garde de la marge.'));
+    } else if (serpentin.auDela95) {
+      alertes.push(alerte(`Variante au plus juste, non retenue : un port y serait chargé à ${nombre(serpentin.taux * 100, 1)} %, au-delà de 95 %. `
+        + `Le câblage retenu, en colonnes entières, charge son port le plus chargé à ${nombre(colonnes.taux * 100, 1)} %.`, 'alerte-info'));
     }
   }
 
@@ -661,7 +679,18 @@ function calculer(e) {
   // Alternative « SX40 + XD » : le SX40 en demande strictement moins que le Brompton retenu.
   const dansParc = processeurs.some((p) => p.id === ficheSX40?.id);
   const alternative = alternativeSX40(mur, dalle, choisie, ficheSX40, reglages, { dansParc, nomParc });
+  // Couleurs des ports : celles du Schéma (câblage retenu en colonnes entières, même coin de départ).
+  let ports = [];
+  if (choisie.groupes?.length) {
+    try {
+      const cablage = cablageData(mur, dalle, choisie, { depart: departData });
+      ports = portsEnCouleurs(cablage.variantes.find((x) => x.mode === cablage.conseil));
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaisie)) throw erreur;
+    }
+  }
   dernier = {
+    ports,
     alternative,
     choisie, conseille: choisie === conseil, distributeur: nomDistributeur(choisie),
     distributeurFiche: distributeurs.get(choisie.processeur.distributeur) ?? null,
@@ -675,6 +704,7 @@ function calculer(e) {
     ...alertes,
     sectionAlternative(alternative, dansParc),
     choisie.global ? sectionPorts(e, dalle, choisie) : null,
+    sectionCouleurs(ports),
     sectionProcesseur(choisie, conseil),
     sectionConfigs(configs),
     sectionAutres(e, evaluations, choisie),
@@ -688,6 +718,8 @@ function mettreAJour() {
   const e = lireFormulaire();
   if (e.famille !== familleAffichee) preparerFamille(e.famille);
   const choisie = calculer(lireFormulaire());
+  // « Distributeur du SX40 » : seulement quand le processeur retenu (choisi ou conseillé) est un SX40.
+  document.getElementById('bloc-distributeur').hidden = !(e.famille === 'brompton' && choisie?.processeur?.distributeursPossibles?.length);
   surChangement({
     famille: e.famille,
     reglages: { frequenceHz: e.frequenceHz, bits: e.bits, redondance: e.redondance },

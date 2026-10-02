@@ -6,6 +6,7 @@ import * as fiches from '../src/fiches.js';
 import * as resumes from '../src/resumes.js';
 import { modeEnregistrement, choixPartageFichier } from '../src/export.js';
 import * as rappels from '../src/rappels.js';
+import * as couleurs from '../src/couleurs.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
@@ -4424,6 +4425,59 @@ export const REGLES = [
       const v1 = calculs.controleChaine({ source: { ...m('roland-v-1hd'), largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60 }, liaison: 'hdmi-2.0', longueurM: 3, convertisseurs: [] },
         { evaluation, liaisons, frequenceCalculHz: 60 });
       v.vrai('V-1HD sans cadences de sortie : message de tout le mélangeur inchangé', v1.refus.some((x) => x === 'Le Roland V-1HD ne sort qu\'en 50 ou 59,94 Hz : pas de source à 60 Hz.'));
+    },
+  },
+  {
+    id: 'R217',
+    titre: 'Alerte des 95 % (audit du 02/10/2026) : elle parle du câblage retenu, en colonnes entières ; la variante au plus juste, non retenue, n\'est plus qu\'une note qui donne aussi la charge retenue',
+    etape: 'terrain',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      const texte = (colonnes, lignes) => resumes.resumeData(calculs.evaluerProcesseur(calculs.mur(bp2, colonnes, lignes), bp2, s8, { frequenceHz: 60, bits: 12 })).split('\n');
+      const t45 = texte(4, 5);
+      v.egal('BP2 V2 4 × 5 sur S8 en 12 bits : aucune alerte sur la variante au plus juste', t45.filter((l) => /^Alerte : .*plus juste/.test(l)), []);
+      v.vrai('note : variante au plus juste non retenue, 97,4 %, câblage retenu à 88,5 %',
+        t45.includes('Note : variante au plus juste non retenue, un port y serait chargé à 97,4 % ; le câblage retenu, en colonnes entières, charge son port le plus chargé à 88,5 %'));
+      const t411 = texte(4, 11);
+      v.vrai('BP2 V2 4 × 11 (11 dalles par colonne, 97,4 %) : alerte sur le câblage retenu',
+        t411.includes('Alerte : câblage retenu en colonnes entières, un port chargé à 97,4 %, au-delà de 95 %'));
+      v.egal('4 × 11 : pas de note sur la variante au plus juste quand le câblage retenu est déjà au-delà de 95 %', t411.filter((l) => /plus juste non retenue/.test(l)), []);
+    },
+  },
+  {
+    id: 'R218',
+    titre: 'Code couleur du câblage (audit terrain, lot 2) : en data, une couleur par port (7 couleurs dans l\'ordre des ports, puis on recommence ; pas d\'orange, réservé aux retours de secours) ; en élec, la couleur de la phase (L1 marron, L2 noir avec liseré, L3 gris ; monophasé marron) et un motif par ligne d\'une même phase ; couleurs reprises dans le texte copié du Schéma et de Data, le numéro reste en tête',
+    etape: 'terrain',
+    verifier(v, contexte) {
+      v.egal('ports 1 à 8 : bleu, jaune, vert, rose, turquoise, violet, rouge, puis bleu', [0, 1, 2, 3, 4, 5, 6, 7].map((r) => couleurs.couleurPort(r)?.nom),
+        ['bleu', 'jaune', 'vert', 'rose', 'turquoise', 'violet', 'rouge', 'bleu']);
+      v.egal('clés des couleurs d\'écran : port-1 à port-7, puis port-1', [0, 6, 7].map((r) => couleurs.couleurPort(r)?.cle), ['port-1', 'port-7', 'port-1']);
+      v.vrai('pas d\'orange parmi les ports (couleur des retours de secours)', (couleurs.COULEURS_PORTS ?? [{ nom: 'orange' }]).every((c) => !/orange/.test(c.nom)));
+      const tri = couleurs.stylesLignes?.([1, 2, 3, 1, 2, 3, 1].map((phase, i) => ({ numero: i + 1, phase })), { mono: false }) ?? [];
+      v.egal('triphasé : couleur de la phase', tri.map((x) => x.nom), ['marron', 'noir', 'gris', 'marron', 'noir', 'gris', 'marron']);
+      v.egal('triphasé : motif selon le rang de la ligne dans sa phase', tri.map((x) => x.motif.id), ['plein', 'plein', 'plein', 'tirets', 'tirets', 'tirets', 'points']);
+      v.egal('L2 noir : avec liseré, les autres non', tri.map((x) => x.lisere), [false, true, false, false, true, false, false]);
+      const mono = couleurs.stylesLignes?.([{ numero: 1, phase: 1 }, { numero: 2, phase: 1 }], { mono: true }) ?? [];
+      v.egal('monophasé, 2 lignes : marron, trait plein puis tirets', mono.map((x) => [x.cle, x.nom, x.motif.nom]), [['phase-1', 'marron', 'trait plein'], ['phase-1', 'marron', 'tirets']]);
+
+      // Texte copié : mur Brompton de l'audit (4 × 5 BP2 V2 sur S8, monophasé 16 A : 2 ports, 2 lignes).
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const m = calculs.mur(bp2, 4, 5);
+      const e = calculs.evaluerProcesseur(m, bp2, processeurDeBase(contexte, 'brompton-s8'), { frequenceHz: 60, bits: 12 });
+      const data = calculs.cablageData(m, bp2, e, { depart: 'haut-gauche' });
+      const elec = calculs.cablageElec(m, bp2, calculs.electricite(m, bp2, { arrivee: { type: 'mono', intensiteA: 16 } }), { depart: 'haut-gauche' });
+      const lignes = resumes.resumeCablage({ data, elec }).split('\n');
+      v.vrai('Schéma, data : « , couleur bleu » en fin de ligne du port 1', lignes.includes('S8 n° 1, port 1 : 10 dalles de C1 R1 à C2 R1, 88,5 %, couleur bleu'));
+      v.vrai('Schéma, data : port 2 en jaune', lignes.includes('S8 n° 1, port 2 : 10 dalles de C3 R1 à C4 R1, 88,5 %, couleur jaune'));
+      v.vrai('Schéma, élec : ligne 1 marron, trait plein', lignes.includes('Ligne 1, phase mono : 10 dalles de C1 R1 à C2 R1, 1900 W, marron, trait plein'));
+      v.vrai('Schéma, élec : ligne 2 marron, tirets', lignes.includes('Ligne 2, phase mono : 10 dalles de C3 R1 à C4 R1, 1900 W, marron, tirets'));
+      const conseil = data.variantes.find((x) => x.mode === data.conseil);
+      const ports = couleurs.portsEnCouleurs?.(conseil) ?? [];
+      v.egal('ports du câblage retenu, dans l\'ordre, avec leur couleur', ports.map((p) => [p.libelle, p.couleur.nom, p.dalles.length]), [['port 1', 'bleu', 10], ['port 2', 'jaune', 10]]);
+      const texteData = resumes.resumeData(e, { ports }).split('\n');
+      v.vrai('Data, texte copié : les ports avec leur couleur', texteData.includes('S8 n° 1, port 1 : 10 dalles de C1 R1 à C2 R1, couleur bleu')
+        && texteData.includes('S8 n° 1, port 2 : 10 dalles de C3 R1 à C4 R1, couleur jaune'));
     },
   },
 ];

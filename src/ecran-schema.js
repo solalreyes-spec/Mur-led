@@ -8,7 +8,7 @@ import { resumeCablage } from './resumes.js';
 import { nombre, nombreCourt, lireNombre } from './format.js';
 import { el, svg, remplacer } from './dom.js';
 import {
-  trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT,
+  trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT, tiretsMotif,
 } from './dessin-schema.js';
 import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, telecharger, enregistrer, modeEnregistrement } from './export.js';
 
@@ -223,18 +223,34 @@ function cartesElec(t, ve) {
 
 const trait = (couleur, pointilles = false) => svg('svg', { viewBox: '0 0 26 10', 'aria-hidden': 'true' },
   svg('line', { x1: 1, y1: 5, x2: 25, y2: 5, style: `stroke: ${couleur}`, 'stroke-width': 3, 'stroke-dasharray': pointilles ? '4 3' : null }));
+// Échantillon du trait d'un port ou d'une ligne, pour sa puce : sa couleur, son motif, le liseré sous un trait noir.
+const traitTrajet = (t) => svg('svg', { viewBox: '0 0 26 10', 'aria-hidden': 'true' },
+  t.couleur?.lisere ? svg('line', { x1: 2, y1: 5, x2: 24, y2: 5, style: `stroke: ${PALETTE_ECRAN.lisere}`, 'stroke-width': 6, 'stroke-linecap': 'round' }) : null,
+  svg('line', {
+    x1: 2, y1: 5, x2: 24, y2: 5, style: `stroke: ${t.couleur ? PALETTE_ECRAN.trace(t.couleur) : PALETTE_ECRAN.principal}`, 'stroke-width': 3,
+    'stroke-linecap': 'round', 'stroke-dasharray': t.couleur ? tiretsMotif(t.couleur.motif, 3) : null,
+  }));
 
 function legende(trajets) {
   if (trajets.length === 0) return null;
   const groupes = [...new Set(trajets.map((t) => t.groupe))];
+  // Titre de chaque groupe : « Ports du S8 », « Phase L1, marron », « Lignes, marron (monophasé) » ; la puce ne répète pas
+  // « port 1 » à côté de son numéro.
+  const titre = (g) => {
+    if (trajets[0].cle.startsWith('p')) return `Ports du ${g}`;
+    const nom = trajets.find((t) => t.groupe === g)?.couleur?.nom;
+    if (!nom) return g;
+    return g === 'Lignes' ? `Lignes, ${nom} (monophasé)` : `${g}, ${nom}`;
+  };
   return el('div', { class: 'legende-trajets' },
-    el('p', { class: 'legende-groupe' }, el('span', { class: 'legende-cle' }, trait(PALETTE_ECRAN.principal), 'câbles principaux'),
-      trajets.some((t) => t.secours) ? el('span', { class: 'legende-cle' }, trait(PALETTE_ECRAN.secours, true), 'retours de secours') : null),
+    trajets.some((t) => t.secours) ? el('p', { class: 'legende-groupe' }, el('span', { class: 'legende-cle' }, trait(PALETTE_ECRAN.secours, true), 'retours de secours')) : null,
     groupes.flatMap((g) => [
-    groupes.length > 1 || trajets.length > 1 ? el('p', { class: 'legende-groupe' }, g) : null,
+    el('p', { class: 'legende-groupe' }, titre(g)),
     ...trajets.filter((t) => t.groupe === g).map((t) => {
-      const puce = el('button', { type: 'button', class: 'puce-trajet', 'aria-pressed': String(selection === t.cle) },
-        el('span', { class: 'puce-numero' }, t.etiquette), t.libelle);
+      const puce = el('button', {
+        type: 'button', class: 'puce-trajet', 'aria-pressed': String(selection === t.cle),
+        'aria-label': t.libelle.charAt(0).toUpperCase() + t.libelle.slice(1),
+      }, traitTrajet(t), el('span', { class: 'puce-numero' }, t.etiquette), t.libelleCourt ?? t.libelle);
       puce.addEventListener('click', () => {
         selection = selection === t.cle ? null : t.cle;
         mettreAJour();
@@ -427,16 +443,16 @@ function mettreAJour() {
   afficherExports({ pm, e, geo, trajets, coin, blocs, repere, data, vd, elec, ve });
 
   const alertes = [...erreurs.map((x) => alerte(x, 'alerte-erreur'))];
+  // Ligne de rappel au-dessus du dessin ; cartes des variantes sous la légende (le dessin d'abord, audit terrain).
   let entete = null;
+  let variantes = null;
   if (e.cablage === 'data') {
     if (!data) {
       alertes.push(alerte('Aucun processeur retenu : choisis-en un qui convient dans l\'onglet Data.', 'alerte-info'));
     } else {
-      entete = [
-        el('p', { class: 'recap-mur' }, `Data : ${vd.processeurs.length} × ${etatData.choisie.processeur.nom}, départ ${LIBELLES_COIN[data.depart]}. `,
-          el('a', { href: '#data' }, 'Modifier')),
-        cartesData(data, vd),
-      ];
+      entete = el('p', { class: 'recap-mur' }, `Data : ${vd.processeurs.length} × ${etatData.choisie.processeur.nom}, départ ${LIBELLES_COIN[data.depart]}. `,
+        el('a', { href: '#data' }, 'Modifier'));
+      variantes = cartesData(data, vd);
       if (!vd.possible) alertes.push(alerte(vd.raison, 'alerte-erreur'));
       if (vd.ecart) alertes.push(alerte(vd.ecart, 'alerte-info'));
       if (vd.noteSecours) alertes.push(alerte(vd.noteSecours, 'alerte-info'));
@@ -447,11 +463,9 @@ function mettreAJour() {
     if (!elec) {
       alertes.push(alerte('Pas de calcul électrique valide : vérifie l\'onglet Élec.', 'alerte-info'));
     } else {
-      entete = [
-        el('p', { class: 'recap-mur' }, `Élec : départ ${LIBELLES_COIN[elec.depart]}. Résultats indicatifs, à valider par l'électricien. `,
-          el('a', { href: '#elec' }, 'Modifier')),
-        cartesElec(elec, ve),
-      ];
+      entete = el('p', { class: 'recap-mur' }, `Élec : départ ${LIBELLES_COIN[elec.depart]}. Résultats indicatifs, à valider par l'électricien. `,
+        el('a', { href: '#elec' }, 'Modifier'));
+      variantes = cartesElec(elec, ve);
       if (ve.ecart) alertes.push(alerte(ve.ecart, 'alerte-info'));
       if (ve.mode === 'auPlusJuste' && etatElec.r.lignes.auPlusJuste.ecart) alertes.push(alerte(etatElec.r.lignes.auPlusJuste.ecart, 'alerte-info'));
       alertes.push(...ve.alertes.map((x) => alerte(x)));
@@ -479,6 +493,8 @@ function mettreAJour() {
       + 'Appuie sur une dalle pour sa position, sur un trajet pour le mettre en évidence ; deux doigts pour zoomer.'),
     dalleChoisie ? ficheDalle(dalleChoisie, pm, e.cablage === 'data' ? vd : null, e.cablage === 'elec' ? ve : null) : null,
     legende(trajets),
+    variantes ? el('h3', { class: 'titre-variantes' }, 'Variantes de câblage') : null,
+    variantes,
     e.vue === 'pixels' ? tableCanvas(pm) : null);
 }
 

@@ -208,7 +208,7 @@
 
         <label class="case"><input type="checkbox" name="redondance"><span>Redondance (ports doublés)</span></label>
         <label class="case" data-famille="brompton" hidden><input type="checkbox" name="ull"><span>ULL, Ultra Low Latency (capacité divisée par 2)</span></label>
-        <div class="champ" data-famille="brompton" hidden>
+        <div id="bloc-distributeur" class="champ" data-famille="brompton" data-sx40 hidden>
           <label for="distributeur">Distributeur du SX40</label>
           <select id="distributeur" name="distributeur">
             <option value="brompton-xd" selected>XD (10 ports 1G)</option>
@@ -647,67 +647,77 @@
     <section id="schema" aria-labelledby="titre-schema" hidden>
       <h2 id="titre-schema" class="cache-visuel">Schéma de câblage et pixel map</h2>
 
-      <form id="form-schema" class="carte formulaire" novalidate>
-        <fieldset class="segmente">
-          <legend>Vue</legend>
-          <div class="segments">
-            <label><input type="radio" name="vue" value="physique" checked><span>Physique (mm)</span></label>
-            <label><input type="radio" name="vue" value="pixels"><span>Pixels</span></label>
+      <!-- Dessin avant les réglages (audit terrain du 02/10/2026) : vue et câblage affiché en haut, puis le dessin,
+           puis les côtés, bords et longueurs. Un seul formulaire, pour que les saisies restent gardées. -->
+      <form id="form-schema" class="formulaire-schema" novalidate>
+        <div class="carte formulaire">
+          <fieldset class="segmente">
+            <legend>Vue</legend>
+            <div class="segments">
+              <label><input type="radio" name="vue" value="physique" checked><span>Physique (mm)</span></label>
+              <label><input type="radio" name="vue" value="pixels"><span>Pixels</span></label>
+            </div>
+          </fieldset>
+          <div id="bloc-canvas-vue" class="champ" hidden>
+            <label for="canvas-vue">Canvas</label>
+            <select id="canvas-vue" name="canvasVue"></select>
           </div>
-        </fieldset>
-        <div id="bloc-canvas-vue" class="champ" hidden>
-          <label for="canvas-vue">Canvas</label>
-          <select id="canvas-vue" name="canvasVue"></select>
+          <fieldset class="segmente">
+            <legend>Câblage affiché</legend>
+            <div class="segments">
+              <label><input type="radio" name="cablage" value="aucun"><span>Aucun</span></label>
+              <label><input type="radio" name="cablage" value="data" checked><span>Data</span></label>
+              <label><input type="radio" name="cablage" value="elec"><span>Élec</span></label>
+            </div>
+          </fieldset>
         </div>
-        <fieldset class="segmente">
-          <legend>Câblage affiché</legend>
-          <div class="segments">
-            <label><input type="radio" name="cablage" value="aucun"><span>Aucun</span></label>
-            <label><input type="radio" name="cablage" value="data" checked><span>Data</span></label>
-            <label><input type="radio" name="cablage" value="elec"><span>Élec</span></label>
-          </div>
-        </fieldset>
-        <div class="paire">
-          <div class="champ">
-            <label for="cote-data">Data : côté du processeur</label>
-            <select id="cote-data" name="coteData"><option value="gauche">Gauche</option><option value="droite">Droite</option></select>
-          </div>
-          <div class="champ">
-            <label for="bord-data">Data : bord des entrées</label>
-            <select id="bord-data" name="bordData"><option value="auto">Automatique</option><option value="haut">Forcer en haut</option><option value="bas">Forcer en bas</option></select>
-          </div>
-        </div>
-        <div class="paire">
-          <div class="champ">
-            <label for="cote-elec">Élec : côté de l'armoire</label>
-            <select id="cote-elec" name="coteElec"><option value="gauche">Gauche</option><option value="droite">Droite</option></select>
-          </div>
-          <div class="champ">
-            <label for="bord-elec">Élec : bord des arrivées</label>
-            <select id="bord-elec" name="bordElec"><option value="auto">Automatique</option><option value="haut">Forcer en haut</option><option value="bas">Forcer en bas</option></select>
-          </div>
-        </div>
-        <p class="note">Automatique : en bas pour un mur posé (stack), en haut pour un mur accroché, selon l'onglet Poids. Force l'autre bord quand la régie ou l'armoire arrive par l'autre côté.</p>
-        <details class="fiche">
-          <summary>Longueur des câbles de tête (facultatif)</summary>
-          <div class="formulaire">
-            <div class="paire">
-              <div class="champ">
-                <label for="distance-regie">Régie à mur (m)</label>
-                <input id="distance-regie" name="distanceRegieM" inputmode="decimal" autocomplete="off">
-              </div>
-              <div class="champ">
-                <label for="distance-armoire">Armoire élec à mur (m)</label>
-                <input id="distance-armoire" name="distanceArmoireM" inputmode="decimal" autocomplete="off">
-              </div>
+
+        <div id="resultats-schema" class="resultats" aria-live="polite"></div>
+
+        <section class="carte formulaire" aria-labelledby="titre-reglages-schema">
+          <h3 id="titre-reglages-schema">Réglages du câblage</h3>
+          <div class="paire">
+            <div class="champ">
+              <label for="cote-data">Data : côté du processeur</label>
+              <select id="cote-data" name="coteData"><option value="gauche">Gauche</option><option value="droite">Droite</option></select>
             </div>
             <div class="champ">
-              <label for="marge-mou">Marge de mou (%)</label>
-              <input id="marge-mou" name="margeMouPourcent" inputmode="decimal" autocomplete="off" value="10">
+              <label for="bord-data">Data : bord des entrées</label>
+              <select id="bord-data" name="bordData"><option value="auto">Automatique</option><option value="haut">Forcer en haut</option><option value="bas">Forcer en bas</option></select>
             </div>
-            <p class="note">Estimation indicative : distance saisie, plus le trajet le long du mur depuis le coin de départ jusqu'à la première dalle, plus le mou.</p>
           </div>
-        </details>
+          <div class="paire">
+            <div class="champ">
+              <label for="cote-elec">Élec : côté de l'armoire</label>
+              <select id="cote-elec" name="coteElec"><option value="gauche">Gauche</option><option value="droite">Droite</option></select>
+            </div>
+            <div class="champ">
+              <label for="bord-elec">Élec : bord des arrivées</label>
+              <select id="bord-elec" name="bordElec"><option value="auto">Automatique</option><option value="haut">Forcer en haut</option><option value="bas">Forcer en bas</option></select>
+            </div>
+          </div>
+          <p class="note">Automatique : en bas pour un mur posé (stack), en haut pour un mur accroché, selon l'onglet Poids. Force l'autre bord quand la régie ou l'armoire arrive par l'autre côté.</p>
+          <details class="fiche">
+            <summary>Longueur des câbles de tête (facultatif)</summary>
+            <div class="formulaire">
+              <div class="paire">
+                <div class="champ">
+                  <label for="distance-regie">Régie à mur (m)</label>
+                  <input id="distance-regie" name="distanceRegieM" inputmode="decimal" autocomplete="off">
+                </div>
+                <div class="champ">
+                  <label for="distance-armoire">Armoire élec à mur (m)</label>
+                  <input id="distance-armoire" name="distanceArmoireM" inputmode="decimal" autocomplete="off">
+                </div>
+              </div>
+              <div class="champ">
+                <label for="marge-mou">Marge de mou (%)</label>
+                <input id="marge-mou" name="margeMouPourcent" inputmode="decimal" autocomplete="off" value="10">
+              </div>
+              <p class="note">Estimation indicative : distance saisie, plus le trajet le long du mur depuis le coin de départ jusqu'à la première dalle, plus le mou.</p>
+            </div>
+          </details>
+        </section>
         <input type="hidden" name="varianteData" value="">
         <input type="hidden" name="varianteElec" value="">
       </form>
@@ -716,7 +726,6 @@
         <button class="bouton bouton-petit" type="button" data-copier="schema">Copier les résultats</button>
         <span class="etat-copie" aria-live="polite"></span>
       </div>
-      <div id="resultats-schema" class="resultats" aria-live="polite"></div>
 
       <section class="carte formulaire" aria-labelledby="titre-exports">
         <h3 id="titre-exports">Exports</h3>

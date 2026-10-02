@@ -4,6 +4,7 @@
 
 import { pitchCalculeMm, entierInferieur, LIBELLES_COIN } from './calculs.js';
 import { nombre, nombreCourt, sourceCourte, mentionType } from './format.js';
+import { portsEnCouleurs, stylesLignes } from './couleurs.js';
 
 // Une ligne propre : espaces simples, tirets longs remplacés par une virgule, pas de puce en début de ligne.
 export function ligneSimple(texte) {
@@ -116,6 +117,7 @@ export function texteCapaciteAppareil(c) {
 export function resumeData(r, {
   conseille = false, distributeur = null, distributeurFiche = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null, configs = null, reseau = null,
   alternative = null,
+  ports = [],
 } = {}) {
   const proc = r.processeur;
   if (!r.groupes?.length) {
@@ -149,8 +151,13 @@ export function resumeData(r, {
     if (g.minimum.raisons.length) lignes.push(`Écart : ${g.minimum.raisons.join(' ; ')}`);
     if (g.serpentin.ecart) lignes.push(`Décompte théorique au plus juste : ${nombre(g.auPlusJuste)} ports`);
     if (g.rectangles) lignes.push(`Ports en rectangles NovaLCT : ${nombre(g.rectangles.ports)}`);
-    for (const [charge, cablage] of [[g.chargeMax.colonnes, 'en colonnes entières'], [g.serpentin.chargeMax, 'au plus juste']]) {
-      if (charge.auDela95) alertesPorts.push(`Alerte : câblage ${cablage}, un port chargé à ${nombre(charge.taux * 100, 1)} %, au-delà de 95 %`);
+    // Alerte sur le câblage retenu (colonnes entières) ; la variante au plus juste, non retenue, n'est qu'une note.
+    const { colonnes } = g.chargeMax;
+    if (colonnes.auDela95) {
+      alertesPorts.push(`Alerte : câblage retenu en colonnes entières, un port chargé à ${nombre(colonnes.taux * 100, 1)} %, au-delà de 95 %`);
+    } else if (g.serpentin.chargeMax.auDela95) {
+      alertesPorts.push(`Note : variante au plus juste non retenue, un port y serait chargé à ${nombre(g.serpentin.chargeMax.taux * 100, 1)} % ; `
+        + `le câblage retenu, en colonnes entières, charge son port le plus chargé à ${nombre(colonnes.taux * 100, 1)} %`);
     }
   }
   const conso = consommationProcesseur(proc);
@@ -176,6 +183,11 @@ export function resumeData(r, {
       + `${r.grille?.rangees > 1 ? `, rangées ${gr.premiereRangee} à ${gr.derniereRangee}` : ''}`
       + ` (${pluriel(gr.dalles, 'dalle', 'dalles')}, ${pluriel(ports, 'port', 'ports')})`);
   });
+  // Ports du câblage retenu avec leur couleur, comme dans le Schéma.
+  for (const p of ports) {
+    lignes.push(`${p.modele} n° ${p.processeur}, ${p.libelle} : ${pluriel(p.dalles.length, 'dalle', 'dalles')} `
+      + `de ${p.dalles[0]} à ${p.dalles[p.dalles.length - 1]}, couleur ${p.couleur.nom}`);
+  }
   if (alternative) lignes.push(texteAlternativeSX40(alternative).replace(/\.$/, ''));
   if (configs) lignes.push(...configs.lignes, configs.version ?? null);
   lignes.push(...alertesPorts, ...alertes(r.alertes), ...(r.notes ?? []).map((x) => `Note : ${x}`), ...alertes(configs?.alertes));
@@ -345,13 +357,18 @@ export function resumeCablage({ data = null, modeData = null, elec = null, modeE
     if (vd.ecart) lignes.push(`Note : ${vd.ecart}`);
     lignes.push(`Ports : ${vd.ports}${vd.portsSecours ? `, plus ${vd.portsSecours} de secours` : ''}, charge maxi ${nombre(vd.chargeMax * 100, 1)} %`);
     lignes.push(`Câbles : ${vd.cablesTete} câbles de tête, ${vd.liaisons} liaisons entre dalles`);
+    const couleurs = portsEnCouleurs(vd);
+    let rang = 0;
     for (const p of vd.processeurs) {
       for (const port of p.ports) {
+        const couleur = couleurs[rang].couleur;
+        rang += 1;
         lignes.push(`${p.modele} n° ${p.numero}, ${port.libelle} : ${pluriel(port.dalles.length, 'dalle', 'dalles')} `
           + `de ${port.dalles[0]} à ${port.dalles[port.dalles.length - 1]}, ${nombre(port.taux * 100, 1)} %`
           + `${port.secours ? `, secours ${port.secours.libelle}${port.secours.retourM ? `, retour ${nombreCourt(port.secours.retourM, 1)} m` : ''}` : ''}`
           + `${port.fibreM !== null ? `, fibre environ ${Math.ceil(port.fibreM)} m` : ''}`
-          + `${port.longueurCuivreM !== null ? `, cuivre environ ${Math.ceil(port.longueurCuivreM)} m` : ''}`);
+          + `${port.longueurCuivreM !== null ? `, cuivre environ ${Math.ceil(port.longueurCuivreM)} m` : ''}`
+          + `, couleur ${couleur.nom}`);
       }
     }
     lignes.push(...alertes(vd.alertes));
@@ -364,11 +381,13 @@ export function resumeCablage({ data = null, modeData = null, elec = null, modeE
     if (ve.ecart) lignes.push(`Note : ${ve.ecart}`);
     lignes.push(`Lignes : ${ve.lignes}, charge maxi ${nombre(ve.chargeMax * 100, 1)} %`);
     lignes.push(`Câbles : ${ve.cablesTete} câbles de tête, ${ve.liaisons} liaisons entre dalles`);
-    for (const l of ve.lignesDetail) {
+    const styles = stylesLignes(ve.lignesDetail.map((l) => ({ numero: l.numero, phase: l.phase })), { mono });
+    ve.lignesDetail.forEach((l, i) => {
       lignes.push(`Ligne ${l.numero}, phase ${mono ? 'mono' : `L${l.phase}`} : ${pluriel(l.dalles.length, 'dalle', 'dalles')} `
         + `de ${l.dalles[0]} à ${l.dalles[l.dalles.length - 1]}, ${watts(l.puissanceW)}`
-        + `${l.longueurTeteM !== null ? `, câble de tête environ ${Math.ceil(l.longueurTeteM)} m` : ''}`);
-    }
+        + `${l.longueurTeteM !== null ? `, câble de tête environ ${Math.ceil(l.longueurTeteM)} m` : ''}`
+        + `, ${styles[i].nom}, ${styles[i].motif.nom}`);
+    });
     if (!mono) for (const p of ve.phases) lignes.push(`Phase L${p.numero} : ${pluriel(p.lignes, 'ligne', 'lignes')}, ${watts(p.puissanceW)}, ${nombreCourt(p.intensiteA, 1)} A`);
     lignes.push(...alertes(ve.alertes));
   }

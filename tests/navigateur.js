@@ -3,12 +3,13 @@
 
 import * as calculs from '../src/calculs.js';
 import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, enregistrer, TEINTES } from '../src/export.js';
-import { geometrieSchema, trajetsSchema, construireSvg, repereSchema, PALETTE_EXPORT } from '../src/dessin-schema.js';
+import { geometrieSchema, trajetsSchema, construireSvg, repereSchema, PALETTE_EXPORT, PALETTE_ECRAN } from '../src/dessin-schema.js';
 import { processeurDeBase, baseProcesseurs, dalleDeBase } from './base.js';
 import { DALLE_CAS_13 } from './dalles-fictives.js';
 import { versionCache, empreinteDeclaree, empreinteCache } from './fichiers.js';
 import { VERSIONS_CACHE } from './versions-cache.js';
 import { creerStockage } from '../src/stockage.js';
+import * as couleurs from '../src/couleurs.js';
 
 const DALLE_192 = { id: 'fictive-192', nom: 'Dalle 500 mm, 192 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
 
@@ -148,7 +149,7 @@ export const NAVIGATEUR = [
     },
   },  {
     id: 'N6',
-    titre: 'Schéma : deux couleurs (principal et secours), fonds alternés par port, secours jamais en diagonale, départs au bon bord',
+    titre: 'Schéma : une couleur par port (et celle des secours), fonds alternés par port, secours jamais en diagonale, départs au bon bord',
     etape: '8b',
     async verifier(v, contexte) {
       const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
@@ -160,7 +161,7 @@ export const NAVIGATEUR = [
       const trajets = trajetsSchema(vue, data.variantes.find((x) => x.mode === data.conseil), null, null);
       const { svg } = construireSvg({ geo, trajets, coin: 'bas-gauche', blocs: [], palette: PALETTE_EXPORT });
       const couleurs = new Set([...svg.querySelectorAll('.trajet')].map((x) => x.style.stroke));
-      v.egal('deux couleurs de câbles : principal et secours', couleurs.size, 2);
+      v.egal('une couleur par port (7 couleurs, puis on recommence), plus celle des retours de secours', couleurs.size, Math.min(trajets.length, 7) + 1);
       const secours = [...svg.querySelectorAll('.secours')];
       v.vrai('un retour de secours par port', secours.length === trajets.length);
       v.vrai('retours de secours : jamais en diagonale', secours.every((l) => l.getAttribute('x1') === l.getAttribute('x2') || l.getAttribute('y1') === l.getAttribute('y2')));
@@ -294,4 +295,140 @@ export const NAVIGATEUR = [
       v.vrai('base de test séparée de celle de l\'appli', nom !== 'appli-mur-led');
     },
   },
+  {
+    id: 'N10',
+    titre: 'Schéma lisible à bout de bras (audit du 02/10/2026) : noms de dalle à 4,5:1 au moins sur les deux fonds de port, fonds des ports distincts (1,4:1 au moins), en thème sombre, en mode rouge et à l\'export (fond blanc)',
+    etape: 'terrain',
+    async verifier(v) {
+      const jetons = await jetonsStyles();
+      const palettes = [
+        ['sombre', { a: jetons.sombre['--dalle-a'], b: jetons.sombre['--dalle-b'], nom: jetons.sombre['--texte-dalle'] }],
+        ['rouge', { a: jetons.rouge['--dalle-a'], b: jetons.rouge['--dalle-b'], nom: jetons.rouge['--texte-dalle'] }],
+        ['export', { a: PALETTE_EXPORT.dalle, b: PALETTE_EXPORT.dalleAlt, nom: PALETTE_EXPORT.nomDalle }],
+      ];
+      for (const [theme, p] of palettes) {
+        const lisible = [p.a, p.b, p.nom].every((c) => /^#[0-9a-f]{6}$/i.test(c ?? ''));
+        v.vrai(`${theme} : couleurs des fonds et des noms de dalle définies`, lisible);
+        if (!lisible) continue;
+        v.vrai(`${theme} : nom de dalle sur le fond du port impair, 4,5:1 au moins (${contraste(p.nom, p.a).toFixed(2)})`, contraste(p.nom, p.a) >= 4.5);
+        v.vrai(`${theme} : nom de dalle sur le fond du port pair, 4,5:1 au moins (${contraste(p.nom, p.b).toFixed(2)})`, contraste(p.nom, p.b) >= 4.5);
+        v.vrai(`${theme} : fonds des ports pair et impair distincts, 1,4:1 au moins (${contraste(p.a, p.b).toFixed(2)})`, contraste(p.a, p.b) >= 1.4);
+      }
+    },
+  },
+  {
+    id: 'N11',
+    titre: 'Code couleur du Schéma (audit terrain, lot 2) : chaque trajet à 3:1 au moins sur son fond (dalles des deux ports, fond hors du mur) en thème sombre, en mode rouge et à l\'export ; chiffres des pastilles à 4,5:1 ; un numéro gros sur chaque colonne de chaque trajet, sur le trait, hors des noms de dalle ; data : une couleur par port ; élec : couleur de la phase, motif par ligne d\'une même phase, liseré sous L2',
+    etape: 'terrain',
+    async verifier(v, contexte) {
+      const hexa = (c) => /^#[0-9a-f]{6}$/i.test(c ?? '');
+      const mini = (c, fonds) => (hexa(c) ? Math.min(...fonds.map((f) => contraste(c, f))) : 0);
+      const jetons = await jetonsStyles();
+
+      // 1. Contrastes, à l'écran (styles.css) et à l'export (fond blanc).
+      for (const [theme, j] of [['sombre', jetons.sombre], ['rouge', jetons.rouge]]) {
+        const fonds = [j['--dalle-a'], j['--dalle-b'], j['--fond']];
+        const traces = [...[1, 2, 3, 4, 5, 6, 7].map((k) => [`port ${k}`, j[`--port-${k}`]]), ['phase L1', j['--phase-1']], ['phase L3', j['--phase-3']], ['retour de secours', j['--trace-secours']]];
+        for (const [nom, c] of traces) v.vrai(`${theme} : ${nom} à 3:1 au moins sur chaque fond (${mini(c, fonds).toFixed(2)})`, mini(c, fonds) >= 3);
+        const coeur = j['--phase-2'];
+        const lisere = j['--phase-lisere'];
+        v.vrai(`${theme} : phase L2 lisible, par sa couleur ou par son liseré`, mini(coeur, fonds) >= 3 || (mini(lisere, fonds) >= 3 && hexa(coeur) && contraste(coeur, lisere) >= 3));
+        const surPastille = [...[1, 2, 3, 4, 5, 6, 7].map((k) => [j['--fond'], j[`--port-${k}`]]), [j['--fond'], j['--phase-1']], [j['--fond'], j['--phase-3']], [j['--texte-sur-phase-2'] ?? j['--fond'], coeur]];
+        v.vrai(`${theme} : chiffres des pastilles à 4,5:1 au moins sur leur couleur`, surPastille.every(([t, f]) => hexa(t) && hexa(f) && contraste(t, f) >= 4.5));
+      }
+      const fondsExport = [PALETTE_EXPORT.dalle, PALETTE_EXPORT.dalleAlt, PALETTE_EXPORT.fond];
+      const tracesExport = [...(couleurs.COULEURS_PORTS ?? []).map((c) => [c.nom, c.export]), ...Object.values(couleurs.COULEURS_PHASES ?? {}).map((c) => [c.nom, c.export]), ['retour de secours', PALETTE_EXPORT.secours]];
+      v.vrai('export : 7 couleurs de port et 3 de phase', tracesExport.length === 11);
+      for (const [nom, c] of tracesExport) v.vrai(`export : ${nom} à 3:1 au moins sur chaque fond (${mini(c, fondsExport).toFixed(2)})`, mini(c, fondsExport) >= 3);
+      v.vrai('export : chiffres blancs des pastilles à 4,5:1 au moins', tracesExport.slice(0, 10).every(([, c]) => hexa(c) && contraste('#ffffff', c) >= 4.5));
+
+      // 2. Dessin : mur Brompton de l'audit (4 × 5 BP2 V2 sur S8, 2 ports ; monophasé, 2 lignes).
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const m = calculs.mur(bp2, 4, 5);
+      const e = calculs.evaluerProcesseur(m, bp2, processeurDeBase(contexte, 'brompton-s8'), { frequenceHz: 60, bits: 12 });
+      const data = calculs.cablageData(m, bp2, e, { depart: 'haut-gauche' });
+      const vd = data.variantes.find((x) => x.mode === data.conseil);
+      const elecMono = calculs.cablageElec(m, bp2, calculs.electricite(m, bp2, { arrivee: { type: 'mono', intensiteA: 16 } }), { depart: 'haut-gauche' });
+      const veMono = elecMono.variantes.find((x) => x.mode === elecMono.conseil);
+      const dessiner = (vue, vdx, vex, palette = PALETTE_ECRAN, mur = m, dalle = bp2, ev = e) => {
+        const trajets = trajetsSchema(vue, vdx, vex, null);
+        const { svg } = construireSvg({ geo: geometrieSchema(vue, mur, dalle, calculs.pixelMap(mur, dalle, ev)), trajets, coin: 'haut-gauche', blocs: [], palette });
+        svg.style.position = 'absolute';
+        svg.style.left = '-5000px';
+        document.body.append(svg);
+        return { svg, trajets };
+      };
+      const traits = (svg) => [...svg.querySelectorAll('polyline.trajet')];
+      const motif = (x) => x.getAttribute('stroke-dasharray') ?? '';
+      for (const [nom, vue] of [['vue physique', { vue: 'physique', canvasVue: 'mur', cablage: 'data' }], ['vue pixels', { vue: 'pixels', canvasVue: 'mur', cablage: 'data' }]]) {
+        const { svg, trajets } = dessiner(vue, vd, null);
+        v.egal(`${nom} : une couleur par port, dans l'ordre`, traits(svg).map((x) => x.style.stroke), ['var(--port-1)', 'var(--port-2)']);
+        const cote = Math.min(...[...svg.querySelectorAll('[data-dalle] rect')].map((r) => Math.min(Number(r.getAttribute('width')), Number(r.getAttribute('height')))));
+        const nomPolice = Number(svg.querySelector('.etiquette-dalle').getAttribute('font-size'));
+        const noms = [...svg.querySelectorAll('.etiquette-dalle')].map((t) => t.getBBox());
+        const coupe = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+        for (const t of trajets) {
+          const g = svg.querySelector(`[data-trajet="${t.cle}"]`);
+          const pastilles = [...g.querySelectorAll('.numero-sur-trajet')];
+          const colonnes = new Set(t.dalles.map((id) => id.split(' ')[0])).size;
+          v.egal(`${nom}, ${t.cle} : un numéro par colonne du trajet (${colonnes})`, [pastilles.length, pastilles.every((p) => p.querySelector('text')?.textContent === t.etiquette)], [colonnes, true]);
+          const police = Math.min(...pastilles.map((p) => Number(p.querySelector('text').getAttribute('font-size'))));
+          v.vrai(`${nom}, ${t.cle} : numéros gros (0,25 × la dalle et 1,5 × le nom de dalle au moins)`, police >= 0.25 * cote && police >= 1.5 * nomPolice);
+          const pts = g.querySelector('polyline').getAttribute('points').trim().split(/\s+/).map((p) => p.split(',').map(Number));
+          const distance = (x, y) => Math.min(...pts.slice(1).map((b, i) => {
+            const a = pts[i];
+            const l2 = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2;
+            const k = l2 ? Math.max(0, Math.min(1, ((x - a[0]) * (b[0] - a[0]) + (y - a[1]) * (b[1] - a[1])) / l2)) : 0;
+            return Math.hypot(x - a[0] - k * (b[0] - a[0]), y - a[1] - k * (b[1] - a[1]));
+          }));
+          v.vrai(`${nom}, ${t.cle} : chaque numéro posé sur le trait`, pastilles.every((p) => { const b = p.querySelector('rect').getBBox(); return distance(b.x + b.width / 2, b.y + b.height / 2) <= 0.13 * cote; }));
+          v.vrai(`${nom}, ${t.cle} : aucun numéro sur un nom de dalle`, pastilles.every((p) => { const b = p.querySelector('rect').getBBox(); return noms.every((n) => !coupe(b, n)); }));
+        }
+        svg.remove();
+      }
+      const { svg: monoSvg } = dessiner({ vue: 'physique', canvasVue: 'mur', cablage: 'elec' }, null, veMono);
+      v.egal('élec monophasé, 2 lignes : marron toutes les deux', traits(monoSvg).map((x) => x.style.stroke), ['var(--phase-1)', 'var(--phase-1)']);
+      v.egal('élec monophasé : ligne 1 en trait plein, ligne 2 en tirets', traits(monoSvg).map((x) => motif(x) === ''), [true, false]);
+      v.egal('élec monophasé : numéros 1 et 2 sur les trajets', [...monoSvg.querySelectorAll('.numero-sur-trajet text')].map((t) => t.textContent).filter((x, i, l) => l.indexOf(x) === i), ['1', '2']);
+      monoSvg.remove();
+      const m12 = calculs.mur(bp2, 12, 6);
+      const e12 = calculs.evaluerProcesseur(m12, bp2, processeurDeBase(contexte, 'brompton-s8'), { frequenceHz: 60, bits: 12 });
+      const elecTri = calculs.cablageElec(m12, bp2, calculs.electricite(m12, bp2, {}), { depart: 'haut-gauche' });
+      const veTri = elecTri.variantes.find((x) => x.mode === elecTri.conseil);
+      const { svg: triSvg, trajets: triTrajets } = dessiner({ vue: 'physique', canvasVue: 'mur', cablage: 'elec' }, null, veTri, PALETTE_ECRAN, m12, bp2, e12);
+      const phases = veTri.lignesDetail.map((l) => l.phase);
+      v.egal('élec triphasé : la couleur de la phase de chaque ligne', traits(triSvg).map((x) => x.style.stroke), phases.map((ph) => `var(--phase-${ph})`));
+      const rangs = phases.map((ph, i) => phases.slice(0, i).filter((x) => x === ph).length);
+      v.vrai('élec triphasé : même phase, motif différent ; même rang dans la phase, même motif',
+        traits(triSvg).every((x, i) => traits(triSvg).every((y, k) => (phases[i] === phases[k] && i !== k ? motif(x) !== motif(y) : (rangs[i] === rangs[k] ? motif(x) === motif(y) : true)))));
+      v.vrai('élec triphasé : liseré sous chaque ligne L2, et seulement sous elles',
+        triTrajets.every((t, i) => Boolean(triSvg.querySelector(`[data-trajet="${t.cle}"] .lisere`)) === (phases[i] === 2)));
+      triSvg.remove();
+      const { svg: exportSvg } = dessiner({ vue: 'physique', canvasVue: 'mur', cablage: 'data' }, vd, null, PALETTE_EXPORT);
+      v.egal('export : couleurs d\'impression des ports', traits(exportSvg).map((x) => x.style.stroke.startsWith('#') ? x.style.stroke : x.getAttribute('style').match(/stroke: (#[0-9a-f]{6})/i)?.[1]),
+        (couleurs.COULEURS_PORTS ?? []).slice(0, 2).map((c) => c.export));
+      exportSvg.remove();
+    },
+  },
 ];
+
+// Contraste WCAG entre deux couleurs « #rrggbb ».
+function luminance(hex) {
+  const [r, g, b] = rgb(hex).map((c) => c / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+export function contraste(a, b) {
+  const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m);
+  return (x + 0.05) / (y + 0.05);
+}
+
+// Jetons de couleur de styles.css : thème sombre (:root), puis mode rouge (:root[data-mode="rouge"]) par-dessus.
+export async function jetonsStyles() {
+  const css = await (await fetch('styles.css', { cache: 'no-store' })).text();
+  const sombre = {};
+  const rougeSeul = {};
+  for (const m of css.matchAll(/:root(\[data-mode="rouge"\])?\s*\{([^}]*)\}/g)) {
+    for (const [, nom, valeur] of m[2].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) (m[1] ? rougeSeul : sombre)[nom] = valeur.trim();
+  }
+  return { sombre, rouge: { ...sombre, ...rougeSeul } };
+}
