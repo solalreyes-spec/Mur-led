@@ -8,9 +8,11 @@ import { resumeCablage } from './resumes.js';
 import { nombre, nombreCourt, lireNombre } from './format.js';
 import { el, svg, remplacer } from './dom.js';
 import {
-  trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT, tiretsMotif,
+  trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT, tiretsMotif, cadrageSurDalles,
 } from './dessin-schema.js';
 import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, telecharger, enregistrer, modeEnregistrement } from './export.js';
+import { etapesData, etapesElec, rapprocherMontage, texteEtatMontage } from './montage.js';
+import { lire, ecrire } from './stockage.js';
 
 const formulaire = document.getElementById('form-schema');
 const zone = document.getElementById('resultats-schema');
@@ -29,6 +31,16 @@ let cadrage = null;
 let cadrageComplet = null;
 let cleDessin = null;
 let dernier = null;
+// Guide pas à pas : cases cochées (data et élec, enregistrées sur l'appareil), étapes du câblage affiché, guide
+// ouvert (type et étape en cours) et son cadrage.
+const videMontage = () => ({ coches: [], courant: null, avis: null });
+let montage = { data: videMontage(), elec: videMontage() };
+let etapesCourantes = { data: [], elec: [] };
+let contexteGuide = null;
+let guide = null;
+let cadrageGuide = null;
+let cadrageGuideComplet = null;
+let verrouEcran = null;
 
 const alerte = (texte, genre = '') => el('div', { class: `alerte ${genre}`.trim() }, texte);
 const pluriel = (n, singulier, plurielForme) => `${nombre(n)} ${n > 1 ? plurielForme : singulier}`;
@@ -88,6 +100,7 @@ function dessin(e, geo, trajets, coin, blocs, repere) {
   const cle = `${e.vue}|${e.canvasVue}|${geo.largeur}x${geo.hauteur}`;
   const { svg: racine, complet } = construireSvg({
     geo, trajets, coin, blocs, palette: PALETTE_ECRAN, cadrage: cle === cleDessin ? cadrage : null, selection, dalleChoisie, repere,
+    grand: grandAffichage(),
   });
   if (cle !== cleDessin) {
     cadrage = { ...complet };
@@ -99,27 +112,39 @@ function dessin(e, geo, trajets, coin, blocs, repere) {
 }
 
 // Zoom et déplacement : boutons, molette, un doigt pour déplacer, deux doigts pour zoomer. Un appui bref choisit.
-function appliquerCadrage(racine) {
-  racine.setAttribute('viewBox', `${cadrage.x} ${cadrage.y} ${cadrage.w} ${cadrage.h}`);
+// `vue` : le cadrage d'un dessin (Schéma ou guide pas à pas) : { lire, ecrire, complet, choisir }.
+const vueSchema = {
+  lire: () => cadrage,
+  ecrire: (c) => { cadrage = c; },
+  complet: () => cadrageComplet,
+  choisir: (cible) => choisir(cible),
+};
+function appliquerCadrage(racine, vue = vueSchema) {
+  const c = vue.lire();
+  racine.setAttribute('viewBox', `${c.x} ${c.y} ${c.w} ${c.h}`);
 }
 
-function zoomer(racine, facteur, cx = cadrage.x + cadrage.w / 2, cy = cadrage.y + cadrage.h / 2) {
-  const w = Math.min(cadrageComplet.w, Math.max(cadrageComplet.w / 40, cadrage.w / facteur));
-  const k = w / cadrage.w;
-  cadrage = { x: cx - (cx - cadrage.x) * k, y: cy - (cy - cadrage.y) * k, w, h: cadrage.h * k };
-  appliquerCadrage(racine);
+function zoomer(racine, facteur, cx = null, cy = null, vue = vueSchema) {
+  const c = vue.lire();
+  const complet = vue.complet();
+  const [px, py] = [cx ?? c.x + c.w / 2, cy ?? c.y + c.h / 2];
+  const w = Math.min(complet.w, Math.max(complet.w / 40, c.w / facteur));
+  const k = w / c.w;
+  vue.ecrire({ x: px - (px - c.x) * k, y: py - (py - c.y) * k, w, h: c.h * k });
+  appliquerCadrage(racine, vue);
 }
 
-function brancherGestes(racine) {
+function brancherGestes(racine, vue = vueSchema) {
   const pointeurs = new Map();
   let depart = null;
   let bouge = false;
   const versDessin = (clientX, clientY) => {
+    const c = vue.lire();
     const r = racine.getBoundingClientRect();
-    const echelle = Math.max(cadrage.w / r.width, cadrage.h / r.height);
-    const decalX = (r.width * echelle - cadrage.w) / 2;
-    const decalY = (r.height * echelle - cadrage.h) / 2;
-    return [cadrage.x - decalX + (clientX - r.left) * echelle, cadrage.y - decalY + (clientY - r.top) * echelle, echelle];
+    const echelle = Math.max(c.w / r.width, c.h / r.height);
+    const decalX = (r.width * echelle - c.w) / 2;
+    const decalY = (r.height * echelle - c.h) / 2;
+    return [c.x - decalX + (clientX - r.left) * echelle, c.y - decalY + (clientY - r.top) * echelle, echelle];
   };
   racine.addEventListener('pointerdown', (ev) => {
     racine.setPointerCapture(ev.pointerId);
@@ -136,18 +161,19 @@ function brancherGestes(racine) {
       if (Math.hypot(ev.clientX - depart.x, ev.clientY - depart.y) > 6) bouge = true;
       if (bouge) {
         const [, , echelle] = versDessin(ev.clientX, ev.clientY);
-        cadrage = { ...cadrage, x: cadrage.x - (ev.clientX - avant.x) * echelle, y: cadrage.y - (ev.clientY - avant.y) * echelle };
-        appliquerCadrage(racine);
+        const c = vue.lire();
+        vue.ecrire({ ...c, x: c.x - (ev.clientX - avant.x) * echelle, y: c.y - (ev.clientY - avant.y) * echelle });
+        appliquerCadrage(racine, vue);
       }
     } else if (pointeurs.size === 2) {
       bouge = true;
       const [a, b] = [...pointeurs.values()];
-      const autre = [...pointeurs.entries()].find(([id]) => id !== ev.pointerId)[1];
+      const autre = [...pointeurs.entries()].find(([idPointeur]) => idPointeur !== ev.pointerId)[1];
       const avantDistance = Math.hypot(a.x - b.x, a.y - b.y);
       const apresDistance = Math.hypot(ev.clientX - autre.x, ev.clientY - autre.y);
       if (avantDistance > 0 && apresDistance > 0) {
         const [cx, cy] = versDessin((ev.clientX + autre.x) / 2, (ev.clientY + autre.y) / 2);
-        zoomer(racine, apresDistance / avantDistance, cx, cy);
+        zoomer(racine, apresDistance / avantDistance, cx, cy, vue);
       }
     }
     pointeurs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
@@ -155,7 +181,7 @@ function brancherGestes(racine) {
   const fin = (ev) => {
     if (!pointeurs.has(ev.pointerId)) return;
     pointeurs.delete(ev.pointerId);
-    if (pointeurs.size === 0 && !bouge && depart) choisir(depart.cible);
+    if (pointeurs.size === 0 && !bouge && depart) vue.choisir(depart.cible);
     if (pointeurs.size === 0) depart = null;
   };
   racine.addEventListener('pointerup', fin);
@@ -163,7 +189,7 @@ function brancherGestes(racine) {
   racine.addEventListener('wheel', (ev) => {
     ev.preventDefault();
     const [cx, cy] = versDessin(ev.clientX, ev.clientY);
-    zoomer(racine, ev.deltaY < 0 ? 1.2 : 1 / 1.2, cx, cy);
+    zoomer(racine, ev.deltaY < 0 ? 1.2 : 1 / 1.2, cx, cy, vue);
   }, { passive: false });
 }
 
@@ -396,7 +422,9 @@ function exporterSchema() {
 }
 
 export function resumeOngletSchema() {
-  return dernier ? resumeCablage(dernier) : null;
+  if (!dernier) return null;
+  const etat = (type) => (etapesCourantes[type].length ? texteEtatMontage(montage[type], etapesCourantes[type], type) : null);
+  return resumeCablage({ ...dernier, montage: { data: etat('data'), elec: etat('elec') } });
 }
 
 function mettreAJour() {
@@ -473,7 +501,24 @@ function mettreAJour() {
   }
 
   const racine = dessin(eVue, geo, trajets, coin, blocs, repere);
+  // Guide pas à pas : étapes du câblage affiché (data et élec), pour le bouton, le bandeau et le texte copié.
+  etapesCourantes = {
+    data: etapesData(vd, { depart: data?.depart ?? e.departData }),
+    elec: etapesElec(ve, { depart: elec?.depart ?? e.departElec }),
+  };
+  contexteGuide = { mur, dalle, pm, vd, ve, departData: data?.depart ?? e.departData, departElec: elec?.depart ?? e.departElec };
+  const typeGuide = e.cablage === 'aucun' ? null : e.cablage;
+  const etapesGuide = typeGuide ? etapesCourantes[typeGuide] : [];
+  const rapprochement = typeGuide ? rapprocherMontage(montage[typeGuide], etapesGuide) : null;
+  const avisMontage = rapprochement ? (rapprochement.avis ?? montage[typeGuide].avis) : null;
+  if (avisMontage) alertes.unshift(alerte(avisMontage, 'alerte-montage'));
+  const boutonMontage = el('button', {
+    type: 'button', id: 'bouton-montage', class: 'bouton bouton-montage', disabled: etapesGuide.length ? null : '',
+  }, el('span', { class: 'montage-libelle' }, 'Montage pas à pas'),
+  etapesGuide.length ? el('span', { class: 'montage-etat' }, texteEtatMontage(montage[typeGuide], etapesGuide, typeGuide)) : null);
+  boutonMontage.addEventListener('click', () => ouvrirGuide(typeGuide));
   const outils = el('div', { class: 'schema-outils' },
+    boutonMontage,
     ['+', '−', 'Tout voir'].map((texte) => {
       const b = el('button', { type: 'button', class: 'bouton bouton-petit', 'aria-label': { '+': 'Zoomer', '−': 'Dézoomer', 'Tout voir': 'Voir tout le mur' }[texte] }, texte);
       b.addEventListener('click', () => {
@@ -496,17 +541,254 @@ function mettreAJour() {
     variantes ? el('h3', { class: 'titre-variantes' }, 'Variantes de câblage') : null,
     variantes,
     e.vue === 'pixels' ? tableCanvas(pm) : null);
+  // Guide ouvert : il suit le câblage recalculé.
+  if (guide) afficherGuide();
 }
 
 // ---------------------------------------------------------------------------
 
 // `surDepart({ data, elec })` : le coin de départ a changé ; les onglets Data et Élec recalculent leur serpentin.
+// ---------------------------------------------------------------------------
+// Guide de câblage pas à pas (option 1, port par port ; plan du 03/10/2026) : un port ou une ligne à la fois, dalles
+// numérotées dans l'ordre du câble, case « branché » enregistrée tout de suite, pas de passage automatique au port
+// suivant ; écran gardé allumé quand le navigateur le permet (sans message sinon).
+// ---------------------------------------------------------------------------
+
+const CLE_MONTAGE = 'montage';
+const $m = (id) => document.getElementById(id);
+const MOTS_GUIDE = {
+  data: { suivant: 'Port suivant ▶', tous: 'Tous les ports', branche: 'branché', autre: 'Passer à l\'élec' },
+  elec: { suivant: 'Ligne suivante ▶', tous: 'Toutes les lignes', branche: 'branchée', autre: 'Passer à la data' },
+};
+const vueGuide = {
+  lire: () => cadrageGuide,
+  ecrire: (c) => { cadrageGuide = c; },
+  complet: () => cadrageGuideComplet,
+  choisir: () => {},
+};
+
+function enregistrerMontage() {
+  Promise.resolve(ecrire(CLE_MONTAGE, { version: 1, data: montage.data, elec: montage.elec })).catch(() => {});
+}
+
+async function garderEcranAllume() {
+  try {
+    verrouEcran = (await navigator.wakeLock?.request?.('screen')) ?? null;
+  } catch (erreur) {
+    verrouEcran = null;
+  }
+}
+
+function relacherEcran() {
+  try {
+    verrouEcran?.release?.();
+  } catch (erreur) {
+    // Rien à faire : le navigateur a déjà relâché l'écran.
+  }
+  verrouEcran = null;
+}
+
+const etapeEnCours = () => etapesCourantes[guide.type].find((x) => x.cle === guide.cle) ?? etapesCourantes[guide.type][0];
+
+// Ouvre le guide du câblage affiché : les cases dont le câble a changé sont retirées, le bandeau le dit.
+function ouvrirGuide(type) {
+  const etapes = type ? etapesCourantes[type] : [];
+  if (!etapes.length) return;
+  const r = rapprocherMontage(montage[type], etapes);
+  montage[type] = { coches: r.coches, courant: r.courant, avis: r.avis ?? montage[type].avis ?? null };
+  enregistrerMontage();
+  guide = { type, cle: montage[type].courant ?? etapes[0].cle, cleDessinee: null };
+  $m('montage').hidden = false;
+  $m('montage-tous').hidden = true;
+  $m('montage-fin').hidden = true;
+  document.body.classList.add('montage-ouvert');
+  garderEcranAllume();
+  afficherGuide({ recentrer: true });
+}
+
+function fermerGuide() {
+  if (!guide) return;
+  guide = null;
+  $m('montage').hidden = true;
+  document.body.classList.remove('montage-ouvert');
+  relacherEcran();
+  mettreAJour();
+}
+
+function afficherGuide({ recentrer = false } = {}) {
+  if (!guide) return;
+  const { type } = guide;
+  const etapes = etapesCourantes[type];
+  if (!etapes.length) {
+    fermerGuide();
+    return;
+  }
+  let i = etapes.findIndex((x) => x.cle === guide.cle);
+  if (i < 0) {
+    i = 0;
+    guide.cle = etapes[0].cle;
+  }
+  const etape = etapes[i];
+  const p = montage[type];
+  const mots = MOTS_GUIDE[type];
+  const processeurs = contexteGuide?.vd?.processeurs ?? [];
+  const nomProcesseurs = processeurs.length ? `${processeurs.length > 1 ? `${processeurs.length} × ` : ''}${processeurs[0].modele}` : '';
+  $m('montage-sur-titre').textContent = type === 'data' ? `Montage data · ${nomProcesseurs}` : 'Montage élec · Armoire';
+  $m('montage-titre').textContent = etape.titre;
+  $m('montage-rang').textContent = `sur ${etapes.length}`;
+  const pastille = $m('montage-pastille');
+  pastille.style.background = `var(--${etape.couleur.cle})`;
+  pastille.style.boxShadow = etape.couleur.lisere ? '0 0 0 2px var(--phase-lisere)' : 'none';
+  $m('montage-phrase').textContent = etape.phrase;
+  $m('montage-avis').hidden = !p.avis;
+  $m('montage-avis-texte').textContent = p.avis ?? '';
+  $m('montage-coche').checked = p.coches.some((c) => c.signature === etape.signature);
+  $m('montage-coche-texte').textContent = `${etape.titre} ${mots.branche}`;
+  $m('montage-precedent').disabled = i === 0;
+  $m('montage-suivant').textContent = i === etapes.length - 1 ? 'Terminer' : mots.suivant;
+  $m('montage-liste').textContent = mots.tous;
+  $m('montage-tous-titre').textContent = mots.tous;
+  dessinerGuide(etape, { recentrer: recentrer || guide.cleDessinee !== etape.cle });
+}
+
+// Dessin du guide : tout le mur en vue physique, le trajet en cours en couleur et numéroté dalle par dalle, les autres
+// atténués ; cadrage sur ses dalles au format du cadre (« Recentrer » y revient), zoom à deux doigts possible.
+function dessinerGuide(etape, { recentrer }) {
+  const { type } = guide;
+  const { mur, dalle, pm, vd, ve, departData, departElec } = contexteGuide;
+  const vue = { vue: 'physique', canvasVue: 'mur', cablage: type };
+  const geo = geometrieSchema(vue, mur, dalle, pm);
+  const trajets = trajetsSchema(vue, vd, ve, null);
+  const coin = type === 'elec' ? departElec : departData;
+  const cadre = $m('montage-dessin');
+  const { width, height } = cadre.getBoundingClientRect();
+  const t = trajets.find((x) => x.cle === etape.cle);
+  const repere = repereSchema(type, { evaluation: etatData?.choisie ?? null, distanceM: null });
+  if (recentrer || !cadrageGuide) {
+    cadrageGuide = cadrageSurDalles(geo, etape.dalles, width > 0 && height > 0 ? width / height : 0.75,
+      { coin, orientation: t?.orientation ?? 'colonnes', repere });
+    guide.cleDessinee = etape.cle;
+  }
+  const { svg: racine, complet } = construireSvg({
+    geo, trajets, coin, blocs: [], palette: PALETTE_ECRAN, cadrage: cadrageGuide, selection: etape.cle, ordre: etape.cle, repere,
+    grand: grandAffichage(),
+  });
+  cadrageGuideComplet = complet;
+  racine.style.aspectRatio = 'auto';
+  brancherGestes(racine, vueGuide);
+  cadre.querySelector('svg')?.remove();
+  cadre.append(racine);
+}
+
+function allerA(cle) {
+  guide.cle = cle;
+  montage[guide.type].courant = cle;
+  enregistrerMontage();
+  $m('montage-fin').hidden = true;
+  $m('montage-tous').hidden = true;
+  afficherGuide({ recentrer: true });
+}
+
+function afficherFin() {
+  const { type } = guide;
+  const autre = type === 'data' ? 'elec' : 'data';
+  $m('montage-fin-texte').textContent = texteEtatMontage(montage[type], etapesCourantes[type], type);
+  $m('montage-autre').textContent = MOTS_GUIDE[type].autre;
+  $m('montage-autre').disabled = etapesCourantes[autre].length === 0;
+  $m('montage-fin').hidden = false;
+}
+
+function afficherListe() {
+  const { type } = guide;
+  const fait = new Set(montage[type].coches.map((c) => c.signature));
+  remplacer($m('montage-etapes'), etapesCourantes[type].map((x) => {
+    const b = el('button', { type: 'button', class: 'bouton montage-etape' },
+      el('span', { class: 'pastille-port', style: `background: var(--${x.couleur.cle})`, 'aria-hidden': 'true' }),
+      el('span', {}, x.titre),
+      fait.has(x.signature) ? el('span', { class: 'fait' }, '✓ branché') : null);
+    b.addEventListener('click', () => allerA(x.cle));
+    return el('li', {}, b);
+  }));
+  $m('montage-tous').hidden = false;
+}
+
+function initialiserGuide() {
+  $m('montage-fermer').addEventListener('click', fermerGuide);
+  $m('montage-coche').addEventListener('change', (ev) => {
+    if (!guide) return;
+    const etape = etapeEnCours();
+    const p = montage[guide.type];
+    const autres = p.coches.filter((c) => c.signature !== etape.signature);
+    montage[guide.type] = {
+      ...p, courant: etape.cle,
+      coches: ev.target.checked ? [...autres, { signature: etape.signature, cle: etape.cle, titre: etape.titre }] : autres,
+    };
+    enregistrerMontage();
+  });
+  $m('montage-precedent').addEventListener('click', () => {
+    const etapes = etapesCourantes[guide.type];
+    const i = etapes.findIndex((x) => x.cle === guide.cle);
+    if (i > 0) allerA(etapes[i - 1].cle);
+  });
+  $m('montage-suivant').addEventListener('click', () => {
+    const etapes = etapesCourantes[guide.type];
+    const i = etapes.findIndex((x) => x.cle === guide.cle);
+    if (i >= etapes.length - 1) afficherFin();
+    else allerA(etapes[i + 1].cle);
+  });
+  $m('montage-liste').addEventListener('click', afficherListe);
+  $m('montage-tous-fermer').addEventListener('click', () => { $m('montage-tous').hidden = true; });
+  $m('montage-recentrer').addEventListener('click', () => afficherGuide({ recentrer: true }));
+  $m('montage-compris').addEventListener('click', () => {
+    montage[guide.type].avis = null;
+    enregistrerMontage();
+    afficherGuide();
+  });
+  $m('montage-retour').addEventListener('click', fermerGuide);
+  $m('montage-autre').addEventListener('click', () => {
+    const autre = guide.type === 'data' ? 'elec' : 'data';
+    formulaire.querySelector(`input[name=cablage][value=${autre}]`).checked = true;
+    formulaire.dispatchEvent(new Event('change'));
+    ouvrirGuide(autre);
+  });
+  $m('montage-tout-decocher').addEventListener('click', () => {
+    if (!confirm(`Décocher ${guide.type === 'data' ? 'tous les ports' : 'toutes les lignes'} de ce guide ?`)) return;
+    montage[guide.type] = { ...videMontage(), courant: etapesCourantes[guide.type][0]?.cle ?? null };
+    enregistrerMontage();
+    afficherFin();
+  });
+  // Changer d'onglet ou appuyer sur Échap ferme le guide ; l'écran est redemandé allumé au retour dans l'appli.
+  window.addEventListener('hashchange', () => { if (guide) fermerGuide(); });
+  document.addEventListener('keydown', (ev) => { if (guide && ev.key === 'Escape') fermerGuide(); });
+  document.addEventListener('visibilitychange', () => { if (guide && document.visibilityState === 'visible') garderEcranAllume(); });
+  window.addEventListener('resize', () => { if (guide) afficherGuide({ recentrer: true }); });
+  Promise.resolve(lire(CLE_MONTAGE)).then((v) => {
+    if (v?.data || v?.elec) montage = { data: { ...videMontage(), ...v.data }, elec: { ...videMontage(), ...v.elec } };
+    mettreAJour();
+  }).catch(() => {});
+}
+
+// Grand affichage (bouton de l'en-tête) : le dessin du Schéma et du guide grossit ses noms, ses numéros et ses traits.
+const grandAffichage = () => document.documentElement.dataset.taille === 'grand';
+export function actualiserAffichageSchema() {
+  mettreAJour();
+}
+
+// « Repartir des réglages par défaut » (onglet Base) : le suivi du montage est effacé aussi.
+export function effacerMontage() {
+  montage = { data: videMontage(), elec: videMontage() };
+  Promise.resolve(ecrire(CLE_MONTAGE, null)).catch(() => {});
+  if (guide) fermerGuide();
+  else mettreAJour();
+}
+
 export function initialiserSchema({ surDepart = () => {} } = {}) {
   publierDeparts = surDepart;
   formulaire.addEventListener('input', mettreAJour);
   formulaire.addEventListener('change', mettreAJour);
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());
   document.getElementById('export-schema').addEventListener('click', exporterSchema);
+  initialiserGuide();
 }
 
 // Appelé quand le mode du mur change dans l'onglet Poids (accroche ou stack).

@@ -149,18 +149,80 @@ export function blocsSchema(geo, pm, { vueCanvas = null, cablage = 'data' } = {}
 
 const centre = (r) => [r.x + r.w / 2, r.y + r.h / 2];
 
+// Départ des câbles, partagé par le dessin et le cadrage du guide : marge autour du mur, bord des départs (ronds
+// numérotés des ports ou des lignes) et cadre du repère (processeur, XD, CVT ou armoire) hors du mur, au coin de départ.
+export function geometrieDepart(geo, coin, { orientation = 'colonnes', repere = null } = {}) {
+  const { largeur, hauteur, rects } = geo;
+  const marge = 0.12 * Math.max(largeur, hauteur);
+  const cote = Math.min(...[...rects.values()].map((r) => Math.min(r.w, r.h)));
+  const police = cote * 0.2;
+  const bordY = coin.startsWith('haut') ? -marge * 0.35 : hauteur + marge * 0.35;
+  const bordX = coin.endsWith('gauche') ? -marge * 0.35 : largeur + marge * 0.35;
+  let cadreRepere = null;
+  if (repere) {
+    const parRangees = orientation === 'rangees';
+    const n = repere.lignes.length;
+    // Lignes suivantes en 0,85 de la première ; largeur d'un caractère prise à 0,6 de la taille.
+    const plusLong = Math.max(...repere.lignes.map((l, i) => l.length * (i === 0 ? 1 : 0.85)));
+    const w = marge * 0.8;
+    const taille = Math.min(police * 1.1, (w * 0.88) / (plusLong * 0.6));
+    const h = taille * (1.25 * n + 0.6);
+    // Colonnes : à côté du mur, au niveau des départs ; rangées : dessous ou dessus, au droit des départs.
+    const [cx, cy] = parRangees
+      ? [bordX, coin.startsWith('haut') ? -marge * 0.55 : hauteur + marge * 0.55]
+      : [coin.endsWith('gauche') ? -marge * 0.55 : largeur + marge * 0.55, bordY];
+    cadreRepere = { cx, cy, w, h, taille, x: cx - w / 2, y: cy - h / 2 };
+  }
+  return { marge, cote, police, bordX, bordY, cadreRepere };
+}
+
+// Cadrage du guide pas à pas sur un port (ou une ligne) : ses dalles, son départ (rond numéroté au bord du mur) et le
+// cadre du repère (processeur, XD, CVT ou armoire), par où l'on commence à brancher ; une marge courte autour, au
+// format `aspect` (largeur / hauteur) du cadre de l'écran.
+export function cadrageSurDalles(geo, dalles, aspect, { coin = 'haut-gauche', orientation = 'colonnes', repere = null } = {}) {
+  const rects = dalles.map((id) => geo.rects.get(id)).filter(Boolean);
+  if (rects.length === 0) return null;
+  const g = geometrieDepart(geo, coin, { orientation, repere });
+  const court = g.cote * 0.4;
+  // Rond de départ : au bord des départs, au droit de la première dalle ; rayon le plus grand du dessin, trait compris.
+  const premiere = rects[0];
+  const [xd, yd] = orientation === 'rangees'
+    ? [g.bordX, premiere.y + premiere.h / 2]
+    : [premiere.x + premiere.w / 2, g.bordY];
+  const r = g.police * 1.2 + g.cote * 0.03;
+  const boites = [...rects, { x: xd - r, y: yd - r, w: 2 * r, h: 2 * r }, ...(g.cadreRepere ? [g.cadreRepere] : [])];
+  let x = Math.min(...boites.map((b) => b.x)) - court;
+  let y = Math.min(...boites.map((b) => b.y)) - court;
+  let w = Math.max(...boites.map((b) => b.x + b.w)) + court - x;
+  let h = Math.max(...boites.map((b) => b.y + b.h)) + court - y;
+  if (w / h < aspect) {
+    const nw = h * aspect;
+    x -= (nw - w) / 2;
+    w = nw;
+  } else {
+    const nh = w / aspect;
+    y -= (nh - h) / 2;
+    h = nh;
+  }
+  return { x, y, w, h };
+}
+
 // SVG du schéma. `cadrage` : partie visible (zoom), sinon tout ; `largeurPx` : taille en pixels pour un export.
+// `ordre` : trajet du guide pas à pas, ses dalles numérotées de 1 à n dans l'ordre du câble (au lieu des numéros de
+// colonne). `grand` : grand affichage, en vue physique seulement (traits plus épais, noms de dalle et numéros plus
+// grands) ; la vue pixels reste telle quelle : son premier pixel (« x 1056 ») va presque jusqu'au trait central.
 // Renvoie le SVG et son cadre complet.
 export function construireSvg({
   geo, trajets, coin, blocs = [], palette = PALETTE_ECRAN, cadrage = null, selection = null, dalleChoisie = null, largeurPx = null,
-  repere = null,
+  repere = null, ordre = null, grand = false,
 }) {
   const { largeur, hauteur, rects } = geo;
   const marge = 0.12 * Math.max(largeur, hauteur);
   const complet = { x: -marge, y: -marge, w: largeur + 2 * marge, h: hauteur + 2 * marge };
   const vue = cadrage ?? complet;
   const cote = Math.min(...[...rects.values()].map((r) => Math.min(r.w, r.h)));
-  const trait = cote * 0.07;
+  const grandPhysique = grand && geo.unite !== 'px';
+  const trait = cote * 0.07 * (grandPhysique ? 1.35 : 1);
   const police = cote * 0.2;
   // Fond alterné : dalles d'un port (ou d'une ligne) en un gris, celles du suivant dans l'autre.
   const rangDe = new Map(trajets.flatMap((t) => t.dalles.map((id) => [id, t.rang])));
@@ -176,10 +238,17 @@ export function construireSvg({
   const ligne = (x, y, taille, lignes) => svg('text', {
     class: 'etiquette-dalle', x, y, 'font-size': taille, style: `fill: ${palette.nomDalle ?? palette.texteDoux}`, 'text-anchor': 'start',
   }, lignes.map((texte, i) => svg('tspan', { x, dy: i === 0 ? 0 : `${1.1}em` }, texte)));
+  // Premier pixel de la dalle (vue pixels), coin bas gauche : un peu plus petit quand il est long (« x 1408 »), pour
+  // rester à gauche du trait qui passe au centre de la dalle.
+  const coordonnees = (r) => {
+    const lignesCoord = [`x ${r.x}`, `y ${r.y}`];
+    const plusLong = Math.max(...lignesCoord.map((l) => l.length));
+    const taille = Math.min(cote * 0.11, (cote * 0.3) / (0.62 * plusLong));
+    return ligne(r.x + bordTexte, r.y + r.h - bordTexte - taille * 1.35, taille, lignesCoord);
+  };
   const tuiles = [...rects.entries()].map(([id, r]) => {
     const choisie = id === dalleChoisie;
-    const tailleNom = cote * 0.16;
-    const tailleCoord = cote * 0.11;
+    const tailleNom = cote * (grandPhysique ? 0.177 : 0.16);
     return svg('g', { 'data-dalle': id },
       svg('rect', {
         class: `dalle${r.d?.type === 'demi' ? ' demi' : ''}${choisie ? ' choisie' : ''}`, x: r.x, y: r.y, width: r.w, height: r.h,
@@ -187,9 +256,7 @@ export function construireSvg({
         'stroke-width': cote * (choisie ? 0.05 : 0.015),
       }),
       ligne(r.x + bordTexte, r.y + cote * 0.05 + tailleNom * 0.8, tailleNom, id.split(' ')),
-      geo.unite === 'px'
-        ? ligne(r.x + bordTexte, r.y + r.h - bordTexte - tailleCoord * 1.35, tailleCoord, [`x ${r.x}`, `y ${r.y}`])
-        : null);
+      geo.unite === 'px' ? coordonnees(r) : null);
   });
 
   // Nom du bloc du côté opposé au départ des câbles, pour ne pas croiser leurs numéros.
@@ -219,7 +286,7 @@ export function construireSvg({
   // pour laisser le nom de la dalle (coin haut gauche) et son premier pixel (coin bas gauche) lisibles. En vue pixels,
   // la bande libre entre les deux textes est plus étroite : numéro un peu plus petit, au milieu de cette bande.
   const vuePixels = geo.unite === 'px';
-  const policeNumero = cote * (vuePixels ? 0.25 : 0.28);
+  const policeNumero = cote * (vuePixels ? 0.25 : grandPhysique ? 0.32 : 0.28);
   const numerosSurTrajet = (t, points, fond, texteNumero, contour) => {
     const parRangees = t.orientation === 'rangees';
     const groupes = [];
@@ -234,7 +301,9 @@ export function construireSvg({
     const w = Math.max(h, policeNumero * 0.62 * libelle.length + policeNumero * 0.5);
     return groupes.map((g) => {
       const [x, y] = g.points[Math.floor((g.points.length - 1) / 2)];
-      const [cx, cy] = parRangees ? [x + cote * 0.18, y] : [x, y + cote * (vuePixels ? 0.0265 : 0.09)];
+      const [cx, cy] = parRangees
+        ? [x + cote * (grandPhysique ? 0.22 : 0.18), y]
+        : [x, y + cote * (vuePixels ? 0.0265 : grandPhysique ? 0.16 : 0.09)];
       return svg('g', { class: 'numero-sur-trajet' },
         svg('rect', { x: cx - w / 2, y: cy - h / 2, width: w, height: h, rx: h / 2, style: `fill: ${fond}; stroke: ${contour}`, 'stroke-width': trait * 0.35 }),
         svg('text', {
@@ -242,6 +311,19 @@ export function construireSvg({
         }, libelle));
     });
   };
+  // Guide pas à pas : numéro d'ordre dans le quart haut droit de chaque dalle, hors du nom (haut gauche) et du trait.
+  const policeOrdre = cote * (grandPhysique ? 0.27 : 0.24);
+  const numerosOrdre = (points, fond, texteNumero, contour) => points.map(([x, y], i) => {
+    const libelle = `${i + 1}`;
+    const h = policeOrdre * 1.42;
+    const w = Math.max(h, policeOrdre * 0.62 * libelle.length + cote * 0.1);
+    const [cx, cy] = [x + cote * 0.24, y - cote * 0.24];
+    return svg('g', { class: 'ordre-dalle' },
+      svg('rect', { x: cx - w / 2, y: cy - h / 2, width: w, height: h, rx: h / 2, style: `fill: ${fond}; stroke: ${contour}`, 'stroke-width': trait * 0.35 }),
+      svg('text', {
+        x: cx, y: cy, 'font-size': policeOrdre, 'font-weight': 700, 'text-anchor': 'middle', 'dominant-baseline': 'central', style: `fill: ${texteNumero}`,
+      }, libelle));
+  });
   const lignes = trajets.map((t) => {
     const points = t.dalles.filter((id) => rects.has(id)).map((id) => centre(rects.get(id)));
     if (points.length === 0) return null;
@@ -268,7 +350,8 @@ export function construireSvg({
       }
     }
     const actif = selection === null || selection === t.cle;
-    const largeurTrait = trait * (selection === t.cle ? 1.8 : 1);
+    // Trajet mis en évidence : 1,8 fois le trait normal, en grand affichage aussi (il ressort déjà, et ne mord pas sur les noms).
+    const largeurTrait = selection === t.cle ? cote * 0.07 * 1.8 : trait;
     // Couleur du port ou de la phase (sinon la couleur principale), motif de la ligne, liseré clair sous un trait noir
     // (1,5 × le trait : le noir reste le plus visible).
     const couleur = t.couleur ? palette.trace(t.couleur) : palette.principal;
@@ -306,7 +389,7 @@ export function construireSvg({
         class: 'numero-trajet', x: xd, y: yd, 'font-size': police * (t.etiquette.length > 3 ? 0.62 : 0.95), style: `fill: ${texteNumero}`,
         'font-weight': 700, 'text-anchor': 'middle', 'dominant-baseline': 'central',
       }, t.etiquette),
-      numerosSurTrajet(t, points, couleur, texteNumero, contour));
+      t.cle === ordre ? numerosOrdre(points, couleur, texteNumero, contour) : numerosSurTrajet(t, points, couleur, texteNumero, contour));
   });
 
   // Repère du processeur (ou de l'armoire) au coin de départ, hors du mur, du côté des départs ; les câbles de tête
@@ -315,18 +398,10 @@ export function construireSvg({
   if (repere && departs.length > 0) {
     const parRangees = trajets[0].orientation === 'rangees';
     const n = repere.lignes.length;
-    // Lignes suivantes en 0,85 de la première ; largeur d'un caractère prise à 0,6 de la taille.
-    const plusLong = Math.max(...repere.lignes.map((l, i) => l.length * (i === 0 ? 1 : 0.85)));
-    const w = marge * 0.8;
-    const taille = Math.min(police * 1.1, (w * 0.88) / (plusLong * 0.6));
-    const h = taille * (1.25 * n + 0.6);
     const gauche = coin.endsWith('gauche');
     const enHaut = coin.startsWith('haut');
-    // Colonnes : à côté du mur, au niveau des départs ; rangées : dessous ou dessus, au droit des départs.
-    const [cx, cy] = parRangees
-      ? [bordX, enHaut ? -marge * 0.55 : hauteur + marge * 0.55]
-      : [gauche ? -marge * 0.55 : largeur + marge * 0.55, bordY];
-    const cadre = { x: cx - w / 2, y: cy - h / 2 };
+    const { cx, cy, w, h, taille, x: xCadre, y: yCadre } = geometrieDepart(geo, coin, { orientation: trajets[0].orientation, repere }).cadreRepere;
+    const cadre = { x: xCadre, y: yCadre };
     // Câbles de tête : du repère au départ le plus loin, le long du bord de départ.
     const chemin = parRangees
       ? { x1: bordX, y1: enHaut ? cadre.y + h : cadre.y, x2: bordX, y2: enHaut ? Math.max(...departs) : Math.min(...departs) }

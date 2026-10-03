@@ -16,10 +16,11 @@
   <link rel="apple-touch-icon" href="icones/icone-180.png">
   <link rel="stylesheet" href="styles.css">
   <script>
-    // Mode rouge appliqué avant l'affichage, pour éviter un éclair bleu dans une salle sombre.
+    // Mode rouge et grand affichage appliqués avant l'affichage, pour éviter un éclair bleu dans une salle sombre.
     try {
       if (localStorage.getItem('mur-led-mode') === 'rouge') document.documentElement.dataset.mode = 'rouge';
-    } catch (e) { /* stockage bloqué : mode sombre */ }
+      if (localStorage.getItem('mur-led-taille') === 'grand') document.documentElement.dataset.taille = 'grand';
+    } catch (e) { /* stockage bloqué : mode sombre, affichage normal */ }
   </script>
 </head>
 <body>
@@ -28,6 +29,7 @@
     <div class="outils-entete">
       <button id="tout-copier" class="bouton bouton-petit" type="button">Tout copier</button>
       <button id="mode-rouge" class="bouton bouton-petit" type="button" aria-pressed="false">Mode rouge</button>
+      <button id="grand-affichage" class="bouton bouton-petit" type="button" aria-pressed="false">Grand affichage</button>
     </div>
   </header>
   <p id="etat-copie-global" class="etat-copie entete" aria-live="polite"></p>
@@ -860,6 +862,54 @@
   <footer class="pied">
     <p>Calculs indicatifs : la structure est validée par le rigger, l'électricité par l'électricien. Les données constructeur priment.</p>
   </footer>
+
+  <!-- Guide de câblage pas à pas (option 1, port par port), ouvert depuis le Schéma : un port ou une ligne à la fois,
+       dalles numérotées dans l'ordre du câble, case « branché » enregistrée sur l'appareil. -->
+  <div id="montage" class="montage" role="dialog" aria-modal="true" aria-labelledby="montage-titre" hidden>
+    <header class="montage-entete">
+      <div class="montage-haut">
+        <p id="montage-sur-titre" class="montage-sur-titre"></p>
+        <div class="montage-commandes">
+          <button id="montage-liste" class="bouton" type="button">Tous les ports</button>
+          <button id="montage-fermer" class="bouton" type="button">Fermer</button>
+        </div>
+      </div>
+      <div class="montage-ligne-titre">
+        <span id="montage-pastille" class="pastille-port" aria-hidden="true"></span>
+        <h2 id="montage-titre"></h2>
+        <span id="montage-rang" class="montage-rang"></span>
+      </div>
+      <p id="montage-phrase" class="montage-phrase"></p>
+      <div id="montage-avis" class="alerte montage-avis" hidden>
+        <span id="montage-avis-texte"></span>
+        <button id="montage-compris" class="bouton bouton-petit" type="button">Compris</button>
+      </div>
+    </header>
+    <div id="montage-dessin" class="montage-dessin">
+      <button id="montage-recentrer" class="bouton montage-recentrer" type="button">Recentrer</button>
+    </div>
+    <footer class="montage-pied">
+      <label class="montage-case"><input id="montage-coche" type="checkbox"><span id="montage-coche-texte"></span></label>
+      <div class="montage-navigation">
+        <button id="montage-precedent" class="bouton" type="button">◀ Précédent</button>
+        <button id="montage-suivant" class="bouton bouton-principal" type="button">Port suivant ▶</button>
+      </div>
+    </footer>
+    <div id="montage-tous" class="montage-panneau" hidden>
+      <h3 id="montage-tous-titre">Tous les ports</h3>
+      <ul id="montage-etapes" class="montage-etapes"></ul>
+      <button id="montage-tous-fermer" class="bouton" type="button">Revenir au port en cours</button>
+    </div>
+    <div id="montage-fin" class="montage-panneau" hidden>
+      <h3>Montage terminé ?</h3>
+      <p id="montage-fin-texte" class="montage-fin-texte"></p>
+      <div class="montage-fin-actions">
+        <button id="montage-retour" class="bouton bouton-principal" type="button">Revenir au Schéma</button>
+        <button id="montage-autre" class="bouton" type="button">Passer à l'élec</button>
+        <button id="montage-tout-decocher" class="bouton" type="button">Tout décocher</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     // Script classique, hors module : prévient si l'appli est ouverte sans lancer.command.

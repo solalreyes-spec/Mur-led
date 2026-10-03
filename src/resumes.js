@@ -346,7 +346,8 @@ export function resumePoids(r, { dalle, mur: m }) {
 
 // Câblage data et élec d'une variante chacun (celle conseillée par défaut) : une ligne par port ou par ligne,
 // avec sa première et sa dernière dalle. L'élec est marquée indicative.
-export function resumeCablage({ data = null, modeData = null, elec = null, modeElec = null }) {
+// `montage` : état du guide pas à pas (« 1 port sur 2 branché (port 1) »), une ligne par câblage.
+export function resumeCablage({ data = null, modeData = null, elec = null, modeElec = null, montage = null }) {
   const lignes = ['CÂBLAGE'];
   const choisir = (t, mode) => t?.variantes.find((x) => x.mode === (mode ?? t.conseil)) ?? null;
   const vd = choisir(data, modeData);
@@ -372,6 +373,7 @@ export function resumeCablage({ data = null, modeData = null, elec = null, modeE
       }
     }
     lignes.push(...alertes(vd.alertes));
+    if (montage?.data) lignes.push(`Montage data : ${montage.data}`);
   }
   const ve = choisir(elec, modeElec);
   if (ve) {
@@ -390,6 +392,7 @@ export function resumeCablage({ data = null, modeData = null, elec = null, modeE
     });
     if (!mono) for (const p of ve.phases) lignes.push(`Phase L${p.numero} : ${pluriel(p.lignes, 'ligne', 'lignes')}, ${watts(p.puissanceW)}, ${nombreCourt(p.intensiteA, 1)} A`);
     lignes.push(...alertes(ve.alertes));
+    if (montage?.elec) lignes.push(`Montage élec : ${montage.elec}`);
   }
   return texte(lignes);
 }

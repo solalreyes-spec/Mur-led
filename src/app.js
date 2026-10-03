@@ -8,7 +8,9 @@ import { initialiserMur, actualiserMur, signalerErreurMur } from './ecran-mur.js
 import { initialiserData, actualiserData, murModifie, definirDepartData } from './ecran-data.js';
 import { initialiserCanvas, actualiserRegies, donneesModifiees } from './ecran-canvas.js';
 import { initialiserElec, murModifiePourElec, definirDepartElec } from './ecran-elec.js';
-import { initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur } from './ecran-schema.js';
+import {
+  initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema,
+} from './ecran-schema.js';
 import { initialiserPoids, actualiserBumpers, murModifiePourPoids } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
 import { restaurerConfiguration, suivreConfiguration, reglagesParDefaut } from './configuration.js';
@@ -40,6 +42,26 @@ boutonRouge.addEventListener('click', () => {
   } catch (erreur) {
     // Stockage bloqué : le mode vaut pour cette session.
   }
+});
+
+// Grand affichage (option 2 de l'audit terrain) : textes, zones à toucher et dessin du Schéma plus grands, en plus du
+// thème sombre ou du mode rouge ; gardé pour la prochaine ouverture.
+const boutonGrand = document.getElementById('grand-affichage');
+function appliquerTaille(grand) {
+  if (grand) document.documentElement.dataset.taille = 'grand';
+  else delete document.documentElement.dataset.taille;
+  boutonGrand.setAttribute('aria-pressed', String(grand));
+}
+appliquerTaille(document.documentElement.dataset.taille === 'grand');
+boutonGrand.addEventListener('click', () => {
+  const grand = document.documentElement.dataset.taille !== 'grand';
+  appliquerTaille(grand);
+  try {
+    localStorage.setItem('mur-led-taille', grand ? 'grand' : 'normal');
+  } catch (erreur) {
+    // Stockage bloqué : le choix vaut pour cette session.
+  }
+  actualiserAffichageSchema();
 });
 
 // Stockage persistant : le navigateur n'efface pas ma base pour faire de la place.
@@ -271,7 +293,8 @@ demanderStockagePersistant().then((accorde) => {
   actualiserEcranBase({ base, depart, fusion: courant.fusion, parcActif, persistant });
 });
 document.getElementById('reglages-defaut').addEventListener('click', () => {
-  if (confirm('Remettre toutes les saisies des onglets Mur, Data, Canvas, Élec, Poids et Schéma à leurs valeurs par défaut ? Ta base et tes parcs ne changent pas.')) {
+  if (confirm('Remettre toutes les saisies des onglets Mur, Data, Canvas, Élec, Poids et Schéma à leurs valeurs par défaut, et effacer le suivi du montage ? Ta base et tes parcs ne changent pas.')) {
     reglagesParDefaut();
+    effacerMontage();
   }
 });

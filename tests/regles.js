@@ -7,6 +7,7 @@ import * as resumes from '../src/resumes.js';
 import { modeEnregistrement, choixPartageFichier } from '../src/export.js';
 import * as rappels from '../src/rappels.js';
 import * as couleurs from '../src/couleurs.js';
+import * as montage from '../src/montage.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
@@ -4478,6 +4479,77 @@ export const REGLES = [
       const texteData = resumes.resumeData(e, { ports }).split('\n');
       v.vrai('Data, texte copié : les ports avec leur couleur', texteData.includes('S8 n° 1, port 1 : 10 dalles de C1 R1 à C2 R1, couleur bleu')
         && texteData.includes('S8 n° 1, port 2 : 10 dalles de C3 R1 à C4 R1, couleur jaune'));
+    },
+  },
+  {
+    id: 'R219',
+    titre: 'Guide de câblage pas à pas (option 1, port par port) : une étape par port data ou par ligne élec, dans l\'ordre du Schéma, avec son titre, sa couleur, ses dalles dans l\'ordre du câble et sa phrase ; état du montage dans le texte copié du Schéma',
+    etape: 'terrain',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      const variante = (t) => t.variantes.find((x) => x.mode === t.conseil);
+      const m = calculs.mur(bp2, 4, 5);
+      const e = calculs.evaluerProcesseur(m, bp2, s8, { frequenceHz: 60, bits: 12 });
+      const data = calculs.cablageData(m, bp2, e, { depart: 'haut-gauche' });
+      const etapes = montage.etapesData?.(variante(data), { depart: 'haut-gauche' }) ?? [];
+      v.egal('mur Brompton de l\'audit : 2 étapes, port 1 puis port 2', etapes.map((x) => [x.cle, x.titre, x.numero, x.couleur?.nom]), [['p1-1', 'Port 1', '1', 'bleu'], ['p1-2', 'Port 2', '2', 'jaune']]);
+      v.egal('port 1 : ses dalles dans l\'ordre du câble', etapes[0]?.dalles, ['C1 R1', 'C1 R2', 'C1 R3', 'C1 R4', 'C1 R5', 'C2 R5', 'C2 R4', 'C2 R3', 'C2 R2', 'C2 R1']);
+      v.egal('port 1 : la phrase', etapes[0]?.phrase, '10 dalles, de C1 R1 à C2 R1. Câble de tête du port 1 jusqu\'à C1 R1, puis suis les numéros.');
+      const elec = calculs.cablageElec(m, bp2, calculs.electricite(m, bp2, { arrivee: { type: 'mono', intensiteA: 16 } }), { depart: 'haut-gauche' });
+      const lignes = montage.etapesElec?.(variante(elec), { depart: 'haut-gauche' }) ?? [];
+      v.egal('élec monophasé, 2 lignes : titres, couleur et motif', lignes.map((x) => [x.cle, x.titre, x.numero, x.couleur?.nom, x.couleur?.motif.nom]),
+        [['l1', 'Ligne 1', '1', 'marron', 'trait plein'], ['l2', 'Ligne 2', '2', 'marron', 'tirets']]);
+      v.egal('ligne 1 : la phrase', lignes[0]?.phrase, 'Marron, trait plein. 10 dalles, 1900 W, de C1 R1 à C2 R1. Câble de tête depuis l\'armoire jusqu\'à C1 R1, puis suis les numéros.');
+      const m12 = calculs.mur(bp2, 12, 6);
+      const e12 = calculs.evaluerProcesseur(m12, bp2, s8, { frequenceHz: 60, bits: 12 });
+      const tri = montage.etapesElec?.(variante(calculs.cablageElec(m12, bp2, calculs.electricite(m12, bp2, {}), { depart: 'haut-gauche' })), { depart: 'haut-gauche' }) ?? [];
+      v.egal('élec triphasé : « Ligne 1 · L1 », couleur de la phase', [tri[0]?.titre, tri[0]?.couleur?.nom, tri[1]?.titre, tri[1]?.couleur?.nom], ['Ligne 1 · L1', 'marron', 'Ligne 2 · L2', 'noir']);
+      const deux = montage.etapesData?.(variante(calculs.cablageData(m12, bp2, e12, { depart: 'haut-gauche' })), { depart: 'haut-gauche' }) ?? [];
+      v.egal('deux S8 : les ports du premier, puis « S8 n° 2, port 1 »', [deux.length, deux[0]?.titre, deux[6]?.titre, deux[6]?.numero], [12, 'S8 n° 1, port 1', 'S8 n° 2, port 1', '2.1']);
+      const eRed = calculs.evaluerProcesseur(m12, bp2, s8, { frequenceHz: 60, bits: 10, redondance: true, departCablage: 'bas-gauche' });
+      const red = montage.etapesData?.(variante(calculs.cablageData(m12, bp2, eRed, { depart: 'bas-gauche' })), { depart: 'bas-gauche' }) ?? [];
+      v.vrai('redondance : le retour de secours dans la phrase', /Retour de secours jusqu'au port 2/.test(red[0]?.phrase ?? ''));
+      v.vrai('chaque étape a sa signature (coin de départ, processeur, port, dalles)', [...etapes, ...lignes].every((x) => typeof x.signature === 'string' && x.signature.includes('haut-gauche') && x.signature.includes(x.dalles.join(','))));
+      const progression = { coches: [{ signature: etapes[0]?.signature, cle: 'p1-1', titre: 'Port 1' }], courant: 'p1-2' };
+      v.egal('état : « 1 port sur 2 branché (port 1) »', montage.texteEtatMontage?.(progression, etapes, 'data'), '1 port sur 2 branché (port 1)');
+      v.egal('état élec : « 0 ligne sur 2 branchée »', montage.texteEtatMontage?.({ coches: [] }, lignes, 'elec'), '0 ligne sur 2 branchée');
+      v.egal('état complet : « 2 ports sur 2 branchés »', montage.texteEtatMontage?.({ coches: etapes.map((x) => ({ signature: x.signature, cle: x.cle, titre: x.titre })) }, etapes, 'data'), '2 ports sur 2 branchés');
+      const texte = resumes.resumeCablage({ data, elec, montage: { data: montage.texteEtatMontage?.(progression, etapes, 'data'), elec: montage.texteEtatMontage?.({ coches: [] }, lignes, 'elec') } }).split('\n');
+      v.vrai('texte copié du Schéma : « Montage data : 1 port sur 2 branché (port 1) »', texte.includes('Montage data : 1 port sur 2 branché (port 1)'));
+      v.vrai('texte copié du Schéma : « Montage élec : 0 ligne sur 2 branchée »', texte.includes('Montage élec : 0 ligne sur 2 branchée'));
+    },
+  },
+  {
+    id: 'R220',
+    titre: 'Guide pas à pas, mur changé en cours de route : une case cochée reste cochée seulement si son câble est identique (coin de départ, processeur, port, dalles dans l\'ordre) ; sinon elle est décochée et le bandeau le dit, jamais en silence',
+    etape: 'terrain',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const variante = (t) => t.variantes.find((x) => x.mode === t.conseil);
+      const etapes = (colonnes, lignes, { id = 'brompton-s8', frequenceHz = 60, depart = 'haut-gauche' } = {}) => {
+        const m = calculs.mur(bp2, colonnes, lignes);
+        const e = calculs.evaluerProcesseur(m, bp2, processeurDeBase(contexte, id), { frequenceHz, bits: 12 });
+        return montage.etapesData?.(variante(calculs.cablageData(m, bp2, e, { depart })), { depart }) ?? [];
+      };
+      const avant = etapes(4, 5);
+      const progression = { coches: avant.map((x) => ({ signature: x.signature, cle: x.cle, titre: x.titre })), courant: 'p1-2' };
+      const r = (apres) => montage.rapprocherMontage?.(progression, apres) ?? { coches: [], perdues: [{ titre: '?' }], avis: '?' };
+      const meme = r(avant);
+      v.egal('même mur : les deux cases restent cochées, rien à signaler', [meme.coches.length, meme.perdues.length, meme.avis], [2, 0, null]);
+      const plusHaut = r(etapes(4, 6));
+      v.egal('4 × 5 passé à 4 × 6 : les deux cases décochées', [plusHaut.coches.length, plusHaut.perdues.map((x) => x.titre)], [0, ['Port 1', 'Port 2']]);
+      v.egal('4 × 6 : le bandeau', plusHaut.avis, 'Le câblage a changé : ports 1 et 2 décochés (leurs dalles ne sont plus les mêmes).');
+      v.egal('coin de départ changé : tout décoché', r(etapes(4, 5, { depart: 'bas-gauche' })).coches.length, 0);
+      const cinquante = r(etapes(4, 5, { frequenceHz: 50 }));
+      v.egal('50 Hz au lieu de 60, même répartition : rien ne bouge', [cinquante.coches.length, cinquante.avis], [2, null]);
+      const sx40 = r(etapes(4, 5, { id: 'brompton-sx40' }));
+      v.egal('S8 remplacé par un SX40 : « XD 1, port 1 », cases décochées', [sx40.coches.length, sx40.perdues.length], [0, 2]);
+      const un = montage.rapprocherMontage?.({ coches: [progression.coches[0], { signature: 'autre', cle: 'p1-2', titre: 'Port 2' }] }, avant);
+      v.egal('une seule case perdue : « port 2 décoché (ses dalles…) »', un?.avis, 'Le câblage a changé : port 2 décoché (ses dalles ne sont plus les mêmes).');
+      v.egal('étape en cours : celle gardée, sinon la première non cochée', [meme.courant, plusHaut.courant, montage.rapprocherMontage?.({ coches: [progression.coches[0]] }, avant)?.courant], ['p1-2', 'p1-1', 'p1-2']);
+      const lignesElec = montage.etapesElec?.(variante(calculs.cablageElec(calculs.mur(bp2, 4, 5), bp2, calculs.electricite(calculs.mur(bp2, 4, 5), bp2, { arrivee: { type: 'mono', intensiteA: 16 } }), { depart: 'haut-gauche' })), { depart: 'haut-gauche' }) ?? [];
+      v.egal('élec : « ligne 2 décochée (ses dalles…) »', montage.rapprocherMontage?.({ coches: [{ signature: 'autre', cle: 'l2', titre: 'Ligne 2' }] }, lignesElec)?.avis, 'Le câblage a changé : ligne 2 décochée (ses dalles ne sont plus les mêmes).');
     },
   },
 ];

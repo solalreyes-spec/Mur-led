@@ -11,4 +11,5 @@ export const VERSIONS_CACHE = [
   { version: 9, empreinte: '1f33d82fe592d23c7a99f2f94a70ffa468ec748f2eb2e423d50e6d8fcd40553d', date: '2026-10-02', note: 'Data : alternative « SX40 + XD » pour un S8, S4, M2 ou T1' },
   { version: 10, empreinte: '6dac80a60b87e3e71d520f25bd10194583e42d99085b18b6039d6bdbe6637866', date: '2026-10-02', note: 'Mélangeurs Roland relus dans leurs manuels (sorties Program, alerte OUTPUT 3 du V-8HD, note PREVIEW du V-1HD, cadences), cadence contrôlée sortie par sortie' },
   { version: 11, empreinte: 'f7d83ee8d4a7bd7c9562b5907febf1ab0be5f394478f71a3f703114f0ea1f118', date: '2026-10-03', note: 'Terrain : zones de 48 px, onglets visibles, dessin du Schéma avant ses réglages, contrastes, alerte des 95 % ; code couleur du câblage (numéros sur les trajets, une couleur par port, couleur de phase et motif en élec)' },
+  { version: 12, empreinte: '4192c4275b154befa70b12d1d9396bd9550c678ca465a665141f966a8792af88', date: '2026-10-03', note: 'Guide de câblage pas à pas (zoom avec le départ du port) ; grand affichage, en plus du thème sombre ou du mode rouge' },
 ];

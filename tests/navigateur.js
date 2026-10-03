@@ -10,6 +10,7 @@ import { versionCache, empreinteDeclaree, empreinteCache } from './fichiers.js';
 import { VERSIONS_CACHE } from './versions-cache.js';
 import { creerStockage } from '../src/stockage.js';
 import * as couleurs from '../src/couleurs.js';
+import * as dessinSchema from '../src/dessin-schema.js';
 
 const DALLE_192 = { id: 'fictive-192', nom: 'Dalle 500 mm, 192 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
 
@@ -408,6 +409,139 @@ export const NAVIGATEUR = [
       v.egal('export : couleurs d\'impression des ports', traits(exportSvg).map((x) => x.style.stroke.startsWith('#') ? x.style.stroke : x.getAttribute('style').match(/stroke: (#[0-9a-f]{6})/i)?.[1]),
         (couleurs.COULEURS_PORTS ?? []).slice(0, 2).map((c) => c.export));
       exportSvg.remove();
+    },
+  },
+  {
+    id: 'N12',
+    titre: 'Dessin du guide pas à pas : le port en cours en couleur, les autres atténués ; ses dalles numérotées de 1 à n dans l\'ordre du câble, dans leur dalle, jamais sur un nom de dalle, chiffres à 4,5:1 ; zoom qui contient toutes les dalles du port, au format du cadre',
+    etape: 'terrain',
+    async verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      for (const [nom, colonnes, lignes] of [['mur Brompton 4 × 5', 4, 5], ['mur 12 × 6', 12, 6]]) {
+        const m = calculs.mur(bp2, colonnes, lignes);
+        const e = calculs.evaluerProcesseur(m, bp2, s8, { frequenceHz: 60, bits: 12 });
+        const data = calculs.cablageData(m, bp2, e, { depart: 'haut-gauche' });
+        const vd = data.variantes.find((x) => x.mode === data.conseil);
+        const vue = { vue: 'physique', canvasVue: 'mur', cablage: 'data' };
+        const geo = geometrieSchema(vue, m, bp2, calculs.pixelMap(m, bp2, e));
+        const trajets = trajetsSchema(vue, vd, null, null);
+        const t = trajets[0];
+        const { svg } = construireSvg({ geo, trajets, coin: 'haut-gauche', blocs: [], palette: PALETTE_ECRAN, selection: t.cle, ordre: t.cle });
+        svg.style.position = 'absolute';
+        svg.style.left = '-5000px';
+        document.body.append(svg);
+        const g = svg.querySelector(`[data-trajet="${t.cle}"]`);
+        const numeros = [...g.querySelectorAll('.ordre-dalle')];
+        v.egal(`${nom} : ${t.dalles.length} dalles numérotées, de 1 à ${t.dalles.length}`, numeros.map((n) => n.querySelector('text')?.textContent), t.dalles.map((_, i) => `${i + 1}`));
+        v.vrai(`${nom} : chaque numéro dans sa dalle, dans l'ordre du câble`, numeros.length === t.dalles.length && numeros.every((n, i) => {
+          const b = n.querySelector('rect').getBBox();
+          const r = svg.querySelector(`[data-dalle="${t.dalles[i]}"] rect`).getBBox();
+          return b.x >= r.x && b.y >= r.y && b.x + b.width <= r.x + r.width && b.y + b.height <= r.y + r.height;
+        }));
+        const noms = [...svg.querySelectorAll('.etiquette-dalle')].map((x) => x.getBBox());
+        const coupe = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+        v.vrai(`${nom} : aucun numéro sur un nom de dalle`, numeros.length > 0 && numeros.every((n) => noms.every((x) => !coupe(n.querySelector('rect').getBBox(), x))));
+        v.vrai(`${nom} : numéros sur la couleur du port, chiffres sur la couleur de texte des pastilles`,
+          numeros.length > 0 && numeros.every((n) => n.querySelector('rect').style.fill === 'var(--port-1)' && n.querySelector('text').style.fill === 'var(--fond)'));
+        v.vrai(`${nom} : pas de pastille de colonne sur le port en cours (remplacée par les numéros)`, g.querySelectorAll('.numero-sur-trajet').length === 0);
+        v.vrai(`${nom} : les autres ports atténués`, trajets.slice(1).every((x) => svg.querySelector(`[data-trajet="${x.cle}"]`).classList.contains('attenue')));
+        v.vrai(`${nom} : dessin ordinaire sans numéros de dalle`, construireSvg({ geo, trajets, coin: 'haut-gauche', blocs: [], palette: PALETTE_ECRAN }).svg.querySelectorAll('.ordre-dalle').length === 0);
+        const cadre = dessinSchema.cadrageSurDalles?.(geo, t.dalles, 375 / 480);
+        const contient = cadre && t.dalles.every((id) => { const r = geo.rects.get(id); return r.x >= cadre.x && r.y >= cadre.y && r.x + r.w <= cadre.x + cadre.w && r.y + r.h <= cadre.y + cadre.h; });
+        v.vrai(`${nom} : zoom qui contient toutes les dalles du port`, Boolean(contient));
+        v.vrai(`${nom} : zoom au format du cadre (375 × 480)`, Boolean(cadre) && Math.abs(cadre.w / cadre.h - 375 / 480) < 0.01);
+        v.vrai(`${nom} : zoom serré sur le port (moins de la moitié du mur en largeur sur le 12 × 6)`, Boolean(cadre) && (colonnes < 12 || cadre.w < geo.largeur / 2));
+        svg.remove();
+        // Grand mur : le zoom de chaque port montre aussi son départ, là où l'on commence à brancher : le cadre du
+        // processeur (ou du XD, du CVT) et le rond numéroté du port.
+        if (colonnes === 12) {
+          const repere = repereSchema('data', { evaluation: e, distanceM: null });
+          const { svg: complet } = construireSvg({ geo, trajets, coin: 'haut-gauche', blocs: [], palette: PALETTE_ECRAN, repere });
+          complet.style.position = 'absolute';
+          complet.style.left = '-5000px';
+          document.body.append(complet);
+          const dans = (c, b) => Boolean(c) && b.x >= c.x && b.y >= c.y && b.x + b.width <= c.x + c.w && b.y + b.height <= c.y + c.h;
+          const boite = complet.querySelector('.repere rect').getBBox();
+          const manques = trajets.filter((x) => {
+            const c = dessinSchema.cadrageSurDalles?.(geo, x.dalles, 375 / 480, { coin: 'haut-gauche', orientation: x.orientation, repere });
+            const depart = complet.querySelector(`[data-trajet="${x.cle}"] .depart`).getBBox();
+            return !(dans(c, boite) && dans(c, depart));
+          }).map((x) => x.etiquette);
+          v.egal(`${nom} : le zoom de chacun des ${trajets.length} ports contient le cadre du processeur et le départ numéroté du port`, manques, []);
+          complet.remove();
+        }
+      }
+    },
+  },
+  {
+    id: 'N13',
+    titre: 'Grand affichage (option 2 de l\'audit), en plus du thème sombre ou du mode rouge : jetons de styles.css (zones de 60 px, texte de 19 px) ; dessin en vue physique avec des noms de dalle, des numéros et des traits plus grands, sans qu\'un nom passe sous un trait ou sous un numéro ; vue pixels inchangée, traits compris',
+    etape: 'terrain',
+    async verifier(v, contexte) {
+      const css = await (await fetch('styles.css', { cache: 'no-store' })).text();
+      const bloc = css.match(/:root\[data-taille="grand"\]\s*\{([^}]*)\}/)?.[1] ?? '';
+      v.vrai('styles.css : bloc :root[data-taille="grand"] avec --cible: 60px', /--cible:\s*60px/.test(bloc));
+      v.vrai('styles.css : texte de 19 px en grand affichage (html et body)', /:root\[data-taille="grand"\]\s*(body|html)[^{]*\{[^}]*font-size:\s*19px/.test(css) || /html\[data-taille="grand"\][^{]*\{[^}]*font-size:\s*19px/.test(css));
+      v.vrai('styles.css : le grand affichage ne touche pas aux couleurs (thème sombre ou mode rouge gardé)', !/--(fond|texte|accent|port-\d|phase-\d|dalle-[ab])\s*:/.test(bloc));
+
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      const coupe = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      for (const [nom, colonnes, lignes] of [['mur Brompton 4 × 5', 4, 5], ['mur 12 × 6', 12, 6]]) {
+        const m = calculs.mur(bp2, colonnes, lignes);
+        const e = calculs.evaluerProcesseur(m, bp2, s8, { frequenceHz: 60, bits: 12 });
+        const data = calculs.cablageData(m, bp2, e, { depart: 'haut-gauche' });
+        const vd = data.variantes.find((x) => x.mode === data.conseil);
+        for (const vueNom of ['physique', 'pixels']) {
+          const vue = { vue: vueNom, canvasVue: 'mur', cablage: 'data' };
+          const geo = geometrieSchema(vue, m, bp2, calculs.pixelMap(m, bp2, e));
+          const trajets = trajetsSchema(vue, vd, null, null);
+          const dessiner = (options) => {
+            const { svg } = construireSvg({ geo, trajets, coin: 'haut-gauche', blocs: [], palette: PALETTE_ECRAN, ...options });
+            svg.style.position = 'absolute';
+            svg.style.left = '-5000px';
+            document.body.append(svg);
+            return svg;
+          };
+          const normal = dessiner({});
+          const grand = dessiner({ grand: true });
+          const guide = dessiner({ grand: true, selection: trajets[0].cle, ordre: trajets[0].cle });
+          const cote = Math.min(...[...grand.querySelectorAll('[data-dalle] rect')].map((r) => Math.min(Number(r.getAttribute('width')), Number(r.getAttribute('height')))));
+          const taille = (svg, sel) => Number(svg.querySelector(sel)?.getAttribute('font-size') ?? 0);
+          const epaisseur = (svg) => Number(svg.querySelector('polyline.trajet').getAttribute('stroke-width'));
+          const ici = `${nom}, vue ${vueNom}`;
+          if (vueNom === 'physique') {
+            v.vrai(`${ici} : traits plus épais (1,3 × au moins)`, epaisseur(grand) >= 1.3 * epaisseur(normal));
+            v.vrai(`${ici} : noms de dalle plus grands (1,1 × au moins)`, taille(grand, '.etiquette-dalle') >= 1.1 * taille(normal, '.etiquette-dalle'));
+            v.vrai(`${ici} : numéros des trajets de 0,32 × la dalle au moins`, taille(grand, '.numero-sur-trajet text') >= 0.32 * cote - 1e-9);
+            v.vrai(`${ici} : numéros du guide de 0,27 × la dalle au moins`, taille(guide, '.ordre-dalle text') >= 0.27 * cote - 1e-9);
+          } else {
+            // Vue pixels inchangée : son premier pixel (« x 1056 ») va presque jusqu'au trait central.
+            v.egal(`${ici} : noms, numéros et traits inchangés`,
+              [taille(grand, '.etiquette-dalle'), taille(grand, '.numero-sur-trajet text'), epaisseur(grand)],
+              [taille(normal, '.etiquette-dalle'), taille(normal, '.numero-sur-trajet text'), epaisseur(normal)]);
+          }
+          for (const [quoi, svg] of [['grand affichage', grand], ['guide en grand affichage', guide]]) {
+            const demi = epaisseur(svg) / 2;
+            const tuiles = [...svg.querySelectorAll('[data-dalle]')];
+            const sousTrait = tuiles.filter((g) => {
+              const r = g.querySelector('rect');
+              const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((a) => Number(r.getAttribute(a)));
+              return [...g.querySelectorAll('.etiquette-dalle')].some((t) => {
+                const b = t.getBBox();
+                const dedans = b.x >= x && b.y >= y && b.x + b.width <= x + w && b.y + b.height <= y + h;
+                return !dedans || (b.x < x + w / 2 + demi && b.x + b.width > x + w / 2 - demi) || (b.y < y + h / 2 + demi && b.y + b.height > y + h / 2 - demi);
+              });
+            }).map((g) => g.dataset.dalle);
+            v.egal(`${ici}, ${quoi} : noms de dalle dans leur dalle, jamais sous un trait`, sousTrait, []);
+            const noms = [...svg.querySelectorAll('.etiquette-dalle')].map((t) => t.getBBox());
+            const sousNumero = [...svg.querySelectorAll('.numero-sur-trajet rect, .ordre-dalle rect')].filter((p) => noms.some((n) => coupe(p.getBBox(), n)));
+            v.egal(`${ici}, ${quoi} : aucun numéro sur un nom de dalle`, sousNumero.length, 0);
+          }
+          [normal, grand, guide].forEach((x) => x.remove());
+        }
+      }
     },
   },
 ];
