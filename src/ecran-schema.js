@@ -421,6 +421,14 @@ function exporterSchema() {
   }));
 }
 
+// Câblage data retenu dans le Schéma (variante choisie), pour la mire de mapping : mêmes ports, mêmes numéros, mêmes
+// couleurs que le dessin.
+export function cablageRetenu() {
+  if (!etatData?.mur || !dernier?.data) return null;
+  const variante = dernier.data.variantes.find((x) => x.mode === dernier.modeData) ?? null;
+  return variante ? { mur: etatData.mur, dalle: etatData.dalle, evaluation: etatData.choisie ?? null, variante } : null;
+}
+
 export function resumeOngletSchema() {
   if (!dernier) return null;
   const etat = (type) => (etapesCourantes[type].length ? texteEtatMontage(montage[type], etapesCourantes[type], type) : null);

@@ -2,7 +2,8 @@
 // Accueil (réflexes en court, symptômes en gros boutons, annexes), étapes (lignes numérotées, lignes de marque
 // repliables, source de chaque ligne en petit, réponses), fins, annexes et liste des sources. Le texte des données est
 // affiché tel quel : « {n} » devient un renvoi en exposant vers la source n, « [?] » le badge « à confirmer »,
-// « annexe A » à « annexe D » un lien vers l'annexe. Aucun calcul ici.
+// « annexe A » à « annexe D » un lien vers l'annexe, « mire de l'appli » un lien vers la mire (écran « Mire et fiche
+// contenu »). Aucun calcul ici.
 
 import { el, remplacer } from './dom.js';
 
@@ -21,7 +22,7 @@ export function marqueDuProcesseur(processeur) {
 
 // Monte l'écran dans `racine`. `projet` : { marque, nom } du processeur retenu dans Data quand des saisies sont gardées,
 // sinon null (choix de marque demandé). `enLigne` : les liens web des sources ne servent qu'en ligne.
-export function monterDepannage(racine, donnees, { projet = null, enLigne = () => navigator.onLine, defiler = () => {} } = {}) {
+export function monterDepannage(racine, donnees, { projet = null, enLigne = () => navigator.onLine, defiler = () => {}, ouvrirMire = null } = {}) {
   const noeuds = new Map(donnees.noeuds.map((n) => [n.id, n]));
   const annexes = new Map(donnees.annexes.map((a) => [a.id, a]));
   const sources = new Map(donnees.sources.map((s) => [s.code, s]));
@@ -32,7 +33,7 @@ export function monterDepannage(racine, donnees, { projet = null, enLigne = () =
   // --- Texte : renvois, badges, liens d'annexe, renvoi d'un réflexe vers un arbre ------------------------------------
   function texte(chaine, { vers = null } = {}) {
     const morceaux = [];
-    const motif = /\{(\d+)\}|\[\?\]|\bannexe ([A-D])\b|→ (T\d+)\b/g;
+    const motif = /\{(\d+)\}|\[\?\]|\bannexe ([A-D])\b|→ (T\d+)\b|mire de l'appli/g;
     let pos = 0;
     for (const m of chaine.matchAll(motif)) {
       if (m.index > pos) morceaux.push(chaine.slice(pos, m.index));
@@ -40,6 +41,7 @@ export function monterDepannage(racine, donnees, { projet = null, enLigne = () =
       else if (m[0] === '[?]') morceaux.push(el('span', { class: 'dep-badge' }, 'à confirmer'));
       else if (m[2]) morceaux.push(el('button', { type: 'button', class: 'dep-lien-annexe', 'data-annexe': m[2] }, `annexe ${m[2]}`));
       else if (m[3] && vers) morceaux.push('→ ', el('a', { href: '#depannage', class: 'dep-lien-noeud', 'data-vers': vers }, m[3]));
+      else if (m[0] === 'mire de l\'appli' && ouvrirMire) morceaux.push(el('a', { href: '#mire', class: 'dep-lien-mire' }, m[0]));
       else morceaux.push(m[0]);
       pos = m.index + m[0].length;
     }
@@ -234,9 +236,13 @@ export function monterDepannage(racine, donnees, { projet = null, enLigne = () =
   }
 
   racine.addEventListener('click', (evenement) => {
-    const cible = evenement.target.closest('button, a.dep-lien-noeud');
+    const cible = evenement.target.closest('button, a.dep-lien-noeud, a.dep-lien-mire');
     if (!cible || !racine.contains(cible)) return;
     if (cible.matches('a')) evenement.preventDefault();
+    if (cible.matches('.dep-lien-mire')) {
+      ouvrirMire?.();
+      return;
+    }
     if (cible.dataset.marque) {
       etat.marque = cible.dataset.marque;
       etat.choixManuel = true;

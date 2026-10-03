@@ -2859,7 +2859,7 @@ export const DEPART_DEFAUT_A = 16;
 export const ARRIVEES = { mono: [16, 32], tri: [16, 32, 63, 125] };
 // Seuil magnétique bas des disjoncteurs, en multiple de In (NF EN 60898-1).
 export const SEUILS_MAGNETIQUES = { B: 3, C: 5, D: 10 };
-// Repère sans fiche : 1 kVA/m² pour un écran plein jour (support Oliverdy), compté en watts.
+// Repère sans fiche : 1 kVA/m² pour un écran plein jour (Formation, support de cours), compté en watts.
 export const W_PAR_M2_SANS_FICHE = 1000;
 export const BTU_PAR_W = 3.412;
 
@@ -2943,8 +2943,8 @@ export function electricite(m, dalle, reglages = {}) {
   for (const [fiche, p] of [[dalle, pDalle], [m.demi, pDemi]]) {
     if (!p) continue;
     if (p.origine === 'surface') {
-      const texte = `P max absente de la fiche ${fiche.nom} : estimée à ${nombreCourt(p.valeurW)} W avec le repère de 1 kVA/m² `
-        + '(support Oliverdy). Remplace-la par la P max de la fiche dès que possible.';
+      const texte = `P max absente de la fiche ${fiche.nom} : estimée à ${nombreCourt(p.valeurW)} W avec le repère de 1 kVA/m², `
+        + 'source Formation (support de cours). Remplace-la par la P max de la fiche dès que possible.';
       alertes.push(texte);
       manques.push({ champ: 'pMaxW', fiche: fiche.nom, texte });
     } else if (p.origine === 'gabarit') {

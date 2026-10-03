@@ -19,7 +19,7 @@ export const CAS = [
     titre: 'Grand mur P10',
     donnees: 'Dalles fictives de 640 mm, 64 × 64 px, 44 × 24',
     attendu: '1056 dalles, 28,16 × 15,36 m, 2816 × 1536 px, 432,54 m² (le support écrit 432,53), diagonale 32,08 m',
-    source: 'Support Oliverdy p. 6',
+    source: 'Formation (support de cours, p. 6)',
     etape: 1,
     verifier(v) {
       const r = calculs.dimensionner(P10, { mode: 'dalles', colonnes: 44, lignes: 24 });
@@ -38,7 +38,7 @@ export const CAS = [
     titre: 'Taille pour une résolution',
     donnees: '768 × 576 px, dalles fictives P10 et P5',
     attendu: '7,68 × 5,76 m en P10 ; 3,84 × 2,88 m en P5, soit une surface 4 fois plus petite',
-    source: 'Support Oliverdy p. 5',
+    source: 'Formation (support de cours, p. 5)',
     etape: 1,
     verifier(v) {
       const p10 = calculs.dimensionner(P10, { mode: 'resolution', largeurPx: 768, hauteurPx: 576 });
@@ -55,7 +55,7 @@ export const CAS = [
     titre: 'Densité',
     donnees: 'P16, pixel 2R1G1B',
     attendu: '3906 px/m² affichés (3 906,25 exact), 15 625 LED/m². Le support écrit 15 624 à cause d\'un arrondi intermédiaire',
-    source: 'Support Oliverdy p. 16',
+    source: 'Formation (support de cours, p. 16)',
     etape: 1,
     verifier(v) {
       const d = calculs.densite(P16_DIP);
@@ -236,7 +236,7 @@ export const CAS = [
     titre: 'Capacités Novastar',
     donnees: 'Formule du module 4',
     attendu: '50 Hz 8 bits : 780 000 ; 30 Hz 10 ou 12 bits : 650 000',
-    source: 'Support Oliverdy p. 34',
+    source: 'Formation (support de cours, p. 34)',
     etape: 2,
     verifier(v) {
       const c = (frequenceHz, bits) => calculs.entierInferieur(calculs.capacitePort('novastar', { frequenceHz, bits }));

@@ -8,6 +8,7 @@ import { modeEnregistrement, choixPartageFichier } from '../src/export.js';
 import * as rappels from '../src/rappels.js';
 import * as couleurs from '../src/couleurs.js';
 import * as montage from '../src/montage.js';
+import * as contenu from '../src/contenu.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
@@ -205,7 +206,7 @@ export const REGLES = [
   },
   {
     id: 'R13',
-    titre: 'Capacité Novastar : tableau du support Oliverdy',
+    titre: 'Capacité Novastar : tableau de Formation (support de cours)',
     etape: 2,
     verifier(v) {
       const c = (frequenceHz, bits) => calculs.entierInferieur(calculs.capacitePort('novastar', { frequenceHz, bits }));
@@ -4550,6 +4551,44 @@ export const REGLES = [
       v.egal('étape en cours : celle gardée, sinon la première non cochée', [meme.courant, plusHaut.courant, montage.rapprocherMontage?.({ coches: [progression.coches[0]] }, avant)?.courant], ['p1-2', 'p1-1', 'p1-2']);
       const lignesElec = montage.etapesElec?.(variante(calculs.cablageElec(calculs.mur(bp2, 4, 5), bp2, calculs.electricite(calculs.mur(bp2, 4, 5), bp2, { arrivee: { type: 'mono', intensiteA: 16 } }), { depart: 'haut-gauche' })), { depart: 'haut-gauche' }) ?? [];
       v.egal('élec : « ligne 2 décochée (ses dalles…) »', montage.rapprocherMontage?.({ coches: [{ signature: 'autre', cle: 'l2', titre: 'Ligne 2' }] }, lignesElec)?.avis, 'Le câblage a changé : ligne 2 décochée (ses dalles ne sont plus les mêmes).');
+    },
+  },
+  {
+    id: 'R221',
+    titre: 'Fiche contenu : ratio réduit par le PGCD et sa valeur décimale à deux chiffres (2112 × 1056 donne « 2:1 (2,00) », 3456 × 1944 « 16:9 (1,78) »), sans plafond pour les nombres premiers entre eux ; module à part, calculs du mur inchangés',
+    etape: 'mire',
+    verifier(v) {
+      v.egal('2112 × 1056', contenu.ratioReduit(2112, 1056), { a: 2, b: 1, valeur: 2, texte: '2:1 (2,00)' });
+      v.egal('3456 × 1944', contenu.ratioReduit(3456, 1944).texte, '16:9 (1,78)');
+      v.egal('3840 × 1152', contenu.ratioReduit(3840, 1152).texte, '10:3 (3,33)');
+      v.egal('1001 × 1000, premiers entre eux', contenu.ratioReduit(1001, 1000).texte, '1001:1000 (1,00)');
+      v.egal('1920 × 1200', contenu.ratioReduit(1920, 1200).texte, '8:5 (1,60)');
+      v.egal('mur plus haut que large : 1056 × 2112', contenu.ratioReduit(1056, 2112).texte, '1:2 (0,50)');
+      v.egal('dimension nulle : pas de ratio', contenu.ratioReduit(0, 1056), null);
+    },
+  },
+  {
+    id: 'R222',
+    titre: 'Fiche contenu : hauteur minimale d\'un caractère = distance du spectateur le plus éloigné ÷ 200 (AVIXA), convertie en pixels au pas de la dalle et arrondie au pixel supérieur ; pas de ligne sans distance',
+    etape: 'mire',
+    verifier(v) {
+      v.egal('20 m au pas de 2,84 mm : 100 mm, 36 px', contenu.hauteurTexteMinimale(20, 2.84), { mm: 100, px: 36 });
+      v.egal('10 m au pas de 2,5 mm : 50 mm, 20 px tout juste', contenu.hauteurTexteMinimale(10, 2.5), { mm: 50, px: 20 });
+      v.egal('10 m au pas de 2,6 mm : 19,2 px arrondis à 20', contenu.hauteurTexteMinimale(10, 2.6).px, 20);
+      v.egal('7,5 m au pas de 3,90625 mm : 37,5 mm, 9,6 px arrondis à 10', contenu.hauteurTexteMinimale(7.5, 3.90625), { mm: 37.5, px: 10 });
+      v.egal('sans distance : pas de ligne', [contenu.hauteurTexteMinimale(null, 2.84), contenu.hauteurTexteMinimale(0, 2.84), contenu.hauteurTexteMinimale(undefined, 2.84)], [null, null, null]);
+      v.egal('sans pas : pas de ligne', contenu.hauteurTexteMinimale(20, null), null);
+    },
+  },
+  {
+    id: 'R223',
+    titre: 'Rappel Tessera B4 (calibration d\'usine et trois mémoires, calibration dans le module) : source « Formation (transcription 17) »',
+    etape: 'mire',
+    verifier(v) {
+      const b4 = rappels.RAPPELS.flatMap((r) => r.textes).find((t) => t.texte.startsWith('Chaque dalle a une calibration d\'usine'));
+      v.vrai('rappel B4 trouvé', Boolean(b4));
+      const source = rappels.SOURCES_RAPPELS[b4?.source] ?? {};
+      v.egal('source : « Formation (transcription 17) »', [source.titre, source.court, source.confiance], ['Formation (transcription 17)', 'Formation (transcription 17)', 'formation']);
     },
   },
 ];

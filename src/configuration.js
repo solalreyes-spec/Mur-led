@@ -8,7 +8,7 @@ const CLE = 'configuration';
 // Version 2 : défaut Brompton passé à 12 bits ; la profondeur réseau gardée par une version précédente (souvent
 // l'ancien défaut, 10 bits) n'est pas reprise.
 const VERSION = 2;
-const FORMULAIRES = ['form-mur', 'form-data', 'form-source', 'form-elec', 'form-poids', 'form-schema'];
+const FORMULAIRES = ['form-mur', 'form-data', 'form-source', 'form-elec', 'form-poids', 'form-schema', 'form-mire'];
 const IGNORES = new Set(['parc']);
 // Champs de la source : restaurés seulement si la source a été modifiée à la main.
 const CHAMPS_SOURCE = new Set(['largeurPx', 'hauteurPx', 'frequenceHz', 'liaison']);

@@ -8,7 +8,7 @@ import { REGLES } from './regles.js';
 import { DONNEES } from './donnees.js';
 import { BANC } from './banc.js';
 import { executerCas } from './verif.js';
-import { chargerFichiersAppli } from './fichiers.js';
+import { chargerFichiersAppli, chargerFichiersPublies } from './fichiers.js';
 
 const lireJson = (chemin) => JSON.parse(readFileSync(new URL(chemin, import.meta.url), 'utf8'));
 const contexte = {
@@ -24,6 +24,20 @@ const contexte = {
       return null;
     }
   })(),
+  ficheContenu: (() => {
+    try {
+      return lireJson('../data/fiche-contenu.json');
+    } catch (erreur) {
+      return null;
+    }
+  })(),
+  publies: await chargerFichiersPublies(async (chemin) => {
+    try {
+      return readFileSync(new URL(`../${chemin}`, import.meta.url), 'utf8');
+    } catch (erreur) {
+      return null;
+    }
+  }),
   fichiers: await chargerFichiersAppli(async (chemin) => {
     try {
       return readFileSync(new URL(`../${chemin}`, import.meta.url), 'utf8');

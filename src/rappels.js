@@ -49,9 +49,9 @@ export const SOURCES_RAPPELS = {
     date: null,
     confiance: 'constructeur',
   },
-  'formation-oliverdy-2026-09': {
-    titre: 'Formation Oliverdy, septembre 2026',
-    court: 'Formation Oliverdy',
+  'formation-transcription-17': {
+    titre: 'Formation (transcription 17)',
+    court: 'Formation (transcription 17)',
     date: '2026-09',
     confiance: 'formation',
   },
@@ -220,7 +220,7 @@ export const RAPPELS = [
       {
         texte: 'Chaque dalle a une calibration d\'usine (factory) et trois mémoires ; la calibration est stockée dans le module : '
           + 'un module remplacé garde sa propre calibration.',
-        source: 'formation-oliverdy-2026-09',
+        source: 'formation-transcription-17',
       },
     ],
   },

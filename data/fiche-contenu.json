@@ -1,0 +1,578 @@
+{
+  "document": "Mire de mapping et fiche contenu",
+  "date": "2026-10-03",
+  "niveaux": {
+    "C": "doc constructeur ou éditeur officielle",
+    "N": "norme ou organisme professionnel",
+    "F": "formation (transcription bruitée, sens relu)",
+    "T": "site tiers",
+    "copie": "copie d'une doc constructeur sur un site tiers"
+  },
+  "sources": [
+    {
+      "code": "BR-TESS",
+      "libelle": "Brompton, Tessera User Manual",
+      "court": "Tessera",
+      "version": "V3.5 Rev A",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "NS-LCT",
+      "libelle": "Novastar, NovaLCT Synchronous System User Guide",
+      "court": "NovaLCT",
+      "version": "V5.0.0",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "NS-VX1000",
+      "libelle": "Novastar, VX1000 All-in-One Controller User Manual",
+      "court": "VX1000",
+      "version": "V1.1.0, 18/02/2021",
+      "url": "https://audioeffetti.com/product/documents/NOV/VX1000-02.pdf",
+      "niveau": "copie"
+    },
+    {
+      "code": "NS-VXPRO",
+      "libelle": "Novastar, VX Pro Series All-in-One Controller User Manual",
+      "court": "VX Pro",
+      "version": "V1.3.0, 28/02/2026",
+      "url": "https://shop.captech.se/sv-SE/Product/167159/Link/94690/VX%20Pro%20Series%20All-in-One%20Controller%20User%20Manual-V1.3.1.pdf",
+      "niveau": "copie"
+    },
+    {
+      "code": "CX-MX40",
+      "libelle": "COEX (Novastar), MX40 Pro LED Display Controller User Manual",
+      "court": "MX40 Pro",
+      "version": "V1.1.1, 18/11/2022",
+      "url": "https://www.rentex.com/wp-content/uploads/2023/01/MX40-Pro-LED-Display-Controller-User-Manual-V.pdf",
+      "niveau": "copie"
+    },
+    {
+      "code": "SMODE",
+      "libelle": "Smode (serveur média), documentation « Test Pattern »",
+      "court": "Smode",
+      "version": "consultée le 03/10/2026",
+      "url": "https://doc.smode.io/reference/elements/compositing/2d/2dLayer/generator/test/test-pattern/",
+      "niveau": "C"
+    },
+    {
+      "code": "AVIXA",
+      "libelle": "AVIXA, Display Image Size for 2D Content in Audiovisual Systems (DISCAS), ANSI/INFOCOMM V202.01:2016, page « Learn more about display size »",
+      "court": "AVIXA DISCAS",
+      "version": "2016",
+      "url": "https://api.avixa.org/standards/discas-calculators/discas/learn-more-about-display-size",
+      "niveau": "N"
+    },
+    {
+      "code": "T-BRAIN",
+      "libelle": "Fiches de révision DISCAS (formule IH = FV ÷ (200 × %EH))",
+      "court": "Fiches DISCAS",
+      "version": "consultée le 03/10/2026",
+      "url": "https://brainscape.com/flashcards/image-size-9858893/packs/17508916",
+      "niveau": "T"
+    },
+    {
+      "code": "ELECOM",
+      "libelle": "Elecom, « Murs LED : checklist complète des résolutions et formats pour des visuels sans pixelisation »",
+      "court": "Elecom",
+      "version": "15/07/2026",
+      "url": null,
+      "niveau": "T"
+    },
+    {
+      "code": "LWC",
+      "libelle": "LEDWallCentral, « Content creation essentials for dvLED walls », Camille Burch",
+      "court": "LEDWallCentral",
+      "version": "02/02/2026",
+      "url": "https://www.ledwallcentral.com/content-creation-essentials-for-dvled-walls.htm",
+      "niveau": "T"
+    },
+    {
+      "code": "T-PQINA",
+      "libelle": "PQINA, « Canvas area exceeds the maximum limit »",
+      "court": "PQINA",
+      "version": "12/01/2022",
+      "url": "https://pqina.nl/blog/canvas-area-exceeds-the-maximum-limit/",
+      "niveau": "T"
+    },
+    {
+      "code": "F1",
+      "libelle": "Formation (transcription 1)",
+      "court": "Formation (transcription 1)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F3",
+      "libelle": "Formation (transcription 3)",
+      "court": "Formation (transcription 3)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F15",
+      "libelle": "Formation (transcription 15)",
+      "court": "Formation (transcription 15)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F19",
+      "libelle": "Formation (transcription 19)",
+      "court": "Formation (transcription 19)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    }
+  ],
+  "intro": {
+    "mire": {
+      "texte": "Image à la résolution exacte du mur : chaque dalle porte son numéro et la couleur de son port, comme sur le schéma. Affichée depuis la source, elle vérifie tout le chemin jusqu'aux dalles.",
+      "sources": [
+        {
+          "code": "F3"
+        }
+      ]
+    },
+    "fiche": {
+      "texte": "Ce que le graphiste et la régie doivent respecter. Envoie la fiche avec la mire, puis câble exactement comme la carte envoyée.",
+      "sources": [
+        {
+          "code": "F3"
+        }
+      ]
+    }
+  },
+  "consignes": [
+    {
+      "numero": 1,
+      "titre": "Images",
+      "texte": "PNG, pas de JPEG.",
+      "sources": [
+        {
+          "code": "ELECOM"
+        }
+      ]
+    },
+    {
+      "numero": 2,
+      "titre": "Vidéos",
+      "texte": "le codec que demande le lecteur ou le serveur média. Sans consigne, H.264 ou H.265 à débit élevé.",
+      "sources": [
+        {
+          "code": "ELECOM"
+        }
+      ]
+    },
+    {
+      "numero": 3,
+      "titre": "Cadence",
+      "texte": "la même que la régie et, s'il y a des caméras, que les caméras ; 50 contre 59,94 n'est pas fluide.",
+      "sources": [
+        {
+          "code": "F19"
+        }
+      ]
+    },
+    {
+      "numero": 4,
+      "titre": "Couleur",
+      "texte": "Rec.709 ou sRGB pour un contenu SDR{1}. Le processeur doit connaître l'espace couleur de l'entrée{2}.",
+      "sources": [
+        {
+          "code": "ELECOM",
+          "renvoi": 1
+        },
+        {
+          "code": "LWC",
+          "renvoi": 1
+        },
+        {
+          "code": "BR-TESS",
+          "ref": "§12.1",
+          "renvoi": 2
+        }
+      ]
+    },
+    {
+      "numero": 5,
+      "titre": "Profondeur",
+      "texte": "8 bits par couleur au minimum, 10 bits si toute la chaîne le permet, contre les bandes dans les dégradés.",
+      "sources": [
+        {
+          "code": "ELECOM"
+        }
+      ]
+    },
+    {
+      "numero": 6,
+      "titre": "Texte",
+      "texte": "police grasse, plus épaisse que sur un écran d'ordinateur{1} ; hauteur minimale calculée plus haut.",
+      "sources": [
+        {
+          "code": "LWC",
+          "renvoi": 1
+        }
+      ]
+    },
+    {
+      "numero": 7,
+      "titre": "À éviter",
+      "texte": "filets fins et motifs très fins, qui scintillent ou font du moiré.",
+      "sources": [
+        {
+          "code": "ELECOM"
+        },
+        {
+          "code": "LWC"
+        }
+      ]
+    },
+    {
+      "numero": 8,
+      "titre": "Protection",
+      "texte": "aucune vidéo protégée par HDCP, elle reste noire sur un processeur pro ; tester toutes les vidéos.",
+      "sources": [
+        {
+          "code": "F15"
+        }
+      ]
+    },
+    {
+      "numero": 9,
+      "titre": "Validation",
+      "texte": "passer le contenu sur le vrai mur avant le jour J ; un aperçu sur ordinateur ne suffit pas.",
+      "sources": [
+        {
+          "code": "ELECOM"
+        },
+        {
+          "code": "LWC"
+        }
+      ]
+    }
+  ],
+  "hauteurTexte": {
+    "facteur": 200,
+    "texte": "Hauteur d'un caractère = distance du spectateur le plus éloigné ÷ 200, convertie en px avec le pas, arrondie au pixel supérieur.",
+    "sources": [
+      {
+        "code": "AVIXA"
+      },
+      {
+        "code": "T-BRAIN"
+      }
+    ]
+  },
+  "resolution": {
+    "texte": "« always design to the wall's exact native resolution »",
+    "sources": [
+      {
+        "code": "LWC"
+      }
+    ]
+  },
+  "sortie": {
+    "texte": "Résolution exacte du mur, ou cadre standard avec la position X, Y du mur ; cadence saisie ; balayage progressif.",
+    "sources": [
+      {
+        "code": "F3"
+      },
+      {
+        "code": "BR-TESS",
+        "ref": "§6.3"
+      },
+      {
+        "code": "ELECOM"
+      }
+    ]
+  },
+  "modeEmploi": [
+    {
+      "texte": "Copie la mire sur l'ordinateur de régie, le serveur média ou une clé USB.",
+      "sources": []
+    },
+    {
+      "texte": "Affiche-la à 100 %, sans mise à l'échelle, sur une sortie réglée à la même résolution. Une résolution forcée dans la carte graphique de l'ordinateur ne tient plus compte de l'EDID.",
+      "sources": [
+        {
+          "code": "F15"
+        }
+      ]
+    },
+    {
+      "texte": "Vérifie sur l'écran d'accueil du processeur que la résolution reçue est celle de la mire.",
+      "sources": [
+        {
+          "code": "CX-MX40",
+          "ref": "p.8"
+        },
+        {
+          "code": "NS-VX1000",
+          "ref": "p.7"
+        },
+        {
+          "code": "NS-VXPRO",
+          "ref": "p.10"
+        }
+      ]
+    },
+    {
+      "texte": "Brompton : tu peux aussi l'importer dans le Frame Store et choisir Scaling Mode 1:1{1}. Dans Tessera, elle peut servir de fond du canevas (Background, aligné en haut à gauche) pour comparer avec le placement des dalles{2}.",
+      "sources": [
+        {
+          "code": "BR-TESS",
+          "ref": "§11.4",
+          "renvoi": 1
+        },
+        {
+          "code": "BR-TESS",
+          "ref": "§8.1.2",
+          "renvoi": 2
+        }
+      ]
+    },
+    {
+      "texte": "Compare le mur au schéma de l'appli.",
+      "sources": []
+    }
+  ],
+  "lireLaMire": [
+    {
+      "vu": "Une dalle affiche le numéro d'une autre dalle",
+      "cause": "Câble ou config qui ne correspond pas au schéma",
+      "sources": [
+        {
+          "code": "F1"
+        }
+      ],
+      "depannage": [
+        "T5.2"
+      ]
+    },
+    {
+      "vu": "Une dalle a la couleur d'un autre port",
+      "cause": "Câble branché sur un autre port",
+      "sources": [
+        {
+          "code": "F1"
+        }
+      ],
+      "depannage": [
+        "T2.2",
+        "T5.2"
+      ]
+    },
+    {
+      "vu": "Une diagonale cassée au bord d'une dalle",
+      "cause": "Dalle décalée dans le mapping",
+      "sources": [
+        {
+          "code": "SMODE"
+        }
+      ],
+      "depannage": [
+        "T5.2"
+      ]
+    },
+    {
+      "vu": "Cercle ovale",
+      "cause": "Image étirée par la source ou le processeur",
+      "sources": [
+        {
+          "code": "SMODE"
+        }
+      ],
+      "depannage": [
+        "T5.3"
+      ]
+    },
+    {
+      "vu": "Cadre blanc incomplet",
+      "cause": "Image coupée ou décalée",
+      "sources": [
+        {
+          "code": "SMODE"
+        }
+      ],
+      "depannage": [
+        "T5.3"
+      ]
+    },
+    {
+      "vu": "Damier gris ou flou",
+      "cause": "Image mise à l'échelle, pas en 1:1",
+      "sources": [],
+      "depannage": [
+        "T5.3"
+      ]
+    },
+    {
+      "vu": "Mur noir ou figé",
+      "cause": "Le problème n'est pas le mapping",
+      "sources": [],
+      "depannage": [
+        "T1.1",
+        "T6.1"
+      ]
+    }
+  ],
+  "neRemplacePas": [
+    {
+      "texte": "Les mires internes en mouvement : « Scrolling test patterns will always move exactly one pixel », et des saccades ou déchirures entre dalles signalent un problème de réseau, de dalle ou de placement{1}. Une image fixe ne montre pas ça.",
+      "sources": [
+        {
+          "code": "BR-TESS",
+          "ref": "§11.1",
+          "renvoi": 1
+        }
+      ]
+    },
+    {
+      "texte": "La calibration et les couleurs : la mire n'est pas une référence de couleur.",
+      "sources": []
+    },
+    {
+      "texte": "La note de Brompton vaut aussi pour la mire : une image de canevas sert de guide au graphiste, pas de fond à peindre, à cause du crénelage sur les dalles petites ou tournées.",
+      "sources": [
+        {
+          "code": "BR-TESS",
+          "ref": "§8.5.1"
+        }
+      ]
+    }
+  ],
+  "limites": {
+    "canvasSafari": {
+      "texte": "Safari ne gère pas un canvas de plus de 16 777 216 pixels. L'appli mesure la limite de cet appareil au moment de générer.",
+      "sources": [
+        {
+          "code": "T-PQINA"
+        }
+      ]
+    },
+    "frameStore": {
+      "cotePx": 4096,
+      "texte": "Brompton Frame Store : images JPEG, PNG, BMP, GIF ou TIFF jusqu'à 4096 × 4096. Au delà, la mire ne passera pas dans le Frame Store.",
+      "sources": [
+        {
+          "code": "BR-TESS",
+          "ref": "§11.4"
+        }
+      ]
+    },
+    "canevasTessera": {
+      "largeurMinPx": 720,
+      "largeurMaxPx": 4094,
+      "largeurPaire": true,
+      "hauteurMinPx": 720,
+      "hauteurMaxPx": 4095,
+      "pixelsMax": 9000000,
+      "texte": "Brompton SX40 et S8, canevas personnalisé : largeur 720 à 4094 px et paire, hauteur 720 à 4095 px, 9 000 000 px au plus.",
+      "sources": [
+        {
+          "code": "BR-TESS",
+          "ref": "§6.3"
+        }
+      ]
+    },
+    "cadreSource": {
+      "texte": "La régie envoie souvent un format standard plus grand que le mur (exemple : 3840 × 2160) : la mire fait alors la taille de ce cadre, le mur placé en X, Y, le reste en gris très foncé avec la mention « hors mur »{1}. « Tessera systems allow the source to send any input resolution that fits within the canvas size »{2}.",
+      "sources": [
+        {
+          "code": "F3",
+          "renvoi": 1
+        },
+        {
+          "code": "BR-TESS",
+          "ref": "§6.3",
+          "renvoi": 2
+        }
+      ]
+    },
+    "fichier": {
+      "texte": "PNG en RVB 8 bits, sans transparence. Pas de JPEG, qui ajoute des artefacts{1}. Brompton accepte le PNG, en 8 ou 16 bits : 8 bits suffit{2}.",
+      "sources": [
+        {
+          "code": "ELECOM",
+          "renvoi": 1
+        },
+        {
+          "code": "BR-TESS",
+          "ref": "§11.4",
+          "renvoi": 2
+        }
+      ]
+    }
+  },
+  "saisies": {
+    "cadences": [
+      50,
+      59.94,
+      60,
+      25
+    ],
+    "cadenceDefaut": {
+      "valeur": 50,
+      "aConfirmer": true,
+      "note": "Le choix par défaut est à confirmer avec un formateur."
+    },
+    "cadres": [
+      {
+        "largeurPx": 1920,
+        "hauteurPx": 1080
+      },
+      {
+        "largeurPx": 3840,
+        "hauteurPx": 2160
+      },
+      {
+        "largeurPx": 4096,
+        "hauteurPx": 2160
+      }
+    ]
+  },
+  "texte": {
+    "lignes": [
+      {
+        "modele": "Fiche contenu, {projet}{date}"
+      },
+      {
+        "modele": "Mur : {largeurM} m × {hauteurM} m, {colonnes} × {lignes} dalles {modele}, pas {pas} mm"
+      },
+      {
+        "modele": "Résolution du contenu : {largeurPx} × {hauteurPx} px, ratio {ratio}"
+      },
+      {
+        "modele": "Zones par processeur :",
+        "liste": "zones"
+      },
+      {
+        "modele": "Sortie demandée : {sortie} à {cadence} Hz, balayage progressif"
+      },
+      {
+        "modele": "Texte : au moins {texteMinPx} px de haut pour un public jusqu'à {distance} m, police grasse"
+      },
+      {
+        "modele": "Images en PNG, pas de JPEG. Vidéos dans le format du lecteur, sinon H.264 ou H.265 à débit élevé."
+      },
+      {
+        "modele": "Couleur Rec.709, 8 bits minimum, 10 bits si possible."
+      },
+      {
+        "modele": "Pas de filets fins ni de motifs très fins. Aucune vidéo protégée par HDCP."
+      },
+      {
+        "modele": "Carte des dalles jointe : {fichier}"
+      },
+      {
+        "modele": "Merci de tester le contenu sur le mur avant le jour J."
+      }
+    ]
+  }
+}

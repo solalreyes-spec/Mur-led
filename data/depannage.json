@@ -89,6 +89,13 @@
       "niveau": "C"
     },
     {
+      "code": "SMODE",
+      "libelle": "Smode (serveur média), documentation « Test Pattern »",
+      "version": "consultée le 03/10/2026",
+      "url": "https://doc.smode.io/reference/elements/compositing/2d/2dLayer/generator/test/test-pattern/",
+      "niveau": "C"
+    },
+    {
       "code": "F1",
       "libelle": "Formation (transcription 1)",
       "version": "2026",
@@ -1509,6 +1516,18 @@
       "lignes": [
         {
           "numero": 1,
+          "texte": "Affiche la mire de l'appli : chaque dalle doit montrer son numéro et la couleur de son port comme sur le schéma.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
           "texte": "Compare chaque câble au schéma de l'appli : numéros de port et ordre des dalles.",
           "marque": null,
           "sources": [
@@ -1520,7 +1539,7 @@
           "aConfirmer": false
         },
         {
-          "numero": 2,
+          "numero": 3,
           "texte": "Enable Mapping affiche sur chaque dalle son numéro et son port, sur certaines cartes Armor.",
           "marque": "novastar",
           "etiquette": "Novastar",
@@ -1533,7 +1552,7 @@
           "aConfirmer": false
         },
         {
-          "numero": 3,
+          "numero": 4,
           "texte": "Show Topology Errors{1} ; après un échange de dalle, Correct Association{2}.",
           "marque": "brompton",
           "etiquette": "Brompton",
@@ -1552,7 +1571,7 @@
           "aConfirmer": false
         },
         {
-          "numero": 4,
+          "numero": 5,
           "texte": "Une carte remise à zéro perd sa config et peut mal placer les dalles.",
           "marque": null,
           "sources": [
@@ -1583,6 +1602,22 @@
       "lignes": [
         {
           "numero": 1,
+          "texte": "Affiche la mire de l'appli : un cercle ovale montre une image étirée, un cadre blanc incomplet une image coupée ou décalée.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "SMODE",
+              "ref": null
+            },
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
           "texte": "Lis la résolution et la fréquence reçues sur l'écran d'accueil du processeur{1}. Compare avec la résolution du mur calculée par l'appli.",
           "marque": null,
           "sources": [
@@ -1605,7 +1640,7 @@
           "aConfirmer": false
         },
         {
-          "numero": 2,
+          "numero": 3,
           "texte": "EDID : c'est l'écran qui dit à la source quelle résolution envoyer. Débrancher et rebrancher relance l'échange ; un EDID verrouillé par l'utilisateur précédent se remet à zéro{1}. Menus EDID : annexe B.",
           "marque": null,
           "sources": [
@@ -1618,7 +1653,7 @@
           "aConfirmer": false
         },
         {
-          "numero": 3,
+          "numero": 4,
           "texte": "Une résolution forcée dans la carte graphique de l'ordinateur ne tient plus compte de l'EDID.",
           "marque": null,
           "sources": [
@@ -1630,7 +1665,7 @@
           "aConfirmer": false
         },
         {
-          "numero": 4,
+          "numero": 5,
           "texte": "Novastar avec ordinateur (MCTRL) : Coordinate est le coin haut gauche de la zone de l'écran de l'ordinateur envoyée au mur.",
           "marque": "novastar",
           "sources": [

@@ -70,18 +70,26 @@ function empreintesDans(texte, empreintes, longueurs) {
 // Noms d'employeurs trouvés dans un texte (mot seul, deux mots collés, ou morceau d'un mot) : leurs empreintes.
 const employeursDans = (texte) => empreintesDans(texte, EMPREINTES_EMPLOYEURS, LONGUEURS_EMPLOYEURS);
 // Organisme de formation (morceau d'un mot) ; nom du fichier de la formation et documents internes (mot seul ou deux
-// mots collés, exactement) : cherchés par empreintes aussi, pour ne pas écrire ces noms dans un fichier publié.
+// mots collés, exactement) ; renvoi « du Projet » des sources de formation, interdit dans le Dépannage seulement
+// (« cahier des charges du projet » est le libellé publié ailleurs). Cherchés par empreintes aussi, pour ne pas écrire
+// ces noms dans un fichier publié.
 const EMPREINTES_ORGANISME = new Set([0x46eb5d19]);
-const EMPREINTES_INTERNES = new Set([0x4d6958ff, 0x163d3c3f, 0x92cbc1a0, 0xd0df2c6b, 0x28eb34d2, 0x5bea4bbc]);
-function internesDans(texte) {
+const EMPREINTES_INTERNES = new Set([0x4d6958ff, 0x163d3c3f, 0xd0df2c6b, 0x28eb34d2, 0x5bea4bbc]);
+const EMPREINTES_PROJET = new Set([0x92cbc1a0]);
+function exactsDans(texte, empreintes) {
   const mots = motsDe(texte);
-  const trouves = new Set(empreintesDans(texte, EMPREINTES_ORGANISME, [8]));
+  const trouves = new Set();
   for (let i = 0; i < mots.length; i += 1) {
-    for (const bloc of [mots[i], mots[i] + (mots[i + 1] ?? '')]) {
-      if (EMPREINTES_INTERNES.has(fnv1a(bloc))) trouves.add(fnv1a(bloc).toString(16));
-    }
+    for (const bloc of [mots[i], mots[i] + (mots[i + 1] ?? '')]) if (empreintes.has(fnv1a(bloc))) trouves.add(fnv1a(bloc).toString(16));
   }
   return [...trouves];
+}
+const internesDans = (texte) => [...empreintesDans(texte, EMPREINTES_ORGANISME, [8]), ...exactsDans(texte, EMPREINTES_INTERNES)];
+
+// Mire et fiche contenu (data/fiche-contenu.json).
+function ficheContenu(contexte) {
+  if (!contexte?.ficheContenu) throw new Error(`data/fiche-contenu.json non lu${contexte?.erreurFicheContenu ? ` : ${contexte.erreurFicheContenu}` : ''}`);
+  return contexte.ficheContenu;
 }
 
 export const DONNEES = [
@@ -1692,8 +1700,8 @@ export const DONNEES = [
     verifier(v, contexte) {
       const d = depannage(contexte);
       const codes = new Set(d.sources.map((s) => s.code));
-      v.egal('table des sources : 21 codes, ceux du § 5 (F1 à F19 : les 10 utilisés)', d.sources.map((s) => s.code),
-        ['NS-A10', 'NS-A5S', 'NS-LCT', 'NS-VX1000', 'NS-VXPRO', 'CX-MX40', 'BR-LED', 'BR-TESS', 'BR-FORM',
+      v.egal('table des sources : 22 codes, ceux du § 5 (F1 à F19 : les 10 utilisés)', d.sources.map((s) => s.code),
+        ['NS-A10', 'NS-A5S', 'NS-LCT', 'NS-VX1000', 'NS-VXPRO', 'CX-MX40', 'BR-LED', 'BR-TESS', 'BR-FORM', 'SMODE',
           'F1', 'F2', 'F3', 'F6', 'F7', 'F11', 'F15', 'F16', 'F17', 'F19', 'F-PDF1', 'CDC']);
       const listes = listesSources(d);
       v.egal('codes de source inconnus', listes.flatMap((x) => x.sources.filter((s) => !codes.has(s.code)).map((s) => `${x.chemin} : ${s.code}`)), []);
@@ -1742,7 +1750,7 @@ export const DONNEES = [
       v.egal('sources de formation : toutes « Formation (transcription n) »',
         d.sources.filter((s) => /^F\d+$/.test(s.code) && s.libelle !== `Formation (transcription ${s.code.slice(1)})`).map((s) => s.code), []);
       v.egal('liens web : seulement les documents en ligne du § 5',
-        d.sources.filter((s) => s.url).map((s) => s.code), ['NS-A10', 'NS-A5S', 'NS-VX1000', 'NS-VXPRO', 'CX-MX40', 'BR-LED']);
+        d.sources.filter((s) => s.url).map((s) => s.code), ['NS-A10', 'NS-A5S', 'NS-VX1000', 'NS-VXPRO', 'CX-MX40', 'BR-LED', 'SMODE']);
       v.egal('liens en https', d.sources.filter((s) => s.url && !/^https:\/\//.test(s.url)).map((s) => s.code), []);
       v.egal('niveaux : C, CC ou F', d.sources.filter((s) => !['C', 'CC', 'F'].includes(s.niveau)).map((s) => s.code), []);
       v.egal('copies sur un site tiers [CC] : A5s, VX1000, VX Pro, MX40 Pro', d.sources.filter((s) => s.niveau === 'CC').map((s) => s.code), ['NS-A5S', 'NS-VX1000', 'NS-VXPRO', 'CX-MX40']);
@@ -1750,18 +1758,66 @@ export const DONNEES = [
   },
   {
     id: 'D54',
-    titre: 'Dépannage, fichiers publiés (data/depannage.json et le code de l\'écran) : aucun nom d\'employeur, ni « Oliverdy », ni nom de fichier de la formation, ni document interne',
+    titre: 'Fichiers publiés (appli, page de tests et ses modules, package.json) : aucun nom d\'employeur, ni le nom de l\'organisme de formation, ni le nom du fichier de la formation, ni document interne ; dans le Dépannage, aucun renvoi « du Projet »',
     etape: 'depannage',
     verifier(v, contexte) {
-      const f = fichiersAppli(contexte);
-      for (const chemin of ['data/depannage.json', 'src/ecran-depannage.js']) {
-        const texte = f[chemin];
-        v.vrai(`${chemin} : chargé par l'appli`, typeof texte === 'string');
-        if (typeof texte !== 'string') continue;
-        v.egal(`${chemin} : noms d'employeurs (empreintes trouvées)`, employeursDans(texte), []);
-        v.egal(`${chemin} : organisme de formation, fichier de la formation, documents internes (empreintes trouvées)`, internesDans(texte), []);
-      }
+      const publies = contexte.publies;
+      if (!publies) throw new Error(`fichiers publiés non lus${contexte.erreurPublies ? ` : ${contexte.erreurPublies}` : ''}`);
+      const lus = Object.entries(publies).filter(([, texte]) => typeof texte === 'string');
+      v.egal('fichiers publiés lus, page de tests comprise',
+        ['index.html', 'src/calculs.js', 'src/rappels.js', 'data/connectique.json', 'data/processeurs.json', 'data/depannage.json', 'src/ecran-depannage.js',
+          'tests.html', 'tests/cas.js', 'tests/regles.js', 'tests/donnees.js', 'tests/navigateur.js', 'tests/node.test.js', 'package.json'].filter((c) => typeof publies[c] !== 'string'), []);
+      v.vrai(`plus de 40 fichiers lus (${lus.length})`, lus.length > 40);
+      v.egal('noms d\'employeurs, organisme de formation, fichier de la formation, documents internes (fichier : empreinte trouvée)',
+        lus.flatMap(([chemin, texte]) => [...employeursDans(texte), ...internesDans(texte)].map((h) => `${chemin} : ${h}`)), []);
+      for (const chemin of ['data/depannage.json', 'src/ecran-depannage.js']) v.egal(`${chemin} : renvoi « du Projet » (empreinte trouvée)`, exactsDans(publies[chemin] ?? '', EMPREINTES_PROJET), []);
       v.egal('empreinte FNV-1a de référence (« a » : e40c292c)', fnv1a('a').toString(16), 'e40c292c');
+    },
+  },
+  {
+    id: 'D55',
+    titre: 'Fiche contenu et mire (data/fiche-contenu.json) : chaque consigne fixe a une source, chaque code de source existe ; le texte fixe de la fiche (consignes et texte partagé) ne contient ni « - » ni « — » ; sources de formation sous leur libellé publié ; mode d\'emploi et lecture de la mire renvoient à des étapes du Dépannage qui existent',
+    etape: 'mire',
+    verifier(v, contexte) {
+      const f = ficheContenu(contexte);
+      const codes = new Set(f.sources.map((s) => s.code));
+      v.egal('sources : celles du § 5 du document', f.sources.map((s) => s.code),
+        ['BR-TESS', 'NS-LCT', 'NS-VX1000', 'NS-VXPRO', 'CX-MX40', 'SMODE', 'AVIXA', 'T-BRAIN', 'ELECOM', 'LWC', 'T-PQINA', 'F1', 'F3', 'F15', 'F19']);
+      v.egal('formation : « Formation (transcription n) »', f.sources.filter((s) => /^F\d+$/.test(s.code)).map((s) => s.libelle),
+        ['Formation (transcription 1)', 'Formation (transcription 3)', 'Formation (transcription 15)', 'Formation (transcription 19)']);
+      v.egal('consignes fixes 1 à 9', f.consignes.map((c) => c.numero), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      v.egal('consignes sans source', f.consignes.filter((c) => !c.sources?.length).map((c) => c.titre), []);
+      const utilisees = [f.consignes, f.modeEmploi, f.lireLaMire, f.neRemplacePas, Object.values(f.limites), [f.hauteurTexte]]
+        .flat().flatMap((x) => x.sources ?? []);
+      v.egal('codes de source inconnus', utilisees.filter((s) => !codes.has(s.code)).map((s) => s.code), []);
+      const fixe = [...f.consignes.flatMap((c) => [c.titre, c.texte]), ...f.texte.lignes.map((l) => l.modele)];
+      v.egal('texte fixe de la fiche sans tiret', fixe.filter((t) => /[-—–]/.test(t)), []);
+      v.vrai('texte partagé : « Fiche contenu » en première ligne, le test sur le mur en dernière', /^Fiche contenu/.test(f.texte.lignes[0]?.modele ?? '') && /jour J/.test(f.texte.lignes.at(-1)?.modele ?? ''));
+      v.egal('cadence : 50 Hz par défaut, à confirmer avec un formateur', [f.saisies.cadences, f.saisies.cadenceDefaut.valeur, f.saisies.cadenceDefaut.aConfirmer], [[50, 59.94, 60, 25], 50, true]);
+      v.egal('cadres standard de la sortie de la régie', f.saisies.cadres.map((c) => `${c.largeurPx}x${c.hauteurPx}`), ['1920x1080', '3840x2160', '4096x2160']);
+      v.egal('mode d\'emploi : 5 étapes', f.modeEmploi.length, 5);
+      v.egal('lire la mire : 7 cas', f.lireLaMire.length, 7);
+      const noeuds = new Set((contexte.depannage?.noeuds ?? []).map((n) => n.id));
+      v.egal('renvois au Dépannage qui n\'existent pas', f.lireLaMire.flatMap((x) => x.depannage).filter((id) => !noeuds.has(id)), []);
+      v.egal('limites : Frame Store 4096 × 4096, canevas des SX40 et S8 (720 à 4094 px de large, 720 à 4095 de haut, 9 000 000 px)',
+        [f.limites.frameStore.cotePx, f.limites.canevasTessera.largeurMinPx, f.limites.canevasTessera.largeurMaxPx, f.limites.canevasTessera.hauteurMaxPx, f.limites.canevasTessera.pixelsMax],
+        [4096, 720, 4094, 4095, 9000000]);
+      v.egal('hauteur de texte : facteur 200 (AVIXA)', [f.hauteurTexte.facteur, f.hauteurTexte.sources.map((s) => s.code)], [200, ['AVIXA', 'T-BRAIN']]);
+    },
+  },
+  {
+    id: 'D56',
+    titre: 'Fiche contenu (retouche du 03/10/2026) : introductions des écrans en texte d\'écran, source « Formation (transcription 3) » ; chaque source a un libellé court (« Elecom », « Tessera », « AVIXA DISCAS »…) pour l\'écran, le titre complet restant dans la liste des sources',
+    etape: 'mire',
+    verifier(v, contexte) {
+      const f = ficheContenu(contexte);
+      v.egal('intro de la mire', [f.intro.mire.texte, f.intro.mire.sources.map((s) => s.code)],
+        ['Image à la résolution exacte du mur : chaque dalle porte son numéro et la couleur de son port, comme sur le schéma. Affichée depuis la source, elle vérifie tout le chemin jusqu\'aux dalles.', ['F3']]);
+      v.egal('intro de la fiche', [f.intro.fiche.texte, f.intro.fiche.sources.map((s) => s.code)],
+        ['Ce que le graphiste et la régie doivent respecter. Envoie la fiche avec la mire, puis câble exactement comme la carte envoyée.', ['F3']]);
+      v.egal('sources sans libellé court', f.sources.filter((s) => !s.court).map((s) => s.code), []);
+      const court = (code) => f.sources.find((s) => s.code === code)?.court;
+      v.egal('libellés courts', ['ELECOM', 'LWC', 'BR-TESS', 'AVIXA', 'F3'].map(court), ['Elecom', 'LEDWallCentral', 'Tessera', 'AVIXA DISCAS', 'Formation (transcription 3)']);
     },
   },
 ];

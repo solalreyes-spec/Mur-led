@@ -11,6 +11,7 @@ import { VERSIONS_CACHE } from './versions-cache.js';
 import { creerStockage } from '../src/stockage.js';
 import * as couleurs from '../src/couleurs.js';
 import * as dessinSchema from '../src/dessin-schema.js';
+import { el } from '../src/dom.js';
 
 const DALLE_192 = { id: 'fictive-192', nom: 'Dalle 500 mm, 192 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
 
@@ -69,6 +70,36 @@ function fondDe(e) {
     if (c && !/rgba\(.*,\s*0\)$/.test(c) && c !== 'transparent') return rgbVersHex(c);
   }
   return '#ffffff';
+}
+
+// Mire et fiche contenu : modules chargés à la demande (absents, seuls ces tests échouent) ; mur de BP2 V2 câblé
+// comme dans le Schéma (variante conseillée, départ en haut à gauche).
+async function moduleAppli(v, chemin) {
+  try {
+    return await import(chemin);
+  } catch (erreur) {
+    v.vrai(`module ${chemin.slice(3)} chargé (${erreur.message})`, false);
+    return null;
+  }
+}
+function murCable(contexte, colonnes, lignes, id = 'brompton-s8') {
+  const dalle = dalleDeBase(contexte, 'roe-bp2-v2');
+  const m = calculs.mur(dalle, colonnes, lignes);
+  const evaluation = calculs.evaluerProcesseur(m, dalle, processeurDeBase(contexte, id), { frequenceHz: 60, bits: id.startsWith('brompton') ? 12 : 8 });
+  const data = calculs.cablageData(m, dalle, evaluation, { depart: 'haut-gauche' });
+  return { mur: m, dalle, evaluation, variante: data.variantes.find((x) => x.mode === data.conseil) };
+}
+const rgbHex = (p) => `#${p.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+// Distance d'un point aux deux diagonales et au cercle de la mire : les pixels de contrôle s'en tiennent à l'écart.
+function loinDesTraits(plan, x, y) {
+  const { largeur: W, hauteur: H } = plan.mur;
+  const px = x - plan.mur.x;
+  const py = y - plan.mur.y;
+  const d1 = Math.abs(H * px - W * py) / Math.hypot(W, H);
+  const d2 = Math.abs(H * (W - px) - W * py) / Math.hypot(W, H);
+  const dc = Math.abs(Math.hypot(x - plan.cercle.cx, y - plan.cercle.cy) - plan.cercle.r);
+  const dans = (b) => b && x >= b.x - 4 && x <= b.x + b.w + 4 && y >= b.y - 4 && y <= b.y + b.h + 4;
+  return d1 > 4 && d2 > 4 && dc > 4 && !dans(plan.bloc) && !dans({ ...plan.damier, w: plan.damier.cote, h: plan.damier.cote });
 }
 
 export const NAVIGATEUR = [
@@ -751,7 +782,7 @@ export const NAVIGATEUR = [
       v.egal(`annexe B : ${cases} cases [?] avec leur badge`, m.racine.querySelectorAll('.dep-badge').length, cases);
       v.vrai('annexe B : aucun code interne affiché', !codeInterne.test(texteDe(m.racine)));
       m.ecran.sources();
-      v.egal('liste des sources : 21 entrées, sans code interne', [m.racine.querySelectorAll('.dep-source-entree').length, codeInterne.test(texteDe(m.racine))], [21, false]);
+      v.egal('liste des sources : 22 entrées, sans code interne', [m.racine.querySelectorAll('.dep-source-entree').length, codeInterne.test(texteDe(m.racine))], [22, false]);
       m.retirer();
     },
   },
@@ -814,6 +845,392 @@ export const NAVIGATEUR = [
         else delete html.dataset.taille;
         if (avant.mode) html.dataset.mode = avant.mode;
         else delete html.dataset.mode;
+      }
+    },
+  },
+  {
+    id: 'N18',
+    titre: 'Alertes et avertissements de l\'appli (alerte, erreur, info, ok, fiche incomplète, bandeau « Recharger », avertissement du Dépannage, conflit de valeurs), en thème sombre et en mode rouge : tout texte à 4,5:1 au moins sur son fond, texte de l\'alerte, lien, gras, texte secondaire et bouton compris ; corrigé dans le style commun, sans exception pour l\'avertissement de T9 (styles.css)',
+    etape: 'contraste',
+    async verifier(v) {
+      const css = await (await fetch('styles.css', { cache: 'no-store' })).text();
+      v.vrai('aucune exception de mode rouge pour l\'avertissement du Dépannage (fond à part)', !/data-mode="rouge"\]\s*\.dep-avertissement\s*\{[^}]*background/.test(css));
+      const feuille = document.createElement('link');
+      feuille.rel = 'stylesheet';
+      feuille.href = 'styles.css';
+      await new Promise((fin) => {
+        feuille.onload = fin;
+        feuille.onerror = fin;
+        document.head.append(feuille);
+      });
+      const html = document.documentElement;
+      const avant = html.dataset.mode;
+      // Contenu type d'une alerte : son texte, un lien, du gras, un texte secondaire et un bouton.
+      const contenu = () => ['Texte de l\'alerte ', el('a', { href: '#' }, 'lien'), ' ', el('strong', {}, 'gras'),
+        el('p', { class: 'note' }, 'Texte secondaire'), el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Bouton')];
+      const modeles = [
+        ['alerte', () => el('div', { class: 'alerte' }, ...contenu())],
+        ['erreur', () => el('div', { class: 'alerte alerte-erreur' }, ...contenu())],
+        ['info', () => el('div', { class: 'alerte alerte-info' }, ...contenu())],
+        ['ok', () => el('div', { class: 'alerte alerte-ok' }, ...contenu())],
+        ['fiche incomplète', () => el('details', { class: 'alerte manques', open: '' }, el('summary', {}, 'Fiche incomplète'), el('p', {}, 'Ce qui manque'), el('p', { class: 'note' }, 'Liste complète dans Base'))],
+        ['bandeau « Recharger »', () => el('div', { class: 'bandeau-maj' }, el('span', {}, 'Une nouvelle version est prête.'), el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Recharger'))],
+        ['avertissement du Dépannage', () => el('div', { class: 'dep' }, el('div', { class: 'dep-avertissement' },
+          el('div', { class: 'dep-ligne' }, el('p', { class: 'dep-texte' }, 'Avant de brancher le mur'), el('p', { class: 'dep-sources' }, 'Formation (transcription 3)'))))],
+        ['conflit de valeurs', () => el('div', { class: 'carte' }, el('p', { class: 'conflit' }, 'Autres valeurs : 160 W'))],
+      ];
+      try {
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          const cadre = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px;background:var(--fond);color:var(--texte)' });
+          document.body.append(cadre);
+          const fautes = [];
+          for (const [nom, creer] of modeles) {
+            const alerte = creer();
+            cadre.append(alerte);
+            for (const e of [alerte, ...alerte.querySelectorAll('*')]) {
+              if (![...e.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim()) || !e.getClientRects().length) continue;
+              const c = contraste(rgbVersHex(getComputedStyle(e).color), fondDe(e));
+              if (c < 4.5) fautes.push(`${nom}, ${e.tagName.toLowerCase()}${e.className ? `.${e.className.split(' ').join('.')}` : ''} : ${c.toFixed(2)}:1`);
+            }
+          }
+          v.egal(`${mode} : textes des alertes sous 4,5:1`, fautes, []);
+          cadre.remove();
+        }
+      } finally {
+        feuille.remove();
+        if (avant) html.dataset.mode = avant;
+        else delete html.dataset.mode;
+      }
+    },
+  },
+  {
+    id: 'N19',
+    titre: 'Mire du mur : PNG en RVB 8 bits, sans transparence, à la taille exacte du mur ; bord de chaque dalle à la couleur de son port et libellés du Schéma (port et rang, colonne et rangée, premier pixel), fond assombri ; cadre blanc aux coins ; damier de 1 px au bon endroit',
+    etape: 'mire',
+    async verifier(v, contexte) {
+      const mire = await moduleAppli(v, '../src/mire.js');
+      if (!mire) return;
+      const c = murCable(contexte, 4, 3);
+      const r = mire.preparerMires({ ...c, projet: 'Salon B', date: '3 octobre 2026', version: 'v15' });
+      const plan = r.mur.plan;
+      v.egal('mire du mur : taille du mur, nom sans espace ni accent', [plan.largeur, plan.hauteur, r.mur.nom], [c.mur.pxLargeur, c.mur.pxHauteur, `mire_salonb_${c.mur.pxLargeur}x${c.mur.pxHauteur}.png`]);
+      v.egal('bloc central : projet, résolution, date, version', plan.bloc.lignes, ['Salon B', `${c.mur.pxLargeur} × ${c.mur.pxHauteur} px`, '3 octobre 2026', 'Mur LED v15']);
+      // Libellés et couleurs : ceux du Schéma (trajetsSchema, geometrieSchema).
+      const trajets = trajetsSchema({ cablage: 'data' }, c.variante, null);
+      const geo = geometrieSchema({ vue: 'pixels', canvasVue: 'mur' }, c.mur, c.dalle, calculs.pixelMap(c.mur, c.dalle, c.evaluation));
+      const libelles = plan.dalles.filter((d) => {
+        const t = trajets.find((x) => x.dalles.includes(d.id));
+        const g = geo.rects.get(d.id);
+        return !(t && d.bord === t.couleur.ecran && d.textes.map((x) => x.texte).join(' | ') === `${t.numero} · ${t.dalles.indexOf(d.id) + 1} | ${d.id} | x ${g.x} y ${g.y}`);
+      }).map((d) => d.id);
+      v.egal('dalles dont la couleur ou les libellés diffèrent du Schéma', libelles, []);
+      const jetons = (await jetonsStyles()).sombre;
+      v.egal('couleurs des ports sur la mire : celles du Schéma à l\'écran (styles.css, thème sombre)', couleurs.COULEURS_PORTS.map((x) => x.ecran), [1, 2, 3, 4, 5, 6, 7].map((k) => jetons[`--port-${k}`]));
+      const blob = await mire.pngRvb(mire.dessinerMire(plan));
+      const octets = new Uint8Array(await blob.arrayBuffer());
+      v.egal('PNG, RVB (type de couleur 2), 8 bits, sans transparence', [blob.type, String.fromCharCode(...octets.slice(1, 4)), octets[25], octets[24]], ['image/png', 'PNG', 2, 8]);
+      const image = await decoder(blob);
+      v.egal('taille du PNG', [image.width, image.height], [plan.largeur, plan.hauteur]);
+      const fautes = [];
+      let vus = 0;
+      for (const d of plan.dalles) {
+        const bord = [d.x, d.y + Math.round(d.h * 0.3)];
+        const fond = [d.x + Math.round(d.w * 0.12), d.y + Math.round(d.h * 0.12)];
+        if (d.x > 0 && loinDesTraits(plan, ...bord)) {
+          vus += 1;
+          if (rgbHex(pixel(image, ...bord)) !== d.bord) fautes.push(`${d.id} bord ${rgbHex(pixel(image, ...bord))} au lieu de ${d.bord}`);
+        }
+        if (loinDesTraits(plan, ...fond) && rgbHex(pixel(image, ...fond)) !== d.fond) fautes.push(`${d.id} fond ${rgbHex(pixel(image, ...fond))} au lieu de ${d.fond}`);
+      }
+      v.egal(`pixels de contrôle des dalles (${vus} bords vérifiés)`, fautes, []);
+      v.vrai('bords vérifiés sur plusieurs dalles', vus >= 4);
+      v.egal('cadre blanc : coins haut gauche et bas droit', [rgbHex(pixel(image, 0, 0)), rgbHex(pixel(image, plan.largeur - 1, plan.hauteur - 1))], ['#ffffff', '#ffffff']);
+      const { x, y, cote } = plan.damier;
+      const p = (dx, dy) => rgbHex(pixel(image, x + dx, y + dy));
+      v.vrai(`damier de ${cote} px en (${x}, ${y}) : pixels alternés noir et blanc`, [64, 32, 16].includes(cote) && ['#000000', '#ffffff'].includes(p(0, 0)) && p(1, 0) !== p(0, 0) && ['#000000', '#ffffff'].includes(p(1, 0)) && p(1, 1) === p(0, 0) && p(cote - 1, cote - 1) === p(0, 0) && p(cote - 2, cote - 1) !== p(0, 0));
+      v.egal('fond de la dalle : couleur du port à environ 25 %', plan.dalles.every((d) => {
+        const [a, b] = [d.bord, d.fond].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+        return a.every((k, i) => Math.abs(b[i] - Math.round(k * 0.25)) <= 1);
+      }), true);
+    },
+  },
+  {
+    id: 'N20',
+    titre: 'Mire par processeur (mur réparti sur 2 S8) : une mire par zone, à la taille de la zone, en tête « Processeur n, modèle », coordonnées relatives à la zone, seulement les ports de ce processeur',
+    etape: 'mire',
+    async verifier(v, contexte) {
+      const mire = await moduleAppli(v, '../src/mire.js');
+      if (!mire) return;
+      const c = murCable(contexte, 24, 3);
+      v.egal('mur de 24 × 3 BP2 V2 : 2 S8', c.evaluation.groupes.length, 2);
+      const r = mire.preparerMires({ ...c, date: '3 octobre 2026' });
+      v.egal('une mire par processeur, à la taille de sa zone', r.processeurs.map((p) => [p.numero, p.largeur, p.hauteur]), c.evaluation.groupes.map((g, i) => [i + 1, g.largeurPx, g.hauteurPx]));
+      const p2 = r.processeurs[1];
+      v.egal('nom du fichier', p2.nom, `mire_proc2_${p2.largeur}x${p2.hauteur}.png`);
+      v.egal('en tête : « Processeur 2, S8 »', p2.plan.bloc.lignes[0], `Processeur 2, ${c.evaluation.processeur.modele}`);
+      const premiere = p2.plan.dalles.find((d) => d.x === 0 && d.y === 0);
+      v.egal('première dalle de la zone : coordonnées relatives, « x 0 y 0 »', premiere?.textes[2]?.texte, 'x 0 y 0');
+      v.vrai('seulement les ports du processeur 2', p2.plan.dalles.every((d) => d.textes[0].texte.startsWith('2.')));
+      const image = await decoder(await mire.pngRvb(mire.dessinerMire(p2.plan)));
+      v.egal('PNG du processeur 2 à la taille de sa zone', [image.width, image.height], [p2.largeur, p2.hauteur]);
+    },
+  },
+  {
+    id: 'N21',
+    titre: 'Limite du canvas mesurée sur l\'appareil (dernier pixel dessiné puis relu), jamais codée en dur ; mur au-delà de la limite : pas de mire du mur entier, un message, les mires par processeur proposées',
+    etape: 'mire',
+    async verifier(v, contexte) {
+      const mire = await moduleAppli(v, '../src/mire.js');
+      if (!mire) return;
+      const limite = mire.surfaceCanvasMax();
+      v.vrai(`limite mesurée sur ce navigateur : ${limite.toLocaleString('fr-FR')} px, au moins 16 777 216 (4096 × 4096)`, limite >= 16777216);
+      v.vrai('la limite est une vraie frontière : un canvas de cette surface marche', mire.canvasPossible(4096, Math.floor(limite / 4096)));
+      v.egal('limite gardée pour la session', mire.surfaceCanvasMax(), limite);
+      const c = murCable(contexte, 24, 3);
+      const r = mire.preparerMires({ ...c, date: '3 octobre 2026', surfaceMax: 1500000 });
+      v.egal('mur de 2,2 M px au-delà d\'une limite de 1,5 M px : pas de mire du mur entier', [r.mur.possible, r.mur.plan], [false, null]);
+      v.vrai('message : trop grande pour cet appareil, mires par processeur', /trop grande/.test(r.mur.message ?? '') && /par processeur/.test(r.mur.message ?? ''));
+      v.egal('mires par processeur possibles', r.processeurs.map((p) => p.possible), [true, true]);
+      const seul = mire.preparerMires({ ...murCable(contexte, 4, 3), date: '3 octobre 2026', surfaceMax: 100000 });
+      v.vrai('un seul processeur au-delà de la limite : message, aucune mire', !seul.mur.possible && seul.processeurs.length === 0 && /trop grande/.test(seul.mur.message ?? ''));
+    },
+  },
+  {
+    id: 'N22',
+    titre: 'Mire dans le cadre de la source : image à la taille du cadre standard, mur placé en X, Y, le reste en gris très foncé avec « hors mur » ; mur qui ne tient pas dans le cadre : message',
+    etape: 'mire',
+    async verifier(v, contexte) {
+      const mire = await moduleAppli(v, '../src/mire.js');
+      if (!mire) return;
+      const c = murCable(contexte, 4, 3);
+      const r = mire.preparerMires({ ...c, date: '3 octobre 2026', cadre: { largeurPx: 1920, hauteurPx: 1080, x: 100, y: 50 } });
+      const plan = r.mur.plan;
+      v.egal('taille : le cadre ; mur en X, Y', [plan.largeur, plan.hauteur, plan.mur.x, plan.mur.y, plan.mur.largeur, plan.mur.hauteur], [1920, 1080, 100, 50, c.mur.pxLargeur, c.mur.pxHauteur]);
+      v.egal('nom du fichier : taille du cadre', r.mur.nom, 'mire_1920x1080.png');
+      v.egal('mention « hors mur »', plan.horsMur?.texte, 'hors mur');
+      const image = await decoder(await mire.pngRvb(mire.dessinerMire(plan)));
+      v.egal('hors du mur : gris très foncé ; coin du mur : blanc', [rgbHex(pixel(image, 0, 0)), rgbHex(pixel(image, 99, 49)), rgbHex(pixel(image, 100, 50)), rgbHex(pixel(image, 100 + c.mur.pxLargeur - 1, 50 + c.mur.pxHauteur - 1))],
+        [mire.GRIS_HORS_MUR, mire.GRIS_HORS_MUR, '#ffffff', '#ffffff']);
+      const dehors = mire.preparerMires({ ...c, date: '3 octobre 2026', cadre: { largeurPx: 1920, hauteurPx: 1080, x: 1500, y: 0 } });
+      v.vrai('mur qui dépasse du cadre : pas de mire, message', !dehors.mur.possible && /ne tient pas/.test(dehors.mur.message ?? ''));
+    },
+  },
+  {
+    id: 'N23',
+    titre: 'Écran « Mire et fiche contenu » hors ligne : boutons des mires (mur entier et par processeur), mire générée sans accès au réseau ; fiche contenu (ratio, zones par processeur, consignes sourcées, texte partagé sans tiret) ; fichiers dans le cache du service worker',
+    etape: 'mire',
+    async verifier(v, contexte) {
+      const cache = listeCache(contexte.fichiers?.['sw.js']);
+      v.egal('fichiers de la mire et de la fiche dans le cache du service worker', ['src/contenu.js', 'src/mire.js', 'src/ecran-mire.js', 'data/fiche-contenu.json'].filter((f) => !cache.includes(f)), []);
+      const module = await moduleAppli(v, '../src/ecran-mire.js');
+      const donnees = contexte.ficheContenu;
+      v.vrai('data/fiche-contenu.json lu', Boolean(donnees));
+      if (!module || !donnees) return;
+      const c = murCable(contexte, 24, 3);
+      await sansReseau(async (appels) => {
+        const racine = document.createElement('div');
+        racine.style.cssText = 'position:absolute;left:-10000px;top:0;width:375px';
+        document.body.append(racine);
+        try {
+          const ecran = module.monterMireFiche(racine, donnees, { contexte: () => c, date: new Date(2026, 9, 3), version: 'v15', surfaceMax: 16777216 });
+          ecran.afficher('mire');
+          v.egal('mires proposées : mur entier et un bouton par processeur', [...racine.querySelectorAll('.mf-generer')].map((b) => b.dataset.mire), ['mur', 'p1', 'p2']);
+          await ecran.generer('p2');
+          v.vrai('mire du processeur 2 générée et affichée', Boolean(racine.querySelector('.mf-apercu img')) && /mire_proc2_/.test(texteDe(racine.querySelector('.mf-apercu'))));
+          ecran.afficher('fiche');
+          const texte = ecran.texte();
+          v.vrai('fiche : ratio réduit et décimal', texte.includes(`ratio ${c.mur.pxLargeur / 2 === c.mur.pxHauteur ? '2:1 (2,00)' : ''}`) || /ratio \d+:\d+ \(\d+,\d\d\)/.test(texte));
+          v.egal('fiche : zones des 2 processeurs', racine.querySelectorAll('.mf-zone').length, 2);
+          v.egal('consignes fixes, chacune avec sa source', [racine.querySelectorAll('.mf-consignes > li').length, [...racine.querySelectorAll('.mf-consignes > li')].every((li) => li.querySelector('.dep-sources, .mf-sources'))], [9, true]);
+          v.egal('texte partagé : aucun tiret', texte.match(/[-—–]/g), null);
+          v.vrai('texte partagé : première ligne « Fiche contenu », mire jointe', /^Fiche contenu/.test(texte) && /Carte des dalles jointe : mire_/.test(texte));
+          v.egal('aucun accès au réseau', appels, []);
+        } finally {
+          racine.remove();
+        }
+      });
+    },
+  },
+  {
+    id: 'N24',
+    titre: 'Écran « Mire et fiche contenu » en grand affichage, thème sombre et mode rouge : texte de 19 px, boutons de 60 px, texte à 4,5:1 sur son fond, rien ne déborde à 375 px (styles.css)',
+    etape: 'mire',
+    async verifier(v, contexte) {
+      const module = await moduleAppli(v, '../src/ecran-mire.js');
+      const donnees = contexte.ficheContenu;
+      if (!module || !donnees) {
+        v.vrai('module et données de la fiche', false);
+        return;
+      }
+      const feuille = document.createElement('link');
+      feuille.rel = 'stylesheet';
+      feuille.href = 'styles.css';
+      await new Promise((fin) => {
+        feuille.onload = fin;
+        feuille.onerror = fin;
+        document.head.append(feuille);
+      });
+      const html = document.documentElement;
+      const avant = { taille: html.dataset.taille, mode: html.dataset.mode };
+      const c = murCable(contexte, 24, 3);
+      try {
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          for (const taille of ['normal', 'grand']) {
+            if (taille === 'grand') html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            const [mini, police] = taille === 'grand' ? [60, 19] : [48, 0];
+            const racine = document.createElement('div');
+            racine.style.cssText = 'position:absolute;left:-10000px;top:0;width:375px;background:var(--fond);color:var(--texte)';
+            document.body.append(racine);
+            const ecran = module.monterMireFiche(racine, donnees, { contexte: () => c, date: new Date(2026, 9, 3), version: 'v15', surfaceMax: 16777216 });
+            const fautes = [];
+            for (const section of ['mire', 'fiche']) {
+              ecran.afficher(section);
+              racine.querySelectorAll('details').forEach((x) => { x.open = true; });
+              for (const e of [...racine.querySelectorAll('*')].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && x.getClientRects().length)) {
+                const style = getComputedStyle(e);
+                if (police && !e.closest('sup, .mf-exposant') && parseFloat(style.fontSize) < police - 0.05) fautes.push(`${section} : « ${texteDe(e).slice(0, 30)} » en ${style.fontSize}`);
+                const k = contraste(rgbVersHex(style.color), fondDe(e));
+                if (k < 4.5) fautes.push(`${section} : « ${texteDe(e).slice(0, 30)} » à ${k.toFixed(2)}:1`);
+              }
+              for (const b of racine.querySelectorAll('button, summary, select, input')) {
+                if (!b.getClientRects().length || b.matches('input[type="checkbox"], input[type="radio"]')) continue;
+                const h = b.getBoundingClientRect().height;
+                if (h < mini - 0.5) fautes.push(`${section} : « ${(texteDe(b) || b.name || b.tagName).slice(0, 30)} » haut de ${h.toFixed(0)} px`);
+              }
+              if (racine.scrollWidth > 375.5) fautes.push(`${section} : ${racine.scrollWidth} px de large`);
+            }
+            v.egal(`${mode}, ${taille} : texte, contrastes, cibles et largeur`, fautes.slice(0, 12), []);
+            racine.remove();
+          }
+        }
+      } finally {
+        feuille.remove();
+        if (avant.taille) html.dataset.taille = avant.taille;
+        else delete html.dataset.taille;
+        if (avant.mode) html.dataset.mode = avant.mode;
+        else delete html.dataset.mode;
+      }
+    },
+  },
+  {
+    id: 'N25',
+    titre: 'Dépannage : « mire de l\'appli » (nouvelles étapes 1 de T5.2 et T5.3) est un lien qui ouvre la mire',
+    etape: 'mire',
+    async verifier(v, contexte) {
+      const d = contexte.depannage;
+      const module = await moduleDepannage(v);
+      if (!d || !module) return;
+      const ouvertures = [];
+      const m = monterDepannage(module, d, { projet: null, ouvrirMire: () => ouvertures.push('mire') });
+      for (const id of ['T5.2', 'T5.3']) {
+        m.ecran.afficher(id);
+        const lien = m.racine.querySelector('.dep-etape .dep-lien-mire');
+        v.egal(`${id}, étape 1 : lien « mire de l'appli »`, [texteDe(m.racine.querySelector('.dep-etape')).startsWith('Affiche la mire de l\'appli'), texteDe(lien)], [true, 'mire de l\'appli']);
+        lien?.click();
+      }
+      v.egal('chaque lien ouvre la mire', ouvertures, ['mire', 'mire']);
+      m.retirer();
+    },
+  },
+  {
+    id: 'N26',
+    titre: 'Mire : libellés des dalles prioritaires (retouche du 03/10/2026). Chaque dalle a sa ligne 1 ; le bloc d\'infos et le damier vont dans la moitié basse de la dalle la plus proche du centre, sans toucher ses bords ni une zone de libellé ; damier de 64, 32 ou 16 px ; bloc par priorité (processeur, projet, résolution, puis date et version) ; tout le texte avec un contour sombre (2 px en ligne 1, 1 px sinon)',
+    etape: 'mire',
+    async verifier(v, contexte) {
+      const mire = await moduleAppli(v, '../src/mire.js');
+      if (!mire) return;
+      const coupe = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+      const cas = [
+        ['mur 12 × 6, un MCTRL660', mire.preparerMires({ ...murCable(contexte, 12, 6, 'novastar-mctrl660'), projet: 'Salon B', date: '3 octobre 2026', version: 'v15' }).mur.plan],
+        ['mire du processeur 2, 24 × 3 sur deux S8', mire.preparerMires({ ...murCable(contexte, 24, 3), projet: 'Salon B', date: '3 octobre 2026', version: 'v15' }).processeurs[1]?.plan],
+      ];
+      for (const [nom, plan] of cas) {
+        if (!plan) {
+          v.vrai(`${nom} : plan`, false);
+          continue;
+        }
+        v.egal(`${nom} : chaque dalle a sa ligne 1`, plan.dalles.filter((d) => !d.textes[0]?.texte).map((d) => d.id), []);
+        const zones = plan.dalles.flatMap((d) => d.textes.map((t) => ({ ...t.boite, id: d.id })));
+        v.vrai(`${nom} : chaque libellé a sa zone`, zones.length > 0 && zones.every((b) => b.w > 0 && b.h > 0));
+        const centre = [plan.mur.x + plan.mur.largeur / 2, plan.mur.y + plan.mur.hauteur / 2];
+        const distance = (d) => Math.hypot(d.x + d.w / 2 - centre[0], d.y + d.h / 2 - centre[1]);
+        const proche = [...plan.dalles].sort((a, b) => distance(a) - distance(b))[0];
+        const b = plan.bloc;
+        const dm = plan.damier ? { x: plan.damier.x, y: plan.damier.y, w: plan.damier.cote, h: plan.damier.cote } : null;
+        const dansMoitieBasse = (r) => r.x >= proche.x + 2 && r.x + r.w <= proche.x + proche.w - 2 && r.y >= proche.y + proche.h / 2 && r.y + r.h <= proche.y + proche.h - 2;
+        v.vrai(`${nom} : bloc d'infos dans la moitié basse de ${proche.id}, la dalle la plus proche du centre, sans toucher ses bords`, Boolean(b) && dansMoitieBasse(b));
+        v.vrai(`${nom} : damier de 64, 32 ou 16 px dans la même moitié basse`, dm === null || ([64, 32, 16].includes(dm.w) && dansMoitieBasse(dm)));
+        v.vrai(`${nom} : damier présent (la place suffit)`, dm !== null);
+        const z = plan.zoneBloc;
+        v.vrai(`${nom} : zone libre de la demi-dalle sous les libellés, sans toucher les bords`, Boolean(z) && dansMoitieBasse(z) && zones.every((x) => !coupe(x, z)));
+        v.egal(`${nom} : damier de la plus grande taille qui tient dans la demi-dalle (zone libre de ${z?.w} × ${z?.h} px)`, dm?.w ?? null, [64, 32, 16].find((c) => c <= z?.h && c <= z?.w) ?? null);
+        v.egal(`${nom} : libellés croisés par le bloc ou le damier`, zones.filter((z) => coupe(z, b) || (dm && coupe(z, dm))).map((z) => z.id), []);
+        v.vrai(`${nom} : bloc et damier ne se croisent pas`, !dm || !coupe(b, dm));
+        v.egal(`${nom} : contour sombre de tout le texte, 2 px en ligne 1, 1 px en lignes 2 et 3`,
+          plan.dalles.flatMap((d) => d.textes.map((t, i) => t.contour === (i === 0 ? 2 : 1))).every(Boolean) && plan.bloc.contour === 1, true);
+      }
+      v.egal('bloc de la mire du processeur 2 : processeur, projet, résolution d\'abord', cas[1][1]?.bloc.lignes.slice(0, 3), ['Processeur 2, S8', 'Salon B', '2112 × 528 px']);
+    },
+  },
+  {
+    id: 'N27',
+    titre: 'Mire : la version écrite dans le bloc vient de la même source que la version du cache (le service worker qui sert l\'appli, sinon sw.js) ; elles sont égales',
+    etape: 'mire',
+    async verifier(v, contexte) {
+      const mire = await moduleAppli(v, '../src/mire.js');
+      const ecranMire = await moduleAppli(v, '../src/ecran-mire.js');
+      const donnees = contexte.ficheContenu;
+      if (!mire || !ecranMire || !donnees) return;
+      const version = await mire.versionAppli?.();
+      const controle = navigator.serviceWorker?.controller;
+      if (controle) v.vrai(`page servie par le service worker : son cache mur-led-${version?.slice(1)} existe`, (await caches.keys()).includes(`mur-led-${version?.slice(1)}`));
+      else v.egal('version de la mire : celle de sw.js', version, `v${versionCache(contexte.fichiers?.['sw.js'])}`);
+      const racine = document.createElement('div');
+      racine.style.cssText = 'position:absolute;left:-10000px;top:0;width:375px';
+      document.body.append(racine);
+      const ecran = ecranMire.monterMireFiche(racine, donnees, { contexte: () => murCable(contexte, 4, 3), date: new Date(2026, 9, 3), surfaceMax: 16777216 });
+      await ecran.pret;
+      v.egal('écran de la mire : même version, sans la lui donner', ecran.version?.(), version);
+      racine.remove();
+    },
+  },
+  {
+    id: 'N28',
+    titre: 'Mire et fiche : sous chaque ligne un libellé court de source (« Elecom (site tiers) », « Tessera §6.3 », « AVIXA DISCAS »…), sans lien ; titres complets et liens seulement dans la liste des sources en bas de l\'écran ; introductions sans citation de la transcription',
+    etape: 'mire',
+    async verifier(v, contexte) {
+      const module = await moduleAppli(v, '../src/ecran-mire.js');
+      const donnees = contexte.ficheContenu;
+      if (!module || !donnees) return;
+      for (const enLigne of [false, true]) {
+        const racine = document.createElement('div');
+        racine.style.cssText = 'position:absolute;left:-10000px;top:0;width:375px';
+        document.body.append(racine);
+        const ecran = module.monterMireFiche(racine, donnees, { contexte: () => murCable(contexte, 24, 3), date: new Date(2026, 9, 3), version: 'v15', surfaceMax: 16777216, enLigne: () => enLigne });
+        ecran.afficher('fiche');
+        const consignes = [...racine.querySelectorAll('.mf-consignes > li')];
+        const sources = (li) => texteDe(li?.querySelector('.mf-sources'));
+        if (!enLigne) {
+          v.egal('consigne 1 : « Elecom (site tiers) »', sources(consignes[0]), 'Elecom (site tiers)');
+          v.egal('consigne 4 : renvois et libellés courts', sources(consignes[3]), '1 Elecom (site tiers) ; LEDWallCentral (site tiers) ; 2 Tessera §12.1');
+          const hors = [...racine.querySelectorAll('*')].filter((e) => !e.closest('.mf-liste-sources') && [...e.childNodes].some((n) => n.nodeType === 3 && /checklist complète|Content creation essentials|User Manual/.test(n.textContent)));
+          v.egal('titres complets hors de la liste des sources', hors.length, 0);
+          v.egal('intro de la fiche : texte d\'écran', texteDe(racine.querySelector('.mf-fiche .mf-bloc .mf-texte-ligne')), 'Ce que le graphiste et la régie doivent respecter. Envoie la fiche avec la mire, puis câble exactement comme la carte envoyée.');
+        }
+        const liste = racine.querySelector('.mf-fiche .mf-liste-sources');
+        v.egal(`${enLigne ? 'en ligne' : 'hors ligne'} : liste des sources en bas, 15 entrées`, liste?.querySelectorAll('.mf-source-entree').length, 15);
+        v.egal(`${enLigne ? 'en ligne' : 'hors ligne'} : liens seulement dans la liste, et seulement en ligne`,
+          [racine.querySelectorAll('.mf-sources a').length, (liste?.querySelectorAll('a[href^="https://"]').length ?? 0) > 0], [0, enLigne]);
+        ecran.afficher('mire');
+        v.egal(`${enLigne ? 'en ligne' : 'hors ligne'} : intro de la mire : texte d'écran`, texteDe(racine.querySelector('.mf-mire .mf-bloc .mf-texte-ligne')),
+          'Image à la résolution exacte du mur : chaque dalle porte son numéro et la couleur de son port, comme sur le schéma. Affichée depuis la source, elle vérifie tout le chemin jusqu\'aux dalles.');
+        v.vrai(`${enLigne ? 'en ligne' : 'hors ligne'} : liste des sources aussi en bas de la mire`, Boolean(racine.querySelector('.mf-mire .mf-liste-sources')));
+        racine.remove();
       }
     },
   },

@@ -48,14 +48,16 @@ function resoudre(dossier, chemin) {
 }
 
 // Fichiers cités par un fichier : ressources de la page, imports des modules, données et icônes, icônes du manifeste.
-// Les données (data/…) et les icônes (icones/…) sont lues depuis la page, donc depuis la racine.
-export function references(chemin, texte) {
+// Les données (data/…) et les icônes (icones/…) sont lues depuis la page, donc depuis la racine. `tests` : garde aussi
+// les modules de la page de tests et les imports à la demande (fichiers publiés, test D54).
+export function references(chemin, texte, { tests = false } = {}) {
   const dossier = chemin.includes('/') ? chemin.slice(0, chemin.lastIndexOf('/') + 1) : '';
   const refs = [];
   if (chemin.endsWith('.html')) {
     for (const m of texte.matchAll(/(?:src|href)="([^"#:]+)"/g)) refs.push(m[1]);
   } else if (chemin.endsWith('.js') && chemin !== 'sw.js') {
     for (const m of texte.matchAll(/from\s+'([^']+)'/g)) refs.push(resoudre(dossier, m[1]));
+    if (tests) for (const m of texte.matchAll(/import\('([^']+)'\)/g)) refs.push(resoudre(dossier, m[1]));
     for (const m of texte.matchAll(/'((?:data|icones)\/[^']+)'/g)) refs.push(m[1]);
     for (const m of texte.matchAll(/register\('([^']+)'/g)) refs.push(m[1]);
   } else if (chemin.endsWith('.webmanifest')) {
@@ -65,7 +67,25 @@ export function references(chemin, texte) {
       // Manifeste illisible : le contrôle du manifeste le signale.
     }
   }
-  return refs.filter((r) => !r.startsWith('tests')).map((r) => resoudre(chemin.endsWith('.js') ? '' : dossier, r));
+  return refs.filter((r) => tests || !r.startsWith('tests')).map((r) => resoudre(chemin.endsWith('.js') ? '' : dossier, r));
+}
+
+// Fichiers publiés lisibles en texte : l'appli, la page de tests et ses modules, node.test.js et package.json (copiés
+// par outils/preparer-publication.sh) ; les icônes PNG sont laissées de côté. Pour D54, qui y cherche les noms à ne
+// jamais publier.
+export async function chargerFichiersPublies(lire) {
+  const textes = {};
+  const aLire = ['index.html', 'sw.js', 'manifest.webmanifest', 'tests.html', 'robots.txt', 'package.json', 'tests/node.test.js'];
+  while (aLire.length > 0) {
+    const chemin = aLire.shift();
+    if (chemin in textes || chemin === '' || chemin === '.' || chemin.endsWith('.png')) continue;
+    const texte = await lire(chemin);
+    textes[chemin] = texte;
+    if (texte === null) continue;
+    const suivants = chemin === 'sw.js' ? listeCache(texte).filter((c) => c !== './') : references(chemin, texte, { tests: true });
+    for (const suivant of suivants) if (!(suivant in textes)) aLire.push(suivant);
+  }
+  return textes;
 }
 
 export async function chargerFichiersAppli(lire) {

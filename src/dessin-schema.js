@@ -41,6 +41,14 @@ const detailPort = (port, p, plusieurs) => `${pluriel(port.dalles.length, 'dalle
   + `${port.secours ? `, secours ${plusieurs ? `${p.numero}.${port.secours.numero}` : port.secours.numero}` : ''}`
   + `${port.secours?.retourM ? `, retour ${nombreCourt(port.secours.retourM, 1)} m` : ''}`;
 
+// Libellés d'une dalle, partagés par le schéma et la mire de mapping (src/mire.js), pour ne jamais diverger : port et
+// rang de la dalle dans son câble (« 2.6 · 3 », le rang du guide pas à pas), colonne et rangée (« C3 R2 »), premier
+// pixel (« x 1536 », « y 512 »).
+export const rangDansTrajet = (trajet, id) => trajet.dalles.indexOf(id) + 1;
+export const libellePortRang = (trajet, id) => `${trajet.numero} · ${rangDansTrajet(trajet, id)}`;
+export const lignesNomDalle = (id) => id.split(' ');
+export const lignesPremierPixel = (r) => [`x ${r.x}`, `y ${r.y}`];
+
 // Trajets à dessiner : un par port (data) ou par ligne (élec), avec son rang (fond alterné), son sens et ses dalles.
 // `vue.cablage` : 'data', 'elec' ou 'aucun' ; `canvasNumero` limite la data aux ports de ce processeur.
 export function trajetsSchema(vue, vd, ve, canvasNumero = null) {
@@ -294,7 +302,7 @@ export function construireSvg({
   // Premier pixel de la dalle (vue pixels), coin bas gauche : un peu plus petit quand il est long (« x 1408 »), pour
   // rester à gauche du trait qui passe au centre de la dalle.
   const coordonnees = (r) => {
-    const lignesCoord = [`x ${r.x}`, `y ${r.y}`];
+    const lignesCoord = lignesPremierPixel(r);
     const plusLong = Math.max(...lignesCoord.map((l) => l.length));
     const taille = Math.min(cote * 0.11, (cote * 0.3) / (0.62 * plusLong));
     return ligne(r.x + bordTexte, r.y + r.h - bordTexte - taille * 1.35, taille, lignesCoord);
@@ -308,7 +316,7 @@ export function construireSvg({
         style: `fill: ${fondDalle(id, r)}; stroke: ${choisie ? palette.accent : palette.bord}`,
         'stroke-width': cote * (choisie ? 0.05 : 0.015),
       }),
-      ligne(r.x + bordTexte, r.y + cote * 0.05 + tailleNom * 0.8, tailleNom, id.split(' ')),
+      ligne(r.x + bordTexte, r.y + cote * 0.05 + tailleNom * 0.8, tailleNom, lignesNomDalle(id)),
       geo.unite === 'px' ? coordonnees(r) : null);
   });
 
@@ -366,8 +374,8 @@ export function construireSvg({
   };
   // Guide pas à pas : numéro d'ordre dans le quart haut droit de chaque dalle, hors du nom (haut gauche) et du trait.
   const policeOrdre = cote * (grandPhysique ? 0.27 : 0.24);
-  const numerosOrdre = (points, fond, texteNumero, contour) => points.map(([x, y], i) => {
-    const libelle = `${i + 1}`;
+  const numerosOrdre = (t, ids, points, fond, texteNumero, contour) => points.map(([x, y], i) => {
+    const libelle = `${rangDansTrajet(t, ids[i])}`;
     const h = policeOrdre * 1.42;
     const w = Math.max(h, policeOrdre * 0.62 * libelle.length + cote * 0.1);
     const [cx, cy] = [x + cote * 0.24, y - cote * 0.24];
@@ -378,7 +386,8 @@ export function construireSvg({
       }, libelle));
   });
   const lignes = trajets.map((t) => {
-    const points = t.dalles.filter((id) => rects.has(id)).map((id) => centre(rects.get(id)));
+    const ids = t.dalles.filter((id) => rects.has(id));
+    const points = ids.map((id) => centre(rects.get(id)));
     if (points.length === 0) return null;
     const [x0, y0] = points[0];
     const [xn, yn] = points[points.length - 1];
@@ -442,7 +451,7 @@ export function construireSvg({
         class: 'numero-trajet', x: xd, y: yd, 'font-size': police * (t.etiquette.length > 3 ? 0.62 : 0.95), style: `fill: ${texteNumero}`,
         'font-weight': 700, 'text-anchor': 'middle', 'dominant-baseline': 'central',
       }, t.etiquette),
-      t.cle === ordre ? numerosOrdre(points, couleur, texteNumero, contour) : numerosSurTrajet(t, points, couleur, texteNumero, contour));
+      t.cle === ordre ? numerosOrdre(t, ids, points, couleur, texteNumero, contour) : numerosSurTrajet(t, points, couleur, texteNumero, contour));
   });
 
   // Repère du processeur (ou de l'armoire) au coin de départ, hors du mur, du côté des départs ; les câbles de tête

@@ -6,14 +6,16 @@
 // Écran : variables de styles.css (--port-1 à --port-7, --phase-1 à --phase-3, --phase-lisere) ; export sur fond
 // blanc : couleurs d'impression ci-dessous. Au moins 3:1 sur chaque fond, chiffres des pastilles à 4,5:1 (test N11).
 
+// `ecran` : la couleur du port sur fond sombre, la même que --port-1 à --port-7 de styles.css (thème sombre), pour la
+// mire de mapping, qui garde ses couleurs quel que soit le thème de l'appli (test N19).
 export const COULEURS_PORTS = [
-  { nom: 'bleu', export: '#0b5cad' },
-  { nom: 'jaune', export: '#6e5a00' },
-  { nom: 'vert', export: '#1d7a34' },
-  { nom: 'rose', export: '#a8246a' },
-  { nom: 'turquoise', export: '#00706a' },
-  { nom: 'violet', export: '#6a3fc0' },
-  { nom: 'rouge', export: '#b3261e' },
+  { nom: 'bleu', export: '#0b5cad', ecran: '#4dabff' },
+  { nom: 'jaune', export: '#6e5a00', ecran: '#f2e14c' },
+  { nom: 'vert', export: '#1d7a34', ecran: '#4cd964' },
+  { nom: 'rose', export: '#a8246a', ecran: '#ff6fb5' },
+  { nom: 'turquoise', export: '#00706a', ecran: '#2fd4c4' },
+  { nom: 'violet', export: '#6a3fc0', ecran: '#b18cff' },
+  { nom: 'rouge', export: '#b3261e', ecran: '#ff5c5c' },
 ];
 
 export const COULEURS_PHASES = {
@@ -32,7 +34,7 @@ export const MOTIFS = [
 // Couleur d'un port d'après son rang dans le câblage (0 pour le premier port du premier processeur).
 export function couleurPort(rang) {
   const i = rang % COULEURS_PORTS.length;
-  return { cle: `port-${i + 1}`, nom: COULEURS_PORTS[i].nom, export: COULEURS_PORTS[i].export, lisere: false, motif: MOTIFS[0] };
+  return { cle: `port-${i + 1}`, nom: COULEURS_PORTS[i].nom, export: COULEURS_PORTS[i].export, ecran: COULEURS_PORTS[i].ecran, lisere: false, motif: MOTIFS[0] };
 }
 
 // Style de chaque ligne électrique : couleur de sa phase (marron en monophasé), motif selon son rang parmi les lignes

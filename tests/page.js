@@ -7,7 +7,7 @@ import { DONNEES } from './donnees.js';
 import { BANC } from './banc.js';
 import { executerCas, executerCasAsync } from './verif.js';
 import { NAVIGATEUR } from './navigateur.js';
-import { chargerFichiersAppli } from './fichiers.js';
+import { chargerFichiersAppli, chargerFichiersPublies } from './fichiers.js';
 import { el } from '../src/dom.js';
 
 const LIBELLES = { reussi: 'Réussi', echec: 'Échec', erreur: 'Erreur', 'a-venir': 'À venir' };
@@ -66,6 +66,12 @@ async function chargerContexte() {
   } catch (erreur) {
     contexte.erreurDepannage = erreur.message;
   }
+  // Mire et fiche contenu : consignes fixes, mode d'emploi, sources.
+  try {
+    contexte.ficheContenu = await lireJson('data/fiche-contenu.json');
+  } catch (erreur) {
+    contexte.erreurFicheContenu = erreur.message;
+  }
   try {
     contexte.fichiers = await chargerFichiersAppli(async (chemin) => {
       const reponse = await fetch(chemin, { cache: 'no-store' });
@@ -73,6 +79,14 @@ async function chargerContexte() {
     });
   } catch (erreur) {
     contexte.erreurFichiers = erreur.message;
+  }
+  try {
+    contexte.publies = await chargerFichiersPublies(async (chemin) => {
+      const reponse = await fetch(chemin, { cache: 'no-store' });
+      return reponse.ok ? reponse.text() : null;
+    });
+  } catch (erreur) {
+    contexte.erreurPublies = erreur.message;
   }
   return contexte;
 }

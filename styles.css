@@ -122,11 +122,11 @@ a:focus-visible, .bouton:focus-visible, summary:focus-visible {
   --ok: #ff6a5c;
   --ok-fond: #1c0402;
   --echec: #ff2a1f;
-  --echec-fond: #2b0200;
+  --echec-fond: #240100;
   --attente: #a3302b;
   --attente-fond: #120000;
   --alerte: #ff7a4d;
-  --alerte-fond: #230800;
+  --alerte-fond: #1c0500;
   --info-fond: #140000;
   --sur-accent: #000000;
 }
@@ -550,6 +550,10 @@ main, main section, .carte, details, .champ, .resultats, .bloc-resultats { min-w
 .alerte-erreur { border-color: var(--echec); background: var(--echec-fond); color: var(--echec); }
 .alerte-info { border-color: var(--accent); background: var(--info-fond); color: var(--texte); }
 .alerte-ok { border-color: var(--ok); background: var(--ok-fond); color: var(--ok); }
+/* Alertes et avertissements à 4,5:1 au moins en mode rouge (test N18) : les fonds d'alerte et d'erreur sont assez
+   sombres pour le texte rouge (4,6:1), et le texte secondaire d'une alerte prend la couleur du texte (le rouge doux
+   n'atteint que 2,7 à 2,9:1 sur les fonds d'alerte). */
+:root[data-mode="rouge"] :is(.alerte, .bandeau-maj, .dep-avertissement) { --texte-doux: var(--texte); }
 .etat-source { display: grid; gap: 8px; justify-items: start; }
 .rappels { margin: 0; padding-left: 20px; color: var(--texte-doux); font-size: 0.9rem; }
 .groupe-accroche { margin-top: 0; }
@@ -780,8 +784,6 @@ input[type="file"] { color: var(--texte); min-height: var(--cible); }
 .dep-reponse .dep-sources { margin-top: 4px; }
 .dep-avertissement { display: grid; gap: 8px; padding: 10px 12px; border: 2px solid var(--alerte); border-radius: var(--rayon); background: var(--alerte-fond); }
 .dep-avertissement .dep-texte { font-weight: 700; }
-/* Mode rouge : le texte rouge n'atteint que 4,49:1 sur le fond d'alerte ; l'avertissement garde sa bordure sur le noir. */
-:root[data-mode="rouge"] .dep-avertissement { background: var(--fond); }
 .dep-annexe, .dep-annexe-section, .dep-appareils { display: grid; gap: 10px; }
 .dep-annexe h4, .dep-appareil h4 { margin: 4px 0 0; font-size: 1rem; }
 .dep-annexe-lignes, .dep-liste-sources { margin: 0; padding-left: 1.2em; display: grid; gap: 10px; }
@@ -796,3 +798,46 @@ input[type="file"] { color: var(--texte); min-height: var(--cible); }
    restent plus petits). */
 :root[data-taille="grand"] .dep-sources, :root[data-taille="grand"] .dep-badge, :root[data-taille="grand"] .dep-contexte,
 :root[data-taille="grand"] .dep-note, :root[data-taille="grand"] .dep-annexe h4, :root[data-taille="grand"] .dep-appareil h4 { font-size: 1rem; }
+
+/* Mire et fiche contenu (src/ecran-mire.js) : écran plein ouvert depuis le Mur ou le Dépannage, contenu qui défile.
+   Texte à 4,5:1 en thème sombre et en mode rouge (en rouge, le texte secondaire prend la couleur du texte) ; en grand
+   affichage, tout le texte à 19 px (seuls les renvois en exposant restent plus petits), cibles de 60 px (N24). */
+.barre-mire { margin-top: 12px; }
+.barre-mire .bouton { width: 100%; }
+.mire-fiche .montage-haut { margin-bottom: 8px; }
+.mire-fiche-titre { margin: 0; font-size: 1.3rem; line-height: 1.2; }
+.mf-defilant { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.mf { --mf-doux: var(--texte-doux); display: grid; gap: 12px; padding-bottom: 16px; color: var(--texte); }
+:root[data-mode="rouge"] .mf { --mf-doux: var(--texte); }
+.mf p { margin: 0; }
+.mf-onglets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mf-onglets .bouton[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
+.mf-saisies, .mf-cadre, .mf-champs-fiche, .mf-mire, .mf-fiche, .mf-boutons, .mf-bloc { display: grid; gap: 10px; }
+.mf .champ label { color: var(--mf-doux); font-size: 0.9rem; }
+.mf-xy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.mf-intertitre { margin: 8px 0 0; font-size: 1.1rem; }
+.mf-note { color: var(--mf-doux); font-size: 0.875rem; }
+.mf-sources { color: var(--mf-doux); font-size: 0.8125rem; font-style: italic; line-height: 1.35; overflow-wrap: anywhere; }
+.mf-sources a { color: var(--accent); }
+.mf-source-numero { font-style: normal; font-weight: 700; }
+.mf-exposant { font-size: 0.7em; line-height: 0; color: var(--accent); font-weight: 700; }
+.mf-texte-ligne { overflow-wrap: anywhere; }
+.mf-boutons .bouton, .mf-renvois .bouton { justify-content: flex-start; text-align: left; line-height: 1.3; padding: 8px 14px; }
+.mf-liste, .mf-consignes { margin: 0; padding-left: 1.4em; display: grid; gap: 10px; }
+.mf-lecture { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.mf-carte { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface); }
+.mf-renvois { display: flex; flex-wrap: wrap; gap: 6px; }
+.mf-valeurs { display: grid; gap: 4px; margin: 0; }
+.mf-valeurs dt { font-weight: 700; margin-top: 6px; }
+.mf-valeurs dd { margin: 0; display: grid; gap: 2px; overflow-wrap: anywhere; }
+.mf-zones { margin: 0; padding-left: 1.2em; }
+.mf-texte {
+  margin: 0; padding: 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface);
+  color: var(--texte); font: inherit; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.mf-figure { margin: 0; display: grid; gap: 6px; }
+.mf-figure img { width: 100%; height: auto; border: 1px solid var(--bordure); background: #000; }
+.mf-figure figcaption { color: var(--mf-doux); font-size: 0.875rem; overflow-wrap: anywhere; }
+.mf-badge { margin-right: 4px; }
+:root[data-taille="grand"] .mf .champ label, :root[data-taille="grand"] .mf-note, :root[data-taille="grand"] .mf-sources,
+:root[data-taille="grand"] .mf-figure figcaption, :root[data-taille="grand"] .mf-badge, :root[data-taille="grand"] .mf .alerte { font-size: 1rem; }

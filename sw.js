@@ -5,8 +5,8 @@
 // donc aussi, le navigateur installe la nouvelle version d'un bloc (tous les fichiers dans un cache neuf),
 // supprime l'ancien cache et la page propose de recharger.
 
-const VERSION = 14;
-const EMPREINTE = '48bf4943c8219dc7b782f24e226f34a77a61e6377138924774a0633234652546';
+const VERSION = 15;
+const EMPREINTE = '9392b7c24daa78ed6fa0fc4d26ce1071de3eb1c05028dace0cbd710403f67c1f';
 const CACHE = `mur-led-v${VERSION}`;
 const FICHIERS = [
   './',
@@ -16,6 +16,7 @@ const FICHIERS = [
   'src/app.js',
   'src/calculs.js',
   'src/configuration.js',
+  'src/contenu.js',
   'src/copie.js',
   'src/couleurs.js',
   'src/dessin-schema.js',
@@ -25,6 +26,7 @@ const FICHIERS = [
   'src/ecran-data.js',
   'src/ecran-depannage.js',
   'src/ecran-elec.js',
+  'src/ecran-mire.js',
   'src/ecran-mur.js',
   'src/ecran-poids.js',
   'src/ecran-schema.js',
@@ -32,6 +34,7 @@ const FICHIERS = [
   'src/fiches.js',
   'src/format.js',
   'src/manques.js',
+  'src/mire.js',
   'src/montage.js',
   'src/rappels.js',
   'src/resumes.js',
@@ -45,6 +48,7 @@ const FICHIERS = [
   'data/serveurs.json',
   'data/switches.json',
   'data/depannage.json',
+  'data/fiche-contenu.json',
   'icones/icone.svg',
   'icones/icone-180.png',
   'icones/icone-192.png',
@@ -71,6 +75,11 @@ self.addEventListener('activate', (evenement) => {
       for (const page of await self.clients.matchAll({ type: 'window' })) page.postMessage({ type: 'nouvelle-version', version: VERSION });
     }
   })());
+});
+
+// Version demandée par la page (bloc de la mire de mapping) : celle de ce cache, une seule source.
+self.addEventListener('message', (evenement) => {
+  if (evenement.data?.type === 'version') evenement.ports[0]?.postMessage({ version: VERSION });
 });
 
 self.addEventListener('fetch', (evenement) => {

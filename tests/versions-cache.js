@@ -14,4 +14,5 @@ export const VERSIONS_CACHE = [
   { version: 12, empreinte: '4192c4275b154befa70b12d1d9396bd9550c678ca465a665141f966a8792af88', date: '2026-10-03', note: 'Guide de câblage pas à pas (zoom avec le départ du port) ; grand affichage, en plus du thème sombre ou du mode rouge' },
   { version: 13, empreinte: 'bfe10783380878ce142f6043351a08343c162f4f19dc1afecf36884c48633dff', date: '2026-10-03', note: 'Guide pas à pas : port loin de son départ, zoom serré sur ses dalles et encart du départ (« ← MCTRL660, port 4 ») au-dessus des dalles ; « Recentrer » à côté de la case' },
   { version: 14, empreinte: '48bf4943c8219dc7b782f24e226f34a77a61e6377138924774a0633234652546', date: '2026-10-03', note: 'Écran Dépannage : arbres de diagnostic sourcés hors ligne (symptômes, étapes, lignes de marque, badges « à confirmer », annexes) ; huit onglets' },
+  { version: 15, empreinte: '9392b7c24daa78ed6fa0fc4d26ce1071de3eb1c05028dace0cbd710403f67c1f', date: '2026-10-03', note: 'Mire de mapping et fiche contenu (bouton du Mur, lien du Dépannage) ; alertes à 4,5:1 en mode rouge ; nom de l\'organisme de formation retiré, pages du support rétablies' },
 ];

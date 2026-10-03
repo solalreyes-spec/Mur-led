@@ -10,12 +10,14 @@ import { initialiserCanvas, actualiserRegies, donneesModifiees } from './ecran-c
 import { initialiserElec, murModifiePourElec, definirDepartElec } from './ecran-elec.js';
 import {
   initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema,
+  cablageRetenu,
 } from './ecran-schema.js';
 import { initialiserPoids, actualiserBumpers, murModifiePourPoids } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
 import { restaurerConfiguration, suivreConfiguration, reglagesParDefaut } from './configuration.js';
 import { initialiserCopie } from './copie.js';
 import { monterDepannage, marqueDuProcesseur } from './ecran-depannage.js';
+import { monterMireFiche } from './ecran-mire.js';
 
 // Hors ligne : le service worker garde les fichiers de l'appli. Il prévient quand une nouvelle version est prête.
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
@@ -148,6 +150,14 @@ try {
 } catch (erreur) {
   remplacer(document.getElementById('ecran-depannage'),
     erreurAlerte(`Impossible de charger le dépannage : ${erreur.message}. Lance l'appli avec lancer.command.`));
+}
+
+// Mire et fiche contenu : consignes, mode d'emploi et sources (facultatifs : sans eux, pas de bouton).
+let ficheContenu = null;
+try {
+  ficheContenu = await lireJson('data/fiche-contenu.json');
+} catch (erreur) {
+  ficheContenu = null;
 }
 
 const appareils = Object.fromEntries(Object.entries(depart.appareils)
@@ -293,6 +303,40 @@ const publierModeMur = () => definirModeMur(new FormData(formPoids).get('mode'))
 formPoids.addEventListener('change', publierModeMur);
 publierModeMur();
 
+// Mire et fiche contenu : écran plein ouvert par le bouton du Mur ou par « mire de l'appli » dans le Dépannage. Monté
+// avant la reprise des saisies (son formulaire « form-mire » est gardé avec les autres).
+const panneauMire = document.getElementById('mire-fiche');
+let ecranMire = null;
+let ecranDepannage = null;
+function ouvrirMire(section = 'mire') {
+  if (!ecranMire) return;
+  panneauMire.hidden = false;
+  document.body.classList.add('montage-ouvert');
+  ecranMire.afficher(section);
+  document.getElementById('ecran-mire').scrollTop = 0;
+}
+function fermerMire() {
+  if (panneauMire.hidden) return;
+  panneauMire.hidden = true;
+  document.body.classList.remove('montage-ouvert');
+}
+if (ficheContenu) {
+  ecranMire = monterMireFiche(document.getElementById('ecran-mire'), ficheContenu, {
+    contexte: cablageRetenu,
+    ouvrirDepannage: (id) => {
+      fermerMire();
+      location.hash = 'depannage';
+      ecranDepannage?.afficher(id);
+    },
+  });
+} else {
+  document.getElementById('bouton-mire').hidden = true;
+}
+document.getElementById('bouton-mire').addEventListener('click', () => ouvrirMire('mire'));
+document.getElementById('mire-fermer').addEventListener('click', fermerMire);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerMire(); });
+window.addEventListener('hashchange', fermerMire);
+
 // Saisies de la dernière session, puis sauvegarde automatique ; copie des résultats.
 await restaurerConfiguration();
 suivreConfiguration();
@@ -306,8 +350,8 @@ async function projetDepannage() {
   return processeur ? { marque: marqueDuProcesseur(processeur), nom: processeur.nom } : null;
 }
 if (depannage) {
-  const ecranDepannage = monterDepannage(document.getElementById('ecran-depannage'), depannage,
-    { projet: await projetDepannage(), defiler: () => window.scrollTo(0, 0) });
+  ecranDepannage = monterDepannage(document.getElementById('ecran-depannage'), depannage,
+    { projet: await projetDepannage(), defiler: () => window.scrollTo(0, 0), ouvrirMire: () => ouvrirMire('mire') });
   window.addEventListener('hashchange', async () => {
     if (location.hash === '#depannage') ecranDepannage.definirProjet(await projetDepannage());
   });

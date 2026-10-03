@@ -158,6 +158,10 @@
         <button class="bouton bouton-petit" type="button" data-copier="mur">Copier les résultats</button>
         <span class="etat-copie" aria-live="polite"></span>
       </div>
+      <!-- Mire de mapping et fiche contenu : écran plein ouvert d'ici (et du Dépannage), pas un onglet de plus. -->
+      <div class="barre-mire">
+        <button id="bouton-mire" class="bouton" type="button">Mire et fiche contenu</button>
+      </div>
       <div id="resultats" class="resultats" aria-live="polite"></div>
     </section>
 
@@ -872,6 +876,14 @@
 
   <!-- Guide de câblage pas à pas (option 1, port par port), ouvert depuis le Schéma : un port ou une ligne à la fois,
        dalles numérotées dans l'ordre du câble, case « branché » enregistrée sur l'appareil. -->
+  <div id="mire-fiche" class="montage mire-fiche" role="dialog" aria-modal="true" aria-labelledby="mire-fiche-titre" hidden>
+    <header class="montage-haut">
+      <h2 id="mire-fiche-titre" class="mire-fiche-titre">Mire et fiche contenu</h2>
+      <button id="mire-fermer" class="bouton" type="button">Fermer</button>
+    </header>
+    <div id="ecran-mire" class="mf-defilant"></div>
+  </div>
+
   <div id="montage" class="montage" role="dialog" aria-modal="true" aria-labelledby="montage-titre" hidden>
     <header class="montage-entete">
       <div class="montage-haut">
