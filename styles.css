@@ -392,10 +392,13 @@ html[data-taille="grand"] { font-size: 19px; }
   overflow-x: auto;
   scrollbar-width: none;
 }
-/* Téléphone : les sept onglets sur deux rangées, tous visibles (Schéma compris), sans faire défiler la barre. */
+/* Téléphone : les huit onglets sur deux rangées de quatre, tous visibles (Schéma et Dépannage compris), sans faire
+   défiler la barre. Marges de 4 px (« .onglets .onglet » passe devant la règle générale « .onglet », écrite après).
+   « Dépannage » (86 px de texte pour 67 px) se coupe à son trait d'union conditionnel, « Dépan- / nage », sans grandir
+   l'onglet (deux lignes de 1,15 dans 48 px, 60 px en grand affichage) ; les autres noms restent sur une ligne. */
 @media (max-width: 600px) {
   .onglets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow-x: visible; }
-  .onglet { min-width: 0; padding: 4px 6px; }
+  .onglets .onglet { min-width: 0; padding: 4px; white-space: normal; line-height: 1.15; text-align: center; hyphens: manual; -webkit-hyphens: manual; }
 }
 .onglet {
   display: inline-flex;
@@ -727,3 +730,69 @@ input[type="file"] { color: var(--texte); min-height: var(--cible); }
 .controles .valeur { font-family: var(--police-chiffres); font-variant-numeric: tabular-nums; }
 .controles .ok { color: var(--ok); }
 .controles .ko { color: var(--echec); font-weight: 700; }
+
+/* Écran Dépannage (src/ecran-depannage.js) : arbres de diagnostic, hors ligne. Texte à 4,5:1 sur son fond en thème sombre
+   et en mode rouge (N17 ; en rouge, le texte secondaire prend la couleur du texte, le rouge doux n'atteint que 3:1 sur
+   le noir) ; réponses et symptômes 4 px plus hauts que les autres boutons (64 px en grand affichage). */
+.dep { --dep-doux: var(--texte-doux); display: grid; gap: 12px; color: var(--texte); }
+:root[data-mode="rouge"] .dep { --dep-doux: var(--texte); }
+.dep p { margin: 0; }
+.dep-barre { display: flex; gap: 8px; }
+.dep-barre .bouton { flex: 1 1 0; padding: 0 10px; }
+.dep-intertitre { margin: 12px 0 0; font-size: 1.1rem; }
+.dep-contexte, .dep-note { color: var(--dep-doux); font-size: 0.875rem; }
+.dep-id { font-family: var(--police-chiffres); }
+.dep-titre { margin: 0; font-size: 1.35rem; line-height: 1.3; }
+.dep-titre.dep-fin { font-size: 1.6rem; }
+.dep-marques { display: grid; gap: 6px; }
+.dep-marques-bas { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--bordure); }
+.dep-marques-choix { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+@media (min-width: 480px) { .dep-marques-choix { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.dep-marques-choix .bouton { min-width: 0; padding: 0 6px; }
+.dep-marques-choix .bouton[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
+.dep-reflexes, .dep-symptomes, .dep-annexes, .dep-reponses, .dep-lignes { display: grid; gap: 8px; }
+.dep-reflexe, .dep-ligne-marque { border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface); }
+.dep-reflexe > summary, .dep-ligne-marque > summary {
+  display: flex; align-items: center; gap: 8px; min-height: var(--cible); padding: 6px 12px; cursor: pointer; font-weight: 700; list-style: none;
+}
+.dep-reflexe > summary::-webkit-details-marker, .dep-ligne-marque > summary::-webkit-details-marker { display: none; }
+.dep-reflexe > summary::before, .dep-ligne-marque > summary::before { content: "▸"; flex: none; color: var(--accent); }
+.dep-reflexe[open] > summary::before, .dep-ligne-marque[open] > summary::before { content: "▾"; }
+.dep-corps { display: grid; gap: 6px; padding: 0 12px 12px; }
+.dep-etapes { margin: 0; padding-left: 1.7em; display: grid; gap: 14px; }
+.dep-etape::marker { font-weight: 700; }
+.dep-texte { overflow-wrap: anywhere; }
+.dep-sources { display: block; margin-top: 2px; color: var(--dep-doux); font-size: 0.8125rem; font-style: italic; font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; }
+.dep-sources a { color: var(--accent); }
+.dep-source-numero { font-style: normal; font-weight: 700; }
+.dep-renvoi { font-size: 0.7em; line-height: 0; color: var(--accent); font-weight: 700; }
+.dep-badge {
+  display: inline-block; padding: 0 8px; border-radius: 999px; background: var(--alerte-fond); color: var(--alerte);
+  font-size: 0.8125rem; font-style: normal; font-weight: 700; white-space: nowrap;
+}
+.dep-lien-annexe {
+  display: inline; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer;
+}
+.dep-symptome, .dep-reponse, .dep-bouton-annexe, .dep-bouton-sources {
+  flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; line-height: 1.3; padding: 10px 16px;
+}
+.dep-symptome, .dep-reponse { min-height: calc(var(--cible) + 4px); font-size: 1.05rem; }
+.dep-reponse .dep-sources { margin-top: 4px; }
+.dep-avertissement { display: grid; gap: 8px; padding: 10px 12px; border: 2px solid var(--alerte); border-radius: var(--rayon); background: var(--alerte-fond); }
+.dep-avertissement .dep-texte { font-weight: 700; }
+/* Mode rouge : le texte rouge n'atteint que 4,49:1 sur le fond d'alerte ; l'avertissement garde sa bordure sur le noir. */
+:root[data-mode="rouge"] .dep-avertissement { background: var(--fond); }
+.dep-annexe, .dep-annexe-section, .dep-appareils { display: grid; gap: 10px; }
+.dep-annexe h4, .dep-appareil h4 { margin: 4px 0 0; font-size: 1rem; }
+.dep-annexe-lignes, .dep-liste-sources { margin: 0; padding-left: 1.2em; display: grid; gap: 10px; }
+.dep-tableau-cadre { overflow-x: auto; }
+.dep-tableau { width: 100%; border-collapse: collapse; }
+.dep-tableau th, .dep-tableau td { padding: 6px 8px; border: 1px solid var(--bordure); text-align: left; vertical-align: top; }
+.dep-appareil { padding: 10px 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface); }
+.dep-appareil dl { display: grid; gap: 4px; margin: 6px 0 0; }
+.dep-appareil dt { font-weight: 700; }
+.dep-appareil dd { margin: 0 0 6px; }
+/* Grand affichage : tout le texte de l'écran à 19 px (sources, badges et notes compris ; seuls les renvois en exposant
+   restent plus petits). */
+:root[data-taille="grand"] .dep-sources, :root[data-taille="grand"] .dep-badge, :root[data-taille="grand"] .dep-contexte,
+:root[data-taille="grand"] .dep-note, :root[data-taille="grand"] .dep-annexe h4, :root[data-taille="grand"] .dep-appareil h4 { font-size: 1rem; }

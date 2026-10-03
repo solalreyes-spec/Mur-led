@@ -573,6 +573,11 @@ function sectionAutres(e, evaluations, choisie) {
 
 let dernier = null;
 
+// Processeur retenu au dernier calcul (conseil ou choix), pour la marque du projet dans l'écran Dépannage.
+export function processeurRetenu() {
+  return dernier?.choisie?.processeur ?? null;
+}
+
 // Résumé texte du dernier calcul, pour « Copier les résultats ».
 export function resumeOngletData() {
   return dernier ? resumeData(dernier.choisie, dernier) : null;

@@ -60,6 +60,12 @@ async function chargerContexte() {
   } catch (erreur) {
     contexte.erreurAppareils = erreur.message;
   }
+  // Écran Dépannage : arbres de diagnostic.
+  try {
+    contexte.depannage = await lireJson('data/depannage.json');
+  } catch (erreur) {
+    contexte.erreurDepannage = erreur.message;
+  }
   try {
     contexte.fichiers = await chargerFichiersAppli(async (chemin) => {
       const reponse = await fetch(chemin, { cache: 'no-store' });

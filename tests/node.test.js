@@ -17,6 +17,13 @@ const contexte = {
   connectique: lireJson('../data/connectique.json'),
   regies: lireJson('../data/regies.json'),
   appareils: Object.fromEntries(['melangeurs', 'convertisseurs', 'serveurs', 'switches'].map((f) => [f, lireJson(`../data/${f}.json`)])),
+  depannage: (() => {
+    try {
+      return lireJson('../data/depannage.json');
+    } catch (erreur) {
+      return null;
+    }
+  })(),
   fichiers: await chargerFichiersAppli(async (chemin) => {
     try {
       return readFileSync(new URL(`../${chemin}`, import.meta.url), 'utf8');

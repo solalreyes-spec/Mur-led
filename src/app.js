@@ -5,7 +5,7 @@ import { el, remplacer } from './dom.js';
 import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig } from './fiches.js';
 import { lire, ecrire } from './stockage.js';
 import { initialiserMur, actualiserMur, signalerErreurMur } from './ecran-mur.js';
-import { initialiserData, actualiserData, murModifie, definirDepartData } from './ecran-data.js';
+import { initialiserData, actualiserData, murModifie, definirDepartData, processeurRetenu } from './ecran-data.js';
 import { initialiserCanvas, actualiserRegies, donneesModifiees } from './ecran-canvas.js';
 import { initialiserElec, murModifiePourElec, definirDepartElec } from './ecran-elec.js';
 import {
@@ -15,6 +15,7 @@ import { initialiserPoids, actualiserBumpers, murModifiePourPoids } from './ecra
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
 import { restaurerConfiguration, suivreConfiguration, reglagesParDefaut } from './configuration.js';
 import { initialiserCopie } from './copie.js';
+import { monterDepannage, marqueDuProcesseur } from './ecran-depannage.js';
 
 // Hors ligne : le service worker garde les fichiers de l'appli. Il prévient quand une nouvelle version est prête.
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
@@ -75,7 +76,7 @@ async function demanderStockagePersistant() {
 }
 let persistant = null;
 
-const ONGLETS = ['mur', 'data', 'canvas', 'elec', 'poids', 'schema', 'base'];
+const ONGLETS = ['mur', 'data', 'canvas', 'elec', 'poids', 'schema', 'depannage', 'base'];
 
 async function lireJson(chemin) {
   const reponse = await fetch(chemin);
@@ -140,6 +141,15 @@ for (const famille of ['melangeurs', 'convertisseurs', 'serveurs', 'switches']) 
     depart.appareils[famille] = null;
   }
 }
+// Écran Dépannage : arbres de diagnostic, facultatifs (les autres onglets fonctionnent sans eux).
+let depannage = null;
+try {
+  depannage = await lireJson('data/depannage.json');
+} catch (erreur) {
+  remplacer(document.getElementById('ecran-depannage'),
+    erreurAlerte(`Impossible de charger le dépannage : ${erreur.message}. Lance l'appli avec lancer.command.`));
+}
+
 const appareils = Object.fromEntries(Object.entries(depart.appareils)
   .map(([famille, b]) => [famille, (b?.appareils ?? []).map((x) => resoudreFiche(x, b.sources))]));
 
@@ -287,6 +297,21 @@ publierModeMur();
 await restaurerConfiguration();
 suivreConfiguration();
 initialiserCopie();
+
+// Dépannage : avec des saisies gardées (un projet), la marque du processeur retenu dans Data déplie ses lignes ; sans
+// saisies, l'écran demande la marque. Relu à chaque ouverture de l'onglet.
+async function projetDepannage() {
+  if (!(await lire('configuration'))) return null;
+  const processeur = processeurRetenu();
+  return processeur ? { marque: marqueDuProcesseur(processeur), nom: processeur.nom } : null;
+}
+if (depannage) {
+  const ecranDepannage = monterDepannage(document.getElementById('ecran-depannage'), depannage,
+    { projet: await projetDepannage(), defiler: () => window.scrollTo(0, 0) });
+  window.addEventListener('hashchange', async () => {
+    if (location.hash === '#depannage') ecranDepannage.definirProjet(await projetDepannage());
+  });
+}
 // Demandé après le démarrage : certains navigateurs posent la question à l'utilisateur.
 demanderStockagePersistant().then((accorde) => {
   persistant = accorde;

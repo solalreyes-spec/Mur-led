@@ -45,6 +45,7 @@
     <a class="onglet" href="#elec">Élec</a>
     <a class="onglet" href="#poids">Poids</a>
     <a class="onglet" href="#schema">Schéma</a>
+    <a class="onglet" href="#depannage">Dépan&shy;nage</a>
     <a class="onglet" href="#base">Base</a>
   </nav>
 
@@ -738,6 +739,12 @@
         <button id="export-schema" class="bouton" type="button">Schéma de câblage en image (PNG)</button>
         <p id="etat-export" class="etat-copie" aria-live="polite"></p>
       </section>
+    </section>
+
+    <section id="depannage" aria-labelledby="titre-depannage" hidden>
+      <h2 id="titre-depannage" class="cache-visuel">Dépannage</h2>
+      <!-- Arbres de diagnostic sourcés (data/depannage.json), utilisables hors ligne : src/ecran-depannage.js. -->
+      <div id="ecran-depannage"></div>
     </section>
 
     <section id="base" aria-labelledby="titre-base" hidden>

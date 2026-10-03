@@ -29,6 +29,61 @@ function valeursSourcees(f) {
     .flatMap(([nom, champ]) => (champ.valeurs ?? [champ]).map((x) => ({ nom, ...x })));
 }
 
+// Écran Dépannage (data/depannage.json), transcrit de l'arbre de diagnostic du 03/10/2026.
+function depannage(contexte) {
+  if (!contexte?.depannage) throw new Error(`data/depannage.json non lu${contexte?.erreurDepannage ? ` : ${contexte.erreurDepannage}` : ''}`);
+  return contexte.depannage;
+}
+// Toutes les listes de sources d'un objet (lignes, choix, titres, réflexes, annexes, cases du tableau B).
+function listesSources(o, chemin = '') {
+  if (Array.isArray(o)) return o.flatMap((x, i) => listesSources(x, `${chemin}[${i}]`));
+  if (!o || typeof o !== 'object') return [];
+  return Object.entries(o).flatMap(([k, v]) => (['sources', 'sourcesTitre', 'sourcesChoix'].includes(k) && Array.isArray(v)
+    ? [{ chemin: `${chemin}.${k}`, sources: v, objet: o }] : listesSources(v, `${chemin}.${k}`)));
+}
+// Empreintes FNV-1a des noms d'employeurs de l'utilisateur (minuscules, sans espace ni tiret) : le test les cherche
+// sans les écrire dans un fichier publié.
+const EMPREINTES_EMPLOYEURS = new Set([0x102d9cb6, 0xbf5dbb5b, 0xc59f2002, 0x802c57b6, 0x62dfc8e0, 0xf028424a]);
+const LONGUEURS_EMPLOYEURS = [5, 6, 7, 8, 10];
+function fnv1a(texte) {
+  let h = 0x811c9dc5;
+  for (const c of texte) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+  return h;
+}
+const motsDe = (texte) => texte.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+// Empreintes trouvées dans un texte : mot seul, deux mots collés, ou morceau d'un mot de l'une des `longueurs`.
+function empreintesDans(texte, empreintes, longueurs) {
+  const mots = motsDe(texte);
+  const trouves = new Set();
+  for (let i = 0; i < mots.length; i += 1) {
+    for (const bloc of [mots[i], mots[i] + (mots[i + 1] ?? '')]) {
+      for (const n of longueurs) {
+        for (let j = 0; j + n <= bloc.length; j += 1) {
+          const h = fnv1a(bloc.slice(j, j + n));
+          if (empreintes.has(h)) trouves.add(h.toString(16));
+        }
+      }
+    }
+  }
+  return [...trouves];
+}
+// Noms d'employeurs trouvés dans un texte (mot seul, deux mots collés, ou morceau d'un mot) : leurs empreintes.
+const employeursDans = (texte) => empreintesDans(texte, EMPREINTES_EMPLOYEURS, LONGUEURS_EMPLOYEURS);
+// Organisme de formation (morceau d'un mot) ; nom du fichier de la formation et documents internes (mot seul ou deux
+// mots collés, exactement) : cherchés par empreintes aussi, pour ne pas écrire ces noms dans un fichier publié.
+const EMPREINTES_ORGANISME = new Set([0x46eb5d19]);
+const EMPREINTES_INTERNES = new Set([0x4d6958ff, 0x163d3c3f, 0x92cbc1a0, 0xd0df2c6b, 0x28eb34d2, 0x5bea4bbc]);
+function internesDans(texte) {
+  const mots = motsDe(texte);
+  const trouves = new Set(empreintesDans(texte, EMPREINTES_ORGANISME, [8]));
+  for (let i = 0; i < mots.length; i += 1) {
+    for (const bloc of [mots[i], mots[i] + (mots[i + 1] ?? '')]) {
+      if (EMPREINTES_INTERNES.has(fnv1a(bloc))) trouves.add(fnv1a(bloc).toString(16));
+    }
+  }
+  return [...trouves];
+}
+
 export const DONNEES = [
   {
     id: 'D1',
@@ -1564,6 +1619,149 @@ export const DONNEES = [
       const sources = Object.values(manuels).map((id) => a.melangeurs.sources[id]);
       v.vrai('5 sources : constructeur, page de proav.roland.com, date du document, relu le 02/10/2026',
         sources.every((s) => s && s.confiance === 'constructeur' && /^https:\/\/proav\.roland\.com\/global\/support\/by_product\//.test(s.url ?? '') && s.date && /relu le 02\/10\/2026/.test(s.titre)));
+    },
+  },
+  {
+    id: 'D52',
+    titre: 'Dépannage, arbres (data/depannage.json) : identifiants uniques, chaque « vers » existe, tous les nœuds atteignables depuis S1 à S11, aucun cycle, chaque action finit par « Réglé », « Réparé » ou « Noté » vers FIN-OK ; FIN-OK, FIN-APPEL (annexe D) et l\'avertissement de T9 présents',
+    etape: 'depannage',
+    verifier(v, contexte) {
+      const d = depannage(contexte);
+      const noeuds = new Map(d.noeuds.map((n) => [n.id, n]));
+      const doublons = (ids) => ids.filter((x, i) => ids.indexOf(x) !== i);
+      v.egal('identifiants des nœuds en double', doublons(d.noeuds.map((n) => n.id)), []);
+      v.egal('identifiants des symptômes, réflexes, annexes et sources en double',
+        doublons([...d.symptomes.map((x) => x.id), ...d.reflexes.map((x) => x.id), ...d.annexes.map((x) => x.id), ...d.sources.map((x) => x.code)]), []);
+      v.egal('symptômes S1 à S11, chacun vers le premier nœud de son arbre',
+        d.symptomes.map((x) => `${x.id}→${x.vers}`), Array.from({ length: 11 }, (_, i) => `S${i + 1}→T${i + 1}.1`));
+      const vers = [
+        ...d.symptomes.map((x) => [x.id, x.vers]),
+        ...d.noeuds.flatMap((n) => n.choix.map((c) => [n.id, c.vers])),
+        ...d.reflexes.flatMap((r) => r.lignes.filter((l) => l.vers).map((l) => [r.id, l.vers])),
+      ];
+      v.egal('« vers » qui ne mènent à aucun nœud', vers.filter(([, x]) => !noeuds.has(x)).map(([de, x]) => `${de} → ${x}`), []);
+      // Atteignables depuis les symptômes.
+      const vus = new Set();
+      const pile = d.symptomes.map((x) => x.vers);
+      while (pile.length) {
+        const id = pile.pop();
+        if (vus.has(id) || !noeuds.has(id)) continue;
+        vus.add(id);
+        pile.push(...noeuds.get(id).choix.map((c) => c.vers));
+      }
+      v.egal('nœuds jamais atteints depuis S1 à S11', d.noeuds.map((n) => n.id).filter((id) => !vus.has(id)), []);
+      // Aucun cycle : parcours en profondeur, un nœud « en cours » revu est un cycle.
+      const etat = new Map();
+      const cycles = [];
+      const visiter = (id, chemin) => {
+        if (etat.get(id) === 'fait' || !noeuds.has(id)) return;
+        if (etat.get(id) === 'en cours') {
+          cycles.push([...chemin.slice(chemin.indexOf(id)), id].join(' → '));
+          return;
+        }
+        etat.set(id, 'en cours');
+        for (const c of noeuds.get(id).choix) visiter(c.vers, [...chemin, id]);
+        etat.set(id, 'fait');
+      };
+      d.noeuds.forEach((n) => visiter(n.id, []));
+      v.egal('cycles', cycles, []);
+      v.egal('types de nœud : question, action ou fin', d.noeuds.filter((n) => !['question', 'action', 'fin'].includes(n.type)).map((n) => n.id), []);
+      v.egal('actions sans choix « Réglé », « Réparé » ou « Noté » vers FIN-OK',
+        d.noeuds.filter((n) => n.type === 'action' && !n.choix.some((c) => c.vers === 'FIN-OK' && ['Réglé', 'Réparé', 'Noté'].includes(c.libelle))).map((n) => n.id), []);
+      v.egal('questions à moins de deux réponses', d.noeuds.filter((n) => n.type === 'question' && n.choix.length < 2).map((n) => n.id), []);
+      v.egal('fins avec des choix', d.noeuds.filter((n) => n.type === 'fin' && n.choix.length > 0).map((n) => n.id), []);
+      v.egal('nœuds rangés dans un arbre qui existe', d.noeuds.filter((n) => n.type !== 'fin' && !d.arbres.some((a) => a.id === n.arbre)).map((n) => n.id), []);
+      v.egal('FIN-OK : « C\'est réglé. »', noeuds.get('FIN-OK')?.titre, 'C\'est réglé.');
+      v.egal('FIN-APPEL : « Appelle ton responsable ou le dépôt. », avec l\'annexe D',
+        [noeuds.get('FIN-APPEL')?.titre, noeuds.get('FIN-APPEL')?.annexe], ['Appelle ton responsable ou le dépôt.', 'D']);
+      const t9 = d.arbres.find((a) => a.id === 'T9');
+      v.egal('avertissement de T9 : 2 lignes (testeur, habilitation), source F3',
+        (t9?.avertissement ?? []).map((l) => [l.texte.slice(0, 40), l.sources.map((s) => s.code)]),
+        [['Avant de brancher le mur, fais tester la', ['F3']], ['Sans habilitation électrique, fais faire', ['F3']]]);
+      v.egal('réflexes R1 à R3', d.reflexes.map((r) => r.id), ['R1', 'R2', 'R3']);
+      v.egal('annexes A à D', d.annexes.map((a) => a.id), ['A', 'B', 'C', 'D']);
+      v.egal('marques des lignes : Novastar, COEX, Brompton', d.marques.map((m) => m.id), ['novastar', 'coex', 'brompton']);
+      const marquesLignes = d.noeuds.flatMap((n) => n.lignes).flatMap((l) => (l.marque === null ? [] : [].concat(l.marque)));
+      v.egal('lignes d\'une autre marque', marquesLignes.filter((m) => !['novastar', 'coex', 'brompton'].includes(m)), []);
+    },
+  },
+  {
+    id: 'D53',
+    titre: 'Dépannage, sources : chaque code existe dans la table des sources (§ 5) ; chaque ligne a une source, ou un renvoi à une annexe, ou le badge « à confirmer » [?] (une étape numérotée compte comme sourcée par n\'importe laquelle de ses lignes) ; renvois {n} cohérents ; libellés publiés des sources de formation',
+    etape: 'depannage',
+    verifier(v, contexte) {
+      const d = depannage(contexte);
+      const codes = new Set(d.sources.map((s) => s.code));
+      v.egal('table des sources : 21 codes, ceux du § 5 (F1 à F19 : les 10 utilisés)', d.sources.map((s) => s.code),
+        ['NS-A10', 'NS-A5S', 'NS-LCT', 'NS-VX1000', 'NS-VXPRO', 'CX-MX40', 'BR-LED', 'BR-TESS', 'BR-FORM',
+          'F1', 'F2', 'F3', 'F6', 'F7', 'F11', 'F15', 'F16', 'F17', 'F19', 'F-PDF1', 'CDC']);
+      const listes = listesSources(d);
+      v.egal('codes de source inconnus', listes.flatMap((x) => x.sources.filter((s) => !codes.has(s.code)).map((s) => `${x.chemin} : ${s.code}`)), []);
+      v.vrai('sources transcrites : plus de 150', listes.reduce((n, x) => n + x.sources.length, 0) > 150);
+      // Une ligne : source, renvoi à une annexe, [?], ou étape sourcée par une autre de ses lignes.
+      const refAnnexe = (t) => /\bannexe [A-D]\b/.test(t);
+      const sansSource = [];
+      for (const n of d.noeuds) {
+        const etapes = new Map();
+        n.lignes.forEach((l, i) => {
+          const cle = l.numero ?? `ligne ${i}`;
+          etapes.set(cle, [...(etapes.get(cle) ?? []), l]);
+        });
+        for (const [cle, lignes] of etapes) {
+          const sourcee = lignes.some((l) => l.sources.length > 0 || refAnnexe(l.texte));
+          for (const l of lignes) if (!sourcee && !l.aConfirmer) sansSource.push(`${n.id} ${typeof cle === 'number' ? `étape ${cle}` : cle} : ${l.texte}`);
+        }
+        if (n.type === 'action' && n.lignes.length === 0 && !(n.sourcesTitre?.length)) sansSource.push(`${n.id} : action sans ligne ni source`);
+      }
+      for (const a of d.arbres) for (const l of a.avertissement ?? []) if (!l.sources.length) sansSource.push(`${a.id}, avertissement : ${l.texte}`);
+      v.egal('lignes sans source, sans renvoi à une annexe et sans [?]', sansSource, []);
+      const lignes = [
+        ...d.noeuds.flatMap((n) => n.lignes.map((l) => [n.id, l])),
+        ...d.arbres.flatMap((a) => (a.avertissement ?? []).map((l) => [a.id, l])),
+        ...d.annexes.flatMap((a) => [...(a.lignes ?? []), ...a.sections.flatMap((s) => s.lignes ?? [])].map((l) => [a.id, l])),
+        ...d.annexes.flatMap((a) => (a.tableau?.lignes ?? []).flatMap((r) => (r.cases ?? []).map((c) => [a.id, c]))),
+      ];
+      v.egal('« à confirmer » si et seulement si [?] dans le texte', lignes.filter(([, l]) => 'aConfirmer' in l && l.aConfirmer !== l.texte.includes('[?]')).map(([id, l]) => `${id} : ${l.texte}`), []);
+      v.egal('badges [?] transcrits : les 14 du document (10 dans les arbres, 1 en annexe A, 3 en annexe B)', lignes.filter(([, l]) => l.aConfirmer).length, 14);
+      // Renvois {n} : numérotés 1, 2… dans l'ordre du texte, chacun avec ses sources, aucune source orpheline.
+      const renvoisFaux = [];
+      const objets = [...listes.map((x) => [x.chemin, x.objet, x.sources])];
+      for (const [chemin, o, sources] of objets) {
+        const texte = o.texte ?? o.titre ?? o.libelle ?? '';
+        const dansTexte = [...texte.matchAll(/\{(\d+)\}/g)].map((m) => Number(m[1]));
+        const dansSources = [...new Set(sources.filter((s) => s.renvoi !== undefined).map((s) => s.renvoi))];
+        const attendu = Array.from({ length: dansTexte.length }, (_, i) => i + 1);
+        if (dansTexte.join() !== attendu.join() || dansSources.join() !== attendu.join()
+          || (dansTexte.length > 0 && sources.some((s) => s.renvoi === undefined))) renvoisFaux.push(`${chemin} : ${texte.slice(0, 60)}`);
+      }
+      v.egal('renvois {n} incohérents', renvoisFaux, []);
+      const src = (code) => d.sources.find((s) => s.code === code) ?? {};
+      v.egal('libellés publiés : formation, support de cours, cahier des charges',
+        [src('F7').libelle, src('F15').libelle, src('F-PDF1').libelle, src('CDC').libelle],
+        ['Formation (transcription 7)', 'Formation (transcription 15)', 'Formation (support de cours)', 'Cahier des charges de l\'appli']);
+      v.egal('sources de formation : toutes « Formation (transcription n) »',
+        d.sources.filter((s) => /^F\d+$/.test(s.code) && s.libelle !== `Formation (transcription ${s.code.slice(1)})`).map((s) => s.code), []);
+      v.egal('liens web : seulement les documents en ligne du § 5',
+        d.sources.filter((s) => s.url).map((s) => s.code), ['NS-A10', 'NS-A5S', 'NS-VX1000', 'NS-VXPRO', 'CX-MX40', 'BR-LED']);
+      v.egal('liens en https', d.sources.filter((s) => s.url && !/^https:\/\//.test(s.url)).map((s) => s.code), []);
+      v.egal('niveaux : C, CC ou F', d.sources.filter((s) => !['C', 'CC', 'F'].includes(s.niveau)).map((s) => s.code), []);
+      v.egal('copies sur un site tiers [CC] : A5s, VX1000, VX Pro, MX40 Pro', d.sources.filter((s) => s.niveau === 'CC').map((s) => s.code), ['NS-A5S', 'NS-VX1000', 'NS-VXPRO', 'CX-MX40']);
+    },
+  },
+  {
+    id: 'D54',
+    titre: 'Dépannage, fichiers publiés (data/depannage.json et le code de l\'écran) : aucun nom d\'employeur, ni « Oliverdy », ni nom de fichier de la formation, ni document interne',
+    etape: 'depannage',
+    verifier(v, contexte) {
+      const f = fichiersAppli(contexte);
+      for (const chemin of ['data/depannage.json', 'src/ecran-depannage.js']) {
+        const texte = f[chemin];
+        v.vrai(`${chemin} : chargé par l'appli`, typeof texte === 'string');
+        if (typeof texte !== 'string') continue;
+        v.egal(`${chemin} : noms d'employeurs (empreintes trouvées)`, employeursDans(texte), []);
+        v.egal(`${chemin} : organisme de formation, fichier de la formation, documents internes (empreintes trouvées)`, internesDans(texte), []);
+      }
+      v.egal('empreinte FNV-1a de référence (« a » : e40c292c)', fnv1a('a').toString(16), 'e40c292c');
     },
   },
 ];

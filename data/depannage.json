@@ -1,0 +1,3273 @@
+{
+  "document": "Dépannage mur LED : arbres de diagnostic sourcés",
+  "date": "2026-10-03",
+  "niveaux": {
+    "C": "doc constructeur officielle",
+    "CC": "copie d'une doc constructeur sur un site tiers",
+    "F": "formation (transcription de cours, texte bruité dont le sens a été relu)"
+  },
+  "perimetre": "Novastar (NovaLCT, VX, MCTRL), COEX (MX, VMP), Brompton (Tessera). Colorlight et Megapixel ne sont pas couverts.",
+  "marques": [
+    {
+      "id": "novastar",
+      "nom": "Novastar",
+      "detail": "NovaLCT, VX, MCTRL"
+    },
+    {
+      "id": "coex",
+      "nom": "COEX",
+      "detail": "MX, VMP"
+    },
+    {
+      "id": "brompton",
+      "nom": "Brompton",
+      "detail": "Tessera"
+    }
+  ],
+  "sources": [
+    {
+      "code": "NS-A10",
+      "libelle": "Novastar, A10s Plus-N Receiving Card Specifications",
+      "version": "V1.1.2, 28/07/2023",
+      "url": "https://oss.novastar.tech/uploads/2023/08/A10s-Plus-N-Receiving-Card-Specifications-V1.1.2.pdf",
+      "niveau": "C"
+    },
+    {
+      "code": "NS-A5S",
+      "libelle": "Novastar, A5s Receiving Card Specifications",
+      "version": "V2.1.6, 31/08/2022",
+      "url": "https://www.procom-me.com/wp-content/uploads/2022/11/A5s-Receiving-Card-Specifications-V2.1.6.pdf",
+      "niveau": "CC"
+    },
+    {
+      "code": "NS-LCT",
+      "libelle": "Novastar, NovaLCT LED Configuration Tool, Synchronous System User Guide",
+      "version": "V5.0.0",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "NS-VX1000",
+      "libelle": "Novastar, VX1000 All-in-One Controller User Manual",
+      "version": "V1.1.0, 18/02/2021",
+      "url": "https://audioeffetti.com/product/documents/NOV/VX1000-02.pdf",
+      "niveau": "CC"
+    },
+    {
+      "code": "NS-VXPRO",
+      "libelle": "Novastar, VX Pro Series All-in-One Controller User Manual",
+      "version": "V1.3.0, 28/02/2026 (fichier nommé V1.3.1)",
+      "url": "https://shop.captech.se/sv-SE/Product/167159/Link/94690/VX%20Pro%20Series%20All-in-One%20Controller%20User%20Manual-V1.3.1.pdf",
+      "niveau": "CC"
+    },
+    {
+      "code": "CX-MX40",
+      "libelle": "COEX (Novastar), MX40 Pro LED Display Controller User Manual",
+      "version": "V1.1.1, 18/11/2022",
+      "url": "https://www.rentex.com/wp-content/uploads/2023/01/MX40-Pro-LED-Display-Controller-User-Manual-V.pdf",
+      "niveau": "CC"
+    },
+    {
+      "code": "BR-LED",
+      "libelle": "Brompton, FIRD-215 Application Note « Status LED Colours »",
+      "version": "13/03/2017, processeur et dalle 1.3 ou plus",
+      "url": "https://www.bromptontech.com/online-help/Content/Tessera%20User%20Manual/05.%20Appendices/Software%20App%20Notes/FIRD%20215%20Application%20Note.htm",
+      "niveau": "C"
+    },
+    {
+      "code": "BR-TESS",
+      "libelle": "Brompton, Tessera User Manual",
+      "version": "V3.5 Rev A",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "BR-FORM",
+      "libelle": "Brompton, Brompton Basics Training (diapos)",
+      "version": "2026",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "F1",
+      "libelle": "Formation (transcription 1)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F2",
+      "libelle": "Formation (transcription 2)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F3",
+      "libelle": "Formation (transcription 3)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F6",
+      "libelle": "Formation (transcription 6)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F7",
+      "libelle": "Formation (transcription 7)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F11",
+      "libelle": "Formation (transcription 11)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F15",
+      "libelle": "Formation (transcription 15)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F16",
+      "libelle": "Formation (transcription 16)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F17",
+      "libelle": "Formation (transcription 17)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F19",
+      "libelle": "Formation (transcription 19)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F-PDF1",
+      "libelle": "Formation (support de cours)",
+      "version": "2026",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "CDC",
+      "libelle": "Cahier des charges de l'appli",
+      "version": null,
+      "url": null,
+      "niveau": "F"
+    }
+  ],
+  "reflexes": [
+    {
+      "id": "R1",
+      "titre": "Lance une mire interne.",
+      "texte": " C'est le test qui coupe le problème en deux.",
+      "sources": [],
+      "lignes": [
+        {
+          "texte": "La mire s'affiche bien sur tout le mur : le mur, ses câbles et la sortie du processeur fonctionnent. Le problème vient de la source → T6.",
+          "sources": [],
+          "vers": "T6.1"
+        },
+        {
+          "texte": "La mire est fausse elle aussi : le problème est côté mur → choisis le symptôme.",
+          "sources": []
+        },
+        {
+          "texte": "« Pas de source vidéo… il faut mettre une mire »{1}. Où trouver la mire : annexe B.",
+          "sources": [
+            {
+              "code": "F11",
+              "ref": null,
+              "renvoi": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R2",
+      "titre": "Regarde les voyants au dos de la première dalle en défaut",
+      "texte": " (annexe A). Ils disent si la dalle est alimentée, si le câble de données est bon et si la redondance a pris le relais.",
+      "sources": [
+        {
+          "code": "NS-A10",
+          "ref": null
+        },
+        {
+          "code": "BR-LED",
+          "ref": null
+        },
+        {
+          "code": "F7",
+          "ref": null
+        }
+      ],
+      "lignes": []
+    },
+    {
+      "id": "R3",
+      "titre": "Ne fais jamais de reset usine pour « voir si ça repart »",
+      "texte": " : processeur ou carte de réception, la config est perdue (annexe C).",
+      "sources": [
+        {
+          "code": "F6",
+          "ref": null
+        },
+        {
+          "code": "BR-TESS",
+          "ref": "§2.3.1"
+        },
+        {
+          "code": "CX-MX40",
+          "ref": "p.25"
+        }
+      ],
+      "lignes": []
+    }
+  ],
+  "symptomes": [
+    {
+      "id": "S1",
+      "texte": "Tout le mur est noir",
+      "vers": "T1.1"
+    },
+    {
+      "id": "S2",
+      "texte": "Des dalles entières sont noires",
+      "vers": "T2.1"
+    },
+    {
+      "id": "S3",
+      "texte": "Un morceau de dalle est noir ou faux (module, ligne, pixels)",
+      "vers": "T3.1"
+    },
+    {
+      "id": "S4",
+      "texte": "Les couleurs sont fausses",
+      "vers": "T4.1"
+    },
+    {
+      "id": "S5",
+      "texte": "L'image est en puzzle, coupée ou décalée",
+      "vers": "T5.1"
+    },
+    {
+      "id": "S6",
+      "texte": "La mire marche mais pas l'image de la source, ou l'image est figée",
+      "vers": "T6.1"
+    },
+    {
+      "id": "S7",
+      "texte": "Lignes noires ou scintillement à la caméra",
+      "vers": "T7.1"
+    },
+    {
+      "id": "S8",
+      "texte": "Scintillement ou parasites à l'œil",
+      "vers": "T8.1"
+    },
+    {
+      "id": "S9",
+      "texte": "Électricité : ça disjoncte, une dalle n'a pas de courant",
+      "vers": "T9.1"
+    },
+    {
+      "id": "S10",
+      "texte": "Le processeur est en défaut, ou le logiciel ne le trouve pas",
+      "vers": "T10.1"
+    },
+    {
+      "id": "S11",
+      "texte": "Les voyants signalent la redondance, l'image est bonne",
+      "vers": "T11.1"
+    }
+  ],
+  "arbres": [
+    {
+      "id": "T1",
+      "titre": "Tout le mur est noir"
+    },
+    {
+      "id": "T2",
+      "titre": "Des dalles entières sont noires"
+    },
+    {
+      "id": "T3",
+      "titre": "Un morceau de dalle est noir ou faux"
+    },
+    {
+      "id": "T4",
+      "titre": "Les couleurs sont fausses"
+    },
+    {
+      "id": "T5",
+      "titre": "L'image est en puzzle, coupée ou décalée"
+    },
+    {
+      "id": "T6",
+      "titre": "La mire marche, pas l'image de la source"
+    },
+    {
+      "id": "T7",
+      "titre": "À la caméra"
+    },
+    {
+      "id": "T8",
+      "titre": "Scintillement ou parasites à l'œil"
+    },
+    {
+      "id": "T9",
+      "titre": "Électricité",
+      "avertissement": [
+        {
+          "texte": "Avant de brancher le mur, fais tester la prise ou la sortie d'armoire au testeur : 230 V entre phase et neutre, 400 V entre phases. Sinon, ne branche pas : une mauvaise tension peut détruire le mur.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "texte": "Sans habilitation électrique, fais faire le test et toute intervention par quelqu'un d'habilité.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        }
+      ]
+    },
+    {
+      "id": "T10",
+      "titre": "Processeur ou logiciel"
+    },
+    {
+      "id": "T11",
+      "titre": "Les voyants signalent la redondance, l'image est bonne"
+    }
+  ],
+  "noeuds": [
+    {
+      "id": "T1.1",
+      "arbre": "T1",
+      "type": "question",
+      "titre": "La mire interne s'affiche-t-elle ? (R1)",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Oui",
+          "vers": "T6.1"
+        },
+        {
+          "libelle": "Non",
+          "vers": "T1.2"
+        }
+      ]
+    },
+    {
+      "id": "T1.2",
+      "arbre": "T1",
+      "type": "question",
+      "titre": "Un réglage du processeur ou de la console éteint-il le mur ?",
+      "lignes": [
+        {
+          "texte": "les boutons Freeze et Blackout de la face avant (SX40, S8, S4) s'allument en rouge quand ils sont actifs{1} ; Blackout existe aussi dans Tessera{2} ; luminosité dans Global Colour, en nits{3}.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§11.6",
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§11.5",
+              "renvoi": 2
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§12.1.1",
+              "renvoi": 3
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "texte": "NovaLCT, Screen Control, Black Out{1} ; luminosité manuelle ou automatique{2} ; VX : Display Control, FTB, fondu au noir{3}.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§5.10",
+              "renvoi": 1
+            },
+            {
+              "code": "NS-LCT",
+              "ref": "§4",
+              "renvoi": 2
+            },
+            {
+              "code": "NS-VX1000",
+              "ref": "p.26",
+              "renvoi": 3
+            },
+            {
+              "code": "NS-VXPRO",
+              "ref": "p.45",
+              "renvoi": 3
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "texte": "Display Control, Blackout.",
+          "marque": "coex",
+          "etiquette": "COEX",
+          "sources": [
+            {
+              "code": "CX-MX40",
+              "ref": "p.23"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "texte": "Mur piloté en DMX : un blackout de la console lumière éteint aussi le mur.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Oui",
+          "vers": "T1.3"
+        },
+        {
+          "libelle": "Non",
+          "vers": "T1.4"
+        }
+      ]
+    },
+    {
+      "id": "T1.3",
+      "arbre": "T1",
+      "type": "action",
+      "titre": "Rallume le mur.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Repasse en Normal.",
+          "marque": null,
+          "sources": [],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "appuie de nouveau sur Blackout, la vidéo revient.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§11.5"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "Normal dans Screen Control{1} ou dans Display Control{2}.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§5.10",
+              "renvoi": 1
+            },
+            {
+              "code": "NS-VX1000",
+              "ref": "p.26",
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "Display Control, Normal.",
+          "marque": "coex",
+          "etiquette": "COEX",
+          "sources": [
+            {
+              "code": "CX-MX40",
+              "ref": "p.23"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Remonte la luminosité si elle est à zéro.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.1.1"
+            },
+            {
+              "code": "NS-LCT",
+              "ref": "§4"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "DMX : demande au pupitreur lumière de rendre l'image.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "T1.4"
+        }
+      ]
+    },
+    {
+      "id": "T1.4",
+      "arbre": "T1",
+      "type": "question",
+      "titre": "Le processeur est-il démarré et sans défaut ?",
+      "lignes": [
+        {
+          "texte": "COEX MX40 Pro, voyant de marche : vert fixe, fonctionnement normal ; bleu fixe, démarrage en cours ; rouge fixe, veille ; rouge clignotant, fonctionnement anormal.",
+          "marque": "coex",
+          "sources": [
+            {
+              "code": "CX-MX40",
+              "ref": "p.2"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "texte": "Novastar VX1000 : la fonction Diagnostics aide à trouver l'élément en panne.",
+          "marque": "novastar",
+          "sources": [
+            {
+              "code": "NS-VX1000",
+              "ref": "p.38"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "texte": "[?] tableau des voyants du processeur non relevé.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [],
+          "aConfirmer": true
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Démarré, sans défaut",
+          "vers": "T1.5"
+        },
+        {
+          "libelle": "En veille, en démarrage ou en défaut",
+          "vers": "T10.2"
+        }
+      ]
+    },
+    {
+      "id": "T1.5",
+      "arbre": "T1",
+      "type": "question",
+      "titre": "Que font les voyants de la première dalle de chaque port ? (annexe A)",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Aucun voyant, sur aucune dalle",
+          "vers": "T9.1"
+        },
+        {
+          "libelle": "Novastar : vert, 1 éclat toutes les 3 s (câble Ethernet anormal). Brompton : vert fixe (démarrée, pas connectée)",
+          "vers": "T2.2"
+        },
+        {
+          "libelle": "Novastar : vert, 3 éclats toutes les 0,5 s (câble bon, pas de source vidéo). Brompton : 1 ou 2 éclats bleus (connectée, pas associée)",
+          "vers": "T1.6"
+        },
+        {
+          "libelle": "Voyants normaux (Novastar : vert, 1 éclat par seconde ; Brompton : bleu fixe) : le mur reçoit tout mais n'affiche rien",
+          "vers": "FIN-APPEL"
+        },
+        {
+          "libelle": "Brompton : rouge fixe après environ 1 min (erreur, la dalle ne démarrera peut-être pas)",
+          "vers": "FIN-APPEL"
+        }
+      ],
+      "sourcesChoix": [
+        {
+          "code": "NS-A10",
+          "ref": null
+        },
+        {
+          "code": "NS-A5S",
+          "ref": "p.3"
+        },
+        {
+          "code": "BR-LED",
+          "ref": null
+        }
+      ]
+    },
+    {
+      "id": "T1.6",
+      "arbre": "T1",
+      "type": "action",
+      "titre": "La config du mur manque ou n'a pas été envoyée.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Une carte de réception remise à zéro perd sa config : noir, scintillement ou dalles mal placées. Garde toujours les fichiers de config sur une clé USB.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F6",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "importe les fichiers de config sauvegardés (Settings > Configure Information Management > Import Configuration Files){1}, puis Send to HW, puis Save, qui écrit la config en mémoire FLASH, conservée hors tension{2}. [?] Le chemin exact dépend du fichier fourni par le dépôt.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§9",
+              "renvoi": 1
+            },
+            {
+              "code": "NS-LCT",
+              "ref": "§5.1.2.2",
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": true
+        },
+        {
+          "numero": 3,
+          "texte": "Juste après l'envoi, le mur peut rester noir faute de source : mets une mire pour vérifier.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F11",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 4,
+          "texte": "[?] vérifie que le bon projet est chargé dans le processeur.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-FORM",
+              "ref": "diapo 21, « Projects »"
+            }
+          ],
+          "aConfirmer": true
+        },
+        {
+          "numero": 5,
+          "texte": "[?] la config se recharge depuis VMP.",
+          "marque": "coex",
+          "etiquette": "COEX",
+          "sources": [],
+          "aConfirmer": true
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T2.1",
+      "arbre": "T2",
+      "type": "question",
+      "titre": "Où sont les dalles noires ? Regarde le schéma de câblage de l'appli.",
+      "lignes": [
+        {
+          "texte": "Sans redondance, le signal s'arrête là où est la panne, « comme une ficelle »{1}. Une dalle qui redémarre ne transmet plus les données aux dalles suivantes{2}.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§7.3.1",
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Tout un port, dès la première dalle",
+          "vers": "T2.2"
+        },
+        {
+          "libelle": "La fin d'un port, à partir d'une dalle (les dalles d'avant marchent)",
+          "vers": "T2.3"
+        },
+        {
+          "libelle": "Une dalle seule, les suivantes du même port marchent",
+          "vers": "T2.5"
+        }
+      ]
+    },
+    {
+      "id": "T2.2",
+      "arbre": "T2",
+      "type": "action",
+      "titre": "Tout un port est noir.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Le câble est-il sur le port déclaré dans la config ? « Si tu as dit que c'était la 5 alors que t'as pris la 3, sur la 3 t'as rien »{1}. Compare avec le schéma.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null,
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Voyant du port sur le processeur.",
+          "marque": null,
+          "sources": [],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Novastar VX1000 : voyant de connexion allumé, bien connecté ; clignotant, mal connecté.",
+          "marque": "novastar",
+          "sources": [
+            {
+              "code": "NS-VX1000",
+              "ref": "p.3-4"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "COEX MX40 Pro, état des ports sur l'écran d'accueil : bleu, connecté ; gris, déconnecté.",
+          "marque": "coex",
+          "sources": [
+            {
+              "code": "CX-MX40",
+              "ref": "p.8"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "[?].",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [],
+          "aConfirmer": true
+        },
+        {
+          "numero": 3,
+          "texte": "Change le câble entre le processeur (ou le boîtier XD, CVT) et la première dalle.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F7",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 4,
+          "texte": "Regarde les voyants de la première dalle : annexe A.",
+          "marque": null,
+          "sources": [],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T2.3",
+      "arbre": "T2",
+      "type": "action",
+      "titre": "La panne est entre la dernière dalle allumée et la première dalle noire.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Change le câble de données entre ces deux dalles : c'est la cause la plus fréquente, les vibrations abîment les câbles.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F7",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Vérifie que la première dalle noire est alimentée : voyant d'alimentation, annexe A.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "NS-A10",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "NovaLCT, Read the Number of Receiving Cards donne le nombre de cartes vues par chaque port{1}. 3 dalles vues sur 4 : une liaison est mauvaise{2}.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§5.1.2.2",
+              "renvoi": 1
+            },
+            {
+              "code": "F11",
+              "ref": null,
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 4,
+          "texte": "indicateur de détection gris, rien n'est détecté ; vert, en ligne{1}. Show Topology Errors montre les erreurs en rouge{2}.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§7.9",
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§7.13",
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "T2.4"
+        }
+      ]
+    },
+    {
+      "id": "T2.4",
+      "arbre": "T2",
+      "type": "action",
+      "titre": "Change la dalle en panne par une dalle de secours.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "après l'échange, Tessera propose Correct Association pendant 10 s ; sinon, clic droit sur la dalle.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§7.13.1"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Si la dalle de secours ne s'affiche pas correctement, ne reconfigure pas sa carte sans le fichier du dépôt.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F6",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T2.5",
+      "arbre": "T2",
+      "type": "question",
+      "titre": "La dalle noire isolée a-t-elle des voyants allumés ? (annexe A)",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Aucun voyant : elle n'est pas alimentée. Si les dalles suivantes marchent, c'est la redondance qui les nourrit par l'autre bout",
+          "vers": "T9.4",
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "libelle": "Voyants normaux (Novastar : vert, 1 éclat par seconde ; Brompton : bleu fixe)",
+          "vers": "T2.6"
+        },
+        {
+          "libelle": "Brompton : 1 ou 2 éclats bleus (connectée, pas associée), ou point gris sur le canevas de Tessera (dalle désassociée)",
+          "vers": "T5.2",
+          "sources": [
+            {
+              "code": "BR-LED",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§7.13.1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T2.6",
+      "arbre": "T2",
+      "type": "question",
+      "titre": "La dalle reçoit les données mais n'affiche rien. Lance sa propre mire : la mire s'affiche-t-elle ?",
+      "lignes": [
+        {
+          "texte": "bouton self-test au dos de la plupart des dalles, maintenu 4 s, voir le manuel de la dalle ; ces mires s'affichent même si la dalle n'est pas associée.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§7.3.3"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "texte": "Screen Control, Self Test{1}. [?] Bouton de test sur la dalle selon le modèle.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§5.10",
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": true
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Oui : la dalle marche, c'est sa place dans la config qui manque",
+          "vers": "T5.2"
+        },
+        {
+          "libelle": "Non : la panne est dans la dalle (alimentation, carte HUB, modules)",
+          "vers": "T2.4",
+          "sources": [
+            {
+              "code": "F-PDF1",
+              "ref": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T3.1",
+      "arbre": "T3",
+      "type": "question",
+      "titre": "À quoi ressemble le défaut ?",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Un module entier (carré ou rectangle) noir ou d'une autre couleur",
+          "vers": "T3.2"
+        },
+        {
+          "libelle": "Une ligne ou une colonne de pixels",
+          "vers": "T3.2"
+        },
+        {
+          "libelle": "Quelques pixels morts isolés",
+          "vers": "T3.3"
+        }
+      ]
+    },
+    {
+      "id": "T3.2",
+      "arbre": "T3",
+      "type": "action",
+      "titre": "Trouve le module, puis rebranche-le ou change-le.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Repère le module : la mire par module du logiciel indique par exemple « module 3 de 7 ».",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F17",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "Beacon fait clignoter en jaune le voyant arrière de la dalle.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§7.3.1"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "Enable Mapping affiche sur la dalle son numéro et son port, sur certaines cartes Armor.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§5.1.2.2"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Remets en place le câble ou la nappe du module, ou change le module : « des fois c'est juste un module… un câble »{1}. Suis la procédure du manuel de la dalle.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null,
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Le module neuf garde sa propre calibration, enregistrée dans le module.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F17",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Module Flash affiche et enregistre les coefficients de la carte et des modules, et teste leur mémoire Flash.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§4"
+            },
+            {
+              "code": "NS-LCT",
+              "ref": "§7"
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T3.3",
+      "arbre": "T3",
+      "type": "action",
+      "titre": "Note les pixels morts.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Repère le module comme en T3.2, puis note la dalle et le module pour le dépôt.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F17",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "LED Error Detection, une fois l'écran configuré.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§4"
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Noté",
+          "vers": "FIN-OK"
+        }
+      ]
+    },
+    {
+      "id": "T4.1",
+      "arbre": "T4",
+      "type": "question",
+      "titre": "Qu'est-ce qui a une mauvaise couleur ?",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Tout le mur",
+          "vers": "T4.2"
+        },
+        {
+          "libelle": "Une ou quelques dalles",
+          "vers": "T4.3"
+        },
+        {
+          "libelle": "Un module",
+          "vers": "T3.2"
+        }
+      ]
+    },
+    {
+      "id": "T4.2",
+      "arbre": "T4",
+      "type": "question",
+      "titre": "Lance une mire blanche interne (R1). Le blanc est-il juste ?",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Oui : la couleur vient de la source",
+          "vers": "T4.4"
+        },
+        {
+          "libelle": "Non : la couleur vient du processeur ou de la calibration",
+          "vers": "T4.5"
+        }
+      ]
+    },
+    {
+      "id": "T4.3",
+      "arbre": "T4",
+      "type": "action",
+      "titre": "Quelques dalles n'ont pas la même couleur que les autres.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "ces dalles ont-elles « Override Global Colour » ? Les réglages globaux n'ont alors plus d'effet sur elles.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§7.2.3"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "toutes les dalles sont-elles sur la même mémoire de calibration ? (Selected Calibration)",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§7.3.4"
+            },
+            {
+              "code": "F17",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Dalles d'un autre lot de fabrication : elles tirent vers le rose ou le vert.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Multi-batch Adjustment corrige chaque lot et s'enregistre dans un fichier .lxy réutilisable.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§10"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Demande au dépôt s'il a ce fichier, ou quelle mémoire utiliser.",
+          "marque": null,
+          "sources": [],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T4.4",
+      "arbre": "T4",
+      "type": "action",
+      "titre": "La couleur vient de la source ou du réglage de l'entrée.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "L'espace couleur envoyé par la source doit correspondre au réglage du mur{1}. Demande à la régie ce qu'elle envoie.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F16",
+              "ref": null,
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Video Input Colour Space indique au processeur l'espace couleur de l'entrée (Rec.709, Rec.2020, DCI-P3, ACEScg) ; s'il est juste, le processeur convertit correctement les couleurs.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.1"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "l'espace couleur se règle dans Advanced Color Configuration, réservé aux utilisateurs avancés{1}. Vois avec le dépôt.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§4",
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T4.5",
+      "arbre": "T4",
+      "type": "action",
+      "titre": "Réglages couleur du processeur et calibration.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Global Colour (luminosité, température de couleur, 6 504 K par défaut, gamma, 2,35 par défaut) s'applique à toutes les dalles sauf celles en override.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.1"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "mémoire de calibration choisie (Selected Calibration){1}. Une mémoire vide veut dire pas de calibration ; la plupart des dalles tournent sur la calibration usine{2}. Demande au dépôt laquelle utiliser.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§7.3.4",
+              "renvoi": 1
+            },
+            {
+              "code": "F17",
+              "ref": null,
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "[?] couleur avancée et calibration sont réservées aux utilisateurs avancés{1} : appelle.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§4",
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": true
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T5.1",
+      "arbre": "T5",
+      "type": "question",
+      "titre": "À quoi ça ressemble ?",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Des dalles affichent un morceau d'image qui n'est pas le leur",
+          "vers": "T5.2"
+        },
+        {
+          "libelle": "L'image est entière mais coupée, décalée, étirée ou trop petite",
+          "vers": "T5.3"
+        }
+      ]
+    },
+    {
+      "id": "T5.2",
+      "arbre": "T5",
+      "type": "action",
+      "titre": "Le câblage ne correspond pas à la config.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Compare chaque câble au schéma de l'appli : numéros de port et ordre des dalles.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Enable Mapping affiche sur chaque dalle son numéro et son port, sur certaines cartes Armor.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§5.1.2.2"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Show Topology Errors{1} ; après un échange de dalle, Correct Association{2}.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§7.13",
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§7.13.1",
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 4,
+          "texte": "Une carte remise à zéro perd sa config et peut mal placer les dalles.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F6",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "T1.6"
+        }
+      ]
+    },
+    {
+      "id": "T5.3",
+      "arbre": "T5",
+      "type": "action",
+      "titre": "La résolution reçue n'est pas celle du mur.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Lis la résolution et la fréquence reçues sur l'écran d'accueil du processeur{1}. Compare avec la résolution du mur calculée par l'appli.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "CX-MX40",
+              "ref": "p.8",
+              "renvoi": 1
+            },
+            {
+              "code": "NS-VX1000",
+              "ref": "p.7",
+              "renvoi": 1
+            },
+            {
+              "code": "NS-VXPRO",
+              "ref": "p.10",
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "EDID : c'est l'écran qui dit à la source quelle résolution envoyer. Débrancher et rebrancher relance l'échange ; un EDID verrouillé par l'utilisateur précédent se remet à zéro{1}. Menus EDID : annexe B.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Une résolution forcée dans la carte graphique de l'ordinateur ne tient plus compte de l'EDID.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 4,
+          "texte": "Novastar avec ordinateur (MCTRL) : Coordinate est le coin haut gauche de la zone de l'écran de l'ordinateur envoyée au mur.",
+          "marque": "novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§5.1.2.2"
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T6.1",
+      "arbre": "T6",
+      "type": "question",
+      "titre": "L'image est-elle figée ?",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Oui",
+          "vers": "T6.2"
+        },
+        {
+          "libelle": "Non, elle est noire ou absente",
+          "vers": "T6.3"
+        }
+      ]
+    },
+    {
+      "id": "T6.2",
+      "arbre": "T6",
+      "type": "action",
+      "titre": "Image figée.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Freeze est-il actif ?",
+          "marque": null,
+          "sources": [],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "bouton Freeze rouge{1} ; appuie de nouveau pour revenir à la vidéo{2}.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§11.6",
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§11.5",
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "Normal dans Screen Control{1} ou Display Control{2}.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§5.10",
+              "renvoi": 1
+            },
+            {
+              "code": "NS-VX1000",
+              "ref": "p.26",
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "Display Control, Normal.",
+          "marque": "coex",
+          "etiquette": "COEX",
+          "sources": [
+            {
+              "code": "CX-MX40",
+              "ref": "p.23"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "le bouton Freeze peut avoir été réglé pour afficher une mire ou une image fixe à la place.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§11.6"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Si Freeze n'est pas actif, c'est la source qui est figée : vérifie l'ordinateur ou le serveur vidéo.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§11.5",
+              "note": "déduit de"
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T6.3",
+      "arbre": "T6",
+      "type": "question",
+      "titre": "Que dit l'état de l'entrée sur le processeur ?",
+      "lignes": [
+        {
+          "texte": "COEX MX40 Pro, écran d'accueil : vert, signal reçu et utilisé ; bleu, reçu mais pas utilisé ; rouge, pas de signal ou signal anormal ; gris, signal anormal et pas utilisé.",
+          "marque": "coex",
+          "sources": [
+            {
+              "code": "CX-MX40",
+              "ref": "p.8"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "texte": "Novastar VX1000 : bouton d'entrée bleu fixe, signal reçu ; bleu clignotant, utilisé par une couche mais pas de signal ; blanc, pas de signal ou signal anormal. Bouton de couche blanc : couche fermée.",
+          "marque": "novastar",
+          "sources": [
+            {
+              "code": "NS-VX1000",
+              "ref": "p.2"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "texte": "Novastar avec ordinateur : l'écran « pas de signal » préréglé (Prestore Screen) s'affiche quand le câble réseau est débranché ou qu'il n'y a pas de signal DVI.",
+          "marque": "novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§4"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "texte": "[?] état des entrées dans Tessera non relevé.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [],
+          "aConfirmer": true
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Signal reçu mais pas utilisé, ou couche fermée",
+          "vers": "T6.4"
+        },
+        {
+          "libelle": "Pas de signal",
+          "vers": "T6.5"
+        },
+        {
+          "libelle": "Signal reçu et utilisé, mais image noire",
+          "vers": "T6.6"
+        },
+        {
+          "libelle": "Je ne sais pas lire l'état",
+          "vers": "T6.5"
+        }
+      ]
+    },
+    {
+      "id": "T6.4",
+      "arbre": "T6",
+      "type": "action",
+      "titre": "Mets la source à l'image : sélectionne l'entrée ou ouvre la couche (bouton de couche).",
+      "sourcesTitre": [
+        {
+          "code": "NS-VX1000",
+          "ref": "p.2"
+        }
+      ],
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "T6.6"
+        }
+      ]
+    },
+    {
+      "id": "T6.5",
+      "arbre": "T6",
+      "type": "action",
+      "titre": "Le processeur ne reçoit rien.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Vérifie le câble et ses connecteurs : un mauvais câble HDMI peut décrocher un instant.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Débranche puis rebranche le câble de la source : ça relance l'échange EDID.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "EDID verrouillé par l'utilisateur précédent (exemple : 4K sur un écran HD) : pas d'image. Remets l'EDID à zéro{1}. Menus EDID : annexe B.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 4,
+          "texte": "Fréquences : une source en 50 Hz sur un mur réglé en 60 Hz, ou l'inverse, peut ne rien afficher ou scintiller.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "T6.6"
+        }
+      ]
+    },
+    {
+      "id": "T6.6",
+      "arbre": "T6",
+      "type": "action",
+      "titre": "Le bureau de l'ordinateur s'affiche mais la vidéo reste noire : protection HDCP.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Une vidéo protégée par HDCP reste noire sur un processeur pro, même quand le bureau du Mac s'affiche.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Teste toutes les vidéos du show à l'avance ; essaie une autre vidéo, sans HDCP.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Certaines entrées ont un réglage HDCP : sur off, l'ordinateur comprend qu'il ne doit pas envoyer de HDCP{1}. Regarde le menu de l'entrée.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T7.1",
+      "arbre": "T7",
+      "type": "question",
+      "titre": "À l'œil, le mur est-il bon ?",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Oui, le défaut ne se voit qu'à la caméra",
+          "vers": "T7.2"
+        },
+        {
+          "libelle": "Non, il se voit aussi à l'œil",
+          "vers": "T8.1"
+        }
+      ]
+    },
+    {
+      "id": "T7.2",
+      "arbre": "T7",
+      "type": "action",
+      "titre": "Lignes noires qui défilent, image qui scintille à la caméra.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Genlock : « Without genlock, screens may appear to have dark lines rolling up or down the screen when viewed on camera ».",
+          "marque": null,
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.3.1"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "genlock sur l'entrée active (par défaut sur SX40 et S8) ou sur Reference In, bi-level ou tri-level (SX40, S8, M2).",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.3.1"
+            },
+            {
+              "code": "F19",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "[?] menu genlock à vérifier sur le modèle.",
+          "marque": [
+            "novastar",
+            "coex"
+          ],
+          "etiquette": "Novastar et COEX",
+          "sources": [],
+          "aConfirmer": true
+        },
+        {
+          "numero": 2,
+          "texte": "Même fréquence partout : source, processeur, caméra. 50 contre 59,94 n'est pas fluide{1} ; un écart de fréquence fait doubler ou sauter des images{2}.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F19",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§12.3.1",
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Luminosité : plus elle est basse, plus le noir du PWM dure et plus les lignes se voient ; le genlock les fige{1}. Remonte la luminosité si tu peux.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F17",
+              "ref": null,
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 4,
+          "texte": "Genlock Phase Offset{1} et ShutterSync avec genlock, sur SX40 et S8{2}. Avec le cadreur, ajuste l'obturation de la caméra{3}.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.3.1",
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§12.3.4",
+              "renvoi": 2
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§12.3.1",
+              "renvoi": 3
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 5,
+          "texte": "Un téléphone ne peut pas être genlocké : des lignes au hasard sont normales.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F2",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 6,
+          "texte": "Fréquence de rafraîchissement des dalles : 3 840 Hz au moins pour la télé et le sport{1}, 7 680 Hz en XR{2}. C'est une caractéristique de la dalle : rien à régler sur place.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "CDC",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "CDC",
+              "ref": null,
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T8.1",
+      "arbre": "T8",
+      "type": "question",
+      "titre": "Où ça scintille ?",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Sur une zone qui suit le câblage, à partir d'une dalle d'un même port",
+          "vers": "T8.2"
+        },
+        {
+          "libelle": "Sur tout le mur",
+          "vers": "T8.3"
+        },
+        {
+          "libelle": "Sur une dalle qu'on vient de changer ou de remettre à zéro",
+          "vers": "T1.6"
+        }
+      ]
+    },
+    {
+      "id": "T8.2",
+      "arbre": "T8",
+      "type": "action",
+      "titre": "Un mauvais contact sur le câble de données.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "compteur d'erreurs réseau de chaque dalle dans l'onglet Online. Les erreurs ne se propagent pas, ce qui localise le câble fautif. Quelques erreurs au branchement à chaud ou à l'allumage sont normales ; toute autre hausse signale un défaut{1}. L'historique sur la dernière heure et les 12 dernières heures prouve un problème de contact{2}.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§8.6.2",
+              "renvoi": 1
+            },
+            {
+              "code": "F17",
+              "ref": null,
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Change le câble.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F7",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Parasites : radio ou commutation de fortes charges à côté. Éloigne la source ou passe en câbles blindés ; avec un câble blindé, les deux appareils doivent être au même potentiel de terre.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§8.6.2"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 4,
+          "texte": "Detect Communication Status vérifie la communication dans l'écran{1} ; page Monitoring{2}.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§5.1.2.2",
+              "renvoi": 1
+            },
+            {
+              "code": "NS-LCT",
+              "ref": "§4",
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T8.3",
+      "arbre": "T8",
+      "type": "action",
+      "titre": "Tout le mur scintille.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Fréquence de la source différente de celle du mur (50 ou 60 Hz) : pas d'image ou scintillement{1}. Lis la fréquence reçue sur l'écran d'accueil du processeur{2}.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "CX-MX40",
+              "ref": "p.8",
+              "renvoi": 2
+            },
+            {
+              "code": "NS-VXPRO",
+              "ref": "p.10",
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Config fausse ou absente : noir, scintillement ou dalles mal placées.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F6",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "T1.6"
+        }
+      ]
+    },
+    {
+      "id": "T9.1",
+      "arbre": "T9",
+      "type": "question",
+      "titre": "Qu'est-ce qui se passe ?",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Le disjoncteur saute à l'allumage",
+          "vers": "T9.2"
+        },
+        {
+          "libelle": "Le différentiel saute",
+          "vers": "T9.3"
+        },
+        {
+          "libelle": "Rien ne saute, mais une dalle ou une ligne n'a pas de courant",
+          "vers": "T9.4"
+        }
+      ]
+    },
+    {
+      "id": "T9.2",
+      "arbre": "T9",
+      "type": "action",
+      "titre": "Courant d'appel, ou ligne trop chargée.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "À l'allumage, les alimentations appellent un fort courant : allume les lignes une par une.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Ne charge jamais une ligne au maximum théorique : 80 % au plus{1}. L'onglet Électricité de l'appli fait ce calcul.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "CDC",
+              "ref": null,
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T9.3",
+      "arbre": "T9",
+      "type": "action",
+      "titre": "Le différentiel 30 mA saute.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Les courants de fuite des alimentations des dalles s'additionnent sur un même différentiel.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            },
+            {
+              "code": "CDC",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Répartis les dalles sur plus de départs, chacun protégé par son 30 mA.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            },
+            {
+              "code": "CDC",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Le choix des protections revient à l'électricien de la presta : ne shunte et ne change jamais un différentiel toi-même.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T9.4",
+      "arbre": "T9",
+      "type": "action",
+      "titre": "Une dalle sans courant.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "Voyant d'alimentation de la carte.",
+          "marque": null,
+          "sources": [],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "rouge fixe, alimentation normale.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-A10",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Vérifie le câble d'alimentation qui arrive à la dalle, et sa liaison vers les dalles suivantes : « des fois c'est juste… un câble ».",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Dans la dalle, l'alimentation fournit le courant à la carte de réception, qui alimente la carte HUB{1}. Une dalle dont l'alimentation est morte se change.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F-PDF1",
+              "ref": null,
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "T2.4"
+        }
+      ]
+    },
+    {
+      "id": "T10.1",
+      "arbre": "T10",
+      "type": "question",
+      "titre": "Quel est le problème ?",
+      "lignes": [],
+      "choix": [
+        {
+          "libelle": "Le processeur est en défaut, en veille ou ne finit pas de démarrer",
+          "vers": "T10.2"
+        },
+        {
+          "libelle": "Le logiciel ne trouve pas le processeur",
+          "vers": "T10.3"
+        }
+      ]
+    },
+    {
+      "id": "T10.2",
+      "arbre": "T10",
+      "type": "action",
+      "titre": "Processeur en défaut.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "COEX MX40 Pro : bleu fixe, démarrage en cours, attends ; rouge fixe, veille ; rouge clignotant, fonctionnement anormal.",
+          "marque": "coex",
+          "sources": [
+            {
+              "code": "CX-MX40",
+              "ref": "p.2"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Novastar VX1000 : lance Diagnostics.",
+          "marque": "novastar",
+          "sources": [
+            {
+              "code": "NS-VX1000",
+              "ref": "p.38"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "Pas de reset usine : appelle avant (annexe C).",
+          "marque": null,
+          "sources": [],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T10.3",
+      "arbre": "T10",
+      "type": "action",
+      "titre": "Le logiciel ne trouve pas le processeur.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "L'ordinateur doit être dans la même plage d'adresses IP que le processeur.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            },
+            {
+              "code": "BR-FORM",
+              "ref": "diapo 19, « Setting an IP address », « Direct connect »"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "la version de Tessera Remote doit être celle du processeur.",
+          "marque": "brompton",
+          "etiquette": "Brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§4.2"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "[?] liaison USB ou réseau selon le modèle.",
+          "marque": [
+            "novastar",
+            "coex"
+          ],
+          "etiquette": "Novastar, COEX",
+          "sources": [],
+          "aConfirmer": true
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réglé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réglé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "T11.1",
+      "arbre": "T11",
+      "type": "action",
+      "titre": "Une liaison est coupée, le câble de secours a pris le relais.",
+      "lignes": [
+        {
+          "numero": 1,
+          "texte": "vert, 8 éclats toutes les 0,5 s, la boucle de secours est active.",
+          "marque": "novastar",
+          "etiquette": "Novastar",
+          "sources": [
+            {
+              "code": "NS-A10",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 1,
+          "texte": "Les voyants servent à voir qu'aucune redondance n'est active quand tout va bien.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F7",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 2,
+          "texte": "Brompton SX40 : Topology View affiche les erreurs de câblage de redondance avec des numéros de port en rouge.",
+          "marque": "brompton",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§8.7"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 3,
+          "texte": "La coupure est juste avant la première dalle passée en secours{1}. Répare la jonction pour revenir sur le câble principal{2} : tant qu'elle n'est pas réparée, tu n'as plus de secours.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F7",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "F7",
+              "ref": null,
+              "renvoi": 2
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "numero": 4,
+          "texte": "Pendant le direct, n'interviens que si ça ne se voit pas : c'est un risque.",
+          "marque": null,
+          "sources": [
+            {
+              "code": "F7",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        }
+      ],
+      "choix": [
+        {
+          "libelle": "Réparé",
+          "vers": "FIN-OK"
+        },
+        {
+          "libelle": "Pas réparé",
+          "vers": "FIN-APPEL"
+        }
+      ]
+    },
+    {
+      "id": "FIN-OK",
+      "type": "fin",
+      "titre": "C'est réglé.",
+      "lignes": [],
+      "choix": []
+    },
+    {
+      "id": "FIN-APPEL",
+      "type": "fin",
+      "titre": "Appelle ton responsable ou le dépôt.",
+      "lignes": [],
+      "choix": [],
+      "annexe": "D"
+    }
+  ],
+  "annexes": [
+    {
+      "id": "A",
+      "titre": "Voyants",
+      "sections": [
+        {
+          "id": "A1",
+          "titre": "Novastar, cartes de réception série A.",
+          "texte": " Même tableau sur l'A5s et l'A10s Plus-N ; vérifie la fiche de ta carte.",
+          "sources": [
+            {
+              "code": "NS-A10",
+              "ref": null
+            },
+            {
+              "code": "NS-A5S",
+              "ref": "p.3"
+            }
+          ],
+          "lignes": [],
+          "tableau": {
+            "colonnes": [
+              "Voyant",
+              "État",
+              "Sens"
+            ],
+            "lignes": [
+              [
+                "Vert (marche)",
+                "1 éclat par seconde",
+                "Normal : câble Ethernet bon, source vidéo présente"
+              ],
+              [
+                "Vert",
+                "1 éclat toutes les 3 s",
+                "Câble Ethernet anormal"
+              ],
+              [
+                "Vert",
+                "3 éclats toutes les 0,5 s",
+                "Câble bon, pas de source vidéo"
+              ],
+              [
+                "Vert",
+                "1 éclat toutes les 0,2 s",
+                "Programme principal non chargé : la carte tourne sur le programme de secours"
+              ],
+              [
+                "Vert",
+                "8 éclats toutes les 0,5 s",
+                "Bascule de redondance : la boucle de secours a pris le relais"
+              ],
+              [
+                "Rouge (alimentation)",
+                "Fixe",
+                "Alimentation normale"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "A2",
+          "titre": "Brompton, dalles à carte R2 ou R2+",
+          "texte": "",
+          "sources": [
+            {
+              "code": "BR-LED",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§7.3.1"
+            }
+          ],
+          "lignes": [
+            {
+              "texte": "Les voyants peuvent être désactivés (Disable Status Indicator){1}, mais ils se rallument si une mire de carte est active ou si la dalle perd la liaison avec le processeur{2}. OSD : informations affichées sur la dalle elle-même, trois appuis sur le bouton self-test au dos{3} ; utile pour dépanner{4}.",
+              "sources": [
+                {
+                  "code": "BR-TESS",
+                  "ref": "§7.3.5",
+                  "renvoi": 1
+                },
+                {
+                  "code": "BR-LED",
+                  "ref": null,
+                  "renvoi": 2
+                },
+                {
+                  "code": "BR-TESS",
+                  "ref": "§7.4",
+                  "renvoi": 3
+                },
+                {
+                  "code": "F17",
+                  "ref": null,
+                  "renvoi": 4
+                }
+              ],
+              "aConfirmer": false
+            }
+          ],
+          "tableau": {
+            "colonnes": [
+              "Voyant",
+              "Sens"
+            ],
+            "lignes": [
+              [
+                "Rouge au démarrage",
+                "Démarrage en cours"
+              ],
+              [
+                "Rouge fixe après environ 1 min",
+                "Erreur, la dalle ne démarrera peut-être pas"
+              ],
+              [
+                "Vert fixe",
+                "Démarrée, pas connectée aux autres appareils du réseau"
+              ],
+              [
+                "1 éclat bleu",
+                "Connectée sur un port Ethernet"
+              ],
+              [
+                "2 éclats bleus",
+                "Connectée sur les deux ports"
+              ],
+              [
+                "Bleu fixe",
+                "Connectée et associée à un processeur"
+              ],
+              [
+                "Jaune clignotant",
+                "Beacon, repérage de la dalle"
+              ],
+              [
+                "Jaune fixe",
+                "Mire de la dalle active"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "A3",
+          "titre": "Processeurs.",
+          "texte": "",
+          "sources": [],
+          "lignes": [
+            {
+              "texte": "COEX MX40 Pro{1} : voyant de marche (vert fixe normal ; bleu fixe démarrage ; rouge fixe veille ; rouge clignotant anormal) ; entrées sur l'écran d'accueil (vert, bleu, rouge, gris : voir T6.3) ; ports Ethernet (bleu connecté, gris déconnecté).",
+              "sources": [
+                {
+                  "code": "CX-MX40",
+                  "ref": "p.2, p.8",
+                  "renvoi": 1
+                }
+              ],
+              "aConfirmer": false
+            },
+            {
+              "texte": "Novastar VX1000{1} : boutons d'entrée (bleu fixe, signal reçu ; bleu clignotant, utilisé sans signal ; blanc, pas de signal ou signal anormal) ; boutons de couche (bleu, ouverte ; bleu clignotant, en cours de réglage ; blanc, fermée) ; ports Ethernet, voyant de connexion (allumé, bien connecté ; clignotant, mal connecté) et voyant de communication (clignotant, données transmises ; éteint, aucune donnée ; allumé, câble en court-circuit).",
+              "sources": [
+                {
+                  "code": "NS-VX1000",
+                  "ref": "p.2 à 4",
+                  "renvoi": 1
+                }
+              ],
+              "aConfirmer": false
+            },
+            {
+              "texte": "Brompton : [?] non relevé.",
+              "sources": [],
+              "aConfirmer": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "titre": "Où trouver les commandes",
+      "sections": [],
+      "tableau": {
+        "colonnes": [
+          "",
+          "Normal, Blackout, Freeze",
+          "Mire interne",
+          "EDID",
+          "Résolution reçue"
+        ],
+        "lignes": [
+          {
+            "appareil": "Novastar NovaLCT",
+            "cases": [
+              {
+                "texte": "Screen Control : Black Out, Freeze, Normal",
+                "sources": [
+                  {
+                    "code": "NS-LCT",
+                    "ref": "§5.10"
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "Screen Control : Self Test",
+                "sources": [
+                  {
+                    "code": "NS-LCT",
+                    "ref": "§5.10"
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "",
+                "sources": [],
+                "aConfirmer": false
+              },
+              {
+                "texte": "",
+                "sources": [],
+                "aConfirmer": false
+              }
+            ]
+          },
+          {
+            "appareil": "Novastar VX1000",
+            "cases": [
+              {
+                "texte": "Display Control : Normal, Freeze, FTB",
+                "sources": [
+                  {
+                    "code": "NS-VX1000",
+                    "ref": "p.26"
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "Display Control > Test Pattern",
+                "sources": [
+                  {
+                    "code": "NS-VX1000",
+                    "ref": "p.26"
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "EDID Standard ou Custom",
+                "sources": [
+                  {
+                    "code": "NS-VX1000",
+                    "ref": "p.20-21"
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "écran d'accueil",
+                "sources": [
+                  {
+                    "code": "NS-VX1000",
+                    "ref": "p.7"
+                  }
+                ],
+                "aConfirmer": false
+              }
+            ]
+          },
+          {
+            "appareil": "Novastar VX Pro",
+            "cases": [
+              {
+                "texte": "Display Control : Normal, Freeze, FTB",
+                "sources": [
+                  {
+                    "code": "NS-VXPRO",
+                    "ref": "p.45"
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "Display Control > Test Pattern : Pure Color, Gradient, Grid",
+                "sources": [
+                  {
+                    "code": "NS-VXPRO",
+                    "ref": "p.45"
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "Input Settings > Import and Export EDID",
+                "sources": [
+                  {
+                    "code": "NS-VXPRO",
+                    "ref": "p.35-36"
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "écran d'accueil",
+                "sources": [
+                  {
+                    "code": "NS-VXPRO",
+                    "ref": "p.10"
+                  }
+                ],
+                "aConfirmer": false
+              }
+            ]
+          },
+          {
+            "appareil": "COEX MX40 Pro",
+            "cases": [
+              {
+                "texte": "Display Control : Normal, Freeze, Blackout",
+                "sources": [
+                  {
+                    "code": "CX-MX40",
+                    "ref": "p.23"
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "[?]",
+                "sources": [],
+                "aConfirmer": true
+              },
+              {
+                "texte": "Input Settings > source > EDID, Custom ou Standard",
+                "sources": [
+                  {
+                    "code": "CX-MX40",
+                    "ref": "p.13-14"
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "écran d'accueil{1} ; Input Settings > source > Infoframe{2}",
+                "sources": [
+                  {
+                    "code": "CX-MX40",
+                    "ref": "p.8",
+                    "renvoi": 1
+                  },
+                  {
+                    "code": "CX-MX40",
+                    "ref": "p.13",
+                    "renvoi": 2
+                  }
+                ],
+                "aConfirmer": false
+              }
+            ]
+          },
+          {
+            "appareil": "Brompton Tessera",
+            "cases": [
+              {
+                "texte": "Boutons Freeze et Blackout en façade, rouges si actifs, ou dans Tessera",
+                "sources": [
+                  {
+                    "code": "BR-TESS",
+                    "ref": "§11.5, §11.6"
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "Mires de la carte : Device > Test Pattern{1} ; bouton self-test au dos, maintenu 4 s{2} ; Beacon{3}",
+                "sources": [
+                  {
+                    "code": "BR-TESS",
+                    "ref": "§7.3.3",
+                    "renvoi": 1
+                  },
+                  {
+                    "code": "BR-TESS",
+                    "ref": "§7.3.3",
+                    "renvoi": 2
+                  },
+                  {
+                    "code": "BR-TESS",
+                    "ref": "§7.3.1",
+                    "renvoi": 3
+                  }
+                ],
+                "aConfirmer": false
+              },
+              {
+                "texte": "[?]",
+                "sources": [],
+                "aConfirmer": true
+              },
+              {
+                "texte": "[?]",
+                "sources": [],
+                "aConfirmer": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "C",
+      "titre": "À ne jamais faire seul",
+      "sections": [],
+      "lignes": [
+        {
+          "titre": "Reset usine d'un processeur.",
+          "texte": " Brompton SX40 : bouton Reset maintenu 10 s, « this will delete all project files and Fixture Packs »{1}. COEX MX40 Pro : Complete Reset remet tout à zéro, « This action cannot be undone »{2}. Novastar VX1000 : Reset All remet tous les paramètres d'usine{3}.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§2.3.1",
+              "renvoi": 1
+            },
+            {
+              "code": "CX-MX40",
+              "ref": "p.25",
+              "renvoi": 2
+            },
+            {
+              "code": "NS-VX1000",
+              "ref": "p.38-39",
+              "renvoi": 3
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "titre": "Reset d'une carte de réception",
+          "texte": " : la config est perdue.",
+          "sources": [
+            {
+              "code": "F6",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "titre": "Recharger un firmware",
+          "texte": " (Reload firmware){1} : seulement avec le dépôt.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§7.3.1",
+              "renvoi": 1
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "titre": "Fonctions « Advanced user » de NovaLCT",
+          "texte": " : calibration, couleur avancée, Module ID.",
+          "sources": [
+            {
+              "code": "NS-LCT",
+              "ref": "§4"
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "titre": "Changer de mémoire de calibration",
+          "texte": " sans savoir laquelle utiliser : une mémoire vide veut dire pas de calibration.",
+          "sources": [
+            {
+              "code": "F17",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "titre": "Toucher aux protections électriques",
+          "texte": ".",
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        }
+      ]
+    },
+    {
+      "id": "D",
+      "titre": "Quoi dire quand tu appelles",
+      "sections": [],
+      "lignes": [
+        {
+          "texte": "Le symptôme, depuis quand, et ce qui a changé juste avant.",
+          "sources": [],
+          "aConfirmer": false
+        },
+        {
+          "texte": "Le processeur, le port, la première dalle en défaut (repère du schéma de l'appli).",
+          "sources": [],
+          "aConfirmer": false
+        },
+        {
+          "texte": "L'état des voyants (annexe A) et une photo.",
+          "sources": [],
+          "aConfirmer": false
+        },
+        {
+          "texte": "La mire interne : bonne ou pas (R1).",
+          "sources": [],
+          "aConfirmer": false
+        },
+        {
+          "texte": "Brompton : compteurs d'erreurs et journal horodaté.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§8.6.2"
+            },
+            {
+              "code": "F17",
+              "ref": null
+            },
+            {
+              "code": "F19",
+              "ref": null
+            }
+          ],
+          "aConfirmer": false
+        },
+        {
+          "texte": "Ce que tu as déjà essayé.",
+          "sources": [],
+          "aConfirmer": false
+        }
+      ]
+    }
+  ]
+}

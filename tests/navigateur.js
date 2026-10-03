@@ -6,7 +6,7 @@ import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, enregistrer, TEINTES } from
 import { geometrieSchema, trajetsSchema, construireSvg, repereSchema, PALETTE_EXPORT, PALETTE_ECRAN } from '../src/dessin-schema.js';
 import { processeurDeBase, baseProcesseurs, dalleDeBase } from './base.js';
 import { DALLE_CAS_13 } from './dalles-fictives.js';
-import { versionCache, empreinteDeclaree, empreinteCache } from './fichiers.js';
+import { versionCache, empreinteDeclaree, empreinteCache, listeCache } from './fichiers.js';
 import { VERSIONS_CACHE } from './versions-cache.js';
 import { creerStockage } from '../src/stockage.js';
 import * as couleurs from '../src/couleurs.js';
@@ -25,6 +25,51 @@ function pixel(image, x, y) {
 }
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const decoder = async (blob) => createImageBitmap(blob);
+
+// Écran Dépannage, monté hors de la page des tests (largeur d'un téléphone). Le module est chargé à la demande :
+// absent, seuls ces tests échouent.
+async function moduleDepannage(v) {
+  try {
+    return await import('../src/ecran-depannage.js');
+  } catch (erreur) {
+    v.vrai(`module src/ecran-depannage.js chargé (${erreur.message})`, false);
+    return null;
+  }
+}
+function monterDepannage(module, donnees, options = {}) {
+  const racine = document.createElement('div');
+  racine.style.cssText = 'position:absolute;left:-10000px;top:0;width:375px';
+  document.body.append(racine);
+  const ecran = module.monterDepannage(racine, donnees, options);
+  return { racine, ecran, retirer: () => racine.remove() };
+}
+const texteDe = (e) => (e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+const boutonTexte = (racine, debut) => [...racine.querySelectorAll('button')].find((b) => texteDe(b).startsWith(debut));
+// Hors ligne : tout appel réseau échoue (et il est noté), navigator.onLine vaut false.
+async function sansReseau(action) {
+  const fetchAvant = window.fetch;
+  const appels = [];
+  window.fetch = (adresse) => {
+    appels.push(String(adresse));
+    return Promise.reject(new TypeError('hors ligne'));
+  };
+  Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+  try {
+    await action(appels);
+  } finally {
+    window.fetch = fetchAvant;
+    delete navigator.onLine;
+  }
+}
+const rgbVersHex = (c) => `#${(c.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map((x) => Math.round(Number(x)).toString(16).padStart(2, '0')).join('')}`;
+// Fond réel d'un élément : le premier fond non transparent en remontant.
+function fondDe(e) {
+  for (let x = e; x; x = x.parentElement) {
+    const c = getComputedStyle(x).backgroundColor;
+    if (c && !/rgba\(.*,\s*0\)$/.test(c) && c !== 'transparent') return rgbVersHex(c);
+  }
+  return '#ffffff';
+}
 
 export const NAVIGATEUR = [
   {
@@ -557,6 +602,218 @@ export const NAVIGATEUR = [
           }
           [normal, grand, guide].forEach((x) => x.remove());
         }
+      }
+    },
+  },
+  {
+    id: 'N14',
+    titre: 'Dépannage hors ligne : S2, puis « Une dalle seule », arrive sur T2.5 ; Retour revient à T2.1 ; Recommencer revient à la liste ; « annexe A » à « annexe C » du texte en liens, les 4 annexes depuis l\'accueil ; FIN-APPEL affiche l\'annexe D ; avertissement de T9 ; aucun accès au réseau, fichiers dans le cache du service worker ; liens web des sources seulement en ligne',
+    etape: 'depannage',
+    async verifier(v, contexte) {
+      const cache = listeCache(contexte.fichiers?.['sw.js']);
+      v.vrai('data/depannage.json dans le cache du service worker', cache.includes('data/depannage.json'));
+      v.vrai('src/ecran-depannage.js dans le cache du service worker', cache.includes('src/ecran-depannage.js'));
+      const d = contexte.depannage;
+      v.vrai('data/depannage.json lu', Boolean(d));
+      const module = await moduleDepannage(v);
+      if (!d || !module) return;
+      await sansReseau(async (appels) => {
+        const { racine, ecran, retirer } = monterDepannage(module, d, { projet: null });
+        try {
+          v.egal('ouverture : accueil', racine.dataset.ecran, 'accueil');
+          v.egal('accueil : réflexes R1 à R3 en court', [...racine.querySelectorAll('.dep-reflexe summary')].map(texteDe), d.reflexes.map((r) => `${r.id} · ${r.titre}`));
+          v.egal('accueil : les 11 symptômes en gros boutons', [...racine.querySelectorAll('.dep-symptome')].map(texteDe), d.symptomes.map((x) => x.texte));
+          boutonTexte(racine, d.symptomes[1].texte)?.click();
+          v.egal('S2 : T2.1', racine.dataset.noeud, 'T2.1');
+          boutonTexte(racine, 'Une dalle seule')?.click();
+          v.egal('« Une dalle seule » : T2.5', racine.dataset.noeud, 'T2.5');
+          racine.querySelector('.dep-retour')?.click();
+          v.egal('Retour : T2.1', racine.dataset.noeud, 'T2.1');
+          racine.querySelector('.dep-recommencer')?.click();
+          v.egal('Recommencer : la liste des symptômes', [racine.dataset.ecran, racine.querySelectorAll('.dep-symptome').length], ['accueil', 11]);
+          ecran.afficher('T2.5');
+          const lien = racine.querySelector('.dep-lien-annexe[data-annexe="A"]');
+          v.vrai('T2.5 : « annexe A » en lien', texteDe(lien) === 'annexe A');
+          lien?.click();
+          v.egal('lien : annexe A', [racine.dataset.ecran, racine.dataset.annexe], ['annexe', 'A']);
+          racine.querySelector('.dep-retour')?.click();
+          v.egal('Retour : T2.5', racine.dataset.noeud, 'T2.5');
+          // « annexe A » à « annexe C » sont cités dans le texte (« annexe D » ne l'est que par FIN-APPEL, qui l'affiche).
+          const liens = new Set();
+          const relever = () => racine.querySelectorAll('.dep-lien-annexe').forEach((a) => liens.add(a.dataset.annexe));
+          for (const n of d.noeuds) {
+            ecran.afficher(n.id);
+            relever();
+          }
+          ecran.accueil();
+          racine.querySelectorAll('.dep-reflexe').forEach((x) => { x.open = true; });
+          relever();
+          v.egal('« annexe A », « annexe B », « annexe C » du texte : des liens', [...liens].sort(), ['A', 'B', 'C']);
+          v.egal('accueil : un bouton par annexe, A à D', [...racine.querySelectorAll('.dep-bouton-annexe')].map((b) => b.dataset.annexe), ['A', 'B', 'C', 'D']);
+          ecran.afficher('FIN-APPEL');
+          v.egal('FIN-APPEL : message', texteDe(racine.querySelector('.dep-titre')), 'Appelle ton responsable ou le dépôt.');
+          v.egal('FIN-APPEL : annexe D affichée, ses 6 points', racine.querySelectorAll('.dep-annexe[data-annexe="D"] .dep-annexe-ligne').length, 6);
+          ecran.afficher('FIN-OK');
+          v.egal('FIN-OK : message', texteDe(racine.querySelector('.dep-titre')), 'C\'est réglé.');
+          ecran.afficher('T9.3');
+          v.egal('T9 : avertissement en tête, 2 lignes', racine.querySelectorAll('.dep-avertissement .dep-ligne').length, 2);
+          ecran.afficher('T5.3');
+          v.egal('hors ligne : sources sans lien web', racine.querySelectorAll('.dep-sources a[href^="http"]').length, 0);
+          v.egal('aucun accès au réseau pendant le parcours', appels, []);
+        } finally {
+          retirer();
+        }
+      });
+      const enLigne = monterDepannage(module, d, { projet: null, enLigne: () => true });
+      enLigne.ecran.afficher('T5.3');
+      v.vrai('en ligne : lien web vers la source', enLigne.racine.querySelectorAll('.dep-sources a[href^="https://"]').length > 0);
+      enLigne.retirer();
+    },
+  },
+  {
+    id: 'N15',
+    titre: 'Dépannage, lignes de marque : projet ouvert avec un processeur Brompton, lignes Brompton dépliées et les autres repliées ; sans projet, un choix de marque (Novastar, COEX, Brompton, Toutes) ; marque d\'un processeur de la base',
+    etape: 'depannage',
+    async verifier(v, contexte) {
+      const d = contexte.depannage;
+      v.vrai('data/depannage.json lu', Boolean(d));
+      const module = await moduleDepannage(v);
+      if (!d || !module) return;
+      v.egal('marque du processeur : S8, MCTRL660, MX40 Pro, X20 (pas couvert)',
+        ['brompton-s8', 'novastar-mctrl660', 'coex-mx40-pro', 'colorlight-x20'].map((id) => module.marqueDuProcesseur(processeurDeBase(contexte, id))),
+        ['brompton', 'novastar', 'coex', null]);
+      const etat = (racine) => [...racine.querySelectorAll('.dep-ligne-marque')].map((x) => `${x.dataset.marque}:${x.open ? 'dépliée' : 'repliée'}`);
+      let m = monterDepannage(module, d, { projet: { marque: 'brompton', nom: 'S8' } });
+      v.egal('projet Brompton : Brompton choisi d\'office', [...m.racine.querySelectorAll('.dep-marques button[aria-pressed="true"]')].map(texteDe), ['Brompton']);
+      v.vrai('projet Brompton : le processeur du projet est nommé', texteDe(m.racine.querySelector('.dep-marques')).includes('S8'));
+      m.ecran.afficher('T1.3');
+      v.egal('T1.3, projet Brompton : Brompton dépliée, Novastar et COEX repliées', etat(m.racine), ['brompton:dépliée', 'novastar:repliée', 'coex:repliée']);
+      v.vrai('T1.3 : la ligne commune reste visible', texteDe(m.racine).includes('Repasse en Normal.'));
+      m.retirer();
+      m = monterDepannage(module, d, { projet: null });
+      v.egal('sans projet : choix de marque', [...m.racine.querySelectorAll('.dep-marques button')].map(texteDe), ['Novastar', 'COEX', 'Brompton', 'Toutes']);
+      v.egal('sans projet : aucune marque choisie d\'office', m.racine.querySelectorAll('.dep-marques button[aria-pressed="true"]').length, 0);
+      m.ecran.afficher('T1.3');
+      v.egal('T1.3 sans projet : lignes de marque repliées', etat(m.racine), ['brompton:repliée', 'novastar:repliée', 'coex:repliée']);
+      m.racine.querySelector('.dep-marques button[data-marque="toutes"]')?.click();
+      v.egal('« Toutes » : toutes dépliées', etat(m.racine), ['brompton:dépliée', 'novastar:dépliée', 'coex:dépliée']);
+      m.racine.querySelector('.dep-marques button[data-marque="coex"]')?.click();
+      v.egal('« COEX » : COEX seule dépliée', etat(m.racine), ['brompton:repliée', 'novastar:repliée', 'coex:dépliée']);
+      m.ecran.afficher('T7.2');
+      v.egal('T7.2, COEX : « Novastar et COEX » dépliée', etat(m.racine), ['brompton:repliée', 'novastar coex:dépliée', 'brompton:repliée']);
+      m.retirer();
+    },
+  },
+  {
+    id: 'N16',
+    titre: 'Dépannage, badges et sources : badge « à confirmer » sur chaque ligne [?] ; sous chaque ligne sa source en petit, sous son libellé publié (jamais le code interne) ; renvois numérotés quand une ligne a plusieurs sources',
+    etape: 'depannage',
+    async verifier(v, contexte) {
+      const d = contexte.depannage;
+      v.vrai('data/depannage.json lu', Boolean(d));
+      const module = await moduleDepannage(v);
+      if (!d || !module) return;
+      const m = monterDepannage(module, d, { projet: null });
+      m.racine.querySelector('.dep-marques button[data-marque="toutes"]')?.click();
+      const fautes = [];
+      let badges = 0;
+      const codeInterne = /(?<![\w-])(NS-A10|NS-A5S|NS-LCT|NS-VX1000|NS-VXPRO|CX-MX40|BR-LED|BR-TESS|BR-FORM|F-PDF1|F\d{1,2}|CDC)(?![\w-])/;
+      for (const n of d.noeuds) {
+        m.ecran.afficher(n.id);
+        const attendus = n.lignes.filter((l) => l.aConfirmer).length;
+        const vus = m.racine.querySelectorAll('.dep-contenu .dep-badge').length;
+        badges += vus;
+        if (vus !== attendus) fautes.push(`${n.id} : ${vus} badges pour ${attendus} lignes [?]`);
+        const texte = texteDe(m.racine);
+        if (texte.includes('[?]')) fautes.push(`${n.id} : « [?] » affiché tel quel`);
+        if (/\{\d+\}/.test(texte)) fautes.push(`${n.id} : renvoi « {n} » affiché tel quel`);
+        const code = texte.match(codeInterne);
+        if (code) fautes.push(`${n.id} : code interne affiché (${code[1]})`);
+        const sansSource = [...m.racine.querySelectorAll('.dep-contenu .dep-ligne')].filter((x) => x.dataset.sources > 0 && !x.querySelector('.dep-sources'));
+        if (sansSource.length) fautes.push(`${n.id} : ${sansSource.length} lignes sourcées sans leurs sources dessous`);
+      }
+      v.egal('nœuds : badges, « [?] », renvois et codes internes', fautes, []);
+      v.egal('badges « à confirmer » des nœuds', badges, d.noeuds.flatMap((n) => n.lignes).filter((l) => l.aConfirmer).length);
+      m.ecran.afficher('T1.4');
+      v.egal('badge : « à confirmer »', texteDe(m.racine.querySelector('.dep-badge')), 'à confirmer');
+      m.ecran.afficher('T2.3');
+      v.egal('T2.3, étape 1 : « Formation (transcription 7) » sous la ligne', texteDe(m.racine.querySelector('.dep-etape .dep-sources')), 'Formation (transcription 7)');
+      m.ecran.afficher('T2.6');
+      v.vrai('T2.6 : support de cours en « Formation (support de cours) »', texteDe(m.racine).includes('Formation (support de cours)'));
+      m.ecran.afficher('T4.3');
+      v.vrai('T4.3 : cahier des charges en « Cahier des charges de l\'appli »', texteDe(m.racine).includes('Cahier des charges de l\'appli'));
+      m.ecran.afficher('T1.2');
+      const brompton = m.racine.querySelector('.dep-ligne-marque[data-marque="brompton"]');
+      v.egal('T1.2, Brompton : 3 renvois dans le texte, 3 sources numérotées dessous',
+        [brompton?.querySelectorAll('.dep-renvoi').length, brompton?.querySelectorAll('.dep-source').length], [3, 3]);
+      const cases = d.annexes.find((a) => a.id === 'B').tableau.lignes.flatMap((r) => r.cases).filter((c) => c.aConfirmer).length;
+      m.ecran.annexe('B');
+      v.egal(`annexe B : ${cases} cases [?] avec leur badge`, m.racine.querySelectorAll('.dep-badge').length, cases);
+      v.vrai('annexe B : aucun code interne affiché', !codeInterne.test(texteDe(m.racine)));
+      m.ecran.sources();
+      v.egal('liste des sources : 21 entrées, sans code interne', [m.racine.querySelectorAll('.dep-source-entree').length, codeInterne.test(texteDe(m.racine))], [21, false]);
+      m.retirer();
+    },
+  },
+  {
+    id: 'N17',
+    titre: 'Dépannage en grand affichage, thème sombre et mode rouge : texte de 19 px, boutons de 60 px, réponses et symptômes de 64 px ; texte à 4,5:1 sur son fond ; rien ne déborde à 375 px (styles.css)',
+    etape: 'depannage',
+    async verifier(v, contexte) {
+      const d = contexte.depannage;
+      v.vrai('data/depannage.json lu', Boolean(d));
+      const module = await moduleDepannage(v);
+      if (!d || !module) return;
+      const feuille = document.createElement('link');
+      feuille.rel = 'stylesheet';
+      feuille.href = 'styles.css';
+      await new Promise((fin) => {
+        feuille.onload = fin;
+        feuille.onerror = fin;
+        document.head.append(feuille);
+      });
+      const html = document.documentElement;
+      const avant = { taille: html.dataset.taille, mode: html.dataset.mode };
+      try {
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          for (const taille of ['normal', 'grand']) {
+            if (taille === 'grand') html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            const [mini, reponse, police] = taille === 'grand' ? [60, 64, 19] : [48, 52, 0];
+            const m = monterDepannage(module, d, { projet: { marque: 'brompton', nom: 'S8' } });
+            m.racine.style.background = 'var(--fond)';
+            const fautes = [];
+            for (const [nom, aller] of [['accueil', () => m.ecran.accueil()], ['T1.3', () => m.ecran.afficher('T1.3')], ['T2.5', () => m.ecran.afficher('T2.5')],
+              ['T9.2', () => m.ecran.afficher('T9.2')], ['FIN-APPEL', () => m.ecran.afficher('FIN-APPEL')], ['annexe B', () => m.ecran.annexe('B')], ['sources', () => m.ecran.sources()]]) {
+              aller();
+              m.racine.querySelectorAll('details').forEach((x) => { x.open = true; });
+              const textes = [...m.racine.querySelectorAll('*')].filter((e) => [...e.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim()) && e.getClientRects().length);
+              for (const e of textes) {
+                const style = getComputedStyle(e);
+                if (police && !e.closest('.dep-renvoi') && parseFloat(style.fontSize) < police - 0.05) fautes.push(`${nom} : « ${texteDe(e).slice(0, 30)} » en ${style.fontSize}`);
+                const c = contraste(rgbVersHex(style.color), fondDe(e));
+                if (c < 4.5) fautes.push(`${nom} : « ${texteDe(e).slice(0, 30)} » à ${c.toFixed(2)}:1`);
+              }
+              for (const b of m.racine.querySelectorAll('button, summary')) {
+                if (b.closest('.dep-lien-annexe') || !b.getClientRects().length) continue;
+                const h = b.getBoundingClientRect().height;
+                const attendu = b.matches('.dep-reponse, .dep-symptome') ? reponse : mini;
+                if (h < attendu - 0.5) fautes.push(`${nom} : « ${texteDe(b).slice(0, 30)} » haut de ${h.toFixed(0)} px`);
+              }
+              if (m.racine.scrollWidth > 375.5) fautes.push(`${nom} : ${m.racine.scrollWidth} px de large`);
+            }
+            v.egal(`${mode}, ${taille} : texte, contrastes, cibles et largeur`, fautes.slice(0, 12), []);
+            m.retirer();
+          }
+        }
+      } finally {
+        feuille.remove();
+        if (avant.taille) html.dataset.taille = avant.taille;
+        else delete html.dataset.taille;
+        if (avant.mode) html.dataset.mode = avant.mode;
+        else delete html.dataset.mode;
       }
     },
   },
