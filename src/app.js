@@ -18,6 +18,7 @@ import { restaurerConfiguration, suivreConfiguration, reglagesParDefaut } from '
 import { initialiserCopie } from './copie.js';
 import { monterDepannage, marqueDuProcesseur } from './ecran-depannage.js';
 import { monterMireFiche } from './ecran-mire.js';
+import { monterPourquoi, relierPourquoi } from './pourquoi.js';
 
 // Hors ligne : le service worker garde les fichiers de l'appli. Il prévient quand une nouvelle version est prête.
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
@@ -158,6 +159,16 @@ try {
   ficheContenu = await lireJson('data/fiche-contenu.json');
 } catch (erreur) {
   ficheContenu = null;
+}
+
+// Fiches « pourquoi » et table des liens (facultatives : sans elles, ni lien « Pourquoi ? » ni bouton dans le Dépannage).
+let pourquoi = null;
+let liensPourquoi = null;
+try {
+  [pourquoi, liensPourquoi] = await Promise.all([lireJson('data/pourquoi.json'), lireJson('data/pourquoi-liens.json')]);
+} catch (erreur) {
+  pourquoi = null;
+  liensPourquoi = null;
 }
 
 const appareils = Object.fromEntries(Object.entries(depart.appareils)
@@ -320,6 +331,35 @@ function fermerMire() {
   panneauMire.hidden = true;
   document.body.classList.remove('montage-ouvert');
 }
+
+// Fiches « pourquoi » : écran plein au-dessus de l'écran en cours (onglet, mire ou fiche contenu), qui reste en place
+// dessous ; « Fermer » ou Échap y revient. Les liens « Pourquoi ? » sont posés après chaque affichage par un observateur
+// qui relit les écrans de la table (data/pourquoi-liens.json), sans toucher aux calculs.
+const panneauPourquoi = document.getElementById('pourquoi');
+let ecranPourquoi = null;
+function ouvrirPourquoi(id = null) {
+  if (!ecranPourquoi) return;
+  if (id) ecranPourquoi.afficherFiche(id);
+  else ecranPourquoi.afficherListe();
+  panneauPourquoi.hidden = false;
+  document.body.classList.add('montage-ouvert');
+  document.getElementById('ecran-pourquoi').scrollTop = 0;
+}
+function fermerPourquoi() {
+  if (panneauPourquoi.hidden) return false;
+  panneauPourquoi.hidden = true;
+  if (panneauMire.hidden) document.body.classList.remove('montage-ouvert');
+  return true;
+}
+if (pourquoi && liensPourquoi) {
+  const defilant = document.getElementById('ecran-pourquoi');
+  ecranPourquoi = monterPourquoi(defilant, pourquoi, { defiler: () => { defilant.scrollTop = 0; } });
+  const relier = () => relierPourquoi(liensPourquoi, { racine: document, ouvrir: ouvrirPourquoi });
+  new MutationObserver(relier).observe(document.querySelector('main'), { childList: true, subtree: true });
+  new MutationObserver(relier).observe(panneauMire, { childList: true, subtree: true });
+  relier();
+}
+document.getElementById('pourquoi-fermer').addEventListener('click', fermerPourquoi);
 if (ficheContenu) {
   ecranMire = monterMireFiche(document.getElementById('ecran-mire'), ficheContenu, {
     contexte: cablageRetenu,
@@ -334,8 +374,11 @@ if (ficheContenu) {
 }
 document.getElementById('bouton-mire').addEventListener('click', () => ouvrirMire('mire'));
 document.getElementById('mire-fermer').addEventListener('click', fermerMire);
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerMire(); });
-window.addEventListener('hashchange', fermerMire);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !fermerPourquoi()) fermerMire(); });
+window.addEventListener('hashchange', () => {
+  fermerPourquoi();
+  fermerMire();
+});
 
 // Saisies de la dernière session, puis sauvegarde automatique ; copie des résultats.
 await restaurerConfiguration();
@@ -351,7 +394,14 @@ async function projetDepannage() {
 }
 if (depannage) {
   ecranDepannage = monterDepannage(document.getElementById('ecran-depannage'), depannage,
-    { projet: await projetDepannage(), defiler: () => window.scrollTo(0, 0), ouvrirMire: () => ouvrirMire('mire') });
+    {
+      projet: await projetDepannage(),
+      defiler: () => window.scrollTo(0, 0),
+      ouvrirMire: () => ouvrirMire('mire'),
+      liensPourquoi: ecranPourquoi ? liensPourquoi.liens : [],
+      ouvrirPourquoi: ecranPourquoi ? ouvrirPourquoi : null,
+      ouvrirListePourquoi: ecranPourquoi ? () => ouvrirPourquoi() : null,
+    });
   window.addEventListener('hashchange', async () => {
     if (location.hash === '#depannage') ecranDepannage.definirProjet(await projetDepannage());
   });

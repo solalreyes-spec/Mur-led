@@ -1,0 +1,743 @@
+{
+  "description": "Correspondance : chaque résultat, alerte ou refus de l'appli qui découle d'une règle, et la fiche « pourquoi » qui l'explique. élément « alerte » : texte d'une alerte ou d'une note de l'onglet ; « tuile » : titre d'une tuile de résultat ; « ligne » : élément désigné par son sélecteur ; « mot » : première occurrence du mot dans une étape du Dépannage.",
+  "ecrans": {
+    "mur": "#mur",
+    "data": "#data",
+    "canvas": "#canvas",
+    "elec": "#elec",
+    "poids": "#poids",
+    "schema": "#schema",
+    "fiche": "#mire-fiche"
+  },
+  "liens": [
+    {
+      "id": "data-port-95",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Câblage retenu, en colonnes entières : un port est chargé à … %, au-delà de 95 %. Garde de la marge.",
+      "motif": "^Câblage retenu, en colonnes entières : un port est chargé à",
+      "fiche": "D1"
+    },
+    {
+      "id": "data-variante-95",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Variante au plus juste, non retenue : un port y serait chargé à … %, au-delà de 95 %. Le câblage retenu, en colonnes entières, charge son port le plus chargé à … %.",
+      "motif": "^Variante au plus juste, non retenue : un port y serait chargé à",
+      "fiche": "D1"
+    },
+    {
+      "id": "data-dalle-trop-grande",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Une seule dalle dépasse la capacité d'un port.",
+      "motif": "^Une seule (demi-)?dalle dépasse la capacité d\\'un port",
+      "fiche": "D1"
+    },
+    {
+      "id": "data-dalle-port",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Une dalle de … px dépasse la capacité d'un port (… px).",
+      "motif": "^Une dalle de .* px dépasse la capacité d'un port",
+      "fiche": "D1"
+    },
+    {
+      "id": "data-capacite-port",
+      "ecran": "data",
+      "element": "tuile",
+      "texte": "Capacité par port",
+      "motif": "^Capacité par port",
+      "fiche": "D1"
+    },
+    {
+      "id": "data-debit-utile",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "débit utile : …",
+      "motif": "^débit utile :",
+      "fiche": "D1"
+    },
+    {
+      "id": "data-xd-capacite",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "… : … px par port à 60 Hz en 8 bits, …, absent de sa fiche ; la capacité suit la formule Tessera, comme sur le XD.",
+      "motif": "la capacité suit la formule Tessera",
+      "fiche": "D1"
+    },
+    {
+      "id": "canvas-frequence-source",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "La fréquence de la source (… Hz) dépasse celle du calcul data (… Hz) : refais le calcul data à … Hz, sinon les ports seront surchargés.",
+      "motif": "^La fréquence de la source \\(.* Hz\\) dépasse celle du calcul data",
+      "fiche": "D2"
+    },
+    {
+      "id": "data-proportionnel",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "déduit : … px à 60 Hz, proportionnel à la fréquence",
+      "motif": "proportionnel à la fréquence",
+      "fiche": "D2"
+    },
+    {
+      "id": "data-debit-colorlight",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "capacité à … Hz déduite du débit, aucune fiche Colorlight ne la publie",
+      "motif": "déduite du débit, aucune fiche Colorlight ne la publie",
+      "fiche": "D2"
+    },
+    {
+      "id": "data-defaut-12-bits",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Défaut 12 bits (livraison Tessera) ; en 10 bits, capacité par port de … px",
+      "motif": "^Défaut 12 bits \\(livraison Tessera\\)",
+      "fiche": "D3"
+    },
+    {
+      "id": "data-carte-plus-basse",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "carte … : capacité la plus basse des fiches (capacité plus haute avec une carte …)",
+      "motif": "capacité la plus basse des fiches",
+      "fiche": "D3"
+    },
+    {
+      "id": "data-toutes-marques",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Conseil toutes marques du parc : … à … bits comme réglé, les autres marques à leur profondeur réseau par défaut (…).",
+      "motif": "^Conseil toutes marques du parc",
+      "fiche": "D3"
+    },
+    {
+      "id": "data-capacite-appareil",
+      "ecran": "data",
+      "element": "tuile",
+      "texte": "Capacité de l'appareil",
+      "motif": "^Capacité de l\\'appareil",
+      "fiche": "D4"
+    },
+    {
+      "id": "data-plafond-carte",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Carte … : … px au plus par carte en … bits (…).",
+      "motif": "px au plus par carte en",
+      "fiche": "D4"
+    },
+    {
+      "id": "data-mur-pixels",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Le mur (…) dépasse la capacité d'un … (…).",
+      "motif": "^Le mur \\(.*\\) dépasse la capacité d\\'un",
+      "fiche": "D4"
+    },
+    {
+      "id": "data-mur-ports",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Le mur demande … ports, au-delà des … d'un ….",
+      "motif": "^Le mur demande .* ports.*, au-delà des",
+      "fiche": "D4"
+    },
+    {
+      "id": "data-mur-dalles",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Le mur compte … dalles, au-delà des … d'un ….",
+      "motif": "^Le mur compte .* dalles, au-delà des",
+      "fiche": "D4"
+    },
+    {
+      "id": "data-dalles-par-port",
+      "ecran": "data",
+      "element": "tuile",
+      "texte": "Dalles par port",
+      "motif": "^Dalles par port",
+      "fiche": "D5"
+    },
+    {
+      "id": "data-colonne-segments",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Processeur n° … : une colonne dépasse la capacité d'un port. Elle est coupée en … segments égaux : …",
+      "motif": "une colonne dépasse la capacité d\\'un port\\. Elle est coupée en",
+      "fiche": "D5"
+    },
+    {
+      "id": "data-conseil-novalct",
+      "ecran": "data",
+      "element": "tuile",
+      "texte": "Conseil NovaLCT",
+      "motif": "^Conseil NovaLCT",
+      "fiche": "D6"
+    },
+    {
+      "id": "data-novalct-rectangle",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Au plus juste non réalisable tel quel dans NovaLCT : le port … du processeur n° … compte le rectangle qui englobe …",
+      "motif": "non réalisable tel quel dans NovaLCT",
+      "fiche": "D6"
+    },
+    {
+      "id": "data-colonnes-entieres",
+      "ecran": "data",
+      "element": "tuile",
+      "texte": "Ports en colonnes entières",
+      "motif": "^Ports en colonnes entières",
+      "fiche": "D7"
+    },
+    {
+      "id": "elec-colonnes-entieres",
+      "ecran": "elec",
+      "element": "tuile",
+      "texte": "Lignes en colonnes entières",
+      "motif": "^Lignes en colonnes entières",
+      "fiche": "D7"
+    },
+    {
+      "id": "data-redondance-pair",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Redondance : un nombre pair de colonnes par port demanderait … au lieu de …. Gardé à … colonnes par port : …",
+      "motif": "^Redondance : un nombre pair de colonnes par port",
+      "fiche": "D8"
+    },
+    {
+      "id": "data-retour-secours",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "… port… au bord opposé au départ (nombre impair de …) : retour de secours long, … le long de la structure.",
+      "motif": "retour de secours long",
+      "fiche": "D8"
+    },
+    {
+      "id": "schema-retour-secours",
+      "ecran": "schema",
+      "element": "alerte",
+      "texte": "… port… au bord opposé au départ (nombre impair de …) : retour de secours long, … le long de la structure.",
+      "motif": "retour de secours long",
+      "fiche": "D8"
+    },
+    {
+      "id": "data-redondance-megapixel",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Redondance Megapixel (SeamlessLoop) : non modélisée par l'appli ; ports doublés par prudence, vérifie la configuration dans HELIOS.",
+      "motif": "^Redondance Megapixel",
+      "fiche": "D8"
+    },
+    {
+      "id": "data-redondance-un-port",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Le … n'a qu'un seul port : pas de redondance possible.",
+      "motif": "n'a qu'un seul port : pas de redondance possible",
+      "fiche": "D8"
+    },
+    {
+      "id": "data-ull-canvas",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "ULL : canvas de … à … px de haut (l'EDID fait deux fois la hauteur du canvas) ; entrée HDMI seulement, pas de SDI (…).",
+      "motif": "^ULL : canvas de",
+      "fiche": "D9"
+    },
+    {
+      "id": "canvas-ull-entree",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "ULL : entrée … seulement sur le …, pas de ….",
+      "motif": "^ULL : entrée",
+      "fiche": "D9"
+    },
+    {
+      "id": "data-128-px",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Ports … du … : un port charge … px de large, moins de … px ; sa capacité baisse de (… − …) × … = … px (…). Colonnes comptées en conséquence.",
+      "motif": "un port charge .* px de large, moins de",
+      "fiche": "D10"
+    },
+    {
+      "id": "data-xd-ports",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "… avec un … : … premiers ports sur … (…).",
+      "motif": "avec un .* : .* premiers ports sur",
+      "fiche": "D11"
+    },
+    {
+      "id": "data-xd-fibre",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "… : entrée fibre seulement (…), pas de cuivre 10G depuis le ….",
+      "motif": "entrée fibre seulement",
+      "fiche": "D11"
+    },
+    {
+      "id": "data-sfp",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "… avec un … : modules SFP+ … obligatoires, cages livrées vides (…).",
+      "motif": "modules SFP\\+",
+      "fiche": "D11"
+    },
+    {
+      "id": "data-sorties-fibre",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Sorties fibre du … : copies ou secours des ports Ethernet, aucune capacité ajoutée (… ports au plus).",
+      "motif": "^Sorties fibre du",
+      "fiche": "D11"
+    },
+    {
+      "id": "data-carte-fibre",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Carte … du … : … fibres de … ports chacune ; un … par fibre, obligatoire (…).",
+      "motif": "^Carte .* du .* : (.* fibres de .* ports chacune|1 fibre de .* ports) ;",
+      "fiche": "D11"
+    },
+    {
+      "id": "data-switch-fibre",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "… : … ports … utilisés sur … par switch (… px par fibre 10G, … px par port), … switch au plus par ….",
+      "motif": "utilisés sur .* par switch",
+      "fiche": "D11"
+    },
+    {
+      "id": "data-mode-20g",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Mode 20G : … sorties 10G sur le …, … switch en 20G, une sortie 10G sans switch.",
+      "motif": "^Mode 20G :",
+      "fiche": "D11"
+    },
+    {
+      "id": "data-cuivre-100m",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "… câble de tête en cuivre au-delà de … m (jusqu'à … m) : l'Ethernet en cuivre s'arrête à … m, … passe en fibre ….",
+      "motif": "de tête en cuivre au-delà de",
+      "fiche": "D12"
+    },
+    {
+      "id": "schema-cuivre-100m",
+      "ecran": "schema",
+      "element": "alerte",
+      "texte": "… câble de tête en cuivre au-delà de … m (jusqu'à … m) : l'Ethernet en cuivre s'arrête à … m, … passe en fibre ….",
+      "motif": "de tête en cuivre au-delà de",
+      "fiche": "D12"
+    },
+    {
+      "id": "data-cables-5g",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Câbles de tête du … (ports à 5 Gbit/s) : ….",
+      "motif": "^Câbles de tête du .* \\(ports à 5 Gbit/s\\)",
+      "fiche": "D13"
+    },
+    {
+      "id": "data-ports-5g",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Ports 5G : ….",
+      "motif": "^Ports 5G :",
+      "fiche": "D13"
+    },
+    {
+      "id": "schema-ports-5g",
+      "ecran": "schema",
+      "element": "alerte",
+      "texte": "Ports 5G : ….",
+      "motif": "^Ports 5G :",
+      "fiche": "D13"
+    },
+    {
+      "id": "data-cuivre-10g",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Cuivre 10G en … : ….",
+      "motif": "^Cuivre 10G en",
+      "fiche": "D13"
+    },
+    {
+      "id": "data-canvas-largeur",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Le mur fait … px de large, au-delà des … px de canvas d'un ….",
+      "motif": "^Le mur fait .* px de (large|haut), au-delà des",
+      "fiche": "D14"
+    },
+    {
+      "id": "data-cartes-zone",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Le mur demande … cartes … (zone de … × … px au plus par carte), au-delà des … d'un ….",
+      "motif": "^Le mur demande .* cartes",
+      "fiche": "D14"
+    },
+    {
+      "id": "data-sources-entree",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Le bloc du … fait … × … px : plusieurs sources nécessaires (… px maxi par entrée), chacune sur une partie du canvas.",
+      "motif": "plusieurs sources nécessaires",
+      "fiche": "D14"
+    },
+    {
+      "id": "data-zone-port",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Ports du … : … px de large ou de haut au plus par port (…) : …, … au lieu de ….",
+      "motif": "px de large ou de haut au plus par port",
+      "fiche": "D14"
+    },
+    {
+      "id": "mire-canevas-tessera",
+      "ecran": "fiche",
+      "element": "alerte",
+      "texte": "Brompton SX40 et S8, canevas personnalisé : largeur 720 à 4094 px et paire, hauteur 720 à 4095 px, 9 000 000 px au plus.",
+      "motif": "^Brompton SX40 et S8, canevas personnalisé",
+      "fiche": "D14"
+    },
+    {
+      "id": "data-cartes-sortie",
+      "ecran": "data",
+      "element": "ligne",
+      "texte": "Cartes de sortie (MX2000 Pro, MX6000 Pro, série H, X100 Pro, Z8t)",
+      "motif": "^Cartes de sortie",
+      "selecteur": "label[for=\"carte-sortie\"]",
+      "fiche": "D15"
+    },
+    {
+      "id": "elec-ligne",
+      "ecran": "elec",
+      "element": "tuile",
+      "texte": "Ligne",
+      "motif": "^Ligne$",
+      "fiche": "E1"
+    },
+    {
+      "id": "elec-dalle-trop-forte",
+      "ecran": "elec",
+      "element": "alerte",
+      "texte": "Une dalle (… W) dépasse la puissance utile d'une ligne (… W).",
+      "motif": "^Une dalle \\(.* W\\) dépasse la puissance utile",
+      "fiche": "E1"
+    },
+    {
+      "id": "elec-arrivee-mono",
+      "ecran": "elec",
+      "element": "alerte",
+      "texte": "L'arrivée mono … A porte … W utiles (… V, marge … %) : le mur demande … W. Il faut une arrivée plus forte ou du triphasé.",
+      "motif": "^L\\'arrivée mono",
+      "fiche": "E1"
+    },
+    {
+      "id": "elec-courant-appel",
+      "ecran": "elec",
+      "element": "alerte",
+      "texte": "Courant d'appel : jusqu'à … A sur une ligne si toutes ses dalles s'allument en même temps, au-delà du seuil magnétique bas d'un disjoncteur courbe … (… A). …",
+      "motif": "^Courant d\\'appel :",
+      "fiche": "E2"
+    },
+    {
+      "id": "elec-courbe",
+      "ecran": "elec",
+      "element": "alerte",
+      "texte": "Courbe du disjoncteur non précisée : contrôle en courbe C, la plus courante ; courbe à vérifier avec l'électricien.",
+      "motif": "^Courbe du disjoncteur non précisée",
+      "fiche": "E2"
+    },
+    {
+      "id": "elec-pic-ligne",
+      "ecran": "elec",
+      "element": "tuile",
+      "texte": "Pic d'une ligne",
+      "motif": "^Pic d\\'une ligne",
+      "fiche": "E2"
+    },
+    {
+      "id": "elec-sans-appel",
+      "ecran": "elec",
+      "element": "ligne",
+      "selecteur": "p.source",
+      "texte": "Courant d'appel non donné par la fiche : allume ligne par ligne et fais vérifier la courbe des disjoncteurs par l'électricien.",
+      "motif": "^Courant d'appel non donné par la fiche",
+      "fiche": "E2"
+    },
+    {
+      "id": "elec-rappel-allumage",
+      "ecran": "elec",
+      "element": "ligne",
+      "selecteur": ".rappels li",
+      "texte": "Allume ligne par ligne : le courant d'appel dépend du nombre de dalles allumées en même temps.",
+      "motif": "^Allume ligne par ligne",
+      "fiche": "E2"
+    },
+    {
+      "id": "dep-t92-courant",
+      "ecran": "depannage",
+      "element": "mot",
+      "texte": "fort courant",
+      "noeud": "T9.2",
+      "mot": "fort courant",
+      "fiche": "E2"
+    },
+    {
+      "id": "dep-t93-differentiel",
+      "ecran": "depannage",
+      "element": "mot",
+      "texte": "différentiel",
+      "noeud": "T9.3",
+      "mot": "différentiel",
+      "fiche": "E3"
+    },
+    {
+      "id": "elec-rappel-30ma",
+      "ecran": "elec",
+      "element": "ligne",
+      "selecteur": ".rappels li",
+      "texte": "Un 30 mA par départ 16 A, un 300 mA sélectif en amont ; ne remplace jamais les 30 mA des départs par du 300 mA. À valider avec l'électricien.",
+      "motif": "^Un 30 mA par départ",
+      "fiche": "E3"
+    },
+    {
+      "id": "elec-arrivee-tri",
+      "ecran": "elec",
+      "element": "alerte",
+      "texte": "Arrivée tri … A : la phase la plus chargée demande … W pour … W utiles par phase, même équilibrée. Il faut une arrivée plus forte.",
+      "motif": "^Arrivée tri .* : la phase la plus chargée",
+      "fiche": "E4"
+    },
+    {
+      "id": "elec-equilibre",
+      "ecran": "elec",
+      "element": "ligne",
+      "texte": "Équilibre des phases (écart le plus faible)",
+      "motif": "^Équilibre des phases",
+      "selecteur": "h4",
+      "fiche": "E4"
+    },
+    {
+      "id": "schema-phase-depasse",
+      "ecran": "schema",
+      "element": "alerte",
+      "texte": "Une phase dépasse les … W utiles de l'arrivée : il faut une arrivée plus forte.",
+      "motif": "^Une phase dépasse les .* W utiles de l'arrivée",
+      "fiche": "E4"
+    },
+    {
+      "id": "dep-t9-testeur",
+      "ecran": "depannage",
+      "element": "mot",
+      "texte": "testeur",
+      "noeud": "T9",
+      "mot": "testeur",
+      "fiche": "E5"
+    },
+    {
+      "id": "elec-rappel-tension",
+      "ecran": "elec",
+      "element": "ligne",
+      "selecteur": ".rappels li",
+      "texte": "Déroule entièrement tourets et rallonges ; teste la tension avant de brancher (230 V phase-neutre, 400 V entre phases).",
+      "motif": "teste la tension avant de brancher",
+      "fiche": "E5"
+    },
+    {
+      "id": "dep-t72-3840",
+      "ecran": "depannage",
+      "element": "mot",
+      "texte": "3 840 Hz",
+      "noeud": "T7.2",
+      "mot": "3 840 Hz",
+      "fiche": "I1"
+    },
+    {
+      "id": "dep-t72-genlock",
+      "ecran": "depannage",
+      "element": "mot",
+      "texte": "Genlock",
+      "noeud": "T7.2",
+      "mot": "Genlock",
+      "fiche": "I2"
+    },
+    {
+      "id": "canvas-cadence",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Cadence : source à … Hz, calcul data à … Hz : une image saute ou se double environ toutes les … s. Même cadence partout, ou genlock conseillé.",
+      "motif": "^Cadence : source à",
+      "fiche": "I3"
+    },
+    {
+      "id": "canvas-melangeur-cadence",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Le … ne sort qu'en … Hz : le calcul data est à … Hz.",
+      "motif": "ne sort qu\\'en .* Hz",
+      "fiche": "I3"
+    },
+    {
+      "id": "canvas-sdi-cadence",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "cadence de … Hz non normalisée en SDI (23,98, 24, 25, 29,97, 30, 50, 59,94 ou 60 Hz)",
+      "motif": "cadence de .* Hz non normalisée en SDI",
+      "fiche": "I3"
+    },
+    {
+      "id": "mur-lots-melanges",
+      "ecran": "mur",
+      "element": "alerte",
+      "texte": "Lots mélangés (…), écarts de couleur possibles …",
+      "motif": "^Lots mélangés",
+      "fiche": "I4"
+    },
+    {
+      "id": "dep-t43-lot",
+      "ecran": "depannage",
+      "element": "mot",
+      "texte": "autre lot de fabrication",
+      "noeud": "T4.3",
+      "mot": "autre lot de fabrication",
+      "fiche": "I4"
+    },
+    {
+      "id": "fiche-resolution",
+      "ecran": "fiche",
+      "element": "ligne",
+      "texte": "Résolution",
+      "motif": "^Résolution$",
+      "selecteur": ".mf-valeurs dt",
+      "fiche": "I6"
+    },
+    {
+      "id": "canvas-sans-echelle",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "… : sans mise à l'échelle, le format passe tel quel.",
+      "motif": "sans mise à l\\'échelle, le format passe tel quel",
+      "fiche": "I6"
+    },
+    {
+      "id": "mur-versions-scan",
+      "ecran": "mur",
+      "element": "alerte",
+      "texte": "Deux versions (…) : …",
+      "motif": "^Deux versions \\(",
+      "fiche": "I7"
+    },
+    {
+      "id": "mur-version-sans-regle",
+      "ecran": "mur",
+      "element": "alerte",
+      "texte": "… : …, sans règle de choix. Vérifie la version de ta dalle.",
+      "motif": "sans règle de choix\\. Vérifie la version de ta dalle",
+      "fiche": "I7"
+    },
+    {
+      "id": "canvas-resolution-non-standard",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Résolution de source … × … px non standard : les formateurs conseillent 1920 × 1080 ou 3840 × 2160 (4096 × 2160 en DCI) pour éviter les soucis d'EDID. …",
+      "motif": "^Résolution de source .* non standard",
+      "fiche": "I8"
+    },
+    {
+      "id": "canvas-source-passe",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "La source passe : … × … px à … Hz en ….",
+      "motif": "^La source passe",
+      "fiche": "I8"
+    },
+    {
+      "id": "canvas-source-conseillee",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "C'est le plus petit format standard qui contient le plus grand bloc, sur la meilleure entrée du processeur.",
+      "motif": "plus petit format standard qui contient le plus grand bloc",
+      "fiche": "I8"
+    },
+    {
+      "id": "canvas-blocs-source",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "… ne passent pas dans une source de … × … px.",
+      "motif": "ne (passe|passent) pas dans une source de",
+      "fiche": "I8"
+    },
+    {
+      "id": "fiche-sortie-regie",
+      "ecran": "fiche",
+      "element": "ligne",
+      "texte": "Sortie demandée à la régie",
+      "motif": "^Sortie demandée à la régie",
+      "selecteur": ".mf-valeurs dt",
+      "fiche": "I8"
+    },
+    {
+      "id": "dep-t53-edid",
+      "ecran": "depannage",
+      "element": "mot",
+      "texte": "EDID",
+      "noeud": "T5.3",
+      "mot": "EDID",
+      "fiche": "I8"
+    },
+    {
+      "id": "dep-t65-edid",
+      "ecran": "depannage",
+      "element": "mot",
+      "texte": "EDID",
+      "noeud": "T6.5",
+      "mot": "EDID",
+      "fiche": "I8"
+    },
+    {
+      "id": "dep-t66-hdcp",
+      "ecran": "depannage",
+      "element": "mot",
+      "texte": "HDCP",
+      "noeud": "T6.6",
+      "mot": "HDCP",
+      "fiche": "I9"
+    },
+    {
+      "id": "poids-maximum",
+      "ecran": "poids",
+      "element": "alerte",
+      "texte": "Maximum en … dépassé : … pour … au plus.",
+      "motif": "^Maximum en .* dépassé",
+      "fiche": "A1"
+    },
+    {
+      "id": "poids-sans-maximum",
+      "ecran": "poids",
+      "element": "alerte",
+      "texte": "Fiche sans maximum en … : à vérifier avec le constructeur et le rigger.",
+      "motif": "^Fiche sans maximum en",
+      "fiche": "A1"
+    },
+    {
+      "id": "poids-par-colonne",
+      "ecran": "poids",
+      "element": "tuile",
+      "texte": "Par colonne",
+      "motif": "^Par colonne",
+      "fiche": "A1"
+    }
+  ]
+}

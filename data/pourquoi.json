@@ -1,0 +1,1873 @@
+{
+  "document": "Les « pourquoi » : explications imagées et sourcées",
+  "date": "2026-10-03",
+  "images": [
+    {
+      "numero": 1,
+      "titre": "Les données, une route.",
+      "texte": "Un câble réseau est une route qui laisse passer un nombre fixe de voitures par seconde. Chaque pixel envoie une voiture à chaque image. Plus il y a de pixels, d'images par seconde ou de bits par pixel, plus il y a de voitures."
+    },
+    {
+      "numero": 2,
+      "titre": "Le courant, de l'eau.",
+      "texte": "Une ligne électrique est un tuyau, le disjoncteur une vanne de sécurité qui se ferme si le débit dépasse sa limite, le différentiel un compteur qui se ferme s'il manque de l'eau entre l'aller et le retour."
+    },
+    {
+      "numero": 3,
+      "titre": "L'image, un rythme.",
+      "texte": "La source, le processeur, le mur et la caméra jouent chacun à un tempo. S'ils ne jouent pas au même, ça se voit."
+    },
+    {
+      "numero": 4,
+      "titre": "L'accroche, une chaîne.",
+      "texte": "La dalle du haut porte toutes celles d'en dessous, comme le premier maillon d'une chaîne."
+    }
+  ],
+  "familles": [
+    {
+      "id": "donnees",
+      "titre": "Données",
+      "fiches": [
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D5",
+        "D6",
+        "D7",
+        "D8",
+        "D9",
+        "D10",
+        "D11",
+        "D12",
+        "D13",
+        "D14",
+        "D15"
+      ]
+    },
+    {
+      "id": "electricite",
+      "titre": "Électricité",
+      "fiches": [
+        "E1",
+        "E2",
+        "E3",
+        "E4",
+        "E5"
+      ]
+    },
+    {
+      "id": "image",
+      "titre": "Image",
+      "fiches": [
+        "I1",
+        "I2",
+        "I3",
+        "I4",
+        "I5",
+        "I6",
+        "I7",
+        "I8",
+        "I9"
+      ]
+    },
+    {
+      "id": "accroche",
+      "titre": "Accroche",
+      "fiches": [
+        "A1"
+      ]
+    }
+  ],
+  "fiches": [
+    {
+      "id": "D1",
+      "famille": "donnees",
+      "question": "Pourquoi un câble ne prend qu'un nombre limité de pixels ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "un port 1G porte au plus 650 000 px chez Novastar et 525 000 px chez Brompton, en 8 bits à 60 Hz.",
+          "sources": [
+            {
+              "code": "NS-INV",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "p.205"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "la route laisse passer un nombre fixe de voitures par seconde ; chaque pixel envoie une voiture 60 fois par seconde.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "un port 1G transporte un milliard de bits par seconde. Un pixel en 8 bits pèse 24 bits (8 par couleur). À 60 images par seconde, il demande 24 × 60 = 1 440 bits par seconde. Un milliard divisé par 1 440, moins une marge pour le protocole, donne environ 650 000 px. COEX écrit la formule : capacité × 24 × fréquence < 1 000 000 000 × 0,95{1}. Brompton garde plus de marge (525 000 px), sans détailler pourquoi{2}.",
+          "sources": [
+            {
+              "code": "CX-WIKI",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "F5",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "p.205",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "le logiciel signale la surcharge. Chez Brompton, la barre de charge du port passe au rouge : il faut déplacer des dalles sur un autre port ou baisser la profondeur.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "famille": "donnees",
+      "question": "Pourquoi la cadence change la capacité ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "la capacité d'un port varie à l'inverse de la fréquence. Chez Brompton, 525 000 px à 60 Hz deviennent 262 500 px à 120 Hz{1} ; à 50 Hz, 630 000 px{2}.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "p.205",
+              "renvoi": 1
+            },
+            {
+              "code": "CDC",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "plus de trajets par seconde, donc moins de voitures par trajet.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "c'est la même formule que D1, la fréquence est au dénominateur{1}. Novastar ne publie pas de valeur à d'autres fréquences ; l'appli applique la même formule{2}.",
+          "sources": [
+            {
+              "code": "CX-WIKI",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "NS-INV",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "un mur calculé à 50 Hz peut être en surcharge à 60 Hz.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "famille": "donnees",
+      "question": "Pourquoi 10 ou 12 bits réduisent la capacité ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "chez Brompton, 525 000 px en 8 bits, 420 000 en 10 bits, 350 000 en 12 bits, à 60 Hz{1}. Chez Novastar et COEX, la valeur en 10 bits dépend de la carte de réception{2}.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "p.205",
+              "renvoi": 1
+            },
+            {
+              "code": "NS-INV",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "CX-WIKI",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "des voitures plus longues ; il en passe moins.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "8 bits donnent 256 niveaux par couleur, 10 bits 1 024. Les chiffres de Brompton tombent exactement sur 30 bits par pixel en 10 bits et 36 en 12 bits : 525 000 × 24 ÷ 30 = 420 000{1}. Chez COEX, un pixel 10 bits occupe 32 ou 48 bits selon la carte{2}. On monte en bits pour des dégradés plus doux, sans bandes{3}.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "p.205",
+              "renvoi": 1
+            },
+            {
+              "code": "CX-WIKI",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "ELECOM",
+              "ref": null,
+              "renvoi": 3
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "surcharge du port, comme en D1.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "famille": "donnees",
+      "question": "Pourquoi le processeur plafonne avant la somme de ses ports ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "la capacité totale du processeur passe avant le total de ses ports. Exemple : VX4S, 4 ports mais 2,3 millions de pixels au total.",
+          "sources": [
+            {
+              "code": "NS-INV",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "un péage à l'entrée limite le nombre total de voitures, quelle que soit la largeur des routes à la sortie.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "la capacité totale de l'appareil prime sur la somme des ports{1}. L'appli prend toujours la plus petite des deux limites.",
+          "sources": [
+            {
+              "code": "NS-INV",
+              "ref": null,
+              "renvoi": 1
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "ports libres, mais l'appli refuse la configuration : le processeur ne peut pas traiter tout le mur.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "famille": "donnees",
+      "question": "Pourquoi on compte des dalles entières par câble ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "on calcule combien de dalles entières tiennent sur un câble, jamais une simple division du total.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§3.1"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "on ne coupe pas une voiture en deux pour la faire passer sur deux routes.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "une dalle reçoit toutes ses données par la chaîne où elle est branchée ; on ne peut pas répartir une dalle sur deux ports.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§3.1"
+            },
+            {
+              "code": "F5",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "le calcul annonce un câble de moins que nécessaire.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "famille": "donnees",
+      "question": "Pourquoi NovaLCT compte un rectangle ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "NovaLCT compte la charge d'un port sur le plus petit rectangle qui contient toutes ses dalles, trous compris{1}. La règle ne vaut pas pour COEX (VMP){2}.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§3.2",
+              "renvoi": 1
+            },
+            {
+              "code": "F6",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "CX-LED",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "un carton rectangulaire. Même si tu ranges une forme en L, tu paies le carton entier.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "le port reçoit une zone rectangulaire de l'image ; ce qui est dans le rectangle compte, même sans dalle{1}. Le formateur l'a montré : une dalle ajoutée hors du rectangle fait recalculer tout le rectangle{2}.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§3.2",
+              "renvoi": 1
+            },
+            {
+              "code": "F6",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "un port en L ou en escalier peut être en surcharge alors que ses dalles tiendraient.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "famille": "donnees",
+      "question": "Pourquoi câbler en colonnes ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "câbler les données en colonnes, comme l'alimentation.",
+          "sources": [
+            {
+              "code": "F6",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "des rayons rangés : quand quelque chose manque, tu sais où chercher.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "la data suit le câblage électrique, et un câblage logique se dépanne beaucoup plus vite en direct.",
+          "sources": [
+            {
+              "code": "F6",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "rien ne casse, mais une panne en direct devient longue à trouver.",
+          "sources": [
+            {
+              "code": "F6",
+              "ref": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "famille": "donnees",
+      "question": "Pourquoi la redondance prend deux ports ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "en boucle de secours, chaque chaîne part d'un port et revient sur un second : le nombre de ports est doublé.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§3.3"
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.3"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "la ficelle du formateur, tenue par les deux bouts. Si elle casse au milieu, chaque morceau reste tenu par un bout.",
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "le second port sert de secours : si le principal perd le signal ou fait des erreurs, il reprend les dalles{1}. Il ne peut donc pas charger d'autres dalles{2}.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.3",
+              "renvoi": 1
+            },
+            {
+              "code": "CDC",
+              "ref": "§3.3",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "sans boucle, un câble coupé éteint toutes les dalles qui suivent.",
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§7.3.1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "famille": "donnees",
+      "question": "Pourquoi l'ultra faible latence divise la capacité par deux ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "en mode ULL (SX40, S8), la capacité du système et des ports 1G est divisée par deux.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.4"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "une livraison express : tu gagnes une image de retard, mais la route ne transporte plus que la moitié.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "le retard tombe à une image, « at the expense of halving the system's pixel capacity » ; il faut une source qui respecte l'EDID, en HDMI, pas en SDI{1}. Brompton ne détaille pas le mécanisme.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.4",
+              "renvoi": 1
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "surcharge dès qu'on active le mode.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "famille": "donnees",
+      "question": "Pourquoi au moins 128 px de large par port (Novastar, COEX) ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "la pleine capacité d'un port suppose une largeur chargée d'au moins 128 px, en 1G{1} comme en 5G{2}.",
+          "sources": [
+            {
+              "code": "CX-MX40S",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "CX-MX6000",
+              "ref": "p.49",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "pas d'image : le constructeur ne donne pas la raison. Retiens la règle.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "en dessous de 128 px de large, la capacité réelle du port est plus basse que l'annoncée.",
+          "sources": [
+            {
+              "code": "CX-MX40S",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "un port étroit et très haut peut être en surcharge.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "famille": "donnees",
+      "question": "Pourquoi un XD ou un CVT10 ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "un lien 10G entre le processeur et un boîtier au pied du mur remplace plusieurs câbles 1G, dix pour un CVT10.",
+          "sources": [
+            {
+              "code": "CX-CVT10",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "une autoroute à dix voies jusqu'au pied du mur, puis dix routes séparées vers les dalles.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "le CVT10 reçoit un lien 10G et sort dix ports 1G{1}. Chez Brompton, le lien SX40 vers XD se fait en fibre monomode jusqu'à 2 km, ou en Cat6A jusqu'à 60 m{2}.",
+          "sources": [
+            {
+              "code": "CX-CVT10",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "dix câbles longs à tirer depuis la régie.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "famille": "donnees",
+      "question": "Pourquoi 100 m de cuivre au plus ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "un câble 1G fait au plus 100 m ; au-delà, on passe en fibre.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2"
+            },
+            {
+              "code": "IEEE",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "une voix dans un couloir : plus il est long, moins on entend la fin des phrases.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "le signal électrique s'affaiblit dans le cuivre avec la longueur ; la norme 1G garantit 100 m{1}. La lumière dans la fibre va beaucoup plus loin : 300 m en multimode, 10 km en monomode pour le CVT10{2}.",
+          "sources": [
+            {
+              "code": "IEEE",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "CX-CVT10",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "erreurs réseau, scintillement ou dalles qui décrochent.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§8.6.2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "famille": "donnees",
+      "question": "Pourquoi du Cat6A en 5G et en 10G ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "5G et 10G demandent du Cat6A.",
+          "sources": [
+            {
+              "code": "CX-WIKI5G",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "plus la route est rapide, plus le revêtement doit être lisse.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "un débit plus élevé demande un câble de meilleure catégorie : en 10G, le Cat6 ne tient que 55 m, contre 100 m pour le Cat6A{1} ; Brompton limite le Cat6A à 60 m entre SX40 et XD{2}.",
+          "sources": [
+            {
+              "code": "IEEE",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "liaison instable ou impossible.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D14",
+      "famille": "donnees",
+      "question": "Pourquoi un canevas maximum ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "chaque processeur ou carte a une largeur et une hauteur maximales. Brompton S8 et SX40 en canevas personnalisé : largeur 720 à 4094 px, hauteur 720 à 4095 px, 9 millions de pixels au plus{1}. Carte de sortie COEX : 16 384 px au plus{2}.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§6.3",
+              "renvoi": 1
+            },
+            {
+              "code": "CX-MX6000",
+              "ref": "p.15-16",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "la feuille sur laquelle le processeur dessine a une taille maximale.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "ce sont des limites du matériel ; le constructeur ne détaille pas pourquoi.",
+          "sources": []
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "le mur doit être réparti sur plusieurs processeurs ou plusieurs cartes, comme l'appli le propose.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D15",
+      "famille": "donnees",
+      "question": "Pourquoi pas de cartes 1G et 5G sur le même écran (COEX) ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "des cartes de sortie de débits différents (1G et 5G) ne peuvent pas charger le même écran.",
+          "sources": [
+            {
+              "code": "CX-MX6000",
+              "ref": "p.18"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "pas d'image : le constructeur ne donne pas la raison. Retiens la règle.",
+          "sources": []
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "l'appli refuse la configuration.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "E1",
+      "famille": "electricite",
+      "question": "Pourquoi 80 % au plus sur une ligne ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "on ne charge jamais une ligne à plus de 80 % de sa capacité.",
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null
+            },
+            {
+              "code": "CDC",
+              "ref": "§4.1"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "un seau qu'on ne remplit jamais à ras bord : la moindre vague déborde.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "la marge absorbe le courant d'appel à l'allumage (E2) et les pics de consommation sur un écran tout blanc{1}. Le maximum théorique, « on fait jamais ça »{2}.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§4.1",
+              "renvoi": 1
+            },
+            {
+              "code": "F1",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "le disjoncteur peut sauter à l'allumage ou sur une image claire.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "E2",
+      "famille": "electricite",
+      "question": "Pourquoi allumer les lignes une par une ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "allume les lignes progressivement, jamais tout le mur d'un coup.",
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "chaque alimentation a un petit réservoir vide qui se remplit d'un coup à l'allumage. Des dizaines de réservoirs qui se remplissent ensemble, c'est un énorme appel d'eau.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "à l'allumage, les condensateurs des alimentations se chargent et appellent un courant de 15 à 20 fois le courant nominal, pendant un temps très court ; ces appels s'additionnent : 70 A × 30 alimentations = 2 100 A{1}. Une alimentation à découpage peut appeler jusqu'à 75 fois son courant au premier demi-cycle ; la solution est une séquence d'allumage{2}.",
+          "sources": [
+            {
+              "code": "MW",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "ETC",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "le disjoncteur saute à l'allumage alors que le mur, une fois allumé, tiendrait.",
+          "sources": [
+            {
+              "code": "ETC",
+              "ref": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E3",
+      "famille": "electricite",
+      "question": "Pourquoi le différentiel 30 mA saute sans panne ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "répartis les dalles sur assez de départs protégés chacun par leur 30 mA.",
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            },
+            {
+              "code": "CDC",
+              "ref": "§4.2"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "chaque dalle laisse filer quelques gouttes vers la terre. Une goutte ne compte pas, mais le compteur du différentiel additionne toutes les gouttes de sa ligne.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "les filtres des alimentations ont des condensateurs reliés à la terre qui laissent passer un petit courant de fuite permanent et normal ; plusieurs appareils sur le même différentiel dépassent facilement 30 mA sans aucun défaut.",
+          "sources": [
+            {
+              "code": "SE",
+              "ref": null
+            },
+            {
+              "code": "WIKI-RCD",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "déclenchements intempestifs. Le choix des protections revient à l'électricien.",
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E4",
+      "famille": "electricite",
+      "question": "Pourquoi répartir sur les trois phases ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "la charge se calcule et s'équilibre phase par phase.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§4.2"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "trois tuyaux d'arrivée. Si tu branches tout sur le même, il déborde pendant que les deux autres sont à moitié vides.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "en triphasé, chaque phase a sa propre limite : un 32 A tri donne 32 A par phase, pas 96 A à répartir librement.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§4.2"
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "une phase saute alors que le total tiendrait.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "E5",
+      "famille": "electricite",
+      "question": "Pourquoi tester la tension avant de brancher ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "teste la prise ou la sortie d'armoire au testeur avant de brancher le mur.",
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "pas d'image : c'est un contrôle, à faire à chaque fois.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "une armoire mal câblée peut donner une mauvaise tension ; branché dessus, le mur peut griller.",
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "matériel détruit. Sans habilitation électrique, fais tester par quelqu'un d'habilité.",
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "I1",
+      "famille": "image",
+      "question": "Pourquoi 3 840 Hz pour la caméra ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "au moins 3 840 Hz de rafraîchissement pour la télé et le sport, 7 680 Hz en XR.",
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            },
+            {
+              "code": "CDC",
+              "ref": "§5.2"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "un stroboscope trop rapide pour l'œil, mais pas pour la caméra. Plus il clignote vite, plus la caméra attrape de flashs à chaque image.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "les LED ne restent pas allumées en continu, elles clignotent très vite pour doser la luminosité ; plus la luminosité est basse, plus le temps noir dure{1}. L'œil fait la moyenne ; la caméra, avec un temps de pose court, attrape les moments éteints{2}.",
+          "sources": [
+            {
+              "code": "F17",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "F17",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "CDC",
+              "ref": "§5.2",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "bandes noires et scintillement à la caméra. C'est une caractéristique de la dalle : rien à régler sur place.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "I2",
+      "famille": "image",
+      "question": "Pourquoi le genlock ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "verrouille le processeur sur la source ou sur une référence quand il y a des caméras.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.3.1"
+            },
+            {
+              "code": "F19",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "deux musiciens sur le même métronome : la caméra et le mur commencent chaque image ensemble.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "« Without genlock, screens may appear to have dark lines rolling up or down the screen when viewed on camera ».",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.3.1"
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "lignes noires qui défilent à l'image.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "I3",
+      "famille": "image",
+      "question": "Pourquoi la même cadence partout ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "source, mélangeur, processeur et caméras à la même fréquence ; chaque sortie d'un mélangeur n'accepte que certaines cadences.",
+          "sources": [
+            {
+              "code": "F19",
+              "ref": null
+            },
+            {
+              "code": "MEL",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "deux danseurs à des tempos différents finissent par se marcher sur les pieds.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "un écart de fréquence fait doubler ou sauter des images{1} ; 50 contre 59,94 n'est pas fluide{2} ; un écart 50 / 60 peut aussi ne rien afficher ou scintiller{3}.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.3.1",
+              "renvoi": 1
+            },
+            {
+              "code": "F19",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "F3",
+              "ref": null,
+              "renvoi": 3
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "saccades, image noire ou scintillement.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "I4",
+      "famille": "image",
+      "question": "Pourquoi ne pas mélanger les lots ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "évite de mélanger des dalles de lots de fabrication différents dans un même mur.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§5.3"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "deux pots de peinture de la même référence mais de deux fabrications : côte à côte, la teinte diffère un peu.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "chaque lot de LED a une couleur et une intensité légèrement différentes ; mélangés, les blancs tirent vers le rose ou le vert{1}. Novastar prévoit un réglage par lot, Multi-batch Adjustment{2}.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§5.3",
+              "renvoi": 1
+            },
+            {
+              "code": "NS-LCT",
+              "ref": "§10",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "des dalles de teinte différente, très visibles sur un fond uni.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "I5",
+      "famille": "image",
+      "question": "Pourquoi une distance minimale de vision ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "recul minimal d'environ le pas en mètres, recul confortable d'environ deux fois le pas.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§2.3"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "une mosaïque. De près, tu vois les carreaux ; de loin, tu vois l'image.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "en dessous du recul minimal, la grille des pixels se voit{1}. Au-delà d'environ 3,4 fois le pas en mètres (2,84 mm donne 9,8 m), l'œil ne sépare plus du tout deux pixels voisins : c'est le facteur 3 438 de la norme AVIXA{2}.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§2.3",
+              "renvoi": 1
+            },
+            {
+              "code": "AVIXA",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "T-BRAIN",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "image granuleuse pour le public le plus proche.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "I6",
+      "famille": "image",
+      "question": "Pourquoi du contenu à la résolution exacte du mur ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "le contenu se crée à la résolution exacte du mur et s'affiche pixel pour pixel.",
+          "sources": [
+            {
+              "code": "ELECOM",
+              "ref": null
+            },
+            {
+              "code": "LWC",
+              "ref": null
+            },
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "agrandir une photo de quelques pour cent : chaque pixel de l'image doit se partager entre deux LED, et tout devient un peu flou.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "chaque mise à l'échelle introduit de la pixelisation{1}. Brompton propose un mode 1:1 pour afficher une image sans mise à l'échelle{2}.",
+          "sources": [
+            {
+              "code": "ELECOM",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§11.4",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "texte flou, filets qui scintillent.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "I7",
+      "famille": "image",
+      "question": "Pourquoi le scan change la luminosité ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "scan faible (1/2 à 1/8) pour l'extérieur, scan élevé (1/16 à 1/64) pour l'intérieur et les studios.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§5.1"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "un serveur qui sert plusieurs tables à tour de rôle : plus il a de tables, moins chacune est servie souvent.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "en scan 1/16, chaque ligne de LED n'est allumée qu'un seizième du temps ; moins de lignes à tour de rôle donne plus de luminosité et plus de consommation.",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§5.1"
+            },
+            {
+              "code": "F7",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "une dalle d'intérieur manque de luminosité en plein soleil.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "I8",
+      "famille": "image",
+      "question": "Pourquoi l'EDID décide de la résolution que la source envoie ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "la résolution que doit envoyer la source se règle sur l'entrée du processeur, son EDID, en standard ou en personnalisé, à la résolution prévue pour le mur.",
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            },
+            {
+              "code": "NS-VX1000",
+              "ref": "p.20-21"
+            },
+            {
+              "code": "CX-MX40",
+              "ref": "p.13-14"
+            },
+            {
+              "code": "NS-VXPRO",
+              "ref": "p.35-36"
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "p.205"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "quand on branche le câble, le processeur tend un menu à la source : « voici ce que je sais recevoir, et mon plat préféré ». La source sert le plat préféré.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "chaque entrée garde en mémoire une liste de résolutions et de fréquences, de la préférée à la moins préférée ; au branchement, la carte graphique la lit et choisit{1}. C'est l'écran qui demande, pas la source qui décide{2}. Débrancher et rebrancher relance l'échange{3}. Le processeur peut annoncer une résolution personnalisée : Tessera génère un EDID personnalisé « to help configure the source »{4}. L'EDID annonce aussi d'autres capacités, comme le HDR{5} ou l'absence de HDCP{6}. C'est une demande, pas une obligation : certaines sources l'ignorent, comme les caméras et les mélangeurs de production{7}. Forcer la résolution dans la carte graphique de l'ordinateur n'est pas un EDID : l'ordinateur n'écoute plus l'écran, et l'image peut ne pas passer{8}.",
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 3
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "p.205",
+              "renvoi": 4
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§6.2",
+              "renvoi": 5
+            },
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 6
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.4",
+              "renvoi": 7
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§6.2",
+              "renvoi": 7
+            },
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 8
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "la source envoie une autre résolution : image coupée, étirée, ou pas d'image du tout. Un EDID verrouillé par l'utilisateur précédent, par exemple en 4K sur un mur HD, ne donne aucune image : remets-le à zéro.",
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "I9",
+      "famille": "image",
+      "question": "Pourquoi une vidéo reste noire alors que le bureau s'affiche ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "aucun contenu protégé par HDCP sur un mur LED ; teste chaque vidéo du show à l'avance.",
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "un film sous scellé : seul un appareil qui a la clé peut l'ouvrir, et un processeur pro n'a souvent pas la clé.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "HDCP est une protection anticopie du grand public, et les processeurs pro ne l'ont souvent pas. Le bureau de l'ordinateur passe, mais la vidéo protégée reste noire, car la protection est dans le flux de la vidéo{1}. Certaines entrées ont un réglage HDCP : sur off, l'EDID dit à l'ordinateur de ne pas envoyer de HDCP{2}.",
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "écran noir au moment de lancer la vidéo, souvent en direct.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "A1",
+      "famille": "accroche",
+      "question": "Pourquoi un maximum de dalles par colonne ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "jamais plus de dalles par colonne que le maximum du constructeur, en accroche comme en stack. Exemple : ROE BP2 V2, 20 en accroche, 12 en stack.",
+          "sources": [
+            {
+              "code": "ROE-BP2V2",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "le premier maillon d'une chaîne porte tous les autres.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "la dalle du haut et ses verrous portent tout ce qui est en dessous. Le maximum ne vaut qu'avec la barre, les accessoires et le lest du constructeur, et intègre un coefficient de sécurité de 8{1}. ROE demande aussi un sol ou une structure dimensionnés pour 5 fois le poids complet{2}. Le constructeur ne dit pas pourquoi le stack est plus bas que l'accroche.",
+          "sources": [
+            {
+              "code": "ROE-BP2V2",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "ROE-CB",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "risque de rupture et de chute. Ce point ne se négocie pas.",
+          "sources": []
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "code": "BR-TESS",
+      "libelle": "Brompton, Tessera User Manual V3.5 Rev A : §6.2 Enable HDR p.56 ; §6.3 p.56-57 ; §7.3.1 ; §8.6.2 ; §11.4 ; §12.2.1 Network Load p.201 ; §12.2.4 Ultra Low Latency p.203 ; High Frame Rate p.205 ; §12.3.1 Genlock p.206 ; §13.1.2 p.219 ; §13.1.3 p.219",
+      "court": "Tessera",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "BR-FORM",
+      "libelle": "Brompton Basics Training 2026",
+      "court": "Brompton Basics Training",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "CX-WIKI",
+      "libelle": "Wiki COEX, « Loading Capacity Instructions »",
+      "court": "Wiki COEX",
+      "url": "https://coex.novastar.wiki/en/Intro&Info/Loading-Capacity-Instructions",
+      "niveau": "C"
+    },
+    {
+      "code": "CX-WIKI5G",
+      "libelle": "Wiki COEX, « 5G Solution »",
+      "court": "Wiki COEX 5G",
+      "url": "https://coex.novastar.wiki/en/Solution/5G-Solution",
+      "niveau": "C"
+    },
+    {
+      "code": "CX-CVT10",
+      "libelle": "Wiki COEX, page CVT10",
+      "court": "Wiki COEX CVT10",
+      "url": "https://coex.novastar.wiki/en/Accessory/CVT10",
+      "niveau": "C"
+    },
+    {
+      "code": "CX-MX40S",
+      "libelle": "MX40 Pro Specifications V1.5.0, 30/09/2025",
+      "court": "Fiche MX40 Pro",
+      "url": "https://oss.novastar.tech/uploads/2025/10/MX40-Pro-LED-Display-Controller-Specifications-V1.5.0.pdf",
+      "niveau": "C"
+    },
+    {
+      "code": "CX-MX6000",
+      "libelle": "MX6000 Pro User Manual V1.5.1, 30/04/2026 (p.15, 16, 18, 49)",
+      "court": "Manuel MX6000 Pro",
+      "url": "https://en-website001.oss-us-east-1.aliyuncs.com/Specification/MX6000%20Pro%20LED%20Display%20Controller%20User%20Manual-V1.5.1.pdf",
+      "niveau": "C"
+    },
+    {
+      "code": "CX-LED",
+      "libelle": "Fiches COEX : « configuration dans VMP », la règle du rectangle NovaLCT ne s'y applique pas",
+      "court": "Fiches COEX",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "NS-INV",
+      "libelle": "Fiches Novastar des processeurs (VX Pro, VX1000, VX16s, NovaPro UHD Jr, VX4S…)",
+      "court": "Fiches Novastar",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "NS-LCT",
+      "libelle": "Novastar, NovaLCT Synchronous System User Guide V5.0.0, §10 Multi-Batch Adjustment",
+      "court": "NovaLCT",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "NS-VX1000",
+      "libelle": "Novastar, VX1000 All-in-One Controller User Manual V1.1.0, 18/02/2021 (EDID p.20-21)",
+      "court": "VX1000",
+      "url": "https://audioeffetti.com/product/documents/NOV/VX1000-02.pdf",
+      "niveau": "copie"
+    },
+    {
+      "code": "NS-VXPRO",
+      "libelle": "Novastar, VX Pro Series All-in-One Controller User Manual V1.3.0, 28/02/2026 (EDID p.35-36)",
+      "court": "VX Pro",
+      "url": "https://shop.captech.se/sv-SE/Product/167159/Link/94690/VX%20Pro%20Series%20All-in-One%20Controller%20User%20Manual-V1.3.1.pdf",
+      "niveau": "copie"
+    },
+    {
+      "code": "CX-MX40",
+      "libelle": "COEX, MX40 Pro LED Display Controller User Manual V1.1.1, 18/11/2022 (EDID p.13-14)",
+      "court": "MX40 Pro",
+      "url": "https://www.rentex.com/wp-content/uploads/2023/01/MX40-Pro-LED-Display-Controller-User-Manual-V.pdf",
+      "niveau": "copie"
+    },
+    {
+      "code": "MEL",
+      "libelle": "Manuels Roland des mélangeurs (sources de la base des mélangeurs)",
+      "court": "Manuels Roland",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "MW",
+      "libelle": "Mean Well, « Introduction and Selection: ICL-16 Series and Circuit Breakers », 31/07/2019",
+      "court": "Mean Well",
+      "url": "https://www.meanwell.com/es/newsInfo.aspx?c=5&i=765",
+      "niveau": "C"
+    },
+    {
+      "code": "ETC",
+      "libelle": "ETC, « Inrush Current and ETC LED Fixtures »",
+      "court": "ETC",
+      "url": "https://support.etcconnect.com/ETC/Getting_Started_with_ETC_and_FAQ/Inrush_Current_and_ETC_LED_Fixtures",
+      "niveau": "C"
+    },
+    {
+      "code": "SE",
+      "libelle": "Schneider Electric, FAQ000281380, « UPS Installations with RCDs: Understanding Earth Leakage, Preventing Nuisance Tripping… »",
+      "court": "Schneider Electric",
+      "url": "https://www.se.com/us/en/faqs/FAQ000281380/",
+      "niveau": "C"
+    },
+    {
+      "code": "WIKI-RCD",
+      "libelle": "Wikipédia, « Residual-current device »",
+      "court": "Wikipédia",
+      "url": "https://en.wikipedia.org/wiki/Residual-current_device",
+      "niveau": "T"
+    },
+    {
+      "code": "IEEE",
+      "libelle": "Normes Ethernet 802.3ab et 802.3an, via Wikipédia",
+      "court": "IEEE 802.3 via Wikipédia",
+      "url": "https://en.wikipedia.org/wiki/Gigabit_Ethernet",
+      "niveau": "T"
+    },
+    {
+      "code": "ROE-BP2V2",
+      "libelle": "ROE, fiche BP2V2 Specifications, 18/05/2021",
+      "court": "ROE BP2V2",
+      "url": null,
+      "niveau": "C"
+    },
+    {
+      "code": "ROE-CB",
+      "libelle": "ROE, manuel Carbon MKII V1.8",
+      "court": "ROE Carbon MKII",
+      "url": null,
+      "niveau": "copie"
+    },
+    {
+      "code": "AVIXA",
+      "libelle": "AVIXA, DISCAS, ANSI/INFOCOMM V202.01:2016 (facteur d'acuité 3 438)",
+      "court": "AVIXA DISCAS",
+      "url": "https://api.avixa.org/standards/discas-calculators/discas/learn-more-about-display-size",
+      "niveau": "N"
+    },
+    {
+      "code": "T-BRAIN",
+      "libelle": "Fiches de révision DISCAS : FV = (hauteur d'image ÷ résolution) × 3 438",
+      "court": "Fiches DISCAS",
+      "url": "https://brainscape.com/flashcards/image-size-9858893/packs/17508916",
+      "niveau": "T"
+    },
+    {
+      "code": "ELECOM",
+      "libelle": "Elecom, « Murs LED : checklist complète… », 15/07/2026",
+      "court": "Elecom",
+      "url": null,
+      "niveau": "T"
+    },
+    {
+      "code": "LWC",
+      "libelle": "LEDWallCentral, « Content creation essentials for dvLED walls », 02/02/2026",
+      "court": "LEDWallCentral",
+      "url": "https://www.ledwallcentral.com/content-creation-essentials-for-dvled-walls.htm",
+      "niveau": "T"
+    },
+    {
+      "code": "CDC",
+      "libelle": "Cahier des charges de l'appli",
+      "court": "Cahier des charges de l'appli",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F1",
+      "libelle": "Formation (transcription 1)",
+      "court": "Formation (transcription 1)",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F3",
+      "libelle": "Formation (transcription 3)",
+      "court": "Formation (transcription 3)",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F5",
+      "libelle": "Formation (transcription 5)",
+      "court": "Formation (transcription 5)",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F6",
+      "libelle": "Formation (transcription 6)",
+      "court": "Formation (transcription 6)",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F7",
+      "libelle": "Formation (transcription 7)",
+      "court": "Formation (transcription 7)",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F15",
+      "libelle": "Formation (transcription 15)",
+      "court": "Formation (transcription 15)",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F17",
+      "libelle": "Formation (transcription 17)",
+      "court": "Formation (transcription 17)",
+      "url": null,
+      "niveau": "F"
+    },
+    {
+      "code": "F19",
+      "libelle": "Formation (transcription 19)",
+      "court": "Formation (transcription 19)",
+      "url": null,
+      "niveau": "F"
+    }
+  ]
+}

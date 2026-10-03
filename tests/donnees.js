@@ -92,6 +92,14 @@ function ficheContenu(contexte) {
   return contexte.ficheContenu;
 }
 
+// Fiches « pourquoi » (data/pourquoi.json) et table de correspondance (data/pourquoi-liens.json).
+function pourquoi(contexte) {
+  if (!contexte?.pourquoi) throw new Error(`data/pourquoi.json non lu${contexte?.erreurpourquoi ? ` : ${contexte.erreurpourquoi}` : ''}`);
+  return contexte.pourquoi;
+}
+// Noms des relevés internes du Projet, cherchés par empreintes (deux mots collés) : jamais dans une fiche publiée.
+const EMPREINTES_RELEVES = new Set([0xb82bd84c, 0xc43f6430, 0x88105340, 0xbda87954]);
+
 export const DONNEES = [
   {
     id: 'D1',
@@ -1818,6 +1826,68 @@ export const DONNEES = [
       v.egal('sources sans libellé court', f.sources.filter((s) => !s.court).map((s) => s.code), []);
       const court = (code) => f.sources.find((s) => s.code === code)?.court;
       v.egal('libellés courts', ['ELECOM', 'LWC', 'BR-TESS', 'AVIXA', 'F3'].map(court), ['Elecom', 'LEDWallCentral', 'Tessera', 'AVIXA DISCAS', 'Formation (transcription 3)']);
+    },
+  },
+  {
+    id: 'D57',
+    titre: 'Fiches « pourquoi » (data/pourquoi.json) : 30 fiches en 4 familles, les quatre images de base ; chaque fiche a « La règle », « L\'image », « En vrai » et « Si tu ne la respectes pas » (D15 en trois parties, sans « En vrai ») ; « La règle » et « En vrai » toujours sourcées, sauf un « En vrai » qui dit que le constructeur ne donne pas la raison ; « L\'image » sans source exigée ; « Si tu ne la respectes pas » sourcé quand le document le fait (vérifié par outils/transcrire-pourquoi.py, qui compte chaque source du document) ; chaque code de source existe ; libellés publiés sans nom de relevé interne ni « du Projet »',
+    etape: 'pourquoi',
+    verifier(v, contexte) {
+      const d = pourquoi(contexte);
+      v.egal('quatre images de base', d.images.map((x) => x.titre), ['Les données, une route.', 'Le courant, de l\'eau.', 'L\'image, un rythme.', 'L\'accroche, une chaîne.']);
+      v.egal('familles', d.familles.map((f) => [f.id, f.fiches.length]), [['donnees', 15], ['electricite', 5], ['image', 9], ['accroche', 1]]);
+      v.egal('30 fiches, identifiants uniques', [d.fiches.length, new Set(d.fiches.map((f) => f.id)).size], [30, 30]);
+      const cles = (f) => f.parties.map((p) => p.cle).join(',');
+      v.egal('parties de chaque fiche (D15 sans « En vrai »)', d.fiches.filter((f) => cles(f) !== (f.id === 'D15' ? 'regle,image,consequence' : 'regle,image,vrai,consequence')).map((f) => `${f.id} : ${cles(f)}`), []);
+      v.vrai('chaque fiche a une question', d.fiches.every((f) => /\?$/.test(f.question)));
+      const raisonNonPubliee = (t) => /le constructeur ne (détaille|donne) pas/.test(t);
+      v.egal('« La règle » et « En vrai » sourcées (sauf la raison non publiée)', d.fiches.flatMap((f) => f.parties
+        .filter((p) => ['regle', 'vrai'].includes(p.cle) && p.sources.length === 0 && !(p.cle === 'vrai' && raisonNonPubliee(p.texte)))
+        .map((p) => `${f.id} ${p.titre}`)), []);
+      const codes = new Set(d.sources.map((s) => s.code));
+      v.egal('codes de source inconnus', d.fiches.flatMap((f) => f.parties.flatMap((p) => p.sources.filter((s) => !codes.has(s.code)).map((s) => `${f.id} : ${s.code}`))), []);
+      v.egal('sources sans libellé court', d.sources.filter((s) => !s.court || !s.libelle).map((s) => s.code), []);
+      v.egal('formation : « Formation (transcription n) »', d.sources.filter((s) => /^F\d+$/.test(s.code) && s.libelle !== `Formation (transcription ${s.code.slice(1)})`).map((s) => s.code), []);
+      const texte = JSON.stringify(d);
+      v.egal('relevés internes : jamais leur nom (empreintes trouvées)', empreintesDans(texte, EMPREINTES_RELEVES, [9, 11, 19, 21]).concat(exactsDans(texte, EMPREINTES_RELEVES)), []);
+      v.egal('aucun « du Projet » ni « relevé » dans les sources publiées', d.sources.filter((s) => /projet|relevé/i.test(`${s.libelle} ${s.court}`)).map((s) => s.code), []);
+      v.egal('D4 : conséquence corrigée', d.fiches.find((f) => f.id === 'D4')?.parties.find((p) => p.cle === 'consequence')?.texte,
+        'ports libres, mais l\'appli refuse la configuration : le processeur ne peut pas traiter tout le mur.');
+    },
+  },
+  {
+    id: 'D58',
+    titre: 'Table de correspondance (data/pourquoi-liens.json) : chaque entrée pointe vers une fiche qui existe, sur un écran connu ; chaque motif est une expression valide qui reconnaît son texte ; chaque mot du Dépannage est dans son étape ; liens demandés présents (EDID de T5.3 et T6.5, « Sortie demandée à la régie » vers I8, HDCP de T6.6 vers I9, surcharge de port vers D1)',
+    etape: 'pourquoi',
+    verifier(v, contexte) {
+      const d = pourquoi(contexte);
+      const t = contexte.pourquoiLiens;
+      if (!t) throw new Error('data/pourquoi-liens.json non lu');
+      const fiches = new Set(d.fiches.map((f) => f.id));
+      v.egal('entrées vers une fiche qui n\'existe pas', t.liens.filter((l) => !fiches.has(l.fiche)).map((l) => l.id), []);
+      v.egal('identifiants uniques', t.liens.filter((l, i) => t.liens.findIndex((x) => x.id === l.id) !== i).map((l) => l.id), []);
+      v.egal('écrans et éléments connus', t.liens.filter((l) => !(l.ecran === 'depannage' ? l.element === 'mot' : (t.ecrans[l.ecran] && ['alerte', 'tuile', 'ligne'].includes(l.element)))).map((l) => l.id), []);
+      const motifFaux = t.liens.filter((l) => l.element !== 'mot').filter((l) => {
+        try {
+          return !new RegExp(l.motif).test(l.texte);
+        } catch (erreur) {
+          return true;
+        }
+      }).map((l) => l.id);
+      v.egal('motifs invalides ou qui ne reconnaissent pas leur texte', motifFaux, []);
+      v.egal('« ligne » sans sélecteur', t.liens.filter((l) => l.element === 'ligne' && !l.selecteur).map((l) => l.id), []);
+      const dep = contexte.depannage;
+      const texteNoeud = (id) => {
+        const n = dep?.noeuds.find((x) => x.id === id);
+        const a = dep?.arbres.find((x) => x.id === id);
+        return [...(n?.lignes ?? []), ...(a?.avertissement ?? [])].map((l) => l.texte).join(' ');
+      };
+      v.egal('mots absents de leur étape du Dépannage', t.liens.filter((l) => l.element === 'mot' && !texteNoeud(l.noeud).includes(l.mot)).map((l) => l.id), []);
+      const cherche = (f) => t.liens.filter(f).map((l) => l.fiche);
+      v.egal('EDID de T5.3 et de T6.5 : I8', cherche((l) => l.element === 'mot' && l.mot === 'EDID').sort(), ['I8', 'I8']);
+      v.egal('HDCP de T6.6 : I9', cherche((l) => l.noeud === 'T6.6' && l.mot === 'HDCP'), ['I9']);
+      v.egal('« Sortie demandée à la régie » de la fiche contenu : I8', cherche((l) => l.ecran === 'fiche' && /^Sortie demandée à la régie/.test(l.texte)), ['I8']);
+      v.egal('surcharge de port (alerte des 95 % de Data) : D1', cherche((l) => l.ecran === 'data' && /au-delà de 95 %/.test(l.texte)), ['D1', 'D1']);
     },
   },
 ];

@@ -323,6 +323,9 @@ html[data-taille="grand"] { font-size: 19px; }
 :root[data-taille="grand"] .bouton-montage { flex-basis: 100%; }
 :root[data-taille="grand"] .montage-case { min-height: 72px; }
 :root[data-taille="grand"] .montage-case input { width: 40px; height: 40px; }
+/* En grand affichage, une paire qui contient un choix à trois segments (8, 10, 12 bits) passe sur une colonne : trois
+   cibles de 60 px ne tiennent pas dans une demi-largeur à 375 px (la page défilait de côté de 9 px sur iPhone). */
+:root[data-taille="grand"] .paire:has(.segments label:nth-child(3)) { grid-template-columns: minmax(0, 1fr); }
 .cartes-variantes { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
 .carte-variante {
   flex: 0 0 auto;
@@ -841,3 +844,48 @@ input[type="file"] { color: var(--texte); min-height: var(--cible); }
 .mf-badge { margin-right: 4px; }
 :root[data-taille="grand"] .mf .champ label, :root[data-taille="grand"] .mf-note, :root[data-taille="grand"] .mf-sources,
 :root[data-taille="grand"] .mf-figure figcaption, :root[data-taille="grand"] .mf-badge, :root[data-taille="grand"] .mf .alerte { font-size: 1rem; }
+
+/* Fiches « pourquoi » (src/pourquoi.js) : lien « Pourquoi ? » à côté d'un résultat, d'une alerte ou d'un refus ; écran
+   plein au-dessus de tout (même au-dessus de la mire et de la fiche contenu, d'où il peut s'ouvrir). Texte à 4,5:1 en
+   thème sombre et en mode rouge (en rouge, le texte secondaire prend la couleur du texte) ; en grand affichage, tout le
+   texte à 19 px (seuls les renvois en exposant restent plus petits), cibles de 60 px (N32). */
+.lien-pourquoi { margin-left: 8px; vertical-align: middle; font-weight: 600; }
+.alerte > .lien-pourquoi, .tuile > .lien-pourquoi { display: flex; width: fit-content; margin: 8px 0 0; }
+.dep-lien-pourquoi { color: var(--accent); text-decoration: underline; font-weight: 700; }
+.dep-bouton-pourquoi { justify-content: flex-start; text-align: left; }
+.pourquoi { z-index: 60; }
+.pourquoi .montage-haut { margin-bottom: 8px; }
+.pourquoi-titre { margin: 0; font-size: 1.3rem; line-height: 1.2; }
+.pq { --pq-doux: var(--texte-doux); display: grid; gap: 12px; padding-bottom: 16px; color: var(--texte); }
+:root[data-mode="rouge"] .pq { --pq-doux: var(--texte); }
+.pq p { margin: 0; }
+.pq h3 { margin: 4px 0 0; font-size: 1.1rem; }
+.pq-images, .pq-famille, .pq-partie, .pq-liste-sources { display: grid; gap: 8px; }
+.pq-images ol, .pq-liste-sources ul { margin: 0; padding-left: 1.4em; display: grid; gap: 8px; }
+.pq-images ol { padding: 10px 12px 10px 2em; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface); }
+.pq-image { overflow-wrap: anywhere; }
+.pq-fiches { display: grid; gap: 8px; }
+.pq-fiche-bouton { justify-content: flex-start; gap: 10px; text-align: left; line-height: 1.3; padding: 10px 14px; font-weight: 400; }
+.pq-id { flex: none; font-family: var(--police-chiffres); font-weight: 700; }
+.pq-barre { display: flex; }
+.pq-contexte, .pq-note { color: var(--pq-doux); font-size: 0.875rem; }
+.pq-question { margin: 0; font-size: 1.35rem; line-height: 1.3; }
+.pq-partie { padding: 10px 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface); }
+.pq-partie h3 { margin: 0; }
+.pq-partie-image { border-style: dashed; }
+.pq-texte { overflow-wrap: anywhere; line-height: 1.4; }
+/* Le document écrit chaque partie après « : », en minuscule ; sous son titre, la première lettre passe en capitale
+   (affichage seulement, le texte transcrit ne change pas). */
+.pq-texte::first-letter { text-transform: uppercase; }
+.pq-sources { color: var(--pq-doux); font-size: 0.8125rem; font-style: italic; line-height: 1.35; overflow-wrap: anywhere; }
+.pq-source-numero { font-style: normal; font-weight: 700; }
+.pq-renvoi { font-size: 0.7em; line-height: 0; color: var(--accent); font-weight: 700; }
+.pq-lien-fiche {
+  display: inline; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700;
+  text-decoration: underline; cursor: pointer;
+}
+.pq-liste-sources { color: var(--pq-doux); font-size: 0.875rem; overflow-wrap: anywhere; }
+.pq-liste-sources h3 { color: var(--texte); }
+.pq-liste-sources a { color: var(--accent); }
+:root[data-taille="grand"] .pq-sources, :root[data-taille="grand"] .pq-contexte, :root[data-taille="grand"] .pq-note,
+:root[data-taille="grand"] .pq-liste-sources { font-size: 1rem; }

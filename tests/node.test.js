@@ -24,6 +24,20 @@ const contexte = {
       return null;
     }
   })(),
+  pourquoi: (() => {
+    try {
+      return lireJson('../data/pourquoi.json');
+    } catch (erreur) {
+      return null;
+    }
+  })(),
+  pourquoiLiens: (() => {
+    try {
+      return lireJson('../data/pourquoi-liens.json');
+    } catch (erreur) {
+      return null;
+    }
+  })(),
   ficheContenu: (() => {
     try {
       return lireJson('../data/fiche-contenu.json');

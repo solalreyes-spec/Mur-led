@@ -66,6 +66,14 @@ async function chargerContexte() {
   } catch (erreur) {
     contexte.erreurDepannage = erreur.message;
   }
+  // Fiches « pourquoi » et table de correspondance.
+  for (const [cle, chemin] of [['pourquoi', 'data/pourquoi.json'], ['pourquoiLiens', 'data/pourquoi-liens.json']]) {
+    try {
+      contexte[cle] = await lireJson(chemin);
+    } catch (erreur) {
+      contexte[`erreur${cle}`] = erreur.message;
+    }
+  }
   // Mire et fiche contenu : consignes fixes, mode d'emploi, sources.
   try {
     contexte.ficheContenu = await lireJson('data/fiche-contenu.json');

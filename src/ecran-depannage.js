@@ -22,7 +22,10 @@ export function marqueDuProcesseur(processeur) {
 
 // Monte l'écran dans `racine`. `projet` : { marque, nom } du processeur retenu dans Data quand des saisies sont gardées,
 // sinon null (choix de marque demandé). `enLigne` : les liens web des sources ne servent qu'en ligne.
-export function monterDepannage(racine, donnees, { projet = null, enLigne = () => navigator.onLine, defiler = () => {}, ouvrirMire = null } = {}) {
+export function monterDepannage(racine, donnees, {
+  projet = null, enLigne = () => navigator.onLine, defiler = () => {}, ouvrirMire = null,
+  liensPourquoi = [], ouvrirPourquoi = null, ouvrirListePourquoi = null,
+} = {}) {
   const noeuds = new Map(donnees.noeuds.map((n) => [n.id, n]));
   const annexes = new Map(donnees.annexes.map((a) => [a.id, a]));
   const sources = new Map(donnees.sources.map((s) => [s.code, s]));
@@ -30,8 +33,31 @@ export function monterDepannage(racine, donnees, { projet = null, enLigne = () =
   const etat = { pile: [], projet, marque: projet?.marque ?? null, choixManuel: false };
   racine.classList.add('dep');
 
+  // Mots de l'étape affichée qui ouvrent une fiche « pourquoi » (« EDID » en T5.3, « HDCP » en T6.6…) : leur première
+  // occurrence dans les lignes de l'étape (ou dans l'avertissement de son arbre) devient un lien.
+  let motsActifs = [];
+  const motsLies = new Set();
+  function lierMots(chaine) {
+    const morceaux = [];
+    let reste = chaine;
+    for (;;) {
+      const prochain = motsActifs
+        .filter((l) => !motsLies.has(l.id))
+        .map((l) => ({ l, i: reste.indexOf(l.mot) }))
+        .filter((x) => x.i >= 0)
+        .sort((a, b) => a.i - b.i)[0];
+      if (!prochain || !ouvrirPourquoi) break;
+      motsLies.add(prochain.l.id);
+      if (prochain.i > 0) morceaux.push(reste.slice(0, prochain.i));
+      morceaux.push(el('a', { href: '#pourquoi', class: 'dep-lien-pourquoi', 'data-fiche': prochain.l.fiche }, prochain.l.mot));
+      reste = reste.slice(prochain.i + prochain.l.mot.length);
+    }
+    if (reste) morceaux.push(reste);
+    return morceaux;
+  }
+
   // --- Texte : renvois, badges, liens d'annexe, renvoi d'un réflexe vers un arbre ------------------------------------
-  function texte(chaine, { vers = null } = {}) {
+  function texte(chaine, { vers = null, mots = false } = {}) {
     const morceaux = [];
     const motif = /\{(\d+)\}|\[\?\]|\bannexe ([A-D])\b|→ (T\d+)\b|mire de l'appli/g;
     let pos = 0;
@@ -46,7 +72,7 @@ export function monterDepannage(racine, donnees, { projet = null, enLigne = () =
       pos = m.index + m[0].length;
     }
     if (pos < chaine.length) morceaux.push(chaine.slice(pos));
-    return morceaux;
+    return mots ? morceaux.flatMap((m) => (typeof m === 'string' ? lierMots(m) : [m])) : morceaux;
   }
 
   function source(s) {
@@ -75,7 +101,7 @@ export function monterDepannage(racine, donnees, { projet = null, enLigne = () =
   const nomMarque = (l) => l.etiquette ?? [].concat(l.marque).map((m) => NOMS_MARQUES[m]).join(' et ');
 
   function ligne(l) {
-    const corps = [el('p', { class: 'dep-texte' }, ...texte(l.texte)), blocSources(l.sources)];
+    const corps = [el('p', { class: 'dep-texte' }, ...texte(l.texte, { mots: true })), blocSources(l.sources)];
     if (l.marque === null || l.marque === undefined) {
       return el('div', { class: 'dep-ligne', 'data-sources': l.sources.length }, ...corps);
     }
@@ -132,6 +158,8 @@ export function monterDepannage(racine, donnees, { projet = null, enLigne = () =
             el('p', { class: 'dep-texte' }, ...texte(l.texte, { vers: l.vers })), blocSources(l.sources)))) : null)))),
       el('h3', { class: 'dep-intertitre' }, 'Quel est le symptôme ?'),
       el('div', { class: 'dep-symptomes' }, ...donnees.symptomes.map((s) => el('button', { type: 'button', class: 'bouton dep-symptome', 'data-vers': s.vers }, s.texte))),
+      ouvrirListePourquoi ? el('h3', { class: 'dep-intertitre' }, 'Pourquoi ces règles ?') : null,
+      ouvrirListePourquoi ? el('button', { type: 'button', class: 'bouton dep-bouton-pourquoi' }, 'Comprendre les règles') : null,
       el('h3', { class: 'dep-intertitre' }, 'Annexes'),
       el('div', { class: 'dep-annexes' },
         ...donnees.annexes.map((a) => el('button', { type: 'button', class: 'bouton dep-bouton-annexe', 'data-annexe': a.id }, `Annexe ${a.id} · ${a.titre}`)),
@@ -139,6 +167,8 @@ export function monterDepannage(racine, donnees, { projet = null, enLigne = () =
   }
 
   function ecranNoeud(n) {
+    motsActifs = liensPourquoi.filter((l) => l.element === 'mot' && (l.noeud === n.id || l.noeud === n.arbre));
+    motsLies.clear();
     racine.dataset.ecran = 'noeud';
     racine.dataset.noeud = n.id;
     delete racine.dataset.annexe;
@@ -236,11 +266,19 @@ export function monterDepannage(racine, donnees, { projet = null, enLigne = () =
   }
 
   racine.addEventListener('click', (evenement) => {
-    const cible = evenement.target.closest('button, a.dep-lien-noeud, a.dep-lien-mire');
+    const cible = evenement.target.closest('button, a.dep-lien-noeud, a.dep-lien-mire, a.dep-lien-pourquoi');
     if (!cible || !racine.contains(cible)) return;
     if (cible.matches('a')) evenement.preventDefault();
     if (cible.matches('.dep-lien-mire')) {
       ouvrirMire?.();
+      return;
+    }
+    if (cible.matches('.dep-lien-pourquoi')) {
+      ouvrirPourquoi?.(cible.dataset.fiche);
+      return;
+    }
+    if (cible.matches('.dep-bouton-pourquoi')) {
+      ouvrirListePourquoi?.();
       return;
     }
     if (cible.dataset.marque) {

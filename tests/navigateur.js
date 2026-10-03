@@ -1234,6 +1234,185 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N29',
+    titre: 'Pourquoi ? : sous une alerte de surcharge de port (Data), un lien « Pourquoi ? » ouvre la fiche D1 sans quitter l\'écran ; la fiche : sa question en titre, « La règle », « L\'image », « En vrai », « Si tu ne la respectes pas », une source courte sous chaque ligne sourcée',
+    etape: 'pourquoi',
+    async verifier(v, contexte) {
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      const d = contexte.pourquoi;
+      const t = contexte.pourquoiLiens;
+      v.vrai('données lues', Boolean(d && t));
+      if (!pq || !d || !t) return;
+      const cadre = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' },
+        el('section', { id: 'data' }, el('div', { class: 'alerte' }, 'Câblage retenu, en colonnes entières : un port est chargé à 97,4 %, au-delà de 95 %. Garde de la marge.')));
+      document.body.append(cadre);
+      const ouvertes = [];
+      const hash = location.hash;
+      pq.relierPourquoi(t, { racine: cadre, ouvrir: (id) => ouvertes.push(id) });
+      pq.relierPourquoi(t, { racine: cadre, ouvrir: (id) => ouvertes.push(id) });
+      const liens = cadre.querySelectorAll('.lien-pourquoi');
+      v.egal('un seul lien « Pourquoi ? », vers D1, même relié deux fois', [liens.length, texteDe(liens[0]), liens[0]?.dataset.fiche], [1, 'Pourquoi ?', 'D1']);
+      liens[0]?.click();
+      v.egal('appui : la fiche D1 s\'ouvre, l\'écran ne change pas', [ouvertes, location.hash], [['D1'], hash]);
+      cadre.remove();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const ecran = pq.monterPourquoi(racine, d, { enLigne: () => false });
+      ecran.afficherFiche('D1');
+      const d1 = d.fiches.find((f) => f.id === 'D1');
+      v.egal('titre : la question', texteDe(racine.querySelector('.pq-question')), d1.question);
+      v.egal('parties', [...racine.querySelectorAll('.pq-partie h3')].map(texteDe), ['La règle', 'L\'image', 'En vrai', 'Si tu ne la respectes pas']);
+      v.egal('sources courtes sous « La règle »', texteDe(racine.querySelector('.pq-partie .pq-sources')), 'Fiches Novastar ; Tessera p.205');
+      v.vrai('titres complets seulement dans la liste des sources', !texteDe([...racine.querySelectorAll('.pq-partie')].map((x) => texteDe(x)).join(' ')).includes('Tessera User Manual') && texteDe(racine.querySelector('.pq-liste-sources')).includes('Tessera User Manual'));
+      ecran.afficherFiche('E1');
+      const versE2 = racine.querySelector('.pq-lien-fiche[data-fiche="E2"]');
+      v.vrai('E1 : « (E2) » est un lien vers E2', Boolean(versE2));
+      versE2?.click();
+      v.egal('lien vers E2 : la fiche E2 s\'ouvre', texteDe(racine.querySelector('.pq-question')), d.fiches.find((f) => f.id === 'E2').question);
+      racine.remove();
+    },
+  },
+  {
+    id: 'N30',
+    titre: 'Pourquoi ? : « EDID » dans T5.3 et T6.5 du Dépannage ouvre I8, l\'étape HDCP de T6.6 ouvre I9, « Sortie demandée à la régie » de la fiche contenu ouvre I8',
+    etape: 'pourquoi',
+    async verifier(v, contexte) {
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      const moduleD = await moduleDepannage(v);
+      const moduleMire = await moduleAppli(v, '../src/ecran-mire.js');
+      const t = contexte.pourquoiLiens;
+      if (!pq || !moduleD || !moduleMire || !t || !contexte.depannage || !contexte.ficheContenu) {
+        v.vrai('modules et données', false);
+        return;
+      }
+      const ouvertes = [];
+      const m = monterDepannage(moduleD, contexte.depannage, { projet: null, liensPourquoi: t.liens, ouvrirPourquoi: (id) => ouvertes.push(id) });
+      for (const [noeud, mot, fiche] of [['T5.3', 'EDID', 'I8'], ['T6.5', 'EDID', 'I8'], ['T6.6', 'HDCP', 'I9']]) {
+        m.ecran.afficher(noeud);
+        const lien = m.racine.querySelector(`.dep-contenu .dep-lien-pourquoi[data-fiche="${fiche}"]`);
+        v.egal(`${noeud} : « ${mot} » en lien vers ${fiche}, une seule fois`, [texteDe(lien), m.racine.querySelectorAll('.dep-lien-pourquoi').length], [mot, 1]);
+        lien?.click();
+      }
+      v.egal('liens du Dépannage ouverts', ouvertes, ['I8', 'I8', 'I9']);
+      m.retirer();
+      const cadre = el('div', { id: 'mire-fiche', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(cadre);
+      const racine = el('div');
+      cadre.append(racine);
+      const ecranMire = moduleMire.monterMireFiche(racine, contexte.ficheContenu, { contexte: () => murCable(contexte, 4, 3), date: new Date(2026, 9, 3), version: 'v16', surfaceMax: 16777216 });
+      ecranMire.afficher('fiche');
+      const fiche = [];
+      pq.relierPourquoi(t, { racine: document, ouvrir: (id) => fiche.push(id) });
+      const dt = [...cadre.querySelectorAll('.mf-valeurs dt')].find((x) => texteDe(x).startsWith('Sortie demandée à la régie'));
+      dt?.querySelector('.lien-pourquoi')?.click();
+      v.egal('« Sortie demandée à la régie » : I8', fiche, ['I8']);
+      cadre.remove();
+    },
+  },
+  {
+    id: 'N31',
+    titre: 'Pourquoi ? : l\'écran de toutes les fiches s\'ouvre depuis l\'accueil du Dépannage (« Comprendre les règles ») ; il montre les quatre images de base en tête, puis les 30 fiches par famille, et une fiche s\'ouvre d\'un appui',
+    etape: 'pourquoi',
+    async verifier(v, contexte) {
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      const moduleD = await moduleDepannage(v);
+      const d = contexte.pourquoi;
+      if (!pq || !moduleD || !d) {
+        v.vrai('modules et données', false);
+        return;
+      }
+      const listes = [];
+      const m = monterDepannage(moduleD, contexte.depannage, { projet: null, ouvrirListePourquoi: () => listes.push('liste') });
+      const bouton = m.racine.querySelector('.dep-bouton-pourquoi');
+      v.egal('accueil du Dépannage : « Comprendre les règles »', texteDe(bouton), 'Comprendre les règles');
+      bouton?.click();
+      v.egal('appui : l\'écran des fiches s\'ouvre', listes, ['liste']);
+      m.retirer();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const ecran = pq.monterPourquoi(racine, d, { enLigne: () => false });
+      ecran.afficherListe();
+      v.egal('quatre images de base en tête', [...racine.querySelectorAll('.pq-image strong')].map(texteDe), d.images.map((x) => x.titre));
+      v.vrai('les images avant les familles', Boolean(racine.querySelector('.pq-images')?.compareDocumentPosition(racine.querySelector('.pq-famille')) & Node.DOCUMENT_POSITION_FOLLOWING));
+      v.egal('familles et nombre de fiches', [...racine.querySelectorAll('.pq-famille')].map((f) => `${texteDe(f.querySelector('h3'))} ${f.querySelectorAll('.pq-fiche-bouton').length}`), ['Données 15', 'Électricité 5', 'Image 9', 'Accroche 1']);
+      racine.querySelector('.pq-fiche-bouton[data-fiche="I8"]')?.click();
+      v.egal('appui sur I8 : la fiche I8', texteDe(racine.querySelector('.pq-question')), d.fiches.find((f) => f.id === 'I8').question);
+      racine.querySelector('.pq-vers-liste')?.click();
+      v.vrai('« Toutes les fiches » revient à la liste', racine.querySelectorAll('.pq-fiche-bouton').length === 30);
+      racine.remove();
+    },
+  },
+  {
+    id: 'N32',
+    titre: 'Pourquoi ? hors ligne, en grand affichage, en thème sombre et en mode rouge : liste et fiche sans accès au réseau, texte de 19 px, boutons de 60 px, texte à 4,5:1, rien ne déborde à 375 px ; liens web des sources seulement en ligne',
+    etape: 'pourquoi',
+    async verifier(v, contexte) {
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      const d = contexte.pourquoi;
+      if (!pq || !d) return;
+      await sansReseau(async (appels) => {
+        const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+        document.body.append(racine);
+        const ecran = pq.monterPourquoi(racine, d);
+        ecran.afficherFiche('I8');
+        ecran.afficherListe();
+        v.egal('hors ligne : aucun accès au réseau, aucun lien web', [appels, racine.querySelectorAll('a[href^="http"]').length], [[], 0]);
+        racine.remove();
+      });
+      const enLigne = el('div');
+      document.body.append(enLigne);
+      pq.monterPourquoi(enLigne, d, { enLigne: () => true }).afficherFiche('E2');
+      v.vrai('en ligne : liens web dans la liste des sources seulement', enLigne.querySelectorAll('.pq-liste-sources a[href^="https://"]').length > 0 && enLigne.querySelectorAll('.pq-sources a').length === 0);
+      enLigne.remove();
+      const feuille = el('link', { rel: 'stylesheet', href: 'styles.css' });
+      await new Promise((fin) => {
+        feuille.onload = fin;
+        feuille.onerror = fin;
+        document.head.append(feuille);
+      });
+      const html = document.documentElement;
+      const avant = { taille: html.dataset.taille, mode: html.dataset.mode };
+      try {
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          for (const taille of ['normal', 'grand']) {
+            if (taille === 'grand') html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            const [mini, police] = taille === 'grand' ? [60, 19] : [48, 0];
+            const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px;background:var(--fond);color:var(--texte)' });
+            document.body.append(racine);
+            const ecran = pq.monterPourquoi(racine, d, { enLigne: () => false });
+            const fautes = [];
+            for (const [nom, aller] of [['liste', () => ecran.afficherListe()], ['I8', () => ecran.afficherFiche('I8')], ['E1', () => ecran.afficherFiche('E1')]]) {
+              aller();
+              for (const e of [...racine.querySelectorAll('*')].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && x.getClientRects().length)) {
+                const style = getComputedStyle(e);
+                if (police && !e.closest('sup') && parseFloat(style.fontSize) < police - 0.05) fautes.push(`${nom} : « ${texteDe(e).slice(0, 30)} » en ${style.fontSize}`);
+                const k = contraste(rgbVersHex(style.color), fondDe(e));
+                if (k < 4.5) fautes.push(`${nom} : « ${texteDe(e).slice(0, 30)} » à ${k.toFixed(2)}:1`);
+              }
+              for (const b of racine.querySelectorAll('button')) {
+                if (!b.getClientRects().length || b.closest('.pq-lien-fiche')) continue;
+                const h = b.getBoundingClientRect().height;
+                if (h < mini - 0.5) fautes.push(`${nom} : « ${texteDe(b).slice(0, 30)} » haut de ${h.toFixed(0)} px`);
+              }
+              if (racine.scrollWidth > 375.5) fautes.push(`${nom} : ${racine.scrollWidth} px de large`);
+            }
+            v.egal(`${mode}, ${taille} : texte, contrastes, cibles et largeur`, fautes.slice(0, 12), []);
+            racine.remove();
+          }
+        }
+      } finally {
+        feuille.remove();
+        if (avant.taille) html.dataset.taille = avant.taille;
+        else delete html.dataset.taille;
+        if (avant.mode) html.dataset.mode = avant.mode;
+        else delete html.dataset.mode;
+      }
+    },
+  },
 ];
 
 // Contraste WCAG entre deux couleurs « #rrggbb ».

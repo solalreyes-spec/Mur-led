@@ -874,8 +874,7 @@
     <p>Calculs indicatifs : la structure est validée par le rigger, l'électricité par l'électricien. Les données constructeur priment.</p>
   </footer>
 
-  <!-- Guide de câblage pas à pas (option 1, port par port), ouvert depuis le Schéma : un port ou une ligne à la fois,
-       dalles numérotées dans l'ordre du câble, case « branché » enregistrée sur l'appareil. -->
+  <!-- Mire et fiche contenu, ouvertes depuis le Mur ou le Dépannage. -->
   <div id="mire-fiche" class="montage mire-fiche" role="dialog" aria-modal="true" aria-labelledby="mire-fiche-titre" hidden>
     <header class="montage-haut">
       <h2 id="mire-fiche-titre" class="mire-fiche-titre">Mire et fiche contenu</h2>
@@ -884,6 +883,18 @@
     <div id="ecran-mire" class="mf-defilant"></div>
   </div>
 
+  <!-- Fiches « pourquoi » : ouvertes par un lien « Pourquoi ? » sans quitter l'écran en cours, ou depuis l'accueil du
+       Dépannage (« Comprendre les règles »). -->
+  <div id="pourquoi" class="montage pourquoi" role="dialog" aria-modal="true" aria-labelledby="pourquoi-titre" hidden>
+    <header class="montage-haut">
+      <h2 id="pourquoi-titre" class="pourquoi-titre">Pourquoi ?</h2>
+      <button id="pourquoi-fermer" class="bouton" type="button">Fermer</button>
+    </header>
+    <div id="ecran-pourquoi" class="mf-defilant"></div>
+  </div>
+
+  <!-- Guide de câblage pas à pas (option 1, port par port), ouvert depuis le Schéma : un port ou une ligne à la fois,
+       dalles numérotées dans l'ordre du câble, case « branché » enregistrée sur l'appareil. -->
   <div id="montage" class="montage" role="dialog" aria-modal="true" aria-labelledby="montage-titre" hidden>
     <header class="montage-entete">
       <div class="montage-haut">
