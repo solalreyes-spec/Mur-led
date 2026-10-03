@@ -886,10 +886,14 @@
       </div>
     </header>
     <div id="montage-dessin" class="montage-dessin">
-      <button id="montage-recentrer" class="bouton montage-recentrer" type="button">Recentrer</button>
+      <button id="montage-encart" class="bouton montage-encart" type="button" hidden></button>
     </div>
     <footer class="montage-pied">
-      <label class="montage-case"><input id="montage-coche" type="checkbox"><span id="montage-coche-texte"></span></label>
+      <!-- « Recentrer » à côté de la case, hors du dessin : il ne cache jamais une dalle. -->
+      <div class="montage-ligne-case">
+        <label class="montage-case"><input id="montage-coche" type="checkbox"><span id="montage-coche-texte"></span></label>
+        <button id="montage-recentrer" class="bouton montage-recentrer" type="button">Recentrer</button>
+      </div>
       <div class="montage-navigation">
         <button id="montage-precedent" class="bouton" type="button">◀ Précédent</button>
         <button id="montage-suivant" class="bouton bouton-principal" type="button">Port suivant ▶</button>

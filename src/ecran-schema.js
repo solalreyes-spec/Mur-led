@@ -8,7 +8,7 @@ import { resumeCablage } from './resumes.js';
 import { nombre, nombreCourt, lireNombre } from './format.js';
 import { el, svg, remplacer } from './dom.js';
 import {
-  trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT, tiretsMotif, cadrageSurDalles,
+  trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT, tiretsMotif, cadrageGuide as calculerCadrageGuide,
 } from './dessin-schema.js';
 import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, telecharger, enregistrer, modeEnregistrement } from './export.js';
 import { etapesData, etapesElec, rapprocherMontage, texteEtatMontage } from './montage.js';
@@ -665,10 +665,14 @@ function dessinerGuide(etape, { recentrer }) {
   const t = trajets.find((x) => x.cle === etape.cle);
   const repere = repereSchema(type, { evaluation: etatData?.choisie ?? null, distanceM: null });
   if (recentrer || !cadrageGuide) {
-    cadrageGuide = cadrageSurDalles(geo, etape.dalles, width > 0 && height > 0 ? width / height : 0.75,
+    const calcul = calculerCadrageGuide(geo, etape.dalles, width > 0 && height > 0 ? width / height : 0.75,
       { coin, orientation: t?.orientation ?? 'colonnes', repere });
+    cadrageGuide = calcul?.cadrage ?? null;
+    guide.encart = calcul?.encart ?? null;
+    guide.voirDepart = false;
     guide.cleDessinee = etape.cle;
   }
+  afficherEncart(etape);
   const { svg: racine, complet } = construireSvg({
     geo, trajets, coin, blocs: [], palette: PALETTE_ECRAN, cadrage: cadrageGuide, selection: etape.cle, ordre: etape.cle, repere,
     grand: grandAffichage(),
@@ -678,6 +682,28 @@ function dessinerGuide(etape, { recentrer }) {
   brancherGestes(racine, vueGuide);
   cadre.querySelector('svg')?.remove();
   cadre.append(racine);
+}
+
+// Encart du départ : port loin de son processeur (zoom serré sur ses dalles). « ← MCTRL660, port 4 », numéro dans la
+// couleur du port ; un appui montre le départ dans le dessin, « Recentrer » revient au port.
+function afficherEncart(etape) {
+  const encart = $m('montage-encart');
+  const e = guide.encart;
+  const affiche = Boolean(e) && !guide.voirDepart;
+  encart.hidden = !affiche;
+  if (!affiche) return;
+  encart.className = `bouton montage-encart coin-${e.coin.y} coin-${e.coin.x}`;
+  const mot = guide.type === 'data' ? 'port' : 'ligne';
+  // Un seul bloc en ligne : pas d'espace du bouton avant la virgule.
+  remplacer(encart, el('span', { class: 'montage-encart-texte' },
+    el('span', { class: 'montage-encart-fleche', 'aria-hidden': 'true' }, e.fleche), ' ',
+    el('span', { class: 'montage-encart-repere' }, e.repere ?? (guide.type === 'data' ? 'Processeur' : 'Armoire')),
+    `, ${mot} `,
+    el('span', {
+      class: 'montage-encart-numero',
+      style: `background: var(--${etape.couleur.cle}); color: ${PALETTE_ECRAN.texteSur(etape.couleur)}${etape.couleur.lisere ? '; box-shadow: 0 0 0 2px var(--phase-lisere)' : ''}`,
+    }, etape.numero)));
+  encart.setAttribute('aria-label', `Départ : ${e.repere ?? 'repère'}, ${mot} ${etape.numero}. Appuie pour le voir dans le dessin.`);
 }
 
 function allerA(cle) {
@@ -739,6 +765,12 @@ function initialiserGuide() {
   $m('montage-liste').addEventListener('click', afficherListe);
   $m('montage-tous-fermer').addEventListener('click', () => { $m('montage-tous').hidden = true; });
   $m('montage-recentrer').addEventListener('click', () => afficherGuide({ recentrer: true }));
+  $m('montage-encart').addEventListener('click', () => {
+    if (!guide?.encart) return;
+    cadrageGuide = { ...guide.encart.cadrageDepart };
+    guide.voirDepart = true;
+    afficherGuide();
+  });
   $m('montage-compris').addEventListener('click', () => {
     montage[guide.type].avis = null;
     enregistrerMontage();

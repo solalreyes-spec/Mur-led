@@ -176,10 +176,10 @@ export function geometrieDepart(geo, coin, { orientation = 'colonnes', repere = 
   return { marge, cote, police, bordX, bordY, cadreRepere };
 }
 
-// Cadrage du guide pas à pas sur un port (ou une ligne) : ses dalles, son départ (rond numéroté au bord du mur) et le
-// cadre du repère (processeur, XD, CVT ou armoire), par où l'on commence à brancher ; une marge courte autour, au
-// format `aspect` (largeur / hauteur) du cadre de l'écran.
-export function cadrageSurDalles(geo, dalles, aspect, { coin = 'haut-gauche', orientation = 'colonnes', repere = null } = {}) {
+// Cadrage sur un port (ou une ligne) : ses dalles et, avec `depart`, son départ (rond numéroté au bord du mur) et le
+// cadre du repère (processeur, XD, CVT ou armoire) ; une marge courte autour, au format `aspect` (largeur / hauteur)
+// du cadre de l'écran.
+export function cadrageSurDalles(geo, dalles, aspect, { coin = 'haut-gauche', orientation = 'colonnes', repere = null, depart = true } = {}) {
   const rects = dalles.map((id) => geo.rects.get(id)).filter(Boolean);
   if (rects.length === 0) return null;
   const g = geometrieDepart(geo, coin, { orientation, repere });
@@ -190,7 +190,7 @@ export function cadrageSurDalles(geo, dalles, aspect, { coin = 'haut-gauche', or
     ? [g.bordX, premiere.y + premiere.h / 2]
     : [premiere.x + premiere.w / 2, g.bordY];
   const r = g.police * 1.2 + g.cote * 0.03;
-  const boites = [...rects, { x: xd - r, y: yd - r, w: 2 * r, h: 2 * r }, ...(g.cadreRepere ? [g.cadreRepere] : [])];
+  const boites = depart ? [...rects, { x: xd - r, y: yd - r, w: 2 * r, h: 2 * r }, ...(g.cadreRepere ? [g.cadreRepere] : [])] : rects;
   let x = Math.min(...boites.map((b) => b.x)) - court;
   let y = Math.min(...boites.map((b) => b.y)) - court;
   let w = Math.max(...boites.map((b) => b.x + b.w)) + court - x;
@@ -205,6 +205,59 @@ export function cadrageSurDalles(geo, dalles, aspect, { coin = 'haut-gauche', or
     h = nh;
   }
   return { x, y, w, h };
+}
+
+// Cadrage du guide pas à pas : serré sur les dalles du port. Son départ (cadre du processeur, du XD, du CVT ou de
+// l'armoire, et rond numéroté du port) entre dans le dessin s'il coûte peu (numéros réduits de 12 % au plus) ; sinon il
+// passe dans un encart en coin, avec une flèche vers lui (« ← MCTRL660, port 4 ») et le cadrage qui le montre. L'encart
+// se pose dans une bande réservée en haut du dessin (17 % de sa hauteur), au-dessus des dalles : il ne cache jamais la
+// première dalle, et il prend la place du rond de départ, dont il redit le numéro.
+const SEUIL_DEPART_DANS_LE_DESSIN = 0.88;
+const BANDE_ENCART = 0.17;
+const FLECHES = { 'haut-gauche': '↖', haut: '↑', 'haut-droite': '↗', gauche: '←', droite: '→', 'bas-gauche': '↙', bas: '↓', 'bas-droite': '↘' };
+export function cadrageGuide(geo, dalles, aspect, { coin = 'haut-gauche', orientation = 'colonnes', repere = null } = {}) {
+  const serre = cadrageSurDalles(geo, dalles, aspect, { coin, orientation, repere, depart: false });
+  const avecDepart = cadrageSurDalles(geo, dalles, aspect, { coin, orientation, repere, depart: true });
+  if (!serre || !avecDepart) return null;
+  if (serre.w / avecDepart.w >= SEUIL_DEPART_DANS_LE_DESSIN) return { cadrage: avecDepart, encart: null };
+  // Zoom serré avec la bande de l'encart : marge courte sur les côtés et en bas, la bande en haut.
+  const rects = dalles.map((id) => geo.rects.get(id)).filter(Boolean);
+  const court = Math.min(...[...geo.rects.values()].map((r) => Math.min(r.w, r.h))) * 0.4;
+  let x = Math.min(...rects.map((r) => r.x)) - court;
+  let w = Math.max(...rects.map((r) => r.x + r.w)) + court - x;
+  const haut = Math.min(...rects.map((r) => r.y));
+  const bas = Math.max(...rects.map((r) => r.y + r.h)) + court;
+  let h = (bas - haut) / (1 - BANDE_ENCART);
+  if (w / h < aspect) {
+    const nw = h * aspect;
+    x -= (nw - w) / 2;
+    w = nw;
+  } else {
+    h = w / aspect;
+  }
+  // La bande garde 17 % de la hauteur finale ; ce qui reste en trop (zoom limité par la largeur) va en bas.
+  const cadrage = { x, y: haut - BANDE_ENCART * h, w, h };
+  // Flèche du centre du zoom vers le départ (le cadre du repère, sinon le rond de départ de la première dalle).
+  const g = geometrieDepart(geo, coin, { orientation, repere });
+  const premiere = geo.rects.get(dalles[0]);
+  const [xc, yc] = g.cadreRepere
+    ? [g.cadreRepere.cx, g.cadreRepere.cy]
+    : orientation === 'rangees' ? [g.bordX, premiere.y + premiere.h / 2] : [premiere.x + premiere.w / 2, g.bordY];
+  const dx = xc - (cadrage.x + cadrage.w / 2);
+  const dy = yc - (cadrage.y + cadrage.h / 2);
+  const horizontal = Math.abs(dx) > 2 * Math.abs(dy) ? (dx < 0 ? 'gauche' : 'droite') : null;
+  const vertical = Math.abs(dy) > 2 * Math.abs(dx) ? (dy < 0 ? 'haut' : 'bas') : null;
+  const direction = horizontal ?? vertical ?? `${dy < 0 ? 'haut' : 'bas'}-${dx < 0 ? 'gauche' : 'droite'}`;
+  return {
+    cadrage,
+    encart: {
+      fleche: FLECHES[direction],
+      repere: repere?.lignes?.[0] ?? null,
+      // Coin de l'écran où poser l'encart : en haut (sa bande), du côté du départ.
+      coin: { x: dx < 0 ? 'gauche' : 'droite', y: 'haut' },
+      cadrageDepart: avecDepart,
+    },
+  };
 }
 
 // SVG du schéma. `cadrage` : partie visible (zoom), sinon tout ; `largeurPx` : taille en pixels pour un export.

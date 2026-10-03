@@ -413,7 +413,7 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N12',
-    titre: 'Dessin du guide pas à pas : le port en cours en couleur, les autres atténués ; ses dalles numérotées de 1 à n dans l\'ordre du câble, dans leur dalle, jamais sur un nom de dalle, chiffres à 4,5:1 ; zoom qui contient toutes les dalles du port, au format du cadre',
+    titre: 'Dessin du guide pas à pas : le port en cours en couleur, les autres atténués ; ses dalles numérotées de 1 à n dans l\'ordre du câble, dans leur dalle, jamais sur un nom de dalle, chiffres à 4,5:1 ; zoom qui contient toutes les dalles du port, au format du cadre ; sur le grand mur, départ visible dans le dessin ou dans l\'encart, numéros de 14 px au moins sur les 12 ports',
     etape: 'terrain',
     async verifier(v, contexte) {
       const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
@@ -453,8 +453,10 @@ export const NAVIGATEUR = [
         v.vrai(`${nom} : zoom au format du cadre (375 × 480)`, Boolean(cadre) && Math.abs(cadre.w / cadre.h - 375 / 480) < 0.01);
         v.vrai(`${nom} : zoom serré sur le port (moins de la moitié du mur en largeur sur le 12 × 6)`, Boolean(cadre) && (colonnes < 12 || cadre.w < geo.largeur / 2));
         svg.remove();
-        // Grand mur : le zoom de chaque port montre aussi son départ, là où l'on commence à brancher : le cadre du
-        // processeur (ou du XD, du CVT) et le rond numéroté du port.
+        // Grand mur : sur chacun des ports, le départ (cadre du processeur, du XD ou du CVT, et rond numéroté du port) se
+        // voit, dans le dessin quand il est près des dalles, sinon dans l'encart (« ← 2 × S8, port 2.6 ») ; le zoom reste
+        // serré sur les dalles, numéros d'au moins 14 px à l'écran (cadre du guide à 375 px : 347 × 480 px, 347 × 410 en
+        // grand affichage).
         if (colonnes === 12) {
           const repere = repereSchema('data', { evaluation: e, distanceM: null });
           const { svg: complet } = construireSvg({ geo, trajets, coin: 'haut-gauche', blocs: [], palette: PALETTE_ECRAN, repere });
@@ -463,12 +465,26 @@ export const NAVIGATEUR = [
           document.body.append(complet);
           const dans = (c, b) => Boolean(c) && b.x >= c.x && b.y >= c.y && b.x + b.width <= c.x + c.w && b.y + b.height <= c.y + c.h;
           const boite = complet.querySelector('.repere rect').getBBox();
-          const manques = trajets.filter((x) => {
-            const c = dessinSchema.cadrageSurDalles?.(geo, x.dalles, 375 / 480, { coin: 'haut-gauche', orientation: x.orientation, repere });
-            const depart = complet.querySelector(`[data-trajet="${x.cle}"] .depart`).getBBox();
-            return !(dans(c, boite) && dans(c, depart));
-          }).map((x) => x.etiquette);
-          v.egal(`${nom} : le zoom de chacun des ${trajets.length} ports contient le cadre du processeur et le départ numéroté du port`, manques, []);
+          const cote = Math.min(...[...geo.rects.values()].map((r) => Math.min(r.w, r.h)));
+          for (const [mode, largeurPx, hauteurPx, police] of [['normal', 347, 480, 0.24], ['grand affichage', 347, 410, 0.27]]) {
+            const sansDepart = [];
+            const petits = [];
+            let encarts = 0;
+            for (const x of trajets) {
+              const g = dessinSchema.cadrageGuide?.(geo, x.dalles, largeurPx / hauteurPx, { coin: 'haut-gauche', orientation: x.orientation, repere });
+              const depart = complet.querySelector(`[data-trajet="${x.cle}"] .depart`).getBBox();
+              const visible = Boolean(g) && dans(g.cadrage, boite) && dans(g.cadrage, depart);
+              const encart = Boolean(g?.encart) && g.encart.repere === repere.lignes[0] && /^[←→↑↓↖↗↙↘]$/.test(g.encart.fleche)
+                && dans(g.encart.cadrageDepart, boite) && dans(g.encart.cadrageDepart, depart);
+              if (g?.encart) encarts += 1;
+              if (!(visible ? !g.encart : encart)) sansDepart.push(x.etiquette);
+              const taille = g ? police * cote * Math.min(largeurPx / g.cadrage.w, hauteurPx / g.cadrage.h) : 0;
+              if (taille < 14) petits.push(`${x.etiquette} ${taille.toFixed(1)} px`);
+            }
+            v.egal(`${nom}, ${mode} : départ visible sur chacun des ${trajets.length} ports, dans le dessin ou dans l'encart (avec sa flèche et le cadre « ${repere.lignes[0]} »)`, sansDepart, []);
+            v.egal(`${nom}, ${mode} : numéros des dalles de 14 px au moins à l'écran sur les ${trajets.length} ports`, petits, []);
+            v.vrai(`${nom}, ${mode} : un encart pour les ports loin du départ, pas pour les premiers`, encarts > 0 && encarts < trajets.length);
+          }
           complet.remove();
         }
       }

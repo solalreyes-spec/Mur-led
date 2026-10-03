@@ -5,8 +5,8 @@
 // donc aussi, le navigateur installe la nouvelle version d'un bloc (tous les fichiers dans un cache neuf),
 // supprime l'ancien cache et la page propose de recharger.
 
-const VERSION = 12;
-const EMPREINTE = '4192c4275b154befa70b12d1d9396bd9550c678ca465a665141f966a8792af88';
+const VERSION = 13;
+const EMPREINTE = 'bfe10783380878ce142f6043351a08343c162f4f19dc1afecf36884c48633dff';
 const CACHE = `mur-led-v${VERSION}`;
 const FICHIERS = [
   './',

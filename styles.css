@@ -280,7 +280,20 @@ body.montage-ouvert { overflow: hidden; }
 .montage-dessin { position: relative; flex: 1; min-height: 0; margin: 8px 0; border: 1px solid var(--bordure); border-radius: var(--rayon); overflow: hidden; }
 .montage-dessin svg { display: block; width: 100%; height: 100%; aspect-ratio: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
 .montage-dessin .attenue { opacity: 0.18; }
-.montage-recentrer { position: absolute; bottom: 6px; right: 6px; z-index: 1; }
+.montage-ligne-case { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+.montage-recentrer { min-height: 64px; padding: 0 12px; }
+/* Encart du départ (port loin de son processeur) : en coin, du côté du départ, avec sa flèche ; un appui le montre. */
+.montage-encart {
+  position: absolute; z-index: 1; gap: 6px; min-height: max(48px, var(--cible)); max-width: calc(100% - 12px);
+  padding: 0 12px; font-size: 1.05rem; background: var(--surface); border: 2px solid var(--texte-doux);
+}
+.montage-encart.coin-haut { top: 6px; }
+.montage-encart.coin-gauche { left: 6px; }
+.montage-encart.coin-droite { right: 6px; }
+.montage-encart-texte { white-space: nowrap; }
+.montage-encart-fleche { font-size: 1.4rem; line-height: 1; vertical-align: -2px; }
+.montage-encart-repere { padding: 2px 6px; border: 1.5px solid var(--texte-doux); border-radius: 6px; font-weight: 700; }
+.montage-encart-numero { vertical-align: middle; display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 6px; border-radius: 15px; font-weight: 800; }
 .montage-pied { display: grid; gap: 10px; }
 .montage-case {
   display: flex; align-items: center; gap: 14px; min-height: 64px; padding: 0 16px;
