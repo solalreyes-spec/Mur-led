@@ -83,6 +83,14 @@
       "fiche": "D2"
     },
     {
+      "id": "data-hfr",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "HFR à … Hz : la dalle … fait … × … = … px ; le HFR demande des dalles à carte R2 ou R2+ d'environ … px au plus (…), avec des circuits de commande qui le supportent. Vérifie avec Brompton que la dalle le permet.",
+      "motif": "^HFR à .* Hz : la dalle",
+      "fiche": "D2"
+    },
+    {
       "id": "data-debit-colorlight",
       "ecran": "data",
       "element": "alerte",
@@ -112,6 +120,22 @@
       "element": "alerte",
       "texte": "Conseil toutes marques du parc : … à … bits comme réglé, les autres marques à leur profondeur réseau par défaut (…).",
       "motif": "^Conseil toutes marques du parc",
+      "fiche": "D3"
+    },
+    {
+      "id": "data-profondeur-refusee",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Le … travaille en … bits ; … (…) : pas de calcul en … bits.",
+      "motif": "^Le .* travaille en .* bits.* : pas de calcul en .* bits",
+      "fiche": "D3"
+    },
+    {
+      "id": "canvas-entree-bits",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Entrée … du … : … bits seulement sur sa fiche, pas … bits.",
+      "motif": "^Entrée .* du .* : .* bits seulement sur sa fiche, pas .* bits",
       "fiche": "D3"
     },
     {
@@ -168,6 +192,14 @@
       "element": "alerte",
       "texte": "Processeur n° … : une colonne dépasse la capacité d'un port. Elle est coupée en … segments égaux : …",
       "motif": "une colonne dépasse la capacité d\\'un port\\. Elle est coupée en",
+      "fiche": "D5"
+    },
+    {
+      "id": "data-decoupage",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Aucun découpage en colonnes et en rangées ne tient dans des ….",
+      "motif": "^Aucun découpage en colonnes et en rangées ne tient dans des",
       "fiche": "D5"
     },
     {
@@ -256,6 +288,14 @@
       "element": "alerte",
       "texte": "ULL : entrée … seulement sur le …, pas de ….",
       "motif": "^ULL : entrée",
+      "fiche": "D9"
+    },
+    {
+      "id": "data-ull-refuse",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "ULL : fonction des SX40 et S8 seulement (…) ; le … a son Low Latency Mode, par ses formats de canvas Low Latency. Décoche l'ULL.",
+      "motif": "^ULL : fonction des SX40 et S8 seulement",
       "fiche": "D9"
     },
     {
@@ -403,6 +443,14 @@
       "fiche": "D14"
     },
     {
+      "id": "data-dalle-limites",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Une seule dalle (… × … px) dépasse les limites d'un ….",
+      "motif": "^Une seule dalle \\(.* px\\) dépasse les limites d'un",
+      "fiche": "D14"
+    },
+    {
       "id": "mire-canevas-tessera",
       "ecran": "fiche",
       "element": "alerte",
@@ -527,6 +575,15 @@
       "texte": "Équilibre des phases (écart le plus faible)",
       "motif": "^Équilibre des phases",
       "selecteur": "h4",
+      "fiche": "E4"
+    },
+    {
+      "id": "elec-rappel-p17",
+      "ecran": "elec",
+      "element": "ligne",
+      "selecteur": ".rappels li",
+      "texte": "P17 bleu = 230 V, P17 rouge = 400 V triphasé ; 32 A tri = 3 phases de 32 A.",
+      "motif": "^P17 bleu = 230 V",
       "fiche": "E4"
     },
     {
@@ -738,6 +795,468 @@
       "texte": "Par colonne",
       "motif": "^Par colonne",
       "fiche": "A1"
+    },
+    {
+      "id": "poids-rappel-structure",
+      "ecran": "poids",
+      "element": "ligne",
+      "selecteur": ".rappels li",
+      "texte": "Structure dimensionnée pour 5 fois le poids suspendu, selon ROE.",
+      "motif": "^Structure dimensionnée pour 5 fois le poids",
+      "fiche": "A1"
+    },
+    {
+      "id": "data-petites-dalles",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Dalles de moins de 16 px dans une dimension : elles coûtent cher en traitement et on peut en brancher moins que la capacité nominale (manuel Tessera §13.1.4). Vérifie les barres de charge dans Tessera.",
+      "motif": "^Dalles de moins de 16 px dans une dimension",
+      "fiche": "D16"
+    },
+    {
+      "id": "data-hauteur-port",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Ports du … : un port charge … px de haut ; capacité réduite au-delà de … px de haut, valeur non publiée : vérifie dans LEDVISION (…).",
+      "motif": "^Ports du .* : un port charge .* px de haut ; capacité réduite au-delà de",
+      "fiche": "D17"
+    },
+    {
+      "id": "data-hauteur-port-note",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Ports du … : un port charge … px de haut. La fiche S20 annonce une capacité réduite au-delà de … px de haut : règle écrite sur la fiche S20, non confirmée pour ce modèle.",
+      "motif": "^Ports du .* : un port charge .* px de haut\\. La fiche S20 annonce",
+      "fiche": "D17"
+    },
+    {
+      "id": "data-2-5g",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Dalles en 2,5G : « 2.5G connectivity is dependent on the tile design » (support Megapixel) ; vérifie que tes dalles le permettent.",
+      "motif": "^Dalles en 2,5G :",
+      "fiche": "D18"
+    },
+    {
+      "id": "data-helios-1g",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "… : ports 1G en cuivre seulement (« 8 x 1G Copper SFP », fiche HELIOS 2023), pas de lien 2,5G.",
+      "motif": ": ports 1G en cuivre seulement",
+      "fiche": "D18"
+    },
+    {
+      "id": "data-switch-1g",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "… : ports 1G seulement (…) ; le lien 2,5G demande un M4250.",
+      "motif": ": ports 1G seulement .* le lien 2,5G demande un M4250",
+      "fiche": "D18"
+    },
+    {
+      "id": "data-cartes-5g",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Le … n'accepte que des cartes de réception 5G (…) ; la dalle … utilise une carte ….",
+      "motif": "n'accepte que des cartes de réception 5G",
+      "fiche": "D18"
+    },
+    {
+      "id": "data-carte-5g-inconnue",
+      "ecran": "data",
+      "element": "ligne",
+      "selecteur": "details.manques > p",
+      "texte": "Carte de réception inconnue pour la dalle … : vérifie qu'elle fait partie des cartes 5G acceptées par le … (…).",
+      "motif": "^Carte de réception inconnue pour la dalle .* cartes 5G",
+      "fiche": "D18"
+    },
+    {
+      "id": "data-carte-sortie-defaut",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Carte de réception inconnue : cartes de sortie … (ports 5G) par défaut sur le … ; choisis … si les dalles ont des cartes 1G.",
+      "motif": "^Carte de réception inconnue : cartes de sortie .* par défaut",
+      "fiche": "D18"
+    },
+    {
+      "id": "data-marque-carte",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Le … ne pilote que des cartes de réception … ; la dalle … utilise une carte …. Jamais de processeur d'une marque avec des cartes d'une autre marque.",
+      "motif": "ne pilote que des cartes de réception .* Jamais de processeur d'une marque avec des cartes d'une autre marque",
+      "fiche": "D19"
+    },
+    {
+      "id": "canvas-opt-novastar",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Liaison OPT (fibre) de la régie … vers un processeur … : « Only LED controllers from NovaStar are supported for now » (…). Sorties OPT réservées aux processeurs Novastar : passe par une sortie HDMI ou DP.",
+      "motif": "^Liaison OPT \\(fibre\\) de la régie",
+      "fiche": "D19"
+    },
+    {
+      "id": "canvas-opt-note",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Régie … : « Only LED controllers from NovaStar are supported for now » (…) vise les sorties OPT (fibre) vers les processeurs Novastar ; en …, rien ne dépend de la marque du processeur.",
+      "motif": "^Régie .* : « Only LED controllers from NovaStar are supported for now »",
+      "fiche": "D19"
+    },
+    {
+      "id": "data-carte-capacite",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Carte de réception … en … bits (IC …) : … × … px par carte ; la dalle … fait … × … px (une carte par dalle) : dépassé, vérifie la carte ou le câblage des modules.",
+      "motif": "^Carte de réception .* : dépassé, vérifie la carte ou le câblage des modules",
+      "fiche": "D20"
+    },
+    {
+      "id": "data-reseau-appareils",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "6 appareils entre le processeur et la dalle la plus éloignée (XD, switches et convertisseurs fibre comptés) : 5 au plus (« five switches », « XD Units and fibre optic transceivers count as switches », …).",
+      "motif": "^\\d+ appareils entre le processeur et la dalle la plus éloignée",
+      "fiche": "D21"
+    },
+    {
+      "id": "data-reseau-manageable",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Switch manageable : « The Tessera Protocol is designed to be used ONLY with unmanaged switches » (…).",
+      "motif": "^Switch manageable :",
+      "fiche": "D21"
+    },
+    {
+      "id": "data-reseau-10g",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Switch en 10G entre le SX40 et ses XD : « The use of 10G Ethernet switches is not supported » (…).",
+      "motif": "^Switch en 10G entre le SX40 et ses XD",
+      "fiche": "D21"
+    },
+    {
+      "id": "data-reseau-multimode",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Fibre multimode : « Multi-mode fibre is not supported » (…). Monomode 9/125 µm, 1310 nm.",
+      "motif": "^Fibre multimode :",
+      "fiche": "D21"
+    },
+    {
+      "id": "data-reseau-apc",
+      "ecran": "data",
+      "element": "alerte",
+      "texte": "Connecteurs APC : interdits, ils peuvent abîmer les connecteurs du SX40 et du XD (« may cause damage », …). PC ou UPC seulement.",
+      "motif": "^Connecteurs APC :",
+      "fiche": "D21"
+    },
+    {
+      "id": "canvas-low-latency",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Bloc n° … : le format … force le Low Latency Mode (latence : …).",
+      "motif": "^Bloc n° .* : le format .* force le Low Latency Mode",
+      "fiche": "D22"
+    },
+    {
+      "id": "canvas-bit-depth-source",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Tessera : le bit depth réseau (… bits) ne doit jamais être inférieur à celui de la source (… bits). Passe le réseau en … bits au moins.",
+      "motif": "^Tessera : le bit depth réseau .* ne doit jamais être inférieur à celui de la source",
+      "fiche": "I10"
+    },
+    {
+      "id": "canvas-plage-limited",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Plage Limited : le noir démarre à 16 et le blanc s'arrête à 235, d'où des noirs laiteux. Règle la source en Full.",
+      "motif": "^Plage Limited :",
+      "fiche": "I11"
+    },
+    {
+      "id": "canvas-yuv",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Source en YUV : préfère RGB, en plage Full.",
+      "motif": "^Source en YUV :",
+      "fiche": "I11"
+    },
+    {
+      "id": "canvas-420",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "… : au-delà de … × … à … Hz, 4:2:0 seulement (…).",
+      "motif": ": au-delà de .* × .* à .* Hz, 4:2:0 seulement",
+      "fiche": "I11"
+    },
+    {
+      "id": "canvas-entree-fiche",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Entrée … du … : … au plus sur sa fiche ; la source fait … × … px.",
+      "motif": "^Entrée .* du .* : .* au plus sur sa fiche ; la source fait",
+      "fiche": "I12"
+    },
+    {
+      "id": "canvas-debit",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Entrée … du … : … MHz demandés pour … MHz au plus (…) ; aussi « Liaison … vers les processeurs : … » et « Liaison … : … » de la chaîne, en MHz ou en Mpx/s.",
+      "motif": "^(Entrée .* du .*|Liaison .*) : .* (MHz|Mpx/s) demandés pour",
+      "fiche": "I12"
+    },
+    {
+      "id": "canvas-entree-limite",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Sa fiche limite l'entrée du … à … × … px ; la source fait … × … px.",
+      "motif": "^Sa fiche limite l'entrée du",
+      "fiche": "I12"
+    },
+    {
+      "id": "canvas-sortie-mhz",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Sorties … de la régie … plafonnées à … MHz (…) : … × … à … Hz demande … MHz.",
+      "motif": "^Sorties .* de la régie .* plafonnées à .* MHz",
+      "fiche": "I12"
+    },
+    {
+      "id": "canvas-sortie-tester",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Sorties … de la régie … : … × …, au-delà de … px de large ou de haut, à tester (…).",
+      "motif": "^Sorties .* de la régie .* : .* au-delà de .* px de large ou de haut, à tester",
+      "fiche": "I12"
+    },
+    {
+      "id": "canvas-convertisseur-format",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Le … ne passe pas … × … à … Hz : … × … à … Hz au plus (…).",
+      "motif": "^Le .* ne passe pas .* à .* Hz : .* au plus",
+      "fiche": "I12"
+    },
+    {
+      "id": "canvas-sdi-broadcast",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Entrée … du … : formats broadcast seulement en SDI, et aucun format broadcast que le … porte à … Hz ne contient … × … px.",
+      "motif": "formats broadcast seulement en SDI",
+      "fiche": "I13"
+    },
+    {
+      "id": "canvas-sdi-conteneur",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "12G-SDI : formats broadcast seulement. Envoie ton canvas de … × … px dans un … × … à … Hz : zone utile en haut à gauche, noir autour.",
+      "motif": "SDI : formats broadcast seulement\\. Envoie ton canvas",
+      "fiche": "I13"
+    },
+    {
+      "id": "canvas-melangeur-broadcast",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Le … ne sort qu'en … : aucun ne contient … × … px.",
+      "motif": "ne sort qu'en .* : aucun ne contient",
+      "fiche": "I13"
+    },
+    {
+      "id": "canvas-melangeur-conteneur",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Le … ne sort qu'en formats broadcast (…) : envoie ton canvas de … × … px dans un …, zone utile en haut à gauche, noir autour.",
+      "motif": "ne sort qu'en formats broadcast",
+      "fiche": "I13"
+    },
+    {
+      "id": "canvas-regie-format",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Aucune sortie de la régie … ne monte à … × … px à … Hz.",
+      "motif": "^Aucune sortie de la régie .* ne monte à",
+      "fiche": "R1"
+    },
+    {
+      "id": "canvas-regie-sorties",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "4 processeurs demandent 4 sorties : la régie … n'en a que ….",
+      "motif": "^\\d+ processeurs demandent \\d+ sorties : la régie",
+      "fiche": "R1"
+    },
+    {
+      "id": "canvas-regie-budget",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Budget de la régie … : … MP demandés (… × … × …) pour … MP … ; en Program seul (sans prévisualisation), … MP suffisent.",
+      "motif": "^Budget de la régie .* demandés",
+      "fiche": "R1"
+    },
+    {
+      "id": "canvas-regie-program-seul",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Régie … en Program seul : … MP pour … MP, sans prévisualisation.",
+      "motif": "^Régie .* en Program seul :",
+      "fiche": "R1"
+    },
+    {
+      "id": "canvas-regie-aux",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "… processeurs au-delà des … sorties Program de la régie … : sortie Aux, fonctions réduites (couches, transitions), vérifie dans le manuel.",
+      "motif": "sortie Aux, fonctions réduites",
+      "fiche": "R2"
+    },
+    {
+      "id": "canvas-regie-couches",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "Couches de la régie … : … sorties × … couches … = … SL par carte de sortie, pour … SL (1 × 4K = 2 DL = 4 SL).",
+      "motif": "^Couches de la régie",
+      "fiche": "R3"
+    },
+    {
+      "id": "canvas-ampli",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "… processeurs pour … sortie du … qui porte le Program : ajoute un ampli de distribution.",
+      "motif": "le Program : ajoute un ampli de distribution",
+      "fiche": "R4"
+    },
+    {
+      "id": "canvas-hdmi-passif",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "HDMI en cuivre passif sur … m : câble actif ou fibre conseillé (…).",
+      "motif": "^HDMI en cuivre passif sur",
+      "fiche": "I14"
+    },
+    {
+      "id": "canvas-sdi-longueur",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "12G-SDI sur … m, au-delà de … m : risque de perte du signal, passe en fibre (…).",
+      "motif": "^\\d+G-SDI sur .* m, au-delà",
+      "fiche": "I14"
+    },
+    {
+      "id": "canvas-liaison-longueur",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "HDBaseT 2.0 sur 120 m : 100 m au plus (…).",
+      "motif": "^(HDBaseT|DTP2).* sur [\\d,]+ m :",
+      "fiche": "I14"
+    },
+    {
+      "id": "canvas-extender-mhz",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "… : 600 MHz, au-delà des formats de sa fiche.",
+      "motif": ": [\\d,]+ MHz, au-delà des formats de sa fiche",
+      "fiche": "I14"
+    },
+    {
+      "id": "canvas-extender-longueur",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "… sur 180 m en 148,5 MHz : 170 m au plus, même en mode Long Reach (fiche).",
+      "motif": "^.* sur [\\d,]+ m en [\\d,]+ MHz :",
+      "fiche": "I14"
+    },
+    {
+      "id": "canvas-extender-long-reach",
+      "ecran": "canvas",
+      "element": "alerte",
+      "texte": "… sur 150 m : mode Long Reach (fiche Lightware), ….",
+      "motif": "^.* sur [\\d,]+ m : mode Long Reach",
+      "fiche": "I14"
+    },
+    {
+      "id": "schema-colonne-ligne",
+      "ecran": "schema",
+      "element": "alerte",
+      "texte": "Une colonne dépasse une ligne : elle est coupée en … segments égaux, les lignes éloignées du bord démarrent au milieu de leur colonne.",
+      "motif": "^Une colonne dépasse une ligne : elle est coupée en",
+      "fiche": "E6"
+    },
+    {
+      "id": "poids-cmu-bumper",
+      "ecran": "poids",
+      "element": "alerte",
+      "texte": "CMU du bumper (…) dépassée : un bumper porte jusqu'à ….",
+      "motif": "^CMU du bumper .* dépassée",
+      "fiche": "A2"
+    },
+    {
+      "id": "poids-cmu-moteur",
+      "ecran": "poids",
+      "element": "alerte",
+      "texte": "CMU du moteur (…) dépassée : jusqu'à … sur un point.",
+      "motif": "^CMU du moteur .* dépassée",
+      "fiche": "A2"
+    },
+    {
+      "id": "poids-pont-rigger",
+      "ecran": "poids",
+      "element": "alerte",
+      "texte": "Pont sur plus de 4 points, à portées inégales ou en porte-à-faux : la répartition doit être établie par le rigger.",
+      "motif": "^Pont sur plus de 4 points",
+      "fiche": "A3"
+    },
+    {
+      "id": "poids-repartition-rigger",
+      "ecran": "poids",
+      "element": "alerte",
+      "texte": "Répartition à faire établir par le rigger (plus de 4 points, portées inégales ou porte-à-faux).",
+      "motif": "^Répartition à faire établir par le rigger",
+      "fiche": "A3"
+    },
+    {
+      "id": "poids-autres-charges",
+      "ecran": "poids",
+      "element": "alerte",
+      "texte": "Autres charges suspendues (…) : à reprendre sur un point ou sur la structure, avec le rigger.",
+      "motif": "^Autres charges suspendues",
+      "fiche": "A3"
+    },
+    {
+      "id": "poids-note-pont",
+      "ecran": "poids",
+      "element": "ligne",
+      "selecteur": "p.source",
+      "texte": "Pont continu à portées égales, charge répartie : valeurs indicatives.",
+      "motif": "^Pont continu à portées égales",
+      "fiche": "A3"
+    },
+    {
+      "id": "poids-note-parts",
+      "ecran": "poids",
+      "element": "ligne",
+      "selecteur": "p.source",
+      "texte": "Parts égales seulement si chaque bumper pend directement à son propre point.",
+      "motif": "^Parts égales seulement si chaque bumper",
+      "fiche": "A3"
+    },
+    {
+      "id": "poids-rappel-elingues",
+      "ecran": "poids",
+      "element": "ligne",
+      "selecteur": ".rappels li",
+      "texte": "Préfère les élingues acier aux sangles textiles, à cause de la tenue au feu.",
+      "motif": "^Préfère les élingues acier",
+      "fiche": "A4"
+    },
+    {
+      "id": "fiche-recul",
+      "ecran": "fiche",
+      "element": "ligne",
+      "selecteur": ".mf-valeurs dt",
+      "texte": "Recul",
+      "motif": "^Recul$",
+      "fiche": "I5"
     }
   ]
 }

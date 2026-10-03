@@ -5,7 +5,7 @@
 // « annexe A » à « annexe D » un lien vers l'annexe, « mire de l'appli » un lien vers la mire (écran « Mire et fiche
 // contenu »). Aucun calcul ici.
 
-import { el, remplacer } from './dom.js';
+import { el, remplacer, listeNumerotee } from './dom.js';
 
 const CHOIX_MARQUES = [['novastar', 'Novastar'], ['coex', 'COEX'], ['brompton', 'Brompton'], ['toutes', 'Toutes']];
 const NOMS_MARQUES = { novastar: 'Novastar', coex: 'COEX', brompton: 'Brompton' };
@@ -119,8 +119,12 @@ export function monterDepannage(racine, donnees, {
       if (derniere && derniere.numero === l.numero) derniere.lignes.push(l);
       else etapes.push({ numero: l.numero, lignes: [l] });
     }
-    return el('ol', { class: 'dep-etapes' }, ...etapes.map((e) => el('li', { class: 'dep-etape', value: e.numero },
-      el('div', { class: 'dep-lignes' }, ...e.lignes.map(ligne)))));
+    // Numéros écrits par l'appli : une étape qui commence par un encadré de marque garde son numéro (N37).
+    return listeNumerotee({ class: 'dep-etapes' }, etapes.map((e) => ({
+      numero: e.numero,
+      contenu: el('div', { class: 'dep-lignes' }, ...e.lignes.map(ligne)),
+      attributs: { class: `dep-etape${e.lignes[0].marque === null || e.lignes[0].marque === undefined ? '' : ' commence-par-encadre'}` },
+    })));
   }
 
   // --- Choix de marque -----------------------------------------------------------------------------------------------

@@ -42,7 +42,14 @@
         "D12",
         "D13",
         "D14",
-        "D15"
+        "D15",
+        "D16",
+        "D17",
+        "D18",
+        "D19",
+        "D20",
+        "D21",
+        "D22"
       ]
     },
     {
@@ -53,7 +60,8 @@
         "E2",
         "E3",
         "E4",
-        "E5"
+        "E5",
+        "E6"
       ]
     },
     {
@@ -68,14 +76,32 @@
         "I6",
         "I7",
         "I8",
-        "I9"
+        "I9",
+        "I10",
+        "I11",
+        "I12",
+        "I13",
+        "I14"
+      ]
+    },
+    {
+      "id": "regie",
+      "titre": "Régie et chaîne vidéo",
+      "fiches": [
+        "R1",
+        "R2",
+        "R3",
+        "R4"
       ]
     },
     {
       "id": "accroche",
       "titre": "Accroche",
       "fiches": [
-        "A1"
+        "A1",
+        "A2",
+        "A3",
+        "A4"
       ]
     }
   ],
@@ -1628,6 +1654,1110 @@
           "sources": []
         }
       ]
+    },
+    {
+      "id": "D16",
+      "famille": "donnees",
+      "question": "Pourquoi les toutes petites dalles comptent plus cher ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "chez Brompton, les dalles de moins de 16 px dans une dimension coûtent cher en traitement : on en branche moins que ce que la capacité nominale laisse croire.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.4"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "chaque voiture paie un péage fixe, quelle que soit sa taille. Beaucoup de petites voitures coûtent plus cher que quelques grosses.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "« Small fixtures - with either dimensions smaller than 16 pixels - have a high processing overhead » ; le SX40 compte toute dalle comme si elle faisait au moins 64 px dans chaque dimension.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.4"
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "un port bon sur le papier peut être en surcharge dans Tessera ; regarde les barres de charge.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D17",
+      "famille": "donnees",
+      "question": "Pourquoi une hauteur maximale par port chez Colorlight ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "sur le S20, la capacité d'un port baisse quand la zone chargée dépasse 1 280 px de haut.",
+          "sources": [
+            {
+              "code": "CL-S20",
+              "ref": "p.2"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "pas d'image : le constructeur ne donne ni la raison ni la baisse chiffrée.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "« The loading capacity will reduce when the height exceeds 1280 pixels »{1}. La fiche ne chiffre pas la baisse, et la règle n'est pas confirmée pour les autres Colorlight 1G{2}.",
+          "sources": [
+            {
+              "code": "CL-S20",
+              "ref": "p.2",
+              "renvoi": 1
+            },
+            {
+              "code": "CL-S20",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "le port peut être en surcharge ; vérifie sa charge réelle dans LEDVISION.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D18",
+      "famille": "donnees",
+      "question": "Pourquoi le 2,5G ou le 5G doit passer partout ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "un lien plus rapide que 1G ne marche que si chaque maillon le supporte : processeur ou carte de sortie, switch, carte de réception de la dalle.",
+          "sources": [
+            {
+              "code": "CX-CX40",
+              "ref": null
+            },
+            {
+              "code": "MP-SUP",
+              "ref": null
+            },
+            {
+              "code": "MP-HELIOS",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "élargir l'autoroute ne sert à rien si la bretelle de sortie reste une petite route.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "le CX40 Pro n'accepte que des cartes de réception 5G{1}. Chez Megapixel, « 2.5G connectivity is dependent on the tile design »{2} ; un switch aux ports 1G ne fait pas de 2,5G{3}, il faut un modèle aux ports 2,5G comme le M4250{4}. COEX interdit aussi de mélanger des cartes de sortie 1G et 5G sur un même écran (D15).",
+          "sources": [
+            {
+              "code": "CX-CX40",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "MP-SUP",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "MP-HELIOS",
+              "ref": null,
+              "renvoi": 3
+            },
+            {
+              "code": "NG-M4250",
+              "ref": null,
+              "renvoi": 4
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "l'appli refuse la configuration.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D19",
+      "famille": "donnees",
+      "question": "Pourquoi une dalle ne marche qu'avec la marque de sa carte ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "jamais de processeur d'une marque avec des cartes de réception d'une autre marque.",
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.1"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "le processeur et la carte de la dalle parlent la même langue ; une carte d'une autre marque ne comprend rien.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "un processeur Brompton pilote des dalles équipées d'une carte Tessera R2 ou R2+, avec le protocole Tessera{1}. Chaque intégration d'une carte dans un modèle de dalle demande un développement chez le fabricant de la carte : une dalle non équipée Brompton ne marche pas avec un processeur Brompton{2}. Même chose pour les sorties fibre d'une régie : chez PixelHue, « Only LED controllers from NovaStar are supported for now »{3}.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.1",
+              "renvoi": 1
+            },
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "PH-P",
+              "ref": "p.1",
+              "renvoi": 3
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "le mur ne s'affiche pas{1} ; l'appli refuse la configuration.",
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null,
+              "renvoi": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D20",
+      "famille": "donnees",
+      "question": "Pourquoi une carte de réception a sa propre limite ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "chaque carte de réception pilote un nombre maximal de pixels : 262 144 px pour une Brompton R2 ou R2+{1} ; 512 × 512 px pour une Novastar A10s Pro en 8 bits{2}.",
+          "sources": [
+            {
+              "code": "BR-R2",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "NS-CARTES",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "chaque dalle a son petit garage ; s'il est trop petit, toutes les voitures n'y entrent pas.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "la carte reçoit les données du port et pilote les modules de sa dalle ; sa capacité dépend du modèle et, chez Novastar, de la profondeur et des circuits des modules{1}. La capacité de la R2 ne change ni avec la profondeur ni en ULL{2}.",
+          "sources": [
+            {
+              "code": "NS-CARTES",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "BR-R2",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.4",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "la carte ne peut pas piloter la dalle telle que décrite ; vérifie la carte ou le câblage des modules.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "D21",
+      "famille": "donnees",
+      "question": "Pourquoi le réseau Brompton a ses propres règles ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "entre le processeur et la dalle la plus éloignée, 5 switches au plus, XD et convertisseurs fibre compris ; switches non manageables seulement ; pas de switch 10G entre SX40 et XD ; fibre monomode seulement ; connecteurs PC ou UPC, jamais APC.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2"
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "annexe B"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "pas d'image : ce sont des règles du constructeur, à appliquer telles quelles.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "« The Tessera Protocol is designed to be used ONLY with unmanaged switches »{1} ; « The use of 10G Ethernet switches is not supported » ; « Multi-mode fibre is not supported » ; les connecteurs APC « may cause damage »{2}. Brompton n'explique que l'interdiction des connecteurs APC.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2",
+              "renvoi": 1
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "annexe B",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "l'appli refuse ; un connecteur APC peut abîmer le SX40 ou le XD.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "annexe B"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D22",
+      "famille": "donnees",
+      "question": "Pourquoi certains formats passent le processeur en Low Latency Mode ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "sur Tessera M2 et T1, un canevas autre que 1920 × 1080 passe automatiquement en Low Latency Mode ; le S4 y est toujours.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§6.3"
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§6.4"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "un raccourci : tu gagnes une image de retard, mais tu laisses les outils au garage.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "le Low Latency Mode retire une image de retard, mais désactive la mise à l'échelle, le désentrelacement et la conversion de fréquence : le processeur se cale sur la fréquence de la source.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§6.4"
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "la source doit arriver à la bonne taille et à la bonne fréquence, sans aide du processeur.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "I10",
+      "famille": "image",
+      "question": "Pourquoi la profondeur du réseau doit égaler celle de la source ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "chez Brompton, la profondeur du réseau ne doit jamais être inférieure à celle de la source.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.2"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "verser une bouteille dans un verre plus petit : ce qui dépasse est perdu.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "« The network bit depth should always be equal or better than the input source bit depth. For example, DVI is 8 bit and SDI is 10 bit. » Le traitement interne reste en 16 bits ; seule la profondeur envoyée aux dalles change.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.2"
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "image de moins bonne qualité ; les réglages de gain, de luminosité et de contraste peuvent en souffrir.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "I11",
+      "famille": "image",
+      "question": "Pourquoi RGB en plage Full ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "règle la source en RGB, plage Full (0 à 255), ou indique au processeur ce qu'elle envoie vraiment.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§9.5.1"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "deux règles graduées différentes. Si la source mesure de 16 à 235 et que le processeur lit de 0 à 255, le noir n'est plus tout à fait noir.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "en plage Limited, le noir est à 16 et le blanc à 235 ; en Full, de 0 à 255{1}. Si la source et le processeur ne parlent pas de la même plage, le noir s'affiche gris{2}. En YCbCr 4:2:2 ou 4:2:0, la couleur est transmise à plus basse résolution que l'image : Tessera parle de « chroma subsampling compression »{3}. L'HDBaseT 2.0 ne passe le 4K60 qu'en 4:2:0{4}. En HDMI 2.0, Tessera lit ces réglages dans les informations envoyées par la source ; en SDI et en DVI, il faut les régler à la main{5}.",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§9.5.1",
+              "renvoi": 1
+            },
+            {
+              "code": "PCG",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "PCG",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§9.4.1",
+              "renvoi": 3
+            },
+            {
+              "code": "HDBT",
+              "ref": null,
+              "renvoi": 4
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§9.4.1",
+              "renvoi": 5
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§9.4.2",
+              "renvoi": 5
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "noirs laiteux, couleurs moins nettes sur les petits détails.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "I12",
+      "famille": "image",
+      "question": "Pourquoi une liaison vidéo a un débit maximal ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "chaque entrée, sortie ou câble vidéo a une fréquence pixel maximale, en MHz : 165 MHz en DVI simple lien, 330 en double lien{1} ; 297 MHz sur la plupart des appareils HDMI 1.4{2} ; 600 MHz en HDMI 2.0{3}.",
+          "sources": [
+            {
+              "code": "DVI-W",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "DATAPATH",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "BARCO-E2",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "BARCO-E2G2",
+              "ref": null,
+              "renvoi": 3
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "le câble vidéo est aussi une route. Sa vitesse se compte en millions de pixels par seconde, y compris des pixels qu'on ne voit pas.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "la fréquence pixel compte les pixels de l'image plus les temps morts de chaque ligne et de chaque image, multipliés par la fréquence. 1920 × 1080 × 60 ne fait que 124 millions de pixels par seconde, mais le 1080p60 demande 148,5 MHz ; le 4K30 demande 297 MHz{1}. Le 4K60 demande donc environ 594 MHz, d'où les 600 MHz de l'HDMI 2.0{2}. L'appli calcule ces temps morts avec les timings normalisés CTA-861, ou par approximation pour les formats personnalisés{3}.",
+          "sources": [
+            {
+              "code": "LW",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "BARCO-E2G2",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "app",
+              "ref": null,
+              "renvoi": 3
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "pas d'image ou format refusé par l'appareil.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "I13",
+      "famille": "image",
+      "question": "Pourquoi le SDI et certains mélangeurs n'acceptent que des formats broadcast ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "en SDI, et sur les mélangeurs qui ne sortent qu'en formats broadcast, seuls les formats normalisés passent, comme 1920 × 1080 ou 3840 × 2160.",
+          "sources": [
+            {
+              "code": "F-PDF",
+              "ref": "p.28"
+            },
+            {
+              "code": "SMPTE",
+              "ref": null
+            },
+            {
+              "code": "BMD-ATEM",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "des cartons de tailles standard. Ton mur entre dans le plus petit carton qui le contient, calé en haut à gauche, le reste en noir.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "le SDI transporte des formats fixés par des normes, par exemple SMPTE ST 2081-10 pour le 6G-SDI{1} ; un format de mur personnalisé n'en fait pas partie. Les petits mélangeurs comme l'ATEM Mini ne sortent que ces formats{2}.",
+          "sources": [
+            {
+              "code": "F-PDF",
+              "ref": "p.28",
+              "renvoi": 1
+            },
+            {
+              "code": "SMPTE",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "BMD-ATEM",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "pas d'image. Envoie le canevas dans un format standard, zone utile en haut à gauche, noir autour.",
+          "sources": [
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "I14",
+      "famille": "image",
+      "question": "Pourquoi un câble vidéo a une longueur maximale ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "chaque câble vidéo a une longueur au-delà de laquelle le signal se perd ; plus le format est lourd, plus elle est courte.",
+          "sources": [
+            {
+              "code": "AA-SDI",
+              "ref": null
+            },
+            {
+              "code": "LW",
+              "ref": null
+            },
+            {
+              "code": "HDBT",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "une voix dans un couloir : plus elle est aiguë, plus vite elle se perd.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "un câble affaiblit d'autant plus le signal que sa fréquence est haute ; les normes SDI fixent la perte admise à la moitié de la fréquence d'horloge{1}. En HDBaseT, le 1080p60 (148,5 MHz) passe sur 100 m de Cat5e, le 4K30 (297 MHz) sur 70 m, et 20 % de moins avec l'alimentation à distance{2}. En 12G-SDI, Belden annonce 93 m pour son câble 4794R{3}. Les seuils d'alerte de l'appli sont des choix prudents ; la vraie longueur dépend du câble{4}.",
+          "sources": [
+            {
+              "code": "AA-SDI",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "LW",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "AA-SDI",
+              "ref": null,
+              "renvoi": 3
+            },
+            {
+              "code": "app",
+              "ref": null,
+              "renvoi": 4
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "image qui décroche, ou rien du tout. Passe en fibre ou en liaison active.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "R1",
+      "famille": "regie",
+      "question": "Pourquoi une régie a un budget de pixels ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "une régie traite un nombre maximal de pixels. Exemple : Barco E2 Gen 2, 20 millions en preview et program, 40 millions en program seul ; 8 sorties 4K60 sans multiviewer, 6 avec.",
+          "sources": [
+            {
+              "code": "BARCO-E2G2",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "une cuisine qui prépare chaque plat deux fois, une assiette pour goûter (la preview) et une pour servir (le program). Sans assiette pour goûter, elle sert deux fois plus de plats.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "la preview demande autant de travail que le program, d'où le budget doublé en program seul{1}. Le multiviewer prend des ressources de sortie{2}. Chez Analog Way, le budget se donne en 10 bits 4:4:4 à 60 Hz : 40 millions de pixels sur l'Aquilon RS1{3}.",
+          "sources": [
+            {
+              "code": "BARCO-E2G2",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "BARCO-S3",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "BARCO-E2G2",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "AW-RS1",
+              "ref": null,
+              "renvoi": 3
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "l'appli refuse. Passer en program seul fait tenir plus de pixels, mais sans preview.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "R2",
+      "famille": "regie",
+      "question": "Pourquoi une sortie Aux fait moins de choses ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "au-delà des sorties Program, une régie passe en sorties Aux, aux fonctions réduites.",
+          "sources": [
+            {
+              "code": "AW-AQ",
+              "ref": "p.64-65"
+            },
+            {
+              "code": "BARCO-GUIDE",
+              "ref": "§7.16"
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "une sortie Aux est un écran de retour : elle montre une source ou le program, mais ne mixe pas comme une sortie principale.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "chez Analog Way, les Aux ne consomment pas de ressources de traitement, et leurs couches n'ont ni transitions sans coupure, ni couche alpha, ni bordures, ni gel{1}. Chez Barco, une Aux n'a pas de réglages d'écran large{2}.",
+          "sources": [
+            {
+              "code": "AW-AQ",
+              "ref": "p.64-65",
+              "renvoi": 1
+            },
+            {
+              "code": "BARCO-GUIDE",
+              "ref": "§7.16",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "un processeur branché sur une Aux perd des effets ; vérifie dans le manuel de la régie.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "R3",
+      "famille": "regie",
+      "question": "Pourquoi compter les couches ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "chaque carte de sortie mixe un nombre limité de couches : 8 en simple lien, 4 en double lien ou 2 en 4K sur une PixelHue F8{1} ; l'appli compte 1 couche 4K = 2 doubles liens = 4 simples liens{2}.",
+          "sources": [
+            {
+              "code": "PH-F8",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "app",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "une carte de sortie a un nombre de places. Une couche 4K prend quatre places, une couche HD une seule.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "une couche 4K porte quatre fois les pixels d'une couche en simple lien, d'où sa place quadruple{1}. Chez Analog Way, la plus petite capacité correspond à la bande d'un double lien{2}.",
+          "sources": [
+            {
+              "code": "PH-F8",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "AW-AQ",
+              "ref": "p.61",
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "la régie ne peut pas afficher toutes les couches demandées ; l'appli refuse.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "R4",
+      "famille": "regie",
+      "question": "Pourquoi un ampli de distribution ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "pour envoyer le même signal à plus de processeurs que la régie n'a de sorties, il faut un ampli de distribution.",
+          "sources": [
+            {
+              "code": "BMD-ATEM",
+              "ref": null
+            },
+            {
+              "code": "AA-DA",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "une multiprise : une seule prise murale, plusieurs appareils branchés.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "un ATEM Mini Pro n'a qu'une sortie HDMI Program{1}. Un ampli de distribution copie un signal sur plusieurs sorties, par exemple 8 pour un Teranex Mini SDI Distribution 12G ; certains le régénèrent en même temps{2}.",
+          "sources": [
+            {
+              "code": "BMD-ATEM",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "AA-DA",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "un processeur reste sans image.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "E6",
+      "famille": "electricite",
+      "question": "Pourquoi un nombre maximal de dalles par câble d'alimentation ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "on chaîne au plus le nombre de dalles que donne le constructeur sur un câble d'alimentation : 20 Black Onyx ou Black Pearl à 220 V, 10 à 110 V{1} ; 7 Carbon CB5 MKII par ligne à 220 et 240 V{2}.",
+          "sources": [
+            {
+              "code": "ROE-BO",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "ROE-CB",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "un tuyau qui alimente plusieurs robinets à la suite. Le premier tronçon porte l'eau de tous les robinets.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "le courant de toutes les dalles de la chaîne passe par le premier câble et le premier connecteur. À 110 V, il faut deux fois plus de courant pour la même puissance, d'où deux fois moins de dalles{1}. Quand une colonne dépasse ce nombre, l'appli la coupe en segments égaux{2}.",
+          "sources": [
+            {
+              "code": "ROE-BO",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "app",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "câble ou connecteur en surcharge.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "A2",
+      "famille": "accroche",
+      "question": "Pourquoi respecter la CMU ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "la charge d'un bumper ou d'un moteur ne dépasse jamais sa CMU, la charge maximale d'utilisation marquée sur l'accessoire.",
+          "sources": [
+            {
+              "code": "TISSOT",
+              "ref": null
+            },
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "chaque maillon a sa charge maximale gravée ; la chaîne vaut son maillon le plus faible.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "le Code du travail impose que tout assemblage d'accessoires de levage soit marqué, pour que l'utilisateur en connaisse les caractéristiques{1}. La CMU d'un moteur dépend de sa configuration (D8, D8+ ou C1), à lire sur l'appareil{2}.",
+          "sources": [
+            {
+              "code": "TISSOT",
+              "ref": "art. R. 4323-47",
+              "renvoi": 1
+            },
+            {
+              "code": "app",
+              "ref": null,
+              "renvoi": 2
+            },
+            {
+              "code": "YALE",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "risque de rupture et de chute. Ce point ne se négocie pas.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "A3",
+      "famille": "accroche",
+      "question": "Pourquoi le rigger calcule la répartition sur un pont ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "au-delà de 4 points, avec des portées inégales ou un porte-à-faux, la répartition des charges d'un pont est établie par le rigger.",
+          "sources": [
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "une planche posée sur trois tréteaux : celui du milieu porte plus que les autres.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "sur une poutre continue posée sur trois appuis, avec deux portées égales et une charge régulière, chaque appui du bout prend 0,375 fois la charge d'une portée et celui du milieu 1,25 fois : le point du milieu porte 62,5 % du total, pas un tiers{1}. Des parts égales ne valent que si chaque bumper pend directement à son propre point{2}.",
+          "sources": [
+            {
+              "code": "ETB",
+              "ref": null,
+              "renvoi": 1
+            },
+            {
+              "code": "app",
+              "ref": null,
+              "renvoi": 2
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "un point peut dépasser sa CMU alors que le total tient.",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "id": "A4",
+      "famille": "accroche",
+      "question": "Pourquoi des élingues acier ?",
+      "parties": [
+        {
+          "cle": "regle",
+          "titre": "La règle",
+          "texte": "préfère les élingues acier aux sangles textiles, à cause de la tenue au feu.",
+          "sources": [
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "image",
+          "titre": "L'image",
+          "texte": "une corde brûle, un câble d'acier tient.",
+          "sources": []
+        },
+        {
+          "cle": "vrai",
+          "titre": "En vrai",
+          "texte": "les élingues de scène ont une âme en câble d'acier sous une gaine en polyester, testée jusqu'à +150 °C et conforme aux règles allemandes BGV C1 et D8 Plus.",
+          "sources": [
+            {
+              "code": "YALE",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "cle": "consequence",
+          "titre": "Si tu ne la respectes pas",
+          "texte": "en cas d'incendie, la charge peut tomber.",
+          "sources": []
+        }
+      ]
     }
   ],
   "sources": [
@@ -1868,6 +2998,307 @@
       "court": "Formation (transcription 19)",
       "url": null,
       "niveau": "F"
+    },
+    {
+      "code": "BR-R2",
+      "libelle": "Brompton, fiche Tessera R2 (janvier 2021) et R2/R2+ (mars 2025) : « 262,144 RGB pixels capacity »",
+      "court": "Fiches R2 et R2/R2+",
+      "url": null,
+      "documents": [
+        {
+          "libelle": "Fiche Brompton Tessera R2, janvier 2021 : « 262,144 RGB pixels capacity »",
+          "url": "https://www.bromptontech.com/wp-content/uploads/2021/01/Brompton-R2-Data-Sheet-Jan2021.pdf"
+        },
+        {
+          "libelle": "Fiche Brompton Tessera R2/R2+, mars 2025 (spécifications de la R2+, p. 2)",
+          "url": "https://www.bromptontech.com/wp-content/uploads/2025/12/Brompton-R2R2-plus-Data-Sheet-Mar2025-EN.pdf"
+        }
+      ],
+      "niveau": "C"
+    },
+    {
+      "code": "NS-CARTES",
+      "libelle": "Novastar, fiches des cartes de réception A5s Plus, A7s Plus, A8s Pro, A10s Pro, A10s Plus-N, CA50E, XA50 Pro",
+      "court": "Fiches des cartes Novastar",
+      "url": null,
+      "documents": [
+        {
+          "libelle": "Fiche Novastar A5s Plus Receiving Card Specifications V1.3.0",
+          "url": "https://oss.novastar.tech/uploads/2024/07/A5s-Plus-Receiving-Card-Specifications-V1.3.0.pdf"
+        },
+        {
+          "libelle": "Fiche Novastar A7s Plus Receiving Card Specifications V1.2.3",
+          "url": "https://oss.novastar.tech/uploads/2024/10/A7s-Plus-Receiving-Card-Specifications-V1.2.3.pdf"
+        },
+        {
+          "libelle": "Fiche Novastar A8s Pro Receiving Card Specifications V1.1.0",
+          "url": "https://oss.novastar.tech/uploads/2023/09/A8s-Pro-Receiving-Card-Specifications-V1.1.0.pdf"
+        },
+        {
+          "libelle": "Fiche Novastar A10s Pro Receiving Card Specifications V1.3.0",
+          "url": "https://oss.novastar.tech/uploads/2024/12/A10s-Pro-Receiving-Card-Specifications-V1.3.0.pdf"
+        },
+        {
+          "libelle": "Fiche Novastar A10s Plus-N Receiving Card Specifications V1.1.4",
+          "url": "https://oss.novastar.tech/uploads/2025/04/A10s-Plus-N-Receiving-Card-Specifications-V1.1.4.pdf"
+        },
+        {
+          "libelle": "Fiche Novastar CA50E Receiving Card Specifications V1.1.1",
+          "url": "https://oss.novastar.tech/uploads/2024/01/CA50E-Receiving-Card-Specifications-V1.1.1.pdf"
+        },
+        {
+          "libelle": "Fiche Novastar XA50 Pro Receiving Card Specifications V1.0.3",
+          "url": "https://oss.novastar.tech/uploads/2025/04/XA50-Pro-Receiving-Card-Specifications-V1.0.3.pdf"
+        }
+      ],
+      "niveau": "C"
+    },
+    {
+      "code": "CL-S20",
+      "libelle": "Fiche Colorlight S20 Specification V2.1 : « Loading capacity of a single Ethernet port: up to 650 thousand pixels, maximum width or height: 4096 pixels. The loading capacity will reduce when the height exceeds 1280 pixels » (p. 2)",
+      "court": "Fiche S20 V2.1",
+      "url": "https://support.colorlightinside.com/uploads/S20-Specification%C2%A0V2.1_1673683344.pdf",
+      "niveau": "C"
+    },
+    {
+      "code": "CX-CX40",
+      "libelle": "Fiche COEX CX40 Pro V1.5.0",
+      "court": "Fiche CX40 Pro V1.5.0",
+      "url": "https://oss.novastar.tech/uploads/2025/09/CX40-Pro-LED-Display-Controller-Specifications-V1.5.0.pdf",
+      "niveau": "C"
+    },
+    {
+      "code": "MP-SUP",
+      "libelle": "Support Megapixel, « HELIOS System Capacity Basics » (modifié le 12/08/2026, lu le 26/09/2026) : tableau J.15 du guide HELIOS « Output Port Capacity (Pixels) », 10 et 12 bits, liens 1G et 2,5G (switch vers dalles) et 10G (HELIOS vers switch), 24 à 240 i/s ; « the maximum pixels per HELIOS output port is 8.5 million, and with all outputs combined, a maximum of 35 million pixels per HELIOS » ; « 2.5G connectivity is dependent on the tile design »",
+      "court": "Support Megapixel, HELIOS System Capacity Basics",
+      "url": "https://support.megapixelvr.com/support/solutions/articles/103000262246-helios-system-capacity-basics",
+      "niveau": "C"
+    },
+    {
+      "code": "MP-HELIOS",
+      "libelle": "Megapixel, HELIOS LED Processing Platform (2023) et guide HELIOS 2020",
+      "court": "Fiche et guide HELIOS",
+      "url": null,
+      "documents": [
+        {
+          "libelle": "Fiche Megapixel « HELIOS LED Processing Platform » (2023, p. 2) : HELIOS Jr, 4K et 8K",
+          "url": "https://megapixelvr.com/wp-content/uploads/2023/09/megapixel-helios-led-processing-platform-specifications.pdf"
+        },
+        {
+          "libelle": "Guide HELIOS 20.09.0.20886 du 19/10/2020, document Megapixel hébergé par atcomms.co.uk : Netgear M4200 GSM4210P, « one 10Gb fiber LC SFP+ », 8 ports 1G en cuivre",
+          "url": "https://www.atcomms.co.uk/wp-content/uploads/2023/01/HELIOS-SPEC-SHEET.pdf"
+        }
+      ],
+      "niveau": "C"
+    },
+    {
+      "code": "NG-M4250",
+      "libelle": "Netgear, page produit MSM4214X (M4250-12M2XF), gamme « Fully Managed », consultée le 26/09/2026 : « 12 x 2.5G », « 2 x SFP+ », « System Full Load: 37.9W », 1,745 kg, 440 × 100 × 43,2 mm",
+      "court": "Netgear, page MSM4214X",
+      "url": "https://www.netgear.com/business/wired/switches/fully-managed/msm4214x/",
+      "niveau": "C"
+    },
+    {
+      "code": "PH-P",
+      "libelle": "Fiche PixelHue série P (P20, P20-DS, P10), V1.6.0 (P_EN_2025-03-26) : p. 1 « 4x HDMI 2.0 (Primary Output) », « 2x HDMI 2.0 (Primary Output) », « 8x OPT (Copying Output) », « 8x LED Controllers* », « *Only LED controllers from NovaStar are supported for now. », « In switcher mode, a single P20/P20-DS supports up to two 4K×2K@60Hz outputs… In PGM only mode, the output resolution per P20/P20-DS is up to 8K×4K@60Hz and P10 is up to 8K×2K@60Hz » ; p. 2 sorties HDMI 2.0 « Maximum width: 8192 pixels », « Maximum height: 8186 pixels » ; AUX « 4x HDMI 1.3 » (P10 : 2), « Maximum output resolution: 2048×1152@60Hz », « Connect to auxiliary devices such as teleprompters » ; « Up to 12 DL layers (2×MAIN+10×PIP) or 8 DL layers (4×MAIN+4×PIP) », P10 « 6 DL layers » ; « as low as 1 frame in proper configuration » ; 10,2 / 10,7 / 7,9 kg ; 140 / 160 / 82 W ; 3 RU (P20, P20-DS), 2 RU (P10)",
+      "court": "Fiche PixelHue série P V1.6.0",
+      "url": "https://en-pixelhue001.oss-us-east-1.aliyuncs.com/Specifications/P%20Series%204K%20Presentation%20Switchers%20Datasheet-V1.6.0.pdf",
+      "niveau": "C"
+    },
+    {
+      "code": "PH-F8",
+      "libelle": "Fiche PixelHue F8 (Specifications, non datée) : p. 1 « 64 megapixel », 39,1 kg (plein, sans accessoires), « Max power consumption: 700 W » ; p. 2 « 8 input slots and 8 output slots », « 6×slots for output cards Each supports up to 4K@60Hz or 4×1080p60Hz », carte « 4K HDMI2.0/OPT Output Card » (4K mode « Max. output width: 8192 pixels », « Max. output height: 7680 pixels », « HDMI2: copy », OPT en copie), « Each output card supports up to 8× SL mixing layers, 4× DL mixing layers or 2× 4K mixing layers », cartes AUX « HDMI1.3×4 », « Up to 2048×1080@60Hz », AUX « Free view of inputs and screens (PGM) »",
+      "court": "Fiche PixelHue F8",
+      "url": "https://en-pixelhue001.oss-us-east-1.aliyuncs.com/Specifications/F8%20Seamless%20Switcher%20Specifications.pdf",
+      "niveau": "C"
+    },
+    {
+      "code": "BARCO-E2G2",
+      "libelle": "Barco, fiche E2 Gen 2, 27/11/2025, p.3",
+      "court": "Fiche Barco E2 Gen 2",
+      "url": null,
+      "documents": [
+        {
+          "libelle": "Fiche Barco E2 Gen 2 (NGS-4U-V2), mise à jour le 27/11/2025, p. 3 : entrées « 12 x HDMI 2.0 (600 MHz max) » et « 12 x DisplayPort 1.2 (600 MHz max) » ; sorties « 13 x HDMI (up to 600 MHz) » et « 1 x DisplayPort (up to 660 MHz) »",
+          "url": "https://assets.barco.com/m/1da1a218bfbbede6/original/E2-Gen-2-en-Spec-sheet.pdf"
+        },
+        {
+          "libelle": "Fiche Barco E2 Gen 2 (NGS-4U-V2), mise à jour le 27/11/2025, p. 3 : « Configurable for up to 16x 2048X1200@60 or up to 8x 4096x2400@60 » ; « NO MVR: Up to 8 x 4K60p outputs », « WITH MVR: Up to 6x 4K60p outputs » ; « Scaled AUX outputs … up to 18x 2048x1200@60 » ; sorties 4 × SDI (12G), 13 × HDMI (600 MHz), 1 × DisplayPort (660 MHz)",
+          "url": "https://assets.barco.com/m/1da1a218bfbbede6/original/E2-Gen-2-en-Spec-sheet.pdf"
+        }
+      ],
+      "niveau": "C"
+    },
+    {
+      "code": "BARCO-E2",
+      "libelle": "Fiche Barco E2 (Gen 1, NGS-4U), mise à jour le 13/06/2023 : p. 3 « 1 frame processing latency for progressive genlock sources » ; p. 5 « 14 outputs via 4 output cards », « Up to 3 x 4K outputs », « Configurable for up to 16X 2048X1200@60 or up to 4 x 4096x2400@60 », « 8 x HDMI 1.4a (297 Mpix/sec max) », « Up to 20 Megapixels PVW/PGM, 40 Megapixels PGM only, 80 Megapixels @30p and PGM only » ; p. 6 4 RU, 31 kg, 826 W",
+      "court": "Fiche Barco E2 Gen 1",
+      "url": "https://assets.barco.com/m/753c2b29df077031/original/E2-en-Spec-sheet.pdf",
+      "niveau": "C"
+    },
+    {
+      "code": "BARCO-S3",
+      "libelle": "Fiche Barco S3-4K (NGS-3U), mise à jour le 09/07/2024 : p. 1 « 4 PROGRAM outputs, 4 AUX outputs and 2 dedicated Multiviewer outputs », configuration « no longer available once existing stock is consumed » ; p. 2 « Up to 12 outputs configurable… up to 12x 2048X1200@60 or up to 3x 4096x2400@60 », « 4x HDMI 1.4a (297 MHz max) », « Up to 20 megapixels in PVW/PGM or 40 megapixels in PGM only mode », 3 RU, 24 kg, 826 W",
+      "court": "Fiche Barco S3-4K",
+      "url": "https://assets.barco.com/m/663dfa0f62601d99/original/S3-4K-en-Spec-sheet.pdf",
+      "niveau": "C"
+    },
+    {
+      "code": "BARCO-GUIDE",
+      "libelle": "Guide Barco Event Master Devices (R5905948, v15 du 15/06/2026), version HTML en ligne : §7.16 « Add Aux Destinations » (« Aux Capacity… The default setting is \"2K\" or single link », capacités DL, 4K ou 8L ; « Custom scales the input image as if it is inside a \"single\" (non-mixing) layer » ; « No wide-screen adjustments are available for Aux Destinations ») ; §7.24 « Drop Inputs to Aux Destinations » (« If the Aux is supposed to toggle between Preview and Program, click the Toggle button ») ; §6.16 (« ALL outputs can be AUX Destinations »)",
+      "court": "Guide Event Master v15",
+      "url": "https://www.barco.com/manuals/R5905948/index",
+      "niveau": "C"
+    },
+    {
+      "code": "AW-AQ",
+      "libelle": "Manuel Analog Way Aquilon v6.2 (pied de page du 10/09/2026) : p. 33 tableau des modèles (« Max 4K60p PGM outputs » : RS1 « 4 + 4 Aux », Cmini « 4 + 8 Aux », C « 8 + 8 Aux », C+ « 12 + 8 Aux », Cmax « 16 + 8 Aux ») ; p. 64 « Aux Screens do not consume processing resources », « Outputs used in Aux Screens can display up to 8 layers with capacity 1 », « Enabling more than 2 layers disables the next output plugs on the card » ; p. 65 les couches Aux ne gèrent ni « Seamless transitions », ni « Alpha channels », ni « Border settings », ni « Cut & Fill effect », ni « Layers freeze », fond d'une seule couleur ; p. 66 une Aux Screen n'a qu'une sortie et peut afficher le Program d'un Screen ; p. 61 « The minimum capacity (1) refers to dual-link bandwidth » ; p. 66 un VPU gère « 8 mixer layers… spread over 8 outputs, in capacity 1 » ; p. 71 VPU et connecteurs de sortie par modèle (RS1 1 et 8, Cmini 1 et 12, C 2 et 16, C+ 3 et 20, Cmax 4 et 24) ; Cmax « 16 Scr + 4 Aux » en 4K60p (p. 71), « 16 + 8 Aux » au tableau de la p. 33",
+      "court": "Manuel Aquilon v6.2",
+      "url": "https://dwn01.analogway.com/Site+Internet/Series/Aquilon/Common/User+Manual/Aquilon_User_Manual_v6.2.pdf",
+      "niveau": "C"
+    },
+    {
+      "code": "AW-RS1",
+      "libelle": "Fiche Analog Way Aquilon RS1 (datasheet du 03/07/2026) : « 40 Megapixels throughput on Program at 10-bit 4:4:4 @60Hz » (p. 1 et 3), « 8x 4K60p active outputs (8x HDMI 2.0) », « 2x configurable 4K Multiviewers » (p. 3), « as low as 1 frame in proper configuration » (p. 4)",
+      "court": "Fiche Aquilon RS1",
+      "url": "https://dwn01.analogway.com/Site+Internet/Series/Aquilon/Products/Aquilon+RS1/Technical+Datasheet/Aquilon-RS1-datasheet-en-20260703.pdf",
+      "niveau": "C"
+    },
+    {
+      "code": "BMD-ATEM",
+      "libelle": "Blackmagic Design, ATEM Mini Pro, page Tech Specs (W-APS-14), consultée le 26/09/2026 : « 4 x HDMI type A » en entrée, « HDMI Program Outputs 1 », « Total Aux Outputs 1 », sorties « 1080p23.98 … 1080p60 », « Power Usage 30W »",
+      "court": "Tech Specs ATEM Mini Pro",
+      "url": "https://www.blackmagicdesign.com/products/atemmini/techspecs/W-APS-14",
+      "niveau": "C"
+    },
+    {
+      "code": "LW",
+      "libelle": "Lightware HDMI-TPS-TX210, page produit, consultée le 26/09/2026 : « Up to 4K UHD 3840×2160@30Hz, 1600x1200@60Hz, FullHD 1920x1080@60Hz » ; tableau des distances : 1920x1080p@60Hz (148,5 MHz) 100 m en CAT5e AWG24, 120 m en CAT7 AWG23 (130 et 170 m en long reach) ; 3840x2160@30Hz et 4096x2160@30Hz (297 MHz) 70 m en CAT5e AWG24, 100 m en CAT7 AWG23 ; « Distances are 20% shorter if remote powering used » ; « Power consumption: 8W (typ) »",
+      "court": "Page Lightware HDMI-TPS-TX210",
+      "url": "https://www.lightware.com/en/products/Extenders/hdmi-tps-tx210",
+      "niveau": "C"
+    },
+    {
+      "code": "HDBT",
+      "libelle": "HDBaseT Alliance, page « HDBaseT Technology », consultée le 26/09/2026 : « up to 100m/328ft » ; HDBaseT 2.0 « UHD 4K@30 4:4:4/4K@60 4:2:0 to 100m/328ft over Cat6 (90m/295ft. over Cat5e) » ; HDBaseT 3.0 « fully uncompressed 4K@60 4:4:4 up to 100m/328ft », « recommends Category 6a U/FTP »",
+      "court": "HDBaseT Alliance, HDBaseT Technology",
+      "url": "https://hdbaset.org/hdbaset-technology/",
+      "niveau": "N"
+    },
+    {
+      "code": "DATAPATH",
+      "libelle": "Datapath, Fx4 (page produit et fiche v1.15)",
+      "court": "Datapath Fx4",
+      "url": null,
+      "documents": [
+        {
+          "libelle": "Page produit Datapath Fx4 (datapath-us.com), consultée le 26/09/2026 : « 2 x HDMI1.4 (2160p60 (4:2:0), 2160p30 or equivalent up to 297MP/s) » ; « 1 x DisplayPort1.2 (2160p60 or equivalent up to 616MP/s) » ; sorties « up to 165MP/s »",
+          "url": "https://www.datapath-us.com/datapath-products/video-wall-controllers/datapath-fx4/"
+        },
+        {
+          "libelle": "Fiche Datapath Fx4 (19-Fx4-datasheet-en-v1.15), p. 2 : « HDMI version: 4 x HDMI1.3 (1080p60, 1200p60 or equivalent up to 165MP/s)* », « DisplayPort version: 4 x DP1.1 », « * Outputs within 165MP/s but taller/wider than 2048 require testing », « INPUT SURFACE 8K x 8K maximum », 1,86 kg, 35W",
+          "url": "https://www.datapathdocuments.co.uk/wp-content/uploads/Datapath-Fx4_datasheet_EN_v1.15.pdf"
+        }
+      ],
+      "niveau": "C"
+    },
+    {
+      "code": "DVI-W",
+      "libelle": "Spécification DVI, reprise par Wikipedia : single link 165 MHz, dual link 330 MHz",
+      "court": "Spécification DVI (Wikipedia)",
+      "url": null,
+      "niveau": "T"
+    },
+    {
+      "code": "SMPTE",
+      "libelle": "SMPTE ST 2081-10",
+      "court": "SMPTE ST 2081-10",
+      "url": null,
+      "niveau": "N"
+    },
+    {
+      "code": "F-PDF",
+      "libelle": "Formation (support de cours)",
+      "court": "Formation (support de cours)",
+      "url": null,
+      "gabarit": "Formation (support de cours, {ref})",
+      "niveau": "F"
+    },
+    {
+      "code": "AA-SDI",
+      "libelle": "West Penn, « HD-SDI Transmission Distances » (critères SMPTE) ; Belden, « Think 12G-SDI over coax isn't possible? Think again »",
+      "court": "West Penn ; Belden",
+      "url": null,
+      "documents": [
+        {
+          "libelle": "West Penn, « HD-SDI Transmission Distances » (critères SMPTE)",
+          "url": "https://www.westpenn-wpw.com/pdf/HD-SDI-Transmission-Distances.pdf"
+        },
+        {
+          "libelle": "Belden, « Think 12G-SDI over coax isn't possible? Think again »",
+          "url": "https://www.belden.com/blog/think-12g-sdi-over-coax-isn-t-possible-think-again"
+        }
+      ],
+      "niveau": "C"
+    },
+    {
+      "code": "AA-DA",
+      "libelle": "Blackmagic Teranex Mini SDI Distribution 12G (8 sorties) ; AJA 12GDA (reclocking)",
+      "court": "Teranex Mini et AJA 12GDA",
+      "url": null,
+      "documents": [
+        {
+          "libelle": "Blackmagic Design, Teranex Mini SDI Distribution 12G, page Tech Specs (W-TERAMIN-29), consultée le 26/09/2026 : « 1 x 12G-SDI » en entrée, « 8 x 12G-SDI automatically matches the SD/HD/2K/4K 12G-SDI input », « Power Consumption 16 Watts »",
+          "url": "https://www.blackmagicdesign.com/products/teranexmini/techspecs/W-TERAMIN-29"
+        },
+        {
+          "libelle": "AJA, 12GDA, onglet Tech Specs, consulté le 26/09/2026 : « 1 x 12G-SDI BNC » en entrée, « 6 x 12G-SDI BNC » en sortie, « 3 watts », « 0.3 kg »",
+          "url": "https://www.aja.com/products/12gda#techspecs"
+        }
+      ],
+      "niveau": "C"
+    },
+    {
+      "code": "ROE-BO",
+      "libelle": "Manuel ROE Black Onyx & Pearl V1.8",
+      "court": "Manuel ROE V1.8",
+      "url": null,
+      "niveau": "copie"
+    },
+    {
+      "code": "PCG",
+      "libelle": "PC Gamer, « Nvidia cards don't display full RGB color via HDMI », Bo Moore, 16/12/2014",
+      "court": "PC Gamer",
+      "url": "https://www.pcgamer.com/uk/nvidia-cards-dont-full-rgb-color-through-hdmiheres-a-fix",
+      "niveau": "T"
+    },
+    {
+      "code": "ETB",
+      "libelle": "Engineering ToolBox, « Continuous Beams : Moment and Reaction Support Forces »",
+      "court": "Engineering ToolBox",
+      "url": "https://engineeringtoolbox.com/continuous-beam-moment-reaction-support-forces-distributed-point-loads-d_1988.html",
+      "niveau": "T"
+    },
+    {
+      "code": "TISSOT",
+      "libelle": "Éditions Tissot, « Accessoires de levage : quelles règles de sécurité respecter ? », 2016 (cite le Code du travail, art. R. 4323-47)",
+      "court": "Éditions Tissot",
+      "url": "https://www.editions-tissot.fr/actualite/sante-securite/accessoires-de-levage-quelles-regles-de-securite-respecter",
+      "niveau": "T"
+    },
+    {
+      "code": "YALE",
+      "libelle": "Yale, élingue de scène RSE-SRS-S (description fabricant reprise par Thomann)",
+      "court": "Yale, via Thomann",
+      "url": "https://www.thomann.fr/yale_rse_srs_s_rigging_sling_2t_3m.htm",
+      "niveau": "R"
+    },
+    {
+      "code": "app",
+      "libelle": "Règle de l'appli",
+      "court": "Règle de l'appli",
+      "url": null,
+      "niveau": "A"
     }
   ]
 }

@@ -4591,6 +4591,24 @@ export const REGLES = [
       v.egal('source : « Formation (transcription 17) »', [source.titre, source.court, source.confiance], ['Formation (transcription 17)', 'Formation (transcription 17)', 'formation']);
     },
   },
+  {
+    id: 'R224',
+    titre: 'Recul de vision (fiche contenu, § 6 du second lot « pourquoi ») : recul minimal ≈ pas en mm lu en mètres, confortable ≈ 2 × pas (cahier des charges de l\'appli, § 2.3), arrondis au dixième de mètre : pas de 2,84 mm, 2,8 m et 5,7 m ; ligne « Recul : minimal environ 2,8 m, confortable environ 5,7 m » dans le texte partagé de la fiche, sans tiret',
+    etape: 'mire',
+    verifier(v, contexte) {
+      v.egal('pas de 2,84 mm : 2,8 m et 5,7 m', contenu.reculVision(2.84), { minimalM: 2.8, confortableM: 5.7 });
+      v.egal('pas de 1,5625 mm : 1,6 m et 3,1 m', contenu.reculVision(1.5625), { minimalM: 1.6, confortableM: 3.1 });
+      v.egal('sans pas : rien', [contenu.reculVision(null), contenu.reculVision(0)], [null, null]);
+      const dalle = dalleDeBase(contexte, 'roe-bp2-v2');
+      const m = calculs.mur(dalle, 12, 6);
+      const valeurs = contenu.valeursFiche({ mur: m, dalle, evaluation: null, pasMm: calculs.pitchCalculeMm(dalle),
+        saisies: { projet: '', sortie: 'mur', cadenceHz: 50, distanceM: null }, date: new Date(2026, 9, 3), nomMire: 'mire_2112x1056.png' });
+      v.egal('BP2 V2 (500 mm, 176 px, pas réel 2,84 mm) : valeurs du recul', [valeurs.reculMin, valeurs.reculConfort], ['2,8', '5,7']);
+      const texte = contenu.texteFicheContenu(valeurs, contexte.ficheContenu.texte);
+      v.vrai('texte partagé : la ligne du recul', texte.split('\n').includes('Recul : minimal environ 2,8 m, confortable environ 5,7 m'));
+      v.egal('texte partagé sans tiret', texte.match(/[-—–]/g), null);
+    },
+  },
 ];
 
 // Message de l'erreur levée par `f`, ou chaîne vide.

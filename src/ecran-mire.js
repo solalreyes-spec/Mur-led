@@ -4,7 +4,7 @@
 // saisies sont dans le formulaire `form-mire`, gardées avec celles des onglets. Aucun accès au réseau : les données
 // viennent de data/fiche-contenu.json, chargé au démarrage, et les calculs de l'appli.
 
-import { el, remplacer } from './dom.js';
+import { el, remplacer, listeNumerotee } from './dom.js';
 import { preparerMires, dessinerMire, pngRvb, surfaceCanvasMax, versionAppli } from './mire.js';
 import { valeursFiche, texteFicheContenu, nomFichierMire, hauteurTexteMinimale, ratioReduit } from './contenu.js';
 import { pitchCalculeMm } from './calculs.js';
@@ -136,7 +136,7 @@ export function monterMireFiche(racine, donnees, {
       ...notes,
       el('div', { class: 'mf-apercu', 'aria-live': 'polite' }, etat.apercu ? apercu(etat.apercu) : null),
       el('h3', { class: 'mf-intertitre' }, 'Mode d\'emploi'),
-      el('ol', { class: 'mf-liste' }, ...donnees.modeEmploi.map((x) => el('li', {}, ...paragraphe(x)))),
+      listeNumerotee({ class: 'mf-liste' }, donnees.modeEmploi.map((x, i) => ({ numero: i + 1, contenu: paragraphe(x) }))),
       el('h3', { class: 'mf-intertitre' }, 'Lire la mire'),
       el('ul', { class: 'mf-lecture' }, ...donnees.lireLaMire.map((x) => el('li', { class: 'mf-carte' },
         el('p', { class: 'mf-texte-ligne' }, el('strong', {}, x.vu), ` : ${x.cause}.`),
@@ -176,11 +176,15 @@ export function monterMireFiche(racine, donnees, {
         ...(groupes.length > 1 ? ligne('Zones par processeur', el('ul', { class: 'mf-zones' }, ...groupes.map((g, i) => el('li', { class: 'mf-zone' },
           `Processeur ${i + 1}, ${c.evaluation.processeur.modele} : x ${g.x[0]}, y ${g.y[0]}, ${g.largeurPx} × ${g.hauteurPx} px`)))) : []),
         ...ligne('Sortie demandée à la régie', `${v.sortie} à ${v.cadence} Hz, balayage progressif`, blocSources(donnees.sortie.sources, 'span')),
+        ...(v.reculMin !== null ? ligne('Recul', `minimal environ ${v.reculMin} m, confortable environ ${v.reculConfort} m`,
+          el('span', { class: 'mf-note mf-bloc-note' }, donnees.recul.texte), blocSources(donnees.recul.sources, 'span')) : []),
         ...(texteMin ? ligne('Hauteur de texte minimale', `${texteMin.px} px (${nombreCourt(texteMin.mm, 1)} mm) pour un public jusqu'à ${nombreCourt(s.distanceM, 1)} m`,
           el('span', { class: 'mf-note mf-bloc-note' }, donnees.hauteurTexte.texte), blocSources(donnees.hauteurTexte.sources, 'span')) : [])),
       el('h3', { class: 'mf-intertitre' }, 'Consignes'),
-      el('ol', { class: 'mf-consignes' }, ...donnees.consignes.map((x) => el('li', {},
-        el('p', { class: 'mf-texte-ligne' }, el('strong', {}, x.titre), ' : ', ...texte(x.texte)), blocSources(x.sources)))),
+      listeNumerotee({ class: 'mf-consignes' }, donnees.consignes.map((x) => ({
+        numero: x.numero,
+        contenu: [el('p', { class: 'mf-texte-ligne' }, el('strong', {}, x.titre), ' : ', ...texte(x.texte)), blocSources(x.sources)],
+      }))),
       el('h3', { class: 'mf-intertitre' }, 'Texte à envoyer'),
       el('pre', { class: 'mf-texte' }, etat.texte),
       el('div', { class: 'mf-boutons' },

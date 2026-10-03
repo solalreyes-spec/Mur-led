@@ -1,5 +1,5 @@
-// Fiche contenu et mire de mapping : petits calculs nouveaux (ratio réduit, hauteur de texte minimale) et texte de la
-// fiche, à part des calculs du mur (calculs.js, inchangé). Fonctions pures (règles R221 et R222).
+// Fiche contenu et mire de mapping : petits calculs nouveaux (ratio réduit, hauteur de texte minimale, recul de vision)
+// et texte de la fiche, à part des calculs du mur (calculs.js, inchangé). Fonctions pures (règles R221, R222 et R224).
 
 import { nombre, nombreCourt } from './format.js';
 
@@ -27,6 +27,14 @@ export function hauteurTexteMinimale(distanceM, pasMm) {
   if (!(distanceM > 0) || !(pasMm > 0)) return null;
   const mm = (distanceM * 1000) / FACTEUR_ACUITE;
   return { mm, px: Math.ceil(mm / pasMm - 1e-9) };
+}
+
+// Recul de vision (cahier des charges de l'appli, § 2.3) : recul minimal ≈ pas en mm lu en mètres, confortable ≈ 2 × pas,
+// arrondis au dixième de mètre (pas de 2,84 mm : 2,8 m et 5,7 m). Sans pas : null, la ligne ne s'affiche pas.
+const auDixieme = (x) => Math.round(x * 10) / 10;
+export function reculVision(pasMm) {
+  if (!(pasMm > 0)) return null;
+  return { minimalM: auDixieme(pasMm), confortableM: auDixieme(2 * pasMm) };
 }
 
 // Nom de projet pour un fichier : minuscules, sans espace, sans accent ni signe (« Salon B » donne « salonb »).
@@ -65,6 +73,7 @@ export function texteFicheContenu(valeurs, modeles) {
 export function valeursFiche({ mur, dalle, evaluation, pasMm, saisies, date, nomMire }) {
   const ratio = ratioReduit(mur.pxLargeur, mur.pxHauteur);
   const texte = hauteurTexteMinimale(saisies.distanceM, pasMm);
+  const recul = reculVision(pasMm);
   const cadre = saisies.sortie === 'cadre' ? saisies.cadre : null;
   const groupes = evaluation?.groupes ?? [];
   return {
@@ -85,6 +94,8 @@ export function valeursFiche({ mur, dalle, evaluation, pasMm, saisies, date, nom
       ? `${cadre.largeurPx} × ${cadre.hauteurPx} px, mur placé en x ${cadre.x}, y ${cadre.y},`
       : `${mur.pxLargeur} × ${mur.pxHauteur} px`,
     cadence: nombreCourt(saisies.cadenceHz, 2),
+    reculMin: recul ? nombreCourt(recul.minimalM, 1) : null,
+    reculConfort: recul ? nombreCourt(recul.confortableM, 1) : null,
     texteMinPx: texte?.px ?? null,
     texteMinMm: texte ? nombreCourt(texte.mm, 1) : null,
     distance: texte ? nombreCourt(saisies.distanceM, 1) : null,

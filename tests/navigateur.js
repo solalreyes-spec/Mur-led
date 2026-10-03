@@ -4,7 +4,7 @@
 import * as calculs from '../src/calculs.js';
 import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, enregistrer, TEINTES } from '../src/export.js';
 import { geometrieSchema, trajetsSchema, construireSvg, repereSchema, PALETTE_EXPORT, PALETTE_ECRAN } from '../src/dessin-schema.js';
-import { processeurDeBase, baseProcesseurs, dalleDeBase } from './base.js';
+import { processeurDeBase, baseProcesseurs, dalleDeBase, liaisonsDeBase, regieDeBase } from './base.js';
 import { DALLE_CAS_13 } from './dalles-fictives.js';
 import { versionCache, empreinteDeclaree, empreinteCache, listeCache } from './fichiers.js';
 import { VERSIONS_CACHE } from './versions-cache.js';
@@ -1130,7 +1130,7 @@ export const NAVIGATEUR = [
       for (const id of ['T5.2', 'T5.3']) {
         m.ecran.afficher(id);
         const lien = m.racine.querySelector('.dep-etape .dep-lien-mire');
-        v.egal(`${id}, étape 1 : lien « mire de l'appli »`, [texteDe(m.racine.querySelector('.dep-etape')).startsWith('Affiche la mire de l\'appli'), texteDe(lien)], [true, 'mire de l\'appli']);
+        v.egal(`${id}, étape 1 : lien « mire de l'appli »`, [texteDe(m.racine.querySelector('.dep-etape .contenu-liste')).startsWith('Affiche la mire de l\'appli'), texteDe(lien)], [true, 'mire de l\'appli']);
         lien?.click();
       }
       v.egal('chaque lien ouvre la mire', ouvertures, ['mire', 'mire']);
@@ -1223,7 +1223,7 @@ export const NAVIGATEUR = [
           v.egal('intro de la fiche : texte d\'écran', texteDe(racine.querySelector('.mf-fiche .mf-bloc .mf-texte-ligne')), 'Ce que le graphiste et la régie doivent respecter. Envoie la fiche avec la mire, puis câble exactement comme la carte envoyée.');
         }
         const liste = racine.querySelector('.mf-fiche .mf-liste-sources');
-        v.egal(`${enLigne ? 'en ligne' : 'hors ligne'} : liste des sources en bas, 15 entrées`, liste?.querySelectorAll('.mf-source-entree').length, 15);
+        v.egal(`${enLigne ? 'en ligne' : 'hors ligne'} : liste des sources en bas, 16 entrées`, liste?.querySelectorAll('.mf-source-entree').length, 16);
         v.egal(`${enLigne ? 'en ligne' : 'hors ligne'} : liens seulement dans la liste, et seulement en ligne`,
           [racine.querySelectorAll('.mf-sources a').length, (liste?.querySelectorAll('a[href^="https://"]').length ?? 0) > 0], [0, enLigne]);
         ecran.afficher('mire');
@@ -1312,7 +1312,7 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N31',
-    titre: 'Pourquoi ? : l\'écran de toutes les fiches s\'ouvre depuis l\'accueil du Dépannage (« Comprendre les règles ») ; il montre les quatre images de base en tête, puis les 30 fiches par famille, et une fiche s\'ouvre d\'un appui',
+    titre: 'Pourquoi ? : l\'écran de toutes les fiches s\'ouvre depuis l\'accueil du Dépannage (« Comprendre les règles ») ; il montre les quatre images de base en tête, puis les 50 fiches par famille, et une fiche s\'ouvre d\'un appui',
     etape: 'pourquoi',
     async verifier(v, contexte) {
       const pq = await moduleAppli(v, '../src/pourquoi.js');
@@ -1335,11 +1335,11 @@ export const NAVIGATEUR = [
       ecran.afficherListe();
       v.egal('quatre images de base en tête', [...racine.querySelectorAll('.pq-image strong')].map(texteDe), d.images.map((x) => x.titre));
       v.vrai('les images avant les familles', Boolean(racine.querySelector('.pq-images')?.compareDocumentPosition(racine.querySelector('.pq-famille')) & Node.DOCUMENT_POSITION_FOLLOWING));
-      v.egal('familles et nombre de fiches', [...racine.querySelectorAll('.pq-famille')].map((f) => `${texteDe(f.querySelector('h3'))} ${f.querySelectorAll('.pq-fiche-bouton').length}`), ['Données 15', 'Électricité 5', 'Image 9', 'Accroche 1']);
+      v.egal('familles et nombre de fiches', [...racine.querySelectorAll('.pq-famille')].map((f) => `${texteDe(f.querySelector('h3'))} ${f.querySelectorAll('.pq-fiche-bouton').length}`), ['Données 22', 'Électricité 6', 'Image 14', 'Régie et chaîne vidéo 4', 'Accroche 4']);
       racine.querySelector('.pq-fiche-bouton[data-fiche="I8"]')?.click();
       v.egal('appui sur I8 : la fiche I8', texteDe(racine.querySelector('.pq-question')), d.fiches.find((f) => f.id === 'I8').question);
       racine.querySelector('.pq-vers-liste')?.click();
-      v.vrai('« Toutes les fiches » revient à la liste', racine.querySelectorAll('.pq-fiche-bouton').length === 30);
+      v.vrai('« Toutes les fiches » revient à la liste', racine.querySelectorAll('.pq-fiche-bouton').length === 50);
       racine.remove();
     },
   },
@@ -1410,6 +1410,271 @@ export const NAVIGATEUR = [
         else delete html.dataset.taille;
         if (avant.mode) html.dataset.mode = avant.mode;
         else delete html.dataset.mode;
+      }
+    },
+  },
+  {
+    id: 'N33',
+    titre: 'Pourquoi ? : huit liaisons du second lot, chacune ouvre la bonne fiche, sur le texte réel de l\'appli : une seule dalle au-delà des limites d\'un processeur (canevas ou carte ; la limite d\'un port a son propre message, relié à D1) → D14 ; aucun découpage ne tient → D5 ; processeur qui refuse la profondeur et entrée limitée en bits → D3 ; ULL hors SX40 et S8 → D9 ; HFR → D2 ; P17 bleu et rouge, 32 A tri → E4 ; structure à 5 fois le poids (ROE) → A1 ; élingues acier → A4 (second lot)',
+    etape: 'pourquoi',
+    async verifier(v, contexte) {
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      const t = contexte.pourquoiLiens;
+      if (!pq || !t) return;
+      const proc = (id) => processeurDeBase(contexte, id);
+      const evaluer = (dalle, colonnes, rangees, id, reglages) => calculs.evaluerProcesseur(calculs.mur(dalle, colonnes, rangees), dalle, proc(id), reglages);
+      // 300 000 px : tient dans un port du M2 (525 000 px en 8 bits), dans aucun de ses formats (1920 × 1080, Low Latency jusqu'à 2880 × 720).
+      const large = { id: 'fictive-3000x100', nom: 'Dalle 3000 × 100 px', fictive: true, largeurMm: 3000, hauteurMm: 100, pxH: 3000, pxV: 100 };
+      const hfr = { id: 'fictive-120k', nom: 'Dalle 400 × 300 px', fictive: true, largeurMm: 500, hauteurMm: 375, pxH: 400, pxV: 300 };
+      const textes = {
+        dalleLimites: evaluer(large, 2, 1, 'brompton-m2', { frequenceHz: 60, bits: 8 }).impossible,
+        // Cas rare (une dalle passe, aucune grille ne tient) : la phrase du code, avec le nom du processeur.
+        decoupage: `Aucun découpage en colonnes et en rangées ne tient dans des ${proc('brompton-s8').nom}.`,
+        profondeur: calculs.refusBitsReseau(proc('coex-ku20'), 10),
+        entreeBits: calculs.controleEntree(proc('novastar-vx400-pro'), { largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60, liaison: 'hdmi-1.3', bits: 10 }, liaisonsDeBase(contexte)).refus,
+        ull: evaluer(DALLE_192, 4, 2, 'brompton-s4', { frequenceHz: 60, bits: 10, ull: true }).impossible,
+        hfr: evaluer(hfr, 4, 2, 'brompton-sx40', { frequenceHz: 120, bits: 8 }).alertes.find((x) => x.startsWith('HFR')),
+        p17: 'P17 bleu = 230 V, P17 rouge = 400 V triphasé ; 32 A tri = 3 phases de 32 A.',
+        structure: calculs.RAPPELS_POIDS.find((x) => x.startsWith('Structure dimensionnée')),
+        elingues: calculs.RAPPELS_POIDS.find((x) => x.startsWith('Préfère les élingues')),
+      };
+      v.egal('textes réels obtenus', Object.entries(textes).filter(([, x]) => !x).map(([k]) => k), []);
+      v.vrai('n° 1 : la dalle passe la capacité d\'un port, pas le canevas du M2', /^Une seule dalle \(3000 × 100 px\) dépasse les limites d'un /.test(textes.dalleLimites ?? ''));
+      const cas = [
+        ['data', 'alerte', textes.dalleLimites, 'D14'],
+        ['data', 'alerte', textes.decoupage, 'D5'],
+        ['data', 'alerte', textes.profondeur, 'D3'],
+        ['canvas', 'alerte', textes.entreeBits, 'D3'],
+        ['data', 'alerte', textes.ull, 'D9'],
+        ['data', 'alerte', textes.hfr, 'D2'],
+        ['elec', 'rappel', textes.p17, 'E4'],
+        ['poids', 'rappel', textes.structure, 'A1'],
+        ['poids', 'rappel', textes.elingues, 'A4'],
+      ];
+      const obtenu = [];
+      for (const [ecran, genre, texte, attendu] of cas) {
+        const element = genre === 'alerte' ? el('p', { class: 'alerte alerte-erreur' }, texte ?? '') : el('li', {}, texte ?? '');
+        const cadre = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' },
+          el('section', { id: ecran }, genre === 'alerte' ? element : el('ul', { class: 'rappels' }, element)));
+        document.body.append(cadre);
+        const ouvertes = [];
+        pq.relierPourquoi(t, { racine: cadre, ouvrir: (id) => ouvertes.push(id) });
+        const liens = cadre.querySelectorAll('.lien-pourquoi');
+        liens[0]?.click();
+        obtenu.push(`${ecran} « ${(texte ?? '').slice(0, 40)} » : ${liens.length} lien${liens.length > 1 ? 's' : ''}, ${ouvertes.join(',') || 'rien'}`);
+        cadre.remove();
+      }
+      v.egal('chaque lien ouvre la bonne fiche', obtenu,
+        cas.map(([ecran, , texte, attendu]) => `${ecran} « ${(texte ?? '').slice(0, 40)} » : ${attendu ? '1 lien' : '0 lien'}, ${attendu ?? 'rien'}`));
+    },
+  },
+  {
+    id: 'N34',
+    titre: 'Pourquoi ? second lot : une alerte par nouvelle famille ouvre la bonne fiche, sur le texte réel de l\'appli : dalles de moins de 16 px (D16, Data), switch manageable dans le réseau Brompton (D21, Data), plage Limited (I11, Canvas), budget d\'une régie dépassé (R1, Canvas), pont sur plus de 4 points (A3, Poids)',
+    etape: 'pourquoi',
+    async verifier(v, contexte) {
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      const t = contexte.pourquoiLiens;
+      if (!pq || !t) return;
+      const liaisons = liaisonsDeBase(contexte);
+      const sx40 = processeurDeBase(contexte, 'brompton-sx40');
+      const petite = { id: 'fictive-200x15', nom: 'Dalle 200 × 15 px', fictive: true, largeurMm: 500, hauteurMm: 37.5, pxH: 200, pxV: 15 };
+      const e = calculs.evaluerProcesseur(calculs.mur(DALLE_192, 10, 5), DALLE_192, sx40, { frequenceHz: 60, bits: 10 });
+      const cas = [
+        ['data', 'D16', calculs.evaluerProcesseur(calculs.mur(petite, 4, 4), petite, sx40, { frequenceHz: 60, bits: 10 }).alertes.find((x) => x.startsWith('Dalles de moins de 16 px'))],
+        ['data', 'D21', calculs.reseauBrompton({ switches: 1, switchManageable: true }).refus.find((x) => x.startsWith('Switch manageable'))],
+        ['canvas', 'I11', calculs.controleSource({ largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60, bits: 10, liaison: 'hdmi-2.0', espace: 'RGB', plage: 'Limited' },
+          e, liaisons, { famille: 'brompton', bitsReseau: 10, frequenceHz: 60 }).alertes.find((x) => x.startsWith('Plage Limited'))],
+        ['canvas', 'R1', calculs.controleRegie(regieDeBase(contexte, 'barco-e2-gen2'), { nombre: 3 }, { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60, liaison: 'hdmi-2.0' }, liaisons)
+          .refus.find((x) => x.startsWith('Budget de la régie'))],
+        ['poids', 'A3', calculs.poids(calculs.mur(DALLE_CAS_13, 12, 6), DALLE_CAS_13, { accroche: { type: 'pont', points: 5, porteesEgales: true } })
+          .alertes.find((x) => x.startsWith('Pont sur plus de 4 points'))],
+      ];
+      v.egal('textes réels obtenus', cas.filter(([, , texte]) => !texte).map(([, f]) => f), []);
+      const obtenu = cas.map(([ecran, , texte]) => {
+        const cadre = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' }, el('section', { id: ecran }, el('p', { class: 'alerte alerte-erreur' }, texte ?? '')));
+        document.body.append(cadre);
+        const ouvertes = [];
+        pq.relierPourquoi(t, { racine: cadre, ouvrir: (id) => ouvertes.push(id) });
+        cadre.querySelector('.lien-pourquoi')?.click();
+        cadre.remove();
+        return `${ecran} « ${(texte ?? '').slice(0, 30)} » : ${ouvertes.join(',') || 'rien'}`;
+      });
+      v.egal('chaque alerte ouvre sa fiche', obtenu, cas.map(([ecran, f, texte]) => `${ecran} « ${(texte ?? '').slice(0, 30)} » : ${f}`));
+    },
+  },
+  {
+    id: 'N35',
+    titre: 'Pourquoi ? : la ligne « Recul » de la fiche contenu (BP2 V2 : minimal environ 2,8 m, confortable environ 5,7 m) porte un lien « Pourquoi ? » vers I5 et sa source « Cahier des charges de l\'appli » ; le texte partagé la reprend',
+    etape: 'pourquoi',
+    async verifier(v, contexte) {
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      const moduleMire = await moduleAppli(v, '../src/ecran-mire.js');
+      const t = contexte.pourquoiLiens;
+      if (!pq || !moduleMire || !t || !contexte.ficheContenu) return;
+      const cadre = el('div', { id: 'mire-fiche', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(cadre);
+      const racine = el('div');
+      cadre.append(racine);
+      const ecran = moduleMire.monterMireFiche(racine, contexte.ficheContenu, { contexte: () => murCable(contexte, 4, 3), date: new Date(2026, 9, 3), version: 'v17', surfaceMax: 16777216 });
+      ecran.afficher('fiche');
+      const ouvertes = [];
+      pq.relierPourquoi(t, { racine: document, ouvrir: (id) => ouvertes.push(id) });
+      const dt = [...cadre.querySelectorAll('.mf-valeurs dt')].find((x) => texteDe(x).startsWith('Recul'));
+      const dd = dt?.nextElementSibling;
+      v.vrai('ligne « Recul » : minimal environ 2,8 m, confortable environ 5,7 m', texteDe(dd).startsWith('minimal environ 2,8 m, confortable environ 5,7 m'), texteDe(dd));
+      v.vrai('source de la ligne : Cahier des charges de l\'appli', texteDe(dd).includes('Cahier des charges de l\'appli'), texteDe(dd));
+      dt?.querySelector('.lien-pourquoi')?.click();
+      v.egal('« Pourquoi ? » de la ligne « Recul » : I5', ouvertes, ['I5']);
+      v.vrai('texte partagé : la ligne du recul', ecran.texte().split('\n').includes('Recul : minimal environ 2,8 m, confortable environ 5,7 m'));
+      cadre.remove();
+    },
+  },
+  {
+    id: 'N36',
+    titre: 'Pourquoi ? second lot en grand affichage, thème sombre et mode rouge : fiches R1, A3, D20 et D21 (texte de 19 px, boutons de 60 px, texte à 4,5:1, rien ne déborde à 375 px) ; une source qui regroupe plusieurs documents (D20 : fiches R2 et R2+, fiches des cartes Novastar) les liste chacun, avec son lien seulement en ligne ; « Règle de l\'appli » sous les lignes de l\'appli (A3)',
+    etape: 'pourquoi',
+    async verifier(v, contexte) {
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      const d = contexte.pourquoi;
+      if (!pq || !d) return;
+      const enLigne = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(enLigne);
+      const e1 = pq.monterPourquoi(enLigne, d, { enLigne: () => true });
+      e1.afficherFiche('D20');
+      const liste = enLigne.querySelector('.pq-liste-sources');
+      const documents = [...(liste?.querySelectorAll('.pq-source-document') ?? [])];
+      v.egal('D20 en ligne : 9 documents listés (2 fiches R2, 7 fiches de cartes Novastar), chacun avec son lien', [documents.length, documents.filter((x) => x.querySelector('a[href^="https://"]')).length], [9, 9]);
+      v.egal('aucun lien sous les lignes', enLigne.querySelectorAll('.pq-sources a').length, 0);
+      e1.afficherFiche('A3');
+      v.vrai('A3 : « Règle de l\'appli » sous « La règle »', texteDe(enLigne.querySelector('.pq-partie-regle .pq-sources')).includes('Règle de l\'appli'));
+      enLigne.remove();
+      const horsLigne = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(horsLigne);
+      pq.monterPourquoi(horsLigne, d, { enLigne: () => false }).afficherFiche('D20');
+      v.egal('D20 hors ligne : documents listés sans lien', [horsLigne.querySelectorAll('.pq-source-document').length, horsLigne.querySelectorAll('a[href^="http"]').length], [9, 0]);
+      horsLigne.remove();
+      const feuille = el('link', { rel: 'stylesheet', href: 'styles.css' });
+      await new Promise((fin) => {
+        feuille.onload = fin;
+        feuille.onerror = fin;
+        document.head.append(feuille);
+      });
+      const html = document.documentElement;
+      const avant = { taille: html.dataset.taille, mode: html.dataset.mode };
+      try {
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          for (const taille of ['normal', 'grand']) {
+            if (taille === 'grand') html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            const [mini, police] = taille === 'grand' ? [60, 19] : [48, 0];
+            const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px;background:var(--fond);color:var(--texte)' });
+            document.body.append(racine);
+            const ecran = pq.monterPourquoi(racine, d, { enLigne: () => false });
+            const fautes = [];
+            for (const id of ['R1', 'A3', 'D20', 'D21']) {
+              ecran.afficherFiche(id);
+              for (const e of [...racine.querySelectorAll('*')].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && x.getClientRects().length)) {
+                const style = getComputedStyle(e);
+                if (police && !e.closest('sup') && parseFloat(style.fontSize) < police - 0.05) fautes.push(`${id} : « ${texteDe(e).slice(0, 30)} » en ${style.fontSize}`);
+                const k = contraste(rgbVersHex(style.color), fondDe(e));
+                if (k < 4.5) fautes.push(`${id} : « ${texteDe(e).slice(0, 30)} » à ${k.toFixed(2)}:1`);
+              }
+              for (const b of racine.querySelectorAll('button')) {
+                if (!b.getClientRects().length || b.closest('.pq-lien-fiche')) continue;
+                const h = b.getBoundingClientRect().height;
+                if (h < mini - 0.5) fautes.push(`${id} : « ${texteDe(b).slice(0, 30)} » haut de ${h.toFixed(0)} px`);
+              }
+              if (racine.scrollWidth > 375.5) fautes.push(`${id} : ${racine.scrollWidth} px de large`);
+            }
+            v.egal(`${mode}, ${taille} : texte, contrastes, cibles et largeur`, fautes.slice(0, 12), []);
+            racine.remove();
+          }
+        }
+      } finally {
+        feuille.remove();
+        if (avant.taille) html.dataset.taille = avant.taille;
+        else delete html.dataset.taille;
+        if (avant.mode) html.dataset.mode = avant.mode;
+        else delete html.dataset.mode;
+      }
+    },
+  },
+  {
+    id: 'N37',
+    titre: 'Listes numérotées (Dépannage T5.2 et T1.3 avec un projet COEX, images des fiches « pourquoi », mode d\'emploi et consignes de la fiche contenu) à 375 px, en affichage normal et en grand affichage, encadrés de marque fermés puis ouverts : chaque numéro est écrit par l\'appli (pas la puce automatique, que Safari décale ou efface à côté d\'un bloc repliable), visible, et tous les numéros d\'une liste ont le même bord gauche ; le contenu de chaque étape, encadré compris, commence au même bord gauche',
+    etape: 'depannage',
+    async verifier(v, contexte) {
+      const moduleD = await moduleDepannage(v);
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      const moduleMire = await moduleAppli(v, '../src/ecran-mire.js');
+      if (!moduleD || !pq || !moduleMire || !contexte.depannage || !contexte.pourquoi || !contexte.ficheContenu) return;
+      const feuille = el('link', { rel: 'stylesheet', href: 'styles.css' });
+      await new Promise((fin) => {
+        feuille.onload = fin;
+        feuille.onerror = fin;
+        document.head.append(feuille);
+      });
+      // Contrôle d'une liste : un numéro écrit par l'appli dans chaque élément, visible, au même bord gauche ; contenus alignés.
+      const controleListe = (nom, ol) => {
+        const fautes = [];
+        if (!ol) return [`${nom} : liste absente`];
+        const items = [...ol.children].filter((x) => x.matches('li'));
+        const numeros = items.map((li) => li.querySelector(':scope > .numero-liste'));
+        if (numeros.some((x) => !x)) return [`${nom} : ${numeros.filter((x) => !x).length} élément(s) sans numéro écrit par l'appli`];
+        items.forEach((li, k) => {
+          const n = numeros[k];
+          const r = n.getBoundingClientRect();
+          const rl = li.getBoundingClientRect();
+          const style = getComputedStyle(n);
+          if (!n.getClientRects().length || r.width < 1 || r.height < 1 || style.visibility === 'hidden' || Number(style.opacity) === 0) fautes.push(`${nom} : numéro ${texteDe(n)} invisible`);
+          if (r.left < rl.left - 0.5 || r.right > rl.right + 0.5) fautes.push(`${nom} : numéro ${texteDe(n)} hors de son élément`);
+          if (!/^\d+\.$/.test(texteDe(n))) fautes.push(`${nom} : numéro « ${texteDe(n)} »`);
+        });
+        const bords = numeros.map((x) => x.getBoundingClientRect().left);
+        if (Math.max(...bords) - Math.min(...bords) > 0.5) fautes.push(`${nom} : bords gauches des numéros ${bords.map((x) => x.toFixed(1)).join(', ')}`);
+        const contenus = items.map((li) => li.querySelector(':scope > .contenu-liste')?.getBoundingClientRect().left ?? NaN);
+        if (contenus.some(Number.isNaN) || Math.max(...contenus) - Math.min(...contenus) > 0.5) fautes.push(`${nom} : bords gauches des contenus ${contenus.map((x) => x.toFixed(1)).join(', ')}`);
+        return fautes;
+      };
+      const html = document.documentElement;
+      const avant = html.dataset.taille;
+      try {
+        for (const taille of ['normal', 'grand']) {
+          if (taille === 'grand') html.dataset.taille = 'grand';
+          else delete html.dataset.taille;
+          const fautes = [];
+          const m = monterDepannage(moduleD, contexte.depannage, { projet: { marque: 'coex', nom: 'COEX MX40 Pro' } });
+          for (const noeud of ['T5.2', 'T1.3']) {
+            m.ecran.afficher(noeud);
+            const marques = [...m.racine.querySelectorAll('details.dep-ligne-marque')];
+            if (noeud === 'T5.2' && marques.filter((x) => !x.open).length !== 2) fautes.push('T5.2 : Novastar et Brompton devraient être fermés avec un projet COEX');
+            fautes.push(...controleListe(`${noeud} fermés`, m.racine.querySelector('ol.dep-etapes')));
+            marques.forEach((x) => { x.open = true; });
+            fautes.push(...controleListe(`${noeud} ouverts`, m.racine.querySelector('ol.dep-etapes')));
+          }
+          m.retirer();
+          const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+          document.body.append(racine);
+          pq.monterPourquoi(racine, contexte.pourquoi, { enLigne: () => false }).afficherListe();
+          fautes.push(...controleListe('images des fiches', racine.querySelector('.pq-images ol')));
+          racine.remove();
+          const cadre = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+          document.body.append(cadre);
+          const ecran = moduleMire.monterMireFiche(cadre, contexte.ficheContenu, { contexte: () => murCable(contexte, 4, 3), date: new Date(2026, 9, 3), version: 'v17', surfaceMax: 16777216 });
+          ecran.afficher('mire');
+          fautes.push(...controleListe('mode d\'emploi de la mire', cadre.querySelector('ol.mf-liste')));
+          ecran.afficher('fiche');
+          fautes.push(...controleListe('consignes de la fiche', cadre.querySelector('ol.mf-consignes')));
+          cadre.remove();
+          v.egal(`${taille} : numéros visibles et alignés`, fautes.slice(0, 12), []);
+        }
+      } finally {
+        feuille.remove();
+        if (avant) html.dataset.taille = avant;
+        else delete html.dataset.taille;
       }
     },
   },

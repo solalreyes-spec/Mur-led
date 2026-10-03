@@ -5,7 +5,7 @@ import {
   controleSource, controleRegie, controleChaine, sourceConseillee, champsManquantsRegie, maillonDepuisFiche, ErreurSaisie,
 } from './calculs.js';
 import { nombre, nombreCourt, lireNombre, sourceCourte } from './format.js';
-import { el, remplacer } from './dom.js';
+import { el, remplacer, listeNumerotee } from './dom.js';
 import { resumeCanvas } from './resumes.js';
 
 const formulaire = document.getElementById('form-source');
@@ -182,11 +182,15 @@ function sectionChaine(chaine, source) {
   const nomLiaison = (id) => liaisons.find((l) => l.id === id)?.nom ?? 'liaison non choisie';
   return el('section', { class: 'bloc-resultats' },
     el('h3', {}, 'Chaîne jusqu\'au processeur'),
-    el('ol', { class: 'liste-chaine' }, chaine.maillons.map((m) => el('li', {},
-      m.role === 'processeur' ? `${m.nom} (entrée ${nomLiaison(chaine.liaisonProcesseur)})` : `${m.nom}, puis ${nomLiaison(m.liaison)}${longueur(m.longueurM)}`,
-      m.refus.map((t) => alerte(t, 'alerte-erreur')),
-      m.alertes.map((t) => alerte(t)),
-      (m.notes ?? []).map((t) => alerte(t, 'alerte-info'))))),
+    listeNumerotee({ class: 'liste-chaine' }, chaine.maillons.map((m, i) => ({
+      numero: i + 1,
+      contenu: [
+        m.role === 'processeur' ? `${m.nom} (entrée ${nomLiaison(chaine.liaisonProcesseur)})` : `${m.nom}, puis ${nomLiaison(m.liaison)}${longueur(m.longueurM)}`,
+        m.refus.map((t) => alerte(t, 'alerte-erreur')),
+        m.alertes.map((t) => alerte(t)),
+        (m.notes ?? []).map((t) => alerte(t, 'alerte-info')),
+      ],
+    }))),
     chaine.cadence.map((t) => alerte(t)),
     el('dl', { class: 'tuiles' },
       tuile('Latence de la chaîne', chaine.latence.maxImages === null ? `au moins ${chaine.latence.minImages} im.` : `${chaine.latence.minImages} à ${chaine.latence.maxImages} im.`,

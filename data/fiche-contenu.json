@@ -128,6 +128,14 @@
       "version": "2026",
       "url": null,
       "niveau": "F"
+    },
+    {
+      "code": "CDC",
+      "libelle": "Cahier des charges de l'appli",
+      "court": "Cahier des charges de l'appli",
+      "version": null,
+      "url": null,
+      "niveau": "F"
     }
   ],
   "intro": {
@@ -266,6 +274,15 @@
       },
       {
         "code": "T-BRAIN"
+      }
+    ]
+  },
+  "recul": {
+    "texte": "Recul minimal ≈ pas en mm lu en mètres ; recul confortable ≈ 2 × pas, arrondis au dixième de mètre.",
+    "sources": [
+      {
+        "code": "CDC",
+        "ref": "§2.3"
       }
     ]
   },
@@ -554,6 +571,9 @@
       },
       {
         "modele": "Sortie demandée : {sortie} à {cadence} Hz, balayage progressif"
+      },
+      {
+        "modele": "Recul : minimal environ {reculMin} m, confortable environ {reculConfort} m"
       },
       {
         "modele": "Texte : au moins {texteMinPx} px de haut pour un public jusqu'à {distance} m, police grasse"

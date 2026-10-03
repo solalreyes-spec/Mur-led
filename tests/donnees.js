@@ -1790,7 +1790,7 @@ export const DONNEES = [
       const f = ficheContenu(contexte);
       const codes = new Set(f.sources.map((s) => s.code));
       v.egal('sources : celles du § 5 du document', f.sources.map((s) => s.code),
-        ['BR-TESS', 'NS-LCT', 'NS-VX1000', 'NS-VXPRO', 'CX-MX40', 'SMODE', 'AVIXA', 'T-BRAIN', 'ELECOM', 'LWC', 'T-PQINA', 'F1', 'F3', 'F15', 'F19']);
+        ['BR-TESS', 'NS-LCT', 'NS-VX1000', 'NS-VXPRO', 'CX-MX40', 'SMODE', 'AVIXA', 'T-BRAIN', 'ELECOM', 'LWC', 'T-PQINA', 'F1', 'F3', 'F15', 'F19', 'CDC']);
       v.egal('formation : « Formation (transcription n) »', f.sources.filter((s) => /^F\d+$/.test(s.code)).map((s) => s.libelle),
         ['Formation (transcription 1)', 'Formation (transcription 3)', 'Formation (transcription 15)', 'Formation (transcription 19)']);
       v.egal('consignes fixes 1 à 9', f.consignes.map((c) => c.numero), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -1830,13 +1830,13 @@ export const DONNEES = [
   },
   {
     id: 'D57',
-    titre: 'Fiches « pourquoi » (data/pourquoi.json) : 30 fiches en 4 familles, les quatre images de base ; chaque fiche a « La règle », « L\'image », « En vrai » et « Si tu ne la respectes pas » (D15 en trois parties, sans « En vrai ») ; « La règle » et « En vrai » toujours sourcées, sauf un « En vrai » qui dit que le constructeur ne donne pas la raison ; « L\'image » sans source exigée ; « Si tu ne la respectes pas » sourcé quand le document le fait (vérifié par outils/transcrire-pourquoi.py, qui compte chaque source du document) ; chaque code de source existe ; libellés publiés sans nom de relevé interne ni « du Projet »',
+    titre: 'Fiches « pourquoi » (data/pourquoi.json) : 50 fiches en 5 familles (Données, Électricité, Image, Régie et chaîne vidéo, Accroche), les quatre images de base ; chaque fiche a « La règle », « L\'image », « En vrai » et « Si tu ne la respectes pas » (D15 en trois parties, sans « En vrai ») ; « La règle » et « En vrai » toujours sourcées, sauf un « En vrai » qui dit que le constructeur ne donne pas la raison ; « L\'image » sans source exigée ; « Si tu ne la respectes pas » sourcé quand le document le fait (vérifié par outils/transcrire-pourquoi.py, qui compte chaque source du document) ; chaque code de source existe ; libellés publiés sans nom de relevé interne ni « du Projet »',
     etape: 'pourquoi',
     verifier(v, contexte) {
       const d = pourquoi(contexte);
       v.egal('quatre images de base', d.images.map((x) => x.titre), ['Les données, une route.', 'Le courant, de l\'eau.', 'L\'image, un rythme.', 'L\'accroche, une chaîne.']);
-      v.egal('familles', d.familles.map((f) => [f.id, f.fiches.length]), [['donnees', 15], ['electricite', 5], ['image', 9], ['accroche', 1]]);
-      v.egal('30 fiches, identifiants uniques', [d.fiches.length, new Set(d.fiches.map((f) => f.id)).size], [30, 30]);
+      v.egal('familles', d.familles.map((f) => [f.id, f.fiches.length]), [['donnees', 22], ['electricite', 6], ['image', 14], ['regie', 4], ['accroche', 4]]);
+      v.egal('50 fiches, identifiants uniques', [d.fiches.length, new Set(d.fiches.map((f) => f.id)).size], [50, 50]);
       const cles = (f) => f.parties.map((p) => p.cle).join(',');
       v.egal('parties de chaque fiche (D15 sans « En vrai »)', d.fiches.filter((f) => cles(f) !== (f.id === 'D15' ? 'regle,image,consequence' : 'regle,image,vrai,consequence')).map((f) => `${f.id} : ${cles(f)}`), []);
       v.vrai('chaque fiche a une question', d.fiches.every((f) => /\?$/.test(f.question)));
@@ -1888,6 +1888,128 @@ export const DONNEES = [
       v.egal('HDCP de T6.6 : I9', cherche((l) => l.noeud === 'T6.6' && l.mot === 'HDCP'), ['I9']);
       v.egal('« Sortie demandée à la régie » de la fiche contenu : I8', cherche((l) => l.ecran === 'fiche' && /^Sortie demandée à la régie/.test(l.texte)), ['I8']);
       v.egal('surcharge de port (alerte des 95 % de Data) : D1', cherche((l) => l.ecran === 'data' && /au-delà de 95 %/.test(l.texte)), ['D1', 'D1']);
+    },
+  },
+  {
+    id: 'D59',
+    titre: 'Second lot de fiches « pourquoi » : 20 fiches (D16 à D22, I10 à I14, R1 à R4, E6, A2 à A4), famille « Régie et chaîne vidéo » sans image de base ; « app » publié « Règle de l\'appli » ; les sources déjà dans les données gardent leur libellé publié (titre et lien de data/, chaque document quand un code en regroupe plusieurs) ; les alertes du § 5 vont vers leur fiche, les n° 23, 33, 40 et 42 (faits de matériel) restent sans fiche',
+    etape: 'pourquoi',
+    verifier(v, contexte) {
+      const d = pourquoi(contexte);
+      const ids = new Set(d.fiches.map((f) => f.id));
+      const nouvelles = ['D16', 'D17', 'D18', 'D19', 'D20', 'D21', 'D22', 'I10', 'I11', 'I12', 'I13', 'I14', 'R1', 'R2', 'R3', 'R4', 'E6', 'A2', 'A3', 'A4'];
+      v.egal('20 nouvelles fiches', nouvelles.filter((id) => !ids.has(id)), []);
+      const r = d.familles.find((f) => f.id === 'regie');
+      v.egal('famille « Régie et chaîne vidéo » : R1 à R4', [r?.titre, r?.fiches], ['Régie et chaîne vidéo', ['R1', 'R2', 'R3', 'R4']]);
+      v.egal('toujours quatre images de base', d.images.length, 4);
+      const src = (code) => d.sources.find((s) => s.code === code);
+      v.egal('« app » : « Règle de l\'appli »', [src('app')?.libelle, src('app')?.court], ['Règle de l\'appli', 'Règle de l\'appli']);
+      v.egal('sources déjà dans les fiches : libellés inchangés', ['BR-TESS', 'ROE-CB', 'CDC', 'F15'].map((c) => src(c)?.court),
+        ['Tessera', 'ROE Carbon MKII', 'Cahier des charges de l\'appli', 'Formation (transcription 15)']);
+      // Tables des sources de data/, fichier par fichier (un même document peut y être décrit par deux extraits).
+      const fichiers = { processeurs: contexte.processeurs, connectique: contexte.connectique, regies: contexte.regies, dalles: contexte.dalles, ...(contexte.appareils ?? {}) };
+      const entree = ([fichier, id]) => fichiers[fichier]?.sources?.[id];
+      const uniques = {
+        'CL-S20': ['processeurs', 'colorlight-s20-v2-1'], 'CX-CX40': ['processeurs', 'coex-cx40-pro-v1-5-0'], 'MP-SUP': ['processeurs', 'megapixel-support-capacite'],
+        'NG-M4250': ['switches', 'netgear-msm4214x'], 'PH-P': ['regies', 'pixelhue-p-v1-6-0'], 'PH-F8': ['regies', 'pixelhue-f8-fiche'],
+        'BARCO-E2': ['regies', 'barco-e2-gen1-fiche-2023-06-13'], 'BARCO-S3': ['regies', 'barco-s3-4k-fiche-2024-07-09'], 'BARCO-GUIDE': ['regies', 'barco-event-master-guide-v15'],
+        'AW-AQ': ['regies', 'analogway-aquilon-manuel-v6-2'], 'AW-RS1': ['regies', 'analogway-aquilon-rs1-2026-07-03'], 'BMD-ATEM': ['melangeurs', 'bmd-w-aps-14'],
+        'LW': ['convertisseurs', 'lightware-hdmi-tps-tx210'], 'HDBT': ['connectique', 'hdbaset-org-technologie'], 'DVI-W': ['connectique', 'wikipedia-dvi'],
+        'ROE-BO': ['dalles', 'roe-manuel-black-onyx-pearl-v1-8'],
+      };
+      v.egal('une source de data/ : son titre et son lien', Object.entries(uniques)
+        .filter(([code, cle]) => !entree(cle) || src(code)?.libelle !== entree(cle).titre || (src(code)?.url ?? null) !== (entree(cle).url ?? null)).map(([code]) => code), []);
+      const multiples = {
+        'BR-R2': [['processeurs', 'brompton-fiche-r2-2021-01'], ['processeurs', 'brompton-fiche-r2-r2plus-2025-03']],
+        'NS-CARTES': ['novastar-a5s-plus-v1-3-0', 'novastar-a7s-plus-v1-2-3', 'novastar-a8s-pro-v1-1-0', 'novastar-a10s-pro-v1-3-0', 'novastar-a10s-plus-n-v1-1-4',
+          'novastar-ca50e-v1-1-1', 'novastar-xa50-pro-v1-0-3'].map((id) => ['processeurs', id]),
+        'MP-HELIOS': [['processeurs', 'megapixel-fiche-helios-2023'], ['switches', 'megapixel-guide-helios-2020']],
+        'BARCO-E2G2': [['connectique', 'barco-e2-gen2-fiche-2025-11-27'], ['regies', 'barco-e2-gen2-fiche-2025-11-27']],
+        'DATAPATH': [['connectique', 'datapath-page-fx4'], ['regies', 'datapath-fx4-v1-15']],
+        'AA-DA': [['convertisseurs', 'bmd-w-teramin-29'], ['convertisseurs', 'aja-12gda']],
+      };
+      const documentsDe = (code) => JSON.stringify((src(code)?.documents ?? []).map((x) => [x.libelle, x.url ?? null]));
+      v.egal('plusieurs sources de data/ : chaque document avec son titre et son lien', Object.entries(multiples)
+        .filter(([code, liste]) => documentsDe(code) !== JSON.stringify(liste.map((cle) => [entree(cle)?.titre, entree(cle)?.url ?? null]))).map(([code]) => code), []);
+      // Correspondance (§ 5 du document) : textes des alertes, la fiche attendue ; null pour un fait de matériel.
+      const t = contexte.pourquoiLiens;
+      const fiche = (ecran, element, texte, selecteur = null) => t.liens.find((l) => l.ecran === ecran && l.element === element
+        && (element !== 'ligne' || l.selecteur === selecteur) && new RegExp(l.motif).test(texte))?.fiche ?? null;
+      const cas = [
+        [6, 'data', 'alerte', 'Dalles de moins de 16 px dans une dimension : elles coûtent cher en traitement et on peut en brancher moins que la capacité nominale (manuel Tessera §13.1.4). Vérifie les barres de charge dans Tessera.', 'D16'],
+        [7, 'data', 'alerte', 'Ports du Colorlight S20 : un port charge 1408 px de haut ; capacité réduite au-delà de 1280 px de haut, valeur non publiée : vérifie dans LEDVISION (Fiche S20 V2.1).', 'D17'],
+        [7, 'data', 'alerte', 'Ports du Colorlight X8m : un port charge 1408 px de haut. La fiche S20 annonce une capacité réduite au-delà de 1280 px de haut : règle écrite sur la fiche S20, non confirmée pour ce modèle.', 'D17'],
+        [8, 'data', 'alerte', 'Dalles en 2,5G : « 2.5G connectivity is dependent on the tile design » (support Megapixel) ; vérifie que tes dalles le permettent.', 'D18'],
+        [9, 'data', 'alerte', 'Megapixel HELIOS Jr : ports 1G en cuivre seulement (« 8 x 1G Copper SFP », fiche HELIOS 2023), pas de lien 2,5G.', 'D18'],
+        [9, 'data', 'alerte', 'M4200 : ports 1G seulement (guide HELIOS 2020, copie tierce) ; le lien 2,5G demande un M4250.', 'D18'],
+        [11, 'data', 'alerte', 'Le COEX CX40 Pro n\'accepte que des cartes de réception 5G (CA50E, CA50C, XA50, XA50 Pro) ; la dalle ROE BP2 V2 utilise une carte Novastar A8s Pro.', 'D18'],
+        [11, 'data', 'ligne', 'Carte de réception inconnue pour la dalle ROE BP2 V2 : vérifie qu\'elle fait partie des cartes 5G acceptées par le COEX CX40 Pro (CA50E, CA50C, XA50, XA50 Pro).', 'D18', 'details.manques > p'],
+        [13, 'data', 'alerte', 'Carte de réception inconnue : cartes de sortie 4×5G (ports 5G) par défaut sur le Z8t ; choisis 4×10G si les dalles ont des cartes 1G.', 'D18'],
+        [13, 'data', 'alerte', 'Carte de réception inconnue : cartes de sortie MX_4x10G (ports 1G, CVT10) par défaut ; choisis 1 × 40G si les dalles ont des cartes 5G.', 'D18'],
+        [10, 'data', 'alerte', 'Le Novastar MCTRL660 ne pilote que des cartes de réception Novastar ; la dalle ROE BP2 V2 utilise une carte Brompton R2+. Jamais de processeur d\'une marque avec des cartes d\'une autre marque.', 'D19'],
+        [37, 'canvas', 'alerte', 'Liaison OPT (fibre) de la régie PixelHue P20 vers un processeur Brompton S8 : « Only LED controllers from NovaStar are supported for now » (Fiche PixelHue série P V1.6.0, p. 1). Sorties OPT réservées aux processeurs Novastar : passe par une sortie HDMI ou DP.', 'D19'],
+        [37, 'canvas', 'alerte', 'Régie PixelHue P20 : « Only LED controllers from NovaStar are supported for now » (Fiche PixelHue série P V1.6.0, p. 1) vise les sorties OPT (fibre) vers les processeurs Novastar ; en HDMI 2.0, rien ne dépend de la marque du processeur.', 'D19'],
+        [12, 'data', 'alerte', 'Carte de réception A10s Pro en 8 bits (IC classiques) : 512 × 384 px par carte ; la dalle Dalle 520 × 260 px fait 520 × 260 px (une carte par dalle) : dépassé, vérifie la carte ou le câblage des modules.', 'D20'],
+        [12, 'data', 'alerte', 'Carte de réception R2+ : 262 144 px par carte ; la dalle Dalle 600 × 500 px fait 600 × 500 = 300 000 px (une carte par dalle) : dépassé, vérifie la carte ou le câblage des modules.', 'D20'],
+        [14, 'data', 'alerte', '6 appareils entre le processeur et la dalle la plus éloignée (XD, switches et convertisseurs fibre comptés) : 5 au plus (« five switches », « XD Units and fibre optic transceivers count as switches », aide en ligne Tessera, Connection Guidelines).', 'D21'],
+        [15, 'data', 'alerte', 'Switch manageable : « The Tessera Protocol is designed to be used ONLY with unmanaged switches » (aide en ligne Tessera, Connection Guidelines).', 'D21'],
+        [16, 'data', 'alerte', 'Switch en 10G entre le SX40 et ses XD : « The use of 10G Ethernet switches is not supported » (aide en ligne Tessera, annexe B).', 'D21'],
+        [17, 'data', 'alerte', 'Fibre multimode : « Multi-mode fibre is not supported » (aide en ligne Tessera, annexe B). Monomode 9/125 µm, 1310 nm.', 'D21'],
+        [18, 'data', 'alerte', 'Connecteurs APC : interdits, ils peuvent abîmer les connecteurs du SX40 et du XD (« may cause damage », aide en ligne Tessera, annexe B). PC ou UPC seulement.', 'D21'],
+        [19, 'canvas', 'alerte', 'Tessera : le bit depth réseau (8 bits) ne doit jamais être inférieur à celui de la source (10 bits). Passe le réseau en 10 bits au moins.', 'I10'],
+        [20, 'canvas', 'alerte', 'Plage Limited : le noir démarre à 16 et le blanc s\'arrête à 235, d\'où des noirs laiteux. Règle la source en Full.', 'I11'],
+        [21, 'canvas', 'alerte', 'Source en YUV : préfère RGB, en plage Full.', 'I11'],
+        [27, 'canvas', 'alerte', 'HDBaseT 2.0 : au-delà de 3840 × 2160 à 30 Hz, 4:2:0 seulement (« UHD 4K@30 4:4:4/4K@60 4:2:0 »).', 'I11'],
+        [22, 'canvas', 'alerte', 'Bloc n° 1 : le format 2880 × 720 force le Low Latency Mode (latence : 2 à 3 images).', 'D22'],
+        [25, 'canvas', 'alerte', 'Entrée HDMI 2.0 du Novastar VX1000 Pro : 8192 px de large au plus sur sa fiche ; la source fait 9000 × 1080 px.', 'I12'],
+        [25, 'canvas', 'alerte', 'Entrée HDMI 1.4 du Novastar VX400 : 600 Mpx/s demandés pour 497,7 au plus (3840 × 2160 à 60 Hz, fiche du processeur), en approximation.', 'I12'],
+        [25, 'canvas', 'alerte', 'Sa fiche limite l\'entrée du Novastar VX4S-N à 1920 × 1200 px ; la source fait 2560 × 1080 px.', 'I12'],
+        [25, 'canvas', 'alerte', 'Entrée HDMI 2.0 du Brompton S8 : 660 MHz demandés pour 600 MHz au plus (CVT à blanking réduit, approximation).', 'I12'],
+        [25, 'canvas', 'alerte', 'Entrée DVI du Novastar MCTRL660 : 200 Mpx/s demandés pour 149,3 au plus (1920 × 1200 à 60 Hz), en approximation.', 'I12'],
+        [28, 'canvas', 'alerte', 'Sorties HDMI 1.3 de la régie Datapath Fx4 plafonnées à 165 MHz : 1920 × 1200 à 60 Hz demande 193,3 MHz.', 'I12'],
+        [32, 'canvas', 'alerte', 'Sorties HDMI 1.3 de la régie Datapath Fx4 : 2560 × 1080, au-delà de 2048 px de large ou de haut, à tester (fiche v1.15).', 'I12'],
+        [34, 'canvas', 'alerte', 'Liaison HDMI 2.0 vers les processeurs : 700 MHz demandés pour 600 MHz au plus (timings CTA-861).', 'I12'],
+        [34, 'canvas', 'alerte', 'Liaison HDMI 1.4 : 594 MHz demandés pour 297 MHz au plus (timings CTA-861).', 'I12'],
+        [41, 'canvas', 'alerte', 'Le Blackmagic Teranex Mini SDI to HDMI 12G ne passe pas 4096 × 2160 à 60 Hz : 3840 × 2160 à 60 Hz au plus.', 'I12'],
+        [26, 'canvas', 'alerte', 'Entrée 12G-SDI du Brompton S8 : formats broadcast seulement en SDI, et aucun format broadcast que le 12G-SDI porte à 60 Hz ne contient 4200 × 2200 px.', 'I13'],
+        [26, 'canvas', 'alerte', '12G-SDI : formats broadcast seulement. Envoie ton canvas de 2112 × 1056 px dans un 3840 × 2160 à 60 Hz : zone utile en haut à gauche, noir autour.', 'I13'],
+        [38, 'canvas', 'alerte', 'Le Blackmagic ATEM Mini Pro ne sort qu\'en 1280 × 720, 1920 × 1080 : aucun ne contient 2112 × 1056 px.', 'I13'],
+        [38, 'canvas', 'alerte', 'Le Blackmagic ATEM Mini Pro ne sort qu\'en formats broadcast (1280 × 720, 1920 × 1080) : envoie ton canvas de 1056 × 528 px dans un 1280 × 720, zone utile en haut à gauche, noir autour.', 'I13'],
+        [29, 'canvas', 'alerte', 'Aucune sortie de la régie Barco E2 Gen 2 ne monte à 4096 × 2400 px à 120 Hz.', 'R1'],
+        [30, 'canvas', 'alerte', '4 processeurs demandent 4 sorties : la régie Analog Way Pulse 4K n\'en a que 2.', 'R1'],
+        [35, 'canvas', 'alerte', 'Budget de la régie Barco E2 Gen 2 : 24,9 MP demandés (3 × 3840 × 2160) pour 20 MP avec prévisualisation ; en Program seul (sans prévisualisation), 40 MP suffisent.', 'R1'],
+        [35, 'canvas', 'alerte', 'Régie Barco E2 Gen 2 en Program seul : 24,9 MP pour 40 MP, sans prévisualisation.', 'R1'],
+        [31, 'canvas', 'alerte', '2 processeurs au-delà des 4 sorties Program de la régie Analog Way Aquilon RS1 : sortie Aux, fonctions réduites (couches, transitions), vérifie dans le manuel.', 'R2'],
+        [36, 'canvas', 'alerte', 'Couches de la régie PixelHue F8 : 2 sorties × 1 couche 4K = 8 SL par carte de sortie, pour 6 SL (1 × 4K = 2 DL = 4 SL).', 'R3'],
+        [39, 'canvas', 'alerte', '3 processeurs pour 1 sortie du Blackmagic ATEM Mini Pro qui porte le Program : ajoute un ampli de distribution.', 'R4'],
+        [43, 'canvas', 'alerte', 'HDMI en cuivre passif sur 20 m : câble actif ou fibre conseillé (seuil réglable, choix de conception du projet ; la longueur réelle dépend du câble).', 'I14'],
+        [43, 'canvas', 'alerte', 'HDMI en cuivre passif sur 8 m, au-delà de 5 m en 4K60 (seuil réglable, choix de conception du projet ; la longueur réelle dépend du câble).', 'I14'],
+        [43, 'canvas', 'alerte', '12G-SDI sur 95 m, au-delà de 90 m : risque de perte du signal, passe en fibre (seuil réglable, choix de conception du projet ; la longueur réelle dépend du câble).', 'I14'],
+        [43, 'canvas', 'alerte', '12G-SDI sur 40 m, au-delà des 30 m conseillés (seuil réglable, choix de conception du projet ; la longueur réelle dépend du câble).', 'I14'],
+        [43, 'canvas', 'alerte', 'HDBaseT 2.0 sur 120 m : 100 m au plus (« to 100m/328ft over Cat6 »).', 'I14'],
+        [43, 'canvas', 'alerte', 'HDBaseT 2.0 sur 95 m : au-delà de 90 m (en Cat5e : « 90m/295ft. over Cat5e », Cat6 au-delà).', 'I14'],
+        [44, 'canvas', 'alerte', 'Lightware HDMI-TPS-TX210 : 600 MHz, au-delà des formats de sa fiche.', 'I14'],
+        [44, 'canvas', 'alerte', 'Lightware HDMI-TPS-TX210 sur 180 m en 148,5 MHz : 170 m au plus, même en mode Long Reach (fiche).', 'I14'],
+        [44, 'canvas', 'alerte', 'Lightware HDMI-TPS-TX210 sur 150 m : mode Long Reach (fiche Lightware), jusqu\'à 130 m en Cat5e AWG24 et 170 m en Cat7 AWG23.', 'I14'],
+        [44, 'canvas', 'alerte', 'Lightware HDMI-TPS-TX210 sur 110 m en 148,5 MHz : au-delà de 100 m en Cat5e AWG24, Cat7 AWG23 obligatoire (120 m au plus).', 'I14'],
+        [44, 'canvas', 'alerte', 'Lightware HDMI-TPS-TX210 sur 130 m en 297 MHz : 100 m au plus (fiche).', 'I14'],
+        [45, 'schema', 'alerte', 'Une colonne dépasse une ligne : elle est coupée en 2 segments égaux, les lignes éloignées du bord démarrent au milieu de leur colonne.', 'E6'],
+        [47, 'poids', 'alerte', 'CMU du bumper (250 kg) dépassée : un bumper porte jusqu\'à 280 kg.', 'A2'],
+        [48, 'poids', 'alerte', 'CMU du moteur (500 kg, D8+) dépassée : jusqu\'à 620 kg sur un point.', 'A2'],
+        [49, 'poids', 'alerte', 'Pont sur plus de 4 points, à portées inégales ou en porte-à-faux : la répartition doit être établie par le rigger.', 'A3'],
+        [49, 'poids', 'alerte', 'Répartition à faire établir par le rigger (plus de 4 points, portées inégales ou porte-à-faux).', 'A3'],
+        [50, 'poids', 'alerte', 'Autres charges suspendues (40 kg) : à reprendre sur un point ou sur la structure, avec le rigger.', 'A3'],
+        [51, 'poids', 'ligne', 'Pont continu à portées égales, charge répartie : valeurs indicatives.', 'A3', 'p.source'],
+        [51, 'poids', 'ligne', 'Parts égales seulement si chaque bumper pend directement à son propre point.', 'A3', 'p.source'],
+        [52, 'poids', 'ligne', 'Préfère les élingues acier aux sangles textiles, à cause de la tenue au feu.', 'A4', '.rappels li'],
+        [23, 'canvas', 'alerte', 'Le Brompton S8 n\'a pas d\'entrée DisplayPort (entrées : 2 × HDMI 2.0, 2 × 12G-SDI).', null],
+        [33, 'canvas', 'alerte', 'La régie Datapath Fx4 n\'a pas de sortie 12G-SDI (sorties : HDMI 1.3).', null],
+        [40, 'canvas', 'alerte', 'Roland V-8HD : le 3e processeur se branche sur OUTPUT 3, toujours en 1080p (Reference Manual p. 8), où le menu s\'affiche d\'usine et peut apparaître sur le mur. Passer ON SCREEN MENU sur OFF avant le show (Reference Manual p. 93).', null],
+        [42, 'canvas', 'alerte', 'Le Blackmagic Teranex Mini SDI to HDMI 12G n\'a pas de sortie 12G-SDI (sorties : HDMI 2.0).', null],
+      ];
+      v.egal('alertes du § 5 vers leur fiche, faits de matériel sans fiche', cas
+        .filter(([, ecran, element, texte, attendu, selecteur]) => fiche(ecran, element, texte, selecteur ?? null) !== attendu)
+        .map(([n, ecran, element, texte, attendu, selecteur]) => `n° ${n} « ${texte.slice(0, 50)} » : ${fiche(ecran, element, texte, selecteur ?? null)} au lieu de ${attendu}`), []);
     },
   },
 ];

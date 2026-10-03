@@ -5,9 +5,9 @@
 // - l'écran des fiches : les quatre images de base, les fiches par famille, puis une fiche (question, « La règle »,
 //   « L'image », « En vrai », « Si tu ne la respectes pas », source courte sous chaque ligne, titres complets en bas).
 
-import { el, remplacer } from './dom.js';
+import { el, remplacer, listeNumerotee } from './dom.js';
 
-const NIVEAUX_AFFICHES = { copie: 'copie', T: 'site tiers' };
+const NIVEAUX_AFFICHES = { copie: 'copie', T: 'site tiers', R: 'revendeur' };
 
 // ---------------------------------------------------------------------------
 // Liens « Pourquoi ? »
@@ -100,15 +100,21 @@ export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLi
       if (i > 0) morceaux.push(' ; ');
       if (s.renvoi !== undefined && liste.findIndex((x) => x.renvoi === s.renvoi) === i) morceaux.push(el('span', { class: 'pq-source-numero' }, `${s.renvoi} `));
       const niveau = NIVEAUX_AFFICHES[fiche?.niveau];
-      morceaux.push(`${fiche?.court ?? s.code}${s.ref ? ` ${s.ref}` : ''}${niveau ? ` (${niveau})` : ''}`);
+      // Page dans le libellé quand la source le prévoit (« Formation (support de cours, p.28) »).
+      const libelle = s.ref && fiche?.gabarit ? fiche.gabarit.replace('{ref}', s.ref) : `${fiche?.court ?? s.code}${s.ref ? ` ${s.ref}` : ''}`;
+      morceaux.push(`${libelle}${niveau ? ` (${niveau})` : ''}`);
     });
     return el('p', { class: 'pq-sources' }, ...morceaux);
   };
-  // Liste des sources en bas : titres complets, liens web seulement en ligne.
+  // Liste des sources en bas : titres complets, liens web seulement en ligne ; une source qui regroupe plusieurs
+  // documents les liste chacun, avec son titre publié et son lien.
+  const titreLie = (libelle, url) => (url && enLigne() ? el('a', { href: url, target: '_blank', rel: 'noopener' }, libelle) : libelle);
   const listeSources = (codes) => el('section', { class: 'pq-liste-sources' },
     el('h3', {}, 'Sources'),
     el('ul', {}, ...donnees.sources.filter((s) => !codes || codes.has(s.code)).map((s) => el('li', { class: 'pq-source-entree' },
-      s.url && enLigne() ? el('a', { href: s.url, target: '_blank', rel: 'noopener' }, s.libelle) : s.libelle))),
+      titreLie(s.libelle, s.url),
+      s.documents?.length ? el('ul', { class: 'pq-source-documents' },
+        ...s.documents.map((x) => el('li', { class: 'pq-source-document' }, titreLie(x.libelle, x.url)))) : null))),
     enLigne() ? null : el('p', { class: 'pq-note' }, 'Hors ligne : les liens servent seulement en ligne.'));
 
   function dessinerListe() {
@@ -117,7 +123,7 @@ export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLi
     remplacer(racine,
       el('section', { class: 'pq-images' },
         el('h3', {}, 'Quatre images pour tout retenir'),
-        el('ol', {}, ...donnees.images.map((x) => el('li', { class: 'pq-image' }, el('strong', {}, x.titre), ` ${x.texte}`)))),
+        listeNumerotee({}, donnees.images.map((x) => ({ numero: x.numero, contenu: [el('strong', {}, x.titre), ` ${x.texte}`], attributs: { class: 'pq-image' } })))),
       ...donnees.familles.map((f) => el('section', { class: 'pq-famille' },
         el('h3', {}, f.titre),
         el('div', { class: 'pq-fiches' }, ...f.fiches.map((id) => el('button', { type: 'button', class: 'bouton pq-fiche-bouton', 'data-fiche': id },
