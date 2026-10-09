@@ -38,6 +38,13 @@ const contexte = {
       return null;
     }
   })(),
+  entrainement: (() => {
+    try {
+      return lireJson('../data/entrainement.json');
+    } catch (erreur) {
+      return null;
+    }
+  })(),
   ficheContenu: (() => {
     try {
       return lireJson('../data/fiche-contenu.json');

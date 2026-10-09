@@ -97,6 +97,13 @@ function pourquoi(contexte) {
   if (!contexte?.pourquoi) throw new Error(`data/pourquoi.json non lu${contexte?.erreurpourquoi ? ` : ${contexte.erreurpourquoi}` : ''}`);
   return contexte.pourquoi;
 }
+// Questions du mode entraînement (data/entrainement.json).
+function entrainementDonnees(contexte) {
+  if (!contexte?.entrainement) throw new Error(`data/entrainement.json non lu${contexte?.erreurentrainement ? ` : ${contexte.erreurentrainement}` : ''}`);
+  return contexte.entrainement;
+}
+// Comparaison des appuis et des clés : sans casse, sans espaces (insécables comprises), apostrophes unifiées, renvois {n} ôtés.
+const normaliserEntrainement = (t) => String(t ?? '').replace(/\{\d+\}/g, '').replace(/[’‘ʼ`]/g, '\'').replace(/\s+/gu, '').toLowerCase();
 // Noms des relevés internes du Projet, cherchés par empreintes (deux mots collés) : jamais dans une fiche publiée.
 const EMPREINTES_RELEVES = new Set([0xb82bd84c, 0xc43f6430, 0x88105340, 0xbda87954]);
 
@@ -2010,6 +2017,66 @@ export const DONNEES = [
       v.egal('alertes du § 5 vers leur fiche, faits de matériel sans fiche', cas
         .filter(([, ecran, element, texte, attendu, selecteur]) => fiche(ecran, element, texte, selecteur ?? null) !== attendu)
         .map(([n, ecran, element, texte, attendu, selecteur]) => `n° ${n} « ${texte.slice(0, 50)} » : ${fiche(ecran, element, texte, selecteur ?? null)} au lieu de ${attendu}`), []);
+    },
+  },
+  {
+    id: 'D60',
+    titre: 'Mode entraînement (data/entrainement.json, transcrit du § 3 de la spec par outils/transcrire-entrainement.py) : 67 questions (Données 26, Électricité 12, Image 19, Régie 5, Accroche 5 ; valeurs 27, mécanismes 19, conséquences 11, calculs 10) ; chaque fiche « pourquoi » a au moins une question, chaque question une fiche qui existe, identifiants uniques ; 3 ou 4 réponses, toutes différentes, une seule bonne ; chaque appui mot pour mot dans « La règle », « En vrai » ou « Si tu ne la respectes pas » de sa fiche, jamais dans « L\'image », sans parenthèse de source, avec les sources de cette partie (règle de sourçage des fiches) ; chaque clé dans la bonne réponse et dans un appui (dans le calcul pour une question de calcul) ; thèmes des 5 essentiels : port 6, marge80 3, phases 3, scan 2, lots 2',
+    etape: 'entrainement',
+    verifier(v, contexte) {
+      const d = entrainementDonnees(contexte);
+      const p = pourquoi(contexte);
+      const qs = d.questions ?? [];
+      const fiches = new Map(p.fiches.map((f) => [f.id, f]));
+      // Décompte par valeur, rangé par clé (l'ordre de la banque ne compte pas).
+      const compte = (cle) => Object.fromEntries(Object.entries(qs.reduce((t, q) => ({ ...t, [q[cle]]: (t[q[cle]] ?? 0) + 1 }), {})).sort(([a], [b]) => a.localeCompare(b)));
+      v.egal('67 questions, identifiants uniques', [qs.length, new Set(qs.map((q) => q.id)).size], [67, 67]);
+      v.egal('par famille', compte('famille'), { accroche: 5, donnees: 26, electricite: 12, image: 19, regie: 5 });
+      v.egal('par type', compte('type'), { calcul: 10, consequence: 11, mecanisme: 19, valeur: 27 });
+      v.egal('thèmes des 5 essentiels', Object.fromEntries(Object.entries(compte('theme')).filter(([t]) => t !== 'null' && t !== 'undefined')), { lots: 2, marge80: 3, phases: 3, port: 6, scan: 2 });
+      v.egal('questions sans fiche ou de la mauvaise famille', qs.filter((q) => !fiches.has(q.fiche) || fiches.get(q.fiche).famille !== q.famille || !q.id.startsWith(`Q-${q.fiche}-`)).map((q) => q.id), []);
+      v.egal('fiches sans question', p.fiches.filter((f) => !qs.some((q) => q.fiche === f.id)).map((f) => f.id), []);
+      v.egal('réponses : 3 ou 4, toutes différentes, une seule bonne', qs.filter((q) => {
+        const toutes = [q.bonne, ...(q.autres ?? [])];
+        return !q.bonne || toutes.length < 3 || toutes.length > 4 || new Set(toutes.map(normaliserEntrainement)).size !== toutes.length;
+      }).map((q) => q.id), []);
+      const codes = new Set(p.sources.map((x) => x.code));
+      const sourceEntreParentheses = (t) => [...t.matchAll(/\(([^)]*)\)/g)].some((m) => m[1].split(' ; ').some((x) => codes.has(x.trim().split(/[\s,]/)[0])));
+      const fautesAppuis = [];
+      for (const q of qs) {
+        if (!(q.appuis?.length >= 1 && q.appuis.length <= 2)) fautesAppuis.push(`${q.id} : ${q.appuis?.length ?? 0} appui(s)`);
+        for (const a of q.appuis ?? []) {
+          const partie = fiches.get(q.fiche)?.parties.find((x) => x.cle === a.partie);
+          if (!['regle', 'vrai', 'consequence'].includes(a.partie) || !partie) fautesAppuis.push(`${q.id} : partie « ${a.partie} »`);
+          else if (!normaliserEntrainement(partie.texte).includes(normaliserEntrainement(a.texte))) fautesAppuis.push(`${q.id} : appui absent de ${q.fiche} ${a.partie} « ${a.texte.slice(0, 40)} »`);
+          if (sourceEntreParentheses(a.texte ?? '')) fautesAppuis.push(`${q.id} : parenthèse de source dans l'appui`);
+          if (partie && JSON.stringify((a.sources ?? []).map((x) => [x.code, x.ref ?? null])) !== JSON.stringify(partie.sources.map((x) => [x.code, x.ref ?? null]))) fautesAppuis.push(`${q.id} : sources de l'appui différentes de celles de la partie`);
+          if (partie && ['regle', 'vrai'].includes(a.partie) && !(a.sources ?? []).length && !/le constructeur ne (détaille|donne) pas/.test(partie.texte)) fautesAppuis.push(`${q.id} : appui de « ${partie.titre} » sans source`);
+        }
+      }
+      v.egal('appuis : mot pour mot dans leur partie, sans parenthèse de source, avec les sources de la partie', fautesAppuis.slice(0, 10), []);
+      v.egal('clés : dans la bonne réponse et dans un appui (dans le calcul pour un calcul)', qs.filter((q) => {
+        const cle = normaliserEntrainement(q.cle);
+        const ailleurs = q.type === 'calcul' ? [q.calcul] : (q.appuis ?? []).map((a) => a.texte);
+        return !cle || !normaliserEntrainement(q.bonne).includes(cle) || !ailleurs.some((t) => normaliserEntrainement(t).includes(cle));
+      }).map((q) => q.id), []);
+      v.egal('calcul présent pour les questions de calcul, et seulement pour elles', qs.filter((q) => (q.type === 'calcul') !== Boolean(q.calcul)).map((q) => q.id), []);
+      v.egal('thèmes connus, chacun au moins 2 questions', ['port', 'marge80', 'phases', 'scan', 'lots'].filter((t) => qs.filter((q) => q.theme === t).length < 2), []);
+    },
+  },
+  {
+    id: 'D61',
+    titre: 'Mode entraînement publié : data/entrainement.json, src/entrainement.js et src/ecran-entrainement.js dans le cache du service worker et dans le contrôle des noms interdits de D54 (empreintes), sans nom d\'employeur, d\'organisme de formation, de document interne ni de relevé ; les sources qui justifient la conception du mode (recherche sur l\'apprentissage) ne s\'affichent pas',
+    etape: 'entrainement',
+    verifier(v, contexte) {
+      const d = entrainementDonnees(contexte);
+      const fichiersMode = ['data/entrainement.json', 'src/entrainement.js', 'src/ecran-entrainement.js'];
+      v.egal('dans le cache du service worker', fichiersMode.filter((f) => !listeCache(contexte.fichiers?.['sw.js']).includes(f)), []);
+      v.egal('dans les fichiers publiés lus par D54', fichiersMode.filter((f) => typeof contexte.publies?.[f] !== 'string'), []);
+      const texte = JSON.stringify(d);
+      v.egal('aucun nom interdit (empreintes)', [...employeursDans(texte), ...internesDans(texte), ...empreintesDans(texte, EMPREINTES_RELEVES, [9, 11, 19, 21]), ...exactsDans(texte, EMPREINTES_RELEVES)], []);
+      v.egal('sources de conception non affichées, aucun fichier de document', ['DUNLOSKY', 'WEINSTEIN', 'BUTLER', 'LSCI', 'LITTLE', 'FLASH', 'YORK'].filter((c) => texte.includes(c))
+        .concat(/\.md\b|\.pdf\b|Projet/.test(texte) ? ['fichier ou Projet cité'] : []), []);
     },
   },
 ];

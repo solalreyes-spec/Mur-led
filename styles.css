@@ -899,3 +899,53 @@ ol.liste-numerotee { list-style: none; margin: 0; padding: 0; }
 .pq-source-documents { margin: 6px 0 0; padding-left: 1.2em; display: grid; gap: 6px; }
 :root[data-taille="grand"] .pq-sources, :root[data-taille="grand"] .pq-contexte, :root[data-taille="grand"] .pq-note,
 :root[data-taille="grand"] .pq-liste-sources { font-size: 1rem; }
+
+/* Mode entraînement (src/ecran-entrainement.js) : écran plein au-dessus de la liste des fiches « pourquoi ». Le verdict
+   et les marques des réponses sont écrits en texte (✓, ✗), la couleur ne fait que les renforcer ; texte à 4,5:1 en
+   thème sombre et en mode rouge (en rouge, le texte secondaire prend la couleur du texte) ; boutons de 56 px, 64 px en
+   grand affichage (règle de l'écran plein), tout le texte à 19 px en grand affichage (N41). Une réponse bloquée garde
+   ses couleurs : jamais d'opacité, qui ferait baisser le contraste. */
+.entrainement { z-index: 70; }
+.pq-entrainement { width: 100%; }
+.en { --en-doux: var(--texte-doux); display: grid; gap: 12px; padding-bottom: 16px; color: var(--texte); }
+:root[data-mode="rouge"] .en { --en-doux: var(--texte); }
+.en p { margin: 0; }
+.en-intro { line-height: 1.4; }
+.en-modes, .en-familles, .en-reponses, .en-boutons, .en-explication, .en-confirmation { display: grid; gap: 8px; }
+.en-familles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.en-familles .bouton { min-width: 0; padding: 0 8px; }
+.en-mode[aria-expanded="true"] { border-color: var(--accent); }
+.en-etat, .en-contexte, .en-note { color: var(--en-doux); font-size: 0.875rem; }
+.en-stockage { padding: 10px 12px; border: 1px solid var(--alerte); border-radius: var(--rayon); background: var(--alerte-fond); color: var(--alerte); }
+.en-confirmation { padding: 10px 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface); }
+.en-enonce { margin: 0; font-size: 1.2rem; line-height: 1.35; }
+.en-reponse, .en-bilan .bouton, .en-lire-fiche, .en-suivante, .en-ne-sait-pas, .en-mode, .en-effacer {
+  justify-content: flex-start; text-align: left; line-height: 1.3; padding: 10px 14px; white-space: normal; overflow-wrap: anywhere;
+}
+.en-reponse { font-weight: 600; }
+.en-reponse:disabled, .en-ne-sait-pas:disabled { cursor: default; color: var(--texte); }
+.en-reponse.bonne { border: 2px solid var(--ok); }
+.en-reponse.fausse { border: 2px solid var(--echec); }
+.en-marque { margin-left: 4px; font-weight: 800; }
+.en-explication:empty { display: none; }
+.en-verdict { font-size: 1.15rem; font-weight: 800; }
+.en-verdict.juste { color: var(--ok); }
+.en-verdict.faux { color: var(--texte); }
+.en-verdict:focus { outline: 2px solid var(--accent); outline-offset: 4px; }
+.en-bloc { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface); }
+.en-bloc-image { border-style: dashed; }
+.en-bloc h4 { margin: 0; font-size: 1rem; }
+.en-image::first-letter { text-transform: uppercase; }
+.en-image, .en-appui, .en-calcul { line-height: 1.4; overflow-wrap: anywhere; }
+.en-source { color: var(--en-doux); font-size: 0.8125rem; font-style: italic; line-height: 1.35; overflow-wrap: anywhere; }
+.en-barre { display: flex; }
+.en-score { font-size: 1.3rem; font-weight: 800; }
+.en-bilan { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.en-bilan li { display: grid; grid-template-columns: 1.6em minmax(0, 1fr); gap: 6px 4px; padding: 10px 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface); }
+.en-bilan .en-resultat { font-weight: 800; }
+.en-bilan li.juste .en-resultat { color: var(--ok); }
+.en-bilan .en-bilan-question { overflow-wrap: anywhere; }
+.en-bilan .en-lire-fiche { grid-column: 2; justify-self: start; }
+:root[data-taille="grand"] .en-etat, :root[data-taille="grand"] .en-contexte, :root[data-taille="grand"] .en-note,
+:root[data-taille="grand"] .en-source, :root[data-taille="grand"] .en-bloc h4 { font-size: 1rem; }
+

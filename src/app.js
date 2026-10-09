@@ -3,7 +3,7 @@
 import { resoudreFiche } from './calculs.js';
 import { el, remplacer } from './dom.js';
 import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig } from './fiches.js';
-import { lire, ecrire } from './stockage.js';
+import { lire, ecrire, stockageDisponible } from './stockage.js';
 import { initialiserMur, actualiserMur, signalerErreurMur } from './ecran-mur.js';
 import { initialiserData, actualiserData, murModifie, definirDepartData, processeurRetenu } from './ecran-data.js';
 import { initialiserCanvas, actualiserRegies, donneesModifiees } from './ecran-canvas.js';
@@ -19,6 +19,7 @@ import { initialiserCopie } from './copie.js';
 import { monterDepannage, marqueDuProcesseur } from './ecran-depannage.js';
 import { monterMireFiche } from './ecran-mire.js';
 import { monterPourquoi, relierPourquoi } from './pourquoi.js';
+import { monterEntrainement } from './ecran-entrainement.js';
 
 // Hors ligne : le service worker garde les fichiers de l'appli. Il prévient quand une nouvelle version est prête.
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
@@ -169,6 +170,14 @@ try {
 } catch (erreur) {
   pourquoi = null;
   liensPourquoi = null;
+}
+
+// Questions du mode entraînement (facultatives : sans elles, pas de bouton « S'entraîner »).
+let questionsEntrainement = null;
+try {
+  questionsEntrainement = await lireJson('data/entrainement.json');
+} catch (erreur) {
+  questionsEntrainement = null;
 }
 
 const appareils = Object.fromEntries(Object.entries(depart.appareils)
@@ -351,9 +360,39 @@ function fermerPourquoi() {
   if (panneauMire.hidden) document.body.classList.remove('montage-ouvert');
   return true;
 }
+// Mode entraînement : écran plein au-dessus de la liste des fiches ; « Fermer » ou Échap ramène à la liste.
+const panneauEntrainement = document.getElementById('entrainement');
+const defilantEntrainement = document.getElementById('ecran-entrainement');
+let ecranEntrainement = null;
+function ouvrirEntrainement() {
+  if (!ecranEntrainement) return;
+  ecranEntrainement.afficherAccueil();
+  panneauEntrainement.hidden = false;
+  document.body.classList.add('montage-ouvert');
+  defilantEntrainement.scrollTop = 0;
+}
+function fermerEntrainement() {
+  if (panneauEntrainement.hidden) return false;
+  panneauEntrainement.hidden = true;
+  if (panneauPourquoi.hidden && panneauMire.hidden) document.body.classList.remove('montage-ouvert');
+  return true;
+}
+if (pourquoi && questionsEntrainement) {
+  ecranEntrainement = monterEntrainement(defilantEntrainement, {
+    donnees: questionsEntrainement,
+    pourquoi,
+    stockage: { lire, ecrire, disponible: stockageDisponible },
+    fermer: fermerEntrainement,
+    defiler: () => { defilantEntrainement.scrollTop = 0; },
+  });
+}
+document.getElementById('entrainement-fermer').addEventListener('click', fermerEntrainement);
 if (pourquoi && liensPourquoi) {
   const defilant = document.getElementById('ecran-pourquoi');
-  ecranPourquoi = monterPourquoi(defilant, pourquoi, { defiler: () => { defilant.scrollTop = 0; } });
+  ecranPourquoi = monterPourquoi(defilant, pourquoi, {
+    defiler: () => { defilant.scrollTop = 0; },
+    ouvrirEntrainement: ecranEntrainement ? ouvrirEntrainement : null,
+  });
   const relier = () => relierPourquoi(liensPourquoi, { racine: document, ouvrir: ouvrirPourquoi });
   new MutationObserver(relier).observe(document.querySelector('main'), { childList: true, subtree: true });
   new MutationObserver(relier).observe(panneauMire, { childList: true, subtree: true });
@@ -374,8 +413,10 @@ if (ficheContenu) {
 }
 document.getElementById('bouton-mire').addEventListener('click', () => ouvrirMire('mire'));
 document.getElementById('mire-fermer').addEventListener('click', fermerMire);
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !fermerPourquoi()) fermerMire(); });
+// Échap ferme l'écran du dessus : le mode entraînement, puis la fiche ou la liste des fiches, puis la mire.
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !fermerEntrainement() && !fermerPourquoi()) fermerMire(); });
 window.addEventListener('hashchange', () => {
+  fermerEntrainement();
   fermerPourquoi();
   fermerMire();
 });

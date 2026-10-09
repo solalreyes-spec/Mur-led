@@ -1678,6 +1678,257 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N38',
+    titre: 'Entraînement : le bouton « S\'entraîner » est en tête de la liste des fiches « pourquoi », au-dessus des quatre images, et ouvre le mode ; toujours 8 onglets, aucun pour le mode',
+    etape: 'entrainement',
+    async verifier(v, contexte) {
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      if (!pq || !contexte.pourquoi) return;
+      const ouvertures = [];
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      pq.monterPourquoi(racine, contexte.pourquoi, { enLigne: () => false, ouvrirEntrainement: () => ouvertures.push('entrainement') }).afficherListe();
+      const bouton = racine.firstElementChild;
+      v.egal('premier élément de la liste : le bouton « S\'entraîner »', [bouton?.matches('button.pq-entrainement'), texteDe(bouton)], [true, 'S\'entraîner']);
+      v.vrai('les quatre images juste après', Boolean(bouton?.nextElementSibling?.matches('.pq-images')));
+      bouton?.click();
+      v.egal('appui : le mode s\'ouvre', ouvertures, ['entrainement']);
+      racine.remove();
+      const page = new DOMParser().parseFromString(contexte.fichiers?.['index.html'] ?? '', 'text/html');
+      const onglets = [...page.querySelectorAll('nav.onglets .onglet')];
+      v.egal('8 onglets, aucun pour le mode', [onglets.length, onglets.some((o) => /entra/i.test(o.textContent))], [8, false]);
+      v.vrai('écran plein du mode dans la page, comme la mire', Boolean(page.querySelector('#entrainement.montage[role="dialog"] #ecran-entrainement')) && Boolean(page.querySelector('#entrainement-fermer')));
+    },
+  },
+  {
+    id: 'N39',
+    titre: 'Entraînement, une séance complète : « Question 1 sur 5 · Données », réponses en ordre croissant, « Je ne sais pas » ; après le choix, réponses bloquées, marques en texte sur la réponse choisie et la bonne, verdict en texte qui prend le focus dans une zone annoncée, l\'image de la fiche (sauf « pas d\'image »), l\'appui mot pour mot avec la source de sa partie, le calcul pour une question de calcul ; « Lire la fiche D1 » puis « Retour » à la question dans le même état ; bilan « 2 bonnes réponses sur 5. » avec ✓ et ✗ et le lien de chaque fiche ; boîtes enregistrées',
+    etape: 'entrainement',
+    async verifier(v, contexte) {
+      const ent = await moduleAppli(v, '../src/ecran-entrainement.js');
+      const calc = await moduleAppli(v, '../src/entrainement.js');
+      if (!ent || !calc || !contexte.entrainement || !contexte.pourquoi) return;
+      const memoire = new Map();
+      const stockage = { lire: async (k) => memoire.get(k), ecrire: async (k, x) => { memoire.set(k, JSON.parse(JSON.stringify(x))); return true; } };
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const ecran = ent.monterEntrainement(racine, { donnees: contexte.entrainement, pourquoi: contexte.pourquoi, stockage, hasard: calc.hasardGraine(1), aujourdhui: () => '2026-10-04', enLigne: () => false });
+      await ecran.pret;
+      ecran.demarrerAvec(['Q-D1-1', 'Q-D2-1', 'Q-I5-1', 'Q-D17-1', 'Q-A3-1'], 'essentiels');
+      const reponses = () => [...racine.querySelectorAll('.en-reponse')];
+      const choisir = (debut) => reponses().find((b) => texteDe(b).startsWith(debut))?.click();
+      const suivante = () => racine.querySelector('.en-suivante')?.click();
+      v.egal('en tête', texteDe(racine.querySelector('.en-contexte')), 'Question 1 sur 5 · Données');
+      v.egal('réponses en ordre croissant', reponses().map(texteDe), ['262 144 px', '525 000 px', '650 000 px', '1 000 000 px']);
+      v.vrai('« Je ne sais pas » sous les réponses', texteDe(racine.querySelector('.en-ne-sait-pas')) === 'Je ne sais pas');
+      v.egal('zone de l\'explication annoncée', racine.querySelector('.en-explication')?.getAttribute('aria-live'), 'polite');
+      choisir('525 000 px');
+      const verdict = racine.querySelector('.en-verdict');
+      v.egal('verdict en texte', texteDe(verdict), '✗ Pas cette fois. La bonne réponse : 650 000 px.');
+      v.vrai('focus sur le verdict', document.activeElement === verdict);
+      v.vrai('réponses et « Je ne sais pas » bloqués', reponses().every((b) => b.disabled) && racine.querySelector('.en-ne-sait-pas')?.disabled);
+      v.vrai('marques en texte : ✗ sur la réponse choisie, ✓ sur la bonne', texteDe(reponses()[1]).includes('✗') && texteDe(reponses()[2]).includes('✓') && !texteDe(reponses()[0]).match(/[✓✗]/));
+      const d1 = contexte.pourquoi.fiches.find((f) => f.id === 'D1');
+      v.vrai('l\'image de la fiche', texteDe(racine.querySelector('.en-image')).includes(d1.parties.find((x) => x.cle === 'image').texte.slice(0, 30)));
+      v.vrai('l\'appui, mot pour mot', texteDe(racine.querySelector('.en-appui')).includes('un port 1G porte au plus 650 000 px chez Novastar et 525 000 px chez Brompton, en 8 bits à 60 Hz'));
+      v.egal('la source de sa partie, avec les libellés publiés des fiches', texteDe(racine.querySelector('.en-source')), 'La règle · Fiches Novastar ; Tessera p.205');
+      v.vrai('pas de calcul pour une question de valeur', !racine.querySelector('.en-calcul'));
+      const lire = racine.querySelector('.en-lire-fiche');
+      v.egal('lien vers la fiche', texteDe(lire), 'Lire la fiche D1');
+      lire?.click();
+      v.egal('la fiche D1 s\'ouvre dans le mode', [racine.dataset.vue, texteDe(racine.querySelector('.pq-question'))], ['fiche', d1.question]);
+      racine.querySelector('.en-retour')?.click();
+      v.egal('« Retour » : la question, dans le même état', [racine.dataset.vue, texteDe(racine.querySelector('.en-verdict')), reponses().every((b) => b.disabled), texteDe(reponses()[1]).includes('✗')],
+        ['question', '✗ Pas cette fois. La bonne réponse : 650 000 px.', true, true]);
+      suivante();
+      v.egal('question 2', texteDe(racine.querySelector('.en-contexte')), 'Question 2 sur 5 · Données');
+      choisir('262 500 px');
+      v.egal('bonne réponse', texteDe(racine.querySelector('.en-verdict')), '✓ Bonne réponse.');
+      v.vrai('le calcul', texteDe(racine.querySelector('.en-calcul')).includes('525 000 × 60 ÷ 120 = 262 500 px.'));
+      suivante();
+      racine.querySelector('.en-ne-sait-pas')?.click();
+      v.egal('« Je ne sais pas »', texteDe(racine.querySelector('.en-verdict')), 'La réponse : 2,8 m et 5,7 m.');
+      suivante();
+      choisir('1 080 px');
+      v.vrai('D17 : pas d\'image (« pas d\'image : … » dans la fiche)', !racine.querySelector('.en-image'));
+      suivante();
+      choisir('62,5 %');
+      v.egal('dernière question : « Voir le bilan »', texteDe(racine.querySelector('.en-suivante')), 'Voir le bilan');
+      suivante();
+      v.egal('bilan', [racine.dataset.vue, texteDe(racine.querySelector('.en-score'))], ['bilan', '2 bonnes réponses sur 5.']);
+      const lignes = [...racine.querySelectorAll('.en-bilan li')];
+      v.egal('bilan : ✓ ou ✗ et le lien de chaque fiche', lignes.map((l) => `${texteDe(l.querySelector('.en-resultat'))} ${l.querySelector('.en-lire-fiche')?.dataset.fiche}`), ['✗ D1', '✓ D2', '✗ I5', '✗ D17', '✓ A3']);
+      v.egal('boutons du bilan', [...racine.querySelectorAll('.en-encore, .en-fermer')].map(texteDe), ['Encore 5 questions', 'Fermer']);
+      const suivis = memoire.get('entrainement')?.suivis ?? {};
+      v.egal('boîtes enregistrées après chaque réponse', ['Q-D1-1', 'Q-D2-1', 'Q-I5-1', 'Q-D17-1', 'Q-A3-1'].map((id) => suivis[id]?.boite), [1, 2, 1, 1, 2]);
+      v.egal('date locale, sans l\'heure', suivis['Q-D1-1']?.date, '2026-10-04');
+      racine.remove();
+    },
+  },
+  {
+    id: 'N40',
+    titre: 'Entraînement : progression gardée après rechargement (état « Jamais vues · À revoir · En cours · Acquises ») ; fiche de suivi d\'une question inconnue ignorée ; stockage bloqué : le mode marche et affiche « Progression non enregistrée sur cet appareil. » ; « Effacer ma progression » confirmé par un second bouton dans l\'écran, jamais une fenêtre du navigateur',
+    etape: 'entrainement',
+    async verifier(v, contexte) {
+      const ent = await moduleAppli(v, '../src/ecran-entrainement.js');
+      const calc = await moduleAppli(v, '../src/entrainement.js');
+      if (!ent || !calc || !contexte.entrainement || !contexte.pourquoi) return;
+      const memoire = new Map([['entrainement', { version: 1, suivis: { 'Q-XX-9': { boite: 2, date: '2026-10-01' } } }]]);
+      const stockage = { lire: async (k) => memoire.get(k), ecrire: async (k, x) => { memoire.set(k, JSON.parse(JSON.stringify(x))); return true; } };
+      const monter = async (st) => {
+        const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+        document.body.append(racine);
+        const ecran = ent.monterEntrainement(racine, { donnees: contexte.entrainement, pourquoi: contexte.pourquoi, stockage: st, hasard: calc.hasardGraine(2), aujourdhui: () => '2026-10-04', enLigne: () => false });
+        await ecran.pret;
+        return { racine, ecran };
+      };
+      const a = await monter(stockage);
+      v.egal('accueil : état, l\'inconnue ignorée', texteDe(a.racine.querySelector('.en-etat')), 'Jamais vues 67 · À revoir 0 · En cours 0 · Acquises 0');
+      a.ecran.demarrerAvec(['Q-D1-1', 'Q-E1-1'], 'essentiels');
+      [...a.racine.querySelectorAll('.en-reponse')].find((b) => texteDe(b).startsWith('650 000 px'))?.click();
+      await new Promise((r) => setTimeout(r, 50));
+      a.racine.querySelector('.en-suivante')?.click();
+      [...a.racine.querySelectorAll('.en-reponse')].find((b) => texteDe(b).startsWith('50 %'))?.click();
+      await new Promise((r) => setTimeout(r, 50));
+      a.racine.remove();
+      const b = await monter(stockage);
+      v.egal('après rechargement : la progression est gardée', texteDe(b.racine.querySelector('.en-etat')), 'Jamais vues 65 · À revoir 1 · En cours 1 · Acquises 0');
+      v.vrai('pas de ligne de stockage quand il marche', !b.racine.querySelector('.en-stockage'));
+      const fenetres = [];
+      const confirmAvant = window.confirm;
+      window.confirm = (m) => { fenetres.push(m); return true; };
+      try {
+        b.racine.querySelector('.en-effacer')?.click();
+        v.vrai('« Effacer ma progression » : un second bouton dans l\'écran', Boolean(b.racine.querySelector('.en-confirmer')) && Boolean(b.racine.querySelector('.en-annuler')));
+        v.egal('rien n\'est effacé avant la confirmation', texteDe(b.racine.querySelector('.en-etat')), 'Jamais vues 65 · À revoir 1 · En cours 1 · Acquises 0');
+        b.racine.querySelector('.en-confirmer')?.click();
+        await new Promise((r) => setTimeout(r, 50));
+        v.egal('effacée', [texteDe(b.racine.querySelector('.en-etat')), Object.keys(memoire.get('entrainement')?.suivis ?? {}).length], ['Jamais vues 67 · À revoir 0 · En cours 0 · Acquises 0', 0]);
+        v.egal('aucune fenêtre du navigateur', fenetres, []);
+      } finally {
+        window.confirm = confirmAvant;
+      }
+      b.racine.remove();
+      const bloque = { lire: async () => { throw new Error('stockage bloqué'); }, ecrire: async () => { throw new Error('stockage bloqué'); } };
+      const c = await monter(bloque);
+      v.egal('stockage bloqué : la ligne prévue', texteDe(c.racine.querySelector('.en-stockage')), 'Progression non enregistrée sur cet appareil.');
+      c.racine.querySelector('.en-mode[data-mode="essentiels"]')?.click();
+      v.egal('stockage bloqué : la séance démarre', texteDe(c.racine.querySelector('.en-contexte')), 'Question 1 sur 5 · Données');
+      c.racine.querySelector('.en-ne-sait-pas')?.click();
+      await new Promise((r) => setTimeout(r, 50));
+      v.vrai('stockage bloqué : la réponse est traitée', texteDe(c.racine.querySelector('.en-verdict')).startsWith('La réponse : '));
+      c.racine.remove();
+    },
+  },
+  {
+    id: 'N41',
+    titre: 'Entraînement en grand affichage, thème sombre et mode rouge (écran plein comme la mire) : accueil, question après une mauvaise réponse, bilan ; texte de 19 px, boutons de 60 px (64 px dans l\'écran plein), texte à 4,5:1 sur son fond, texte secondaire compris, rien ne déborde à 375 px',
+    etape: 'entrainement',
+    async verifier(v, contexte) {
+      const ent = await moduleAppli(v, '../src/ecran-entrainement.js');
+      const calc = await moduleAppli(v, '../src/entrainement.js');
+      if (!ent || !calc || !contexte.entrainement || !contexte.pourquoi) return;
+      const feuille = el('link', { rel: 'stylesheet', href: 'styles.css' });
+      await new Promise((fin) => {
+        feuille.onload = fin;
+        feuille.onerror = fin;
+        document.head.append(feuille);
+      });
+      const html = document.documentElement;
+      const avant = { taille: html.dataset.taille, mode: html.dataset.mode };
+      try {
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          for (const taille of ['normal', 'grand']) {
+            if (taille === 'grand') html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            const [mini, police] = taille === 'grand' ? [64, 19] : [56, 0];
+            const cadre = el('div', { class: 'montage entrainement', style: 'position:absolute;left:-10000px;top:0;width:375px;height:auto;inset:auto;background:var(--fond);color:var(--texte)' });
+            const racine = el('div');
+            cadre.append(racine);
+            document.body.append(cadre);
+            const memoire = new Map();
+            const ecran = ent.monterEntrainement(racine, { donnees: contexte.entrainement, pourquoi: contexte.pourquoi,
+              stockage: { lire: async (k) => memoire.get(k), ecrire: async (k, x) => { memoire.set(k, x); return true; } }, hasard: calc.hasardGraine(3), aujourdhui: () => '2026-10-04', enLigne: () => false });
+            await ecran.pret;
+            const fautes = [];
+            const controler = (nom) => {
+              for (const e of [...racine.querySelectorAll('*')].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && x.getClientRects().length)) {
+                const style = getComputedStyle(e);
+                if (police && !e.closest('sup') && parseFloat(style.fontSize) < police - 0.05) fautes.push(`${nom} : « ${texteDe(e).slice(0, 30)} » en ${style.fontSize}`);
+                const k = contraste(rgbVersHex(style.color), fondDe(e));
+                if (k < 4.5) fautes.push(`${nom} : « ${texteDe(e).slice(0, 30)} » à ${k.toFixed(2)}:1`);
+              }
+              for (const b of racine.querySelectorAll('button')) {
+                if (!b.getClientRects().length || b.closest('.pq-lien-fiche')) continue;
+                const h = b.getBoundingClientRect().height;
+                if (h < mini - 0.5) fautes.push(`${nom} : « ${texteDe(b).slice(0, 30)} » haut de ${h.toFixed(0)} px`);
+              }
+              if (cadre.scrollWidth > 375.5) fautes.push(`${nom} : ${cadre.scrollWidth} px de large`);
+            };
+            ecran.afficherAccueil();
+            racine.querySelector('.en-mode[data-mode="famille"]')?.click();
+            racine.querySelector('.en-effacer')?.click();
+            controler('accueil');
+            ecran.demarrerAvec(['Q-D1-1', 'Q-E4-3', 'Q-I13-1', 'Q-R2-1', 'Q-A3-1'], 'essentiels');
+            [...racine.querySelectorAll('.en-reponse')].find((b) => texteDe(b).startsWith('525 000 px'))?.click();
+            controler('question');
+            for (let k = 0; k < 4; k += 1) {
+              racine.querySelector('.en-suivante')?.click();
+              racine.querySelector('.en-ne-sait-pas')?.click();
+            }
+            controler('dernière question');
+            racine.querySelector('.en-suivante')?.click();
+            controler('bilan');
+            v.egal(`${mode}, ${taille} : texte, contrastes, cibles et largeur`, fautes.slice(0, 12), []);
+            cadre.remove();
+          }
+        }
+      } finally {
+        feuille.remove();
+        if (avant.taille) html.dataset.taille = avant.taille;
+        else delete html.dataset.taille;
+        if (avant.mode) html.dataset.mode = avant.mode;
+        else delete html.dataset.mode;
+      }
+    },
+  },
+  {
+    id: 'N42',
+    titre: 'Entraînement hors ligne : le mode s\'ouvre et fait une séance complète sans aucun accès au réseau (fiche ouverte depuis une question comprise, sans lien web)',
+    etape: 'entrainement',
+    async verifier(v, contexte) {
+      const ent = await moduleAppli(v, '../src/ecran-entrainement.js');
+      const calc = await moduleAppli(v, '../src/entrainement.js');
+      if (!ent || !calc || !contexte.entrainement || !contexte.pourquoi) return;
+      await sansReseau(async (appels) => {
+        const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+        document.body.append(racine);
+        const memoire = new Map();
+        const ecran = ent.monterEntrainement(racine, { donnees: contexte.entrainement, pourquoi: contexte.pourquoi,
+          stockage: { lire: async (k) => memoire.get(k), ecrire: async (k, x) => { memoire.set(k, x); return true; } }, hasard: calc.hasardGraine(4), aujourdhui: () => '2026-10-04' });
+        await ecran.pret;
+        racine.querySelector('.en-mode[data-mode="jour"]')?.click();
+        let questions = 0;
+        for (let k = 0; k < 5; k += 1) {
+          if (racine.dataset.vue !== 'question') break;
+          questions += 1;
+          racine.querySelector('.en-reponse')?.click();
+          if (k === 0) {
+            racine.querySelector('.en-lire-fiche')?.click();
+            v.vrai('hors ligne : la fiche s\'ouvre, sans lien web', racine.dataset.vue === 'fiche' && racine.querySelectorAll('a[href^="http"]').length === 0);
+            racine.querySelector('.en-retour')?.click();
+          }
+          racine.querySelector('.en-suivante')?.click();
+        }
+        v.egal('hors ligne : séance du jour de 5 questions, puis le bilan', [questions, racine.dataset.vue], [5, 'bilan']);
+        v.egal('hors ligne : aucun accès au réseau', appels, []);
+        racine.remove();
+      });
+    },
+  },
 ];
 
 // Contraste WCAG entre deux couleurs « #rrggbb ».

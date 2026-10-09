@@ -69,9 +69,20 @@ export function relierPourquoi(table, { racine = document, ouvrir }) {
 // Écran des fiches
 // ---------------------------------------------------------------------------
 
-export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLine, defiler = () => {} } = {}) {
+// Libellé court d'une source sous une ligne (« Tessera p.205 », « Formation (support de cours, p.28) », « … (copie) ») :
+// le même dans les fiches et dans le mode entraînement.
+export function libelleSourceCourt(donnees, s) {
+  const fiche = donnees.sources.find((x) => x.code === s.code);
+  const niveau = NIVEAUX_AFFICHES[fiche?.niveau];
+  // Page dans le libellé quand la source le prévoit (« Formation (support de cours, p.28) »).
+  const libelle = s.ref && fiche?.gabarit ? fiche.gabarit.replace('{ref}', s.ref) : `${fiche?.court ?? s.code}${s.ref ? ` ${s.ref}` : ''}`;
+  return `${libelle}${niveau ? ` (${niveau})` : ''}`;
+}
+
+// `ouvrirEntrainement` : bouton « S'entraîner » en tête de la liste ; `versListe` faux : fiche seule, sans « Toutes les
+// fiches » (lue depuis une question du mode entraînement).
+export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLine, defiler = () => {}, ouvrirEntrainement = null, versListe = true } = {}) {
   const fiches = new Map(donnees.fiches.map((f) => [f.id, f]));
-  const sources = new Map(donnees.sources.map((s) => [s.code, s]));
   const familles = new Map(donnees.familles.map((f) => [f.id, f]));
   const etat = { vue: 'liste', fiche: null };
   racine.classList.add('pq');
@@ -96,13 +107,9 @@ export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLi
     if (!liste?.length) return null;
     const morceaux = [];
     liste.forEach((s, i) => {
-      const fiche = sources.get(s.code);
       if (i > 0) morceaux.push(' ; ');
       if (s.renvoi !== undefined && liste.findIndex((x) => x.renvoi === s.renvoi) === i) morceaux.push(el('span', { class: 'pq-source-numero' }, `${s.renvoi} `));
-      const niveau = NIVEAUX_AFFICHES[fiche?.niveau];
-      // Page dans le libellé quand la source le prévoit (« Formation (support de cours, p.28) »).
-      const libelle = s.ref && fiche?.gabarit ? fiche.gabarit.replace('{ref}', s.ref) : `${fiche?.court ?? s.code}${s.ref ? ` ${s.ref}` : ''}`;
-      morceaux.push(`${libelle}${niveau ? ` (${niveau})` : ''}`);
+      morceaux.push(libelleSourceCourt(donnees, s));
     });
     return el('p', { class: 'pq-sources' }, ...morceaux);
   };
@@ -121,6 +128,7 @@ export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLi
     racine.dataset.vue = 'liste';
     delete racine.dataset.fiche;
     remplacer(racine,
+      ouvrirEntrainement ? el('button', { type: 'button', class: 'bouton pq-entrainement' }, 'S\'entraîner') : null,
       el('section', { class: 'pq-images' },
         el('h3', {}, 'Quatre images pour tout retenir'),
         listeNumerotee({}, donnees.images.map((x) => ({ numero: x.numero, contenu: [el('strong', {}, x.titre), ` ${x.texte}`], attributs: { class: 'pq-image' } })))),
@@ -138,7 +146,7 @@ export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLi
     racine.dataset.fiche = id;
     const codes = new Set(f.parties.flatMap((p) => p.sources.map((s) => s.code)));
     remplacer(racine,
-      el('div', { class: 'pq-barre' }, el('button', { type: 'button', class: 'bouton pq-vers-liste' }, 'Toutes les fiches')),
+      versListe ? el('div', { class: 'pq-barre' }, el('button', { type: 'button', class: 'bouton pq-vers-liste' }, 'Toutes les fiches')) : null,
       el('p', { class: 'pq-contexte' }, `${familles.get(f.famille)?.titre} · ${f.id}`),
       el('h2', { class: 'pq-question' }, f.question),
       ...f.parties.map((p) => el('section', { class: `pq-partie pq-partie-${p.cle}` },
@@ -156,6 +164,8 @@ export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLi
       etat.fiche = b.dataset.fiche;
       dessinerFiche(etat.fiche);
       defiler();
+    } else if (b.matches('.pq-entrainement')) {
+      ouvrirEntrainement?.();
     } else if (b.matches('.pq-vers-liste')) {
       etat.vue = 'liste';
       dessinerListe();

@@ -1,0 +1,2325 @@
+{
+  "document": "Mode entraînement : questions tirées des fiches « pourquoi »",
+  "date": "2026-10-03",
+  "familles": [
+    {
+      "id": "donnees",
+      "titre": "Données"
+    },
+    {
+      "id": "electricite",
+      "titre": "Électricité"
+    },
+    {
+      "id": "image",
+      "titre": "Image"
+    },
+    {
+      "id": "regie",
+      "titre": "Régie"
+    },
+    {
+      "id": "accroche",
+      "titre": "Accroche"
+    }
+  ],
+  "themes": [
+    {
+      "id": "port",
+      "titre": "capacité d'un port"
+    },
+    {
+      "id": "marge80",
+      "titre": "marge de 80 %"
+    },
+    {
+      "id": "phases",
+      "titre": "équilibrage des phases"
+    },
+    {
+      "id": "scan",
+      "titre": "scan"
+    },
+    {
+      "id": "lots",
+      "titre": "lots"
+    }
+  ],
+  "questions": [
+    {
+      "id": "Q-D1-1",
+      "fiche": "D1",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": "port",
+      "question": "Combien de pixels porte au plus un port 1G Novastar, en 8 bits à 60 Hz ?",
+      "bonne": "650 000 px",
+      "autres": [
+        "525 000 px",
+        "1 000 000 px",
+        "262 144 px"
+      ],
+      "appuis": [
+        {
+          "texte": "un port 1G porte au plus 650 000 px chez Novastar et 525 000 px chez Brompton, en 8 bits à 60 Hz",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "NS-INV",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "p.205"
+            }
+          ]
+        }
+      ],
+      "cle": "650 000",
+      "calcul": null
+    },
+    {
+      "id": "Q-D1-2",
+      "fiche": "D1",
+      "famille": "donnees",
+      "type": "mecanisme",
+      "theme": "port",
+      "question": "En 8 bits par couleur, combien de bits pèse un pixel ?",
+      "bonne": "24 bits",
+      "autres": [
+        "8 bits",
+        "16 bits",
+        "30 bits"
+      ],
+      "appuis": [
+        {
+          "texte": "Un pixel en 8 bits pèse 24 bits",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "CX-WIKI",
+              "ref": null
+            },
+            {
+              "code": "F5",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "p.205"
+            }
+          ]
+        }
+      ],
+      "cle": "24 bits",
+      "calcul": null
+    },
+    {
+      "id": "Q-D2-1",
+      "fiche": "D2",
+      "famille": "donnees",
+      "type": "calcul",
+      "theme": "port",
+      "question": "Un port Brompton porte 525 000 px à 60 Hz. Combien à 120 Hz ?",
+      "bonne": "262 500 px",
+      "autres": [
+        "420 000 px",
+        "525 000 px",
+        "1 050 000 px"
+      ],
+      "appuis": [
+        {
+          "texte": "525 000 px à 60 Hz deviennent 262 500 px à 120 Hz",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "p.205"
+            },
+            {
+              "code": "CDC",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "262 500",
+      "calcul": "525 000 × 60 ÷ 120 = 262 500 px."
+    },
+    {
+      "id": "Q-D2-2",
+      "fiche": "D2",
+      "famille": "donnees",
+      "type": "consequence",
+      "theme": null,
+      "question": "Ton mur est calculé à 50 Hz. Le jour J, tout passe en 60 Hz, mur compris. Que risques-tu ?",
+      "bonne": "Un port en surcharge",
+      "autres": [
+        "Des ports libérés",
+        "Rien : seule la profondeur compte",
+        "Des noirs gris"
+      ],
+      "appuis": [
+        {
+          "texte": "un mur calculé à 50 Hz peut être en surcharge à 60 Hz",
+          "partie": "consequence",
+          "sources": []
+        }
+      ],
+      "cle": "surcharge",
+      "calcul": null
+    },
+    {
+      "id": "Q-D3-1",
+      "fiche": "D3",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": "port",
+      "question": "Chez Brompton, à 60 Hz, combien de pixels porte un port 1G en 10 bits ?",
+      "bonne": "420 000 px",
+      "autres": [
+        "350 000 px",
+        "525 000 px",
+        "650 000 px"
+      ],
+      "appuis": [
+        {
+          "texte": "525 000 px en 8 bits, 420 000 en 10 bits, 350 000 en 12 bits, à 60 Hz",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "p.205"
+            },
+            {
+              "code": "NS-INV",
+              "ref": null
+            },
+            {
+              "code": "CX-WIKI",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "420 000",
+      "calcul": null
+    },
+    {
+      "id": "Q-D4-1",
+      "fiche": "D4",
+      "famille": "donnees",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Un VX4S a 4 ports. Quelle limite décide du nombre total de pixels du mur ?",
+      "bonne": "Sa capacité totale, 2,3 millions de pixels",
+      "autres": [
+        "La somme de ses 4 ports, 2,6 millions de pixels",
+        "Son port le plus chargé, 650 000 px",
+        "Le nombre de dalles sur chaque port"
+      ],
+      "appuis": [
+        {
+          "texte": "la capacité totale du processeur passe avant le total de ses ports",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "NS-INV",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "texte": "VX4S, 4 ports mais 2,3 millions de pixels au total",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "NS-INV",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "capacité totale",
+      "calcul": null
+    },
+    {
+      "id": "Q-D5-1",
+      "fiche": "D5",
+      "famille": "donnees",
+      "type": "calcul",
+      "theme": "port",
+      "question": "Dalle de 192 × 192 px, port Brompton à 525 000 px. Combien de dalles au plus sur le port, par la capacité seule ?",
+      "bonne": "14 dalles",
+      "autres": [
+        "11 dalles",
+        "15 dalles",
+        "17 dalles"
+      ],
+      "appuis": [
+        {
+          "texte": "on calcule combien de dalles entières tiennent sur un câble, jamais une simple division du total",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§3.1"
+            }
+          ]
+        }
+      ],
+      "cle": "14",
+      "calcul": "192 × 192 = 36 864 px ; 525 000 ÷ 36 864 = 14,2, donc 14 dalles entières."
+    },
+    {
+      "id": "Q-D5-2",
+      "fiche": "D5",
+      "famille": "donnees",
+      "type": "calcul",
+      "theme": "port",
+      "question": "29 dalles de 256 × 256 px, ports Novastar à 650 000 px. Combien de ports, par la capacité seule ?",
+      "bonne": "4 ports",
+      "autres": [
+        "2 ports",
+        "3 ports",
+        "5 ports"
+      ],
+      "appuis": [
+        {
+          "texte": "on calcule combien de dalles entières tiennent sur un câble, jamais une simple division du total",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§3.1"
+            }
+          ]
+        },
+        {
+          "texte": "le calcul annonce un câble de moins que nécessaire",
+          "partie": "consequence",
+          "sources": []
+        }
+      ],
+      "cle": "4",
+      "calcul": "256 × 256 = 65 536 px ; 650 000 ÷ 65 536 = 9,9, donc 9 dalles par port ; 29 ÷ 9 = 3,2, donc 4 ports. La simple division (29 × 65 536 ÷ 650 000 = 2,9) en donnerait 3."
+    },
+    {
+      "id": "Q-D6-1",
+      "fiche": "D6",
+      "famille": "donnees",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Dans NovaLCT, un port charge des dalles en L. Sur quelle surface compte-t-il la charge ?",
+      "bonne": "Le plus petit rectangle qui contient toutes ses dalles",
+      "autres": [
+        "Seulement les dalles branchées",
+        "Toute la largeur du mur",
+        "La plus grande dalle multipliée par le nombre de dalles"
+      ],
+      "appuis": [
+        {
+          "texte": "NovaLCT compte la charge d'un port sur le plus petit rectangle qui contient toutes ses dalles, trous compris",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§3.2"
+            },
+            {
+              "code": "F6",
+              "ref": null
+            },
+            {
+              "code": "CX-LED",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "plus petit rectangle",
+      "calcul": null
+    },
+    {
+      "id": "Q-D7-1",
+      "fiche": "D7",
+      "famille": "donnees",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Pourquoi câbler les données en colonnes, comme l'alimentation ?",
+      "bonne": "Pour dépanner plus vite en direct",
+      "autres": [
+        "Pour gagner de la capacité par port",
+        "Parce que le processeur l'impose",
+        "Pour réduire le courant d'appel"
+      ],
+      "appuis": [
+        {
+          "texte": "un câblage logique se dépanne beaucoup plus vite en direct",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "F6",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "plus vite en direct",
+      "calcul": null
+    },
+    {
+      "id": "Q-D8-1",
+      "fiche": "D8",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": null,
+      "question": "En boucle de secours, que devient le nombre de ports ?",
+      "bonne": "Il est doublé",
+      "autres": [
+        "Il ne change pas",
+        "Il augmente d'un port",
+        "Il est divisé par deux"
+      ],
+      "appuis": [
+        {
+          "texte": "chaque chaîne part d'un port et revient sur un second : le nombre de ports est doublé",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§3.3"
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.3"
+            }
+          ]
+        }
+      ],
+      "cle": "doublé",
+      "calcul": null
+    },
+    {
+      "id": "Q-D9-1",
+      "fiche": "D9",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": null,
+      "question": "Tu actives l'ultra faible latence (ULL) sur un SX40. Que devient la capacité de ses ports 1G ?",
+      "bonne": "Divisée par deux",
+      "autres": [
+        "Inchangée",
+        "Doublée",
+        "Réduite d'un quart"
+      ],
+      "appuis": [
+        {
+          "texte": "la capacité du système et des ports 1G est divisée par deux",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.4"
+            }
+          ]
+        }
+      ],
+      "cle": "divisée par deux",
+      "calcul": null
+    },
+    {
+      "id": "Q-D10-1",
+      "fiche": "D10",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": null,
+      "question": "Novastar et COEX : quelle largeur chargée faut-il au moins pour la pleine capacité d'un port ?",
+      "bonne": "128 px",
+      "autres": [
+        "16 px",
+        "64 px",
+        "256 px"
+      ],
+      "appuis": [
+        {
+          "texte": "la pleine capacité d'un port suppose une largeur chargée d'au moins 128 px",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CX-MX40S",
+              "ref": null
+            },
+            {
+              "code": "CX-MX6000",
+              "ref": "p.49"
+            }
+          ]
+        }
+      ],
+      "cle": "128 px",
+      "calcul": null
+    },
+    {
+      "id": "Q-D11-1",
+      "fiche": "D11",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": null,
+      "question": "Un CVT10 au pied du mur : qu'est-ce qui arrive de la régie ?",
+      "bonne": "Un seul lien 10G",
+      "autres": [
+        "Dix câbles 1G",
+        "Quatre câbles 1G",
+        "Un câble HDMI"
+      ],
+      "appuis": [
+        {
+          "texte": "le CVT10 reçoit un lien 10G et sort dix ports 1G",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "CX-CVT10",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2"
+            }
+          ]
+        }
+      ],
+      "cle": "lien 10G",
+      "calcul": null
+    },
+    {
+      "id": "Q-D12-1",
+      "fiche": "D12",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": null,
+      "question": "Longueur maximale d'un câble cuivre 1G ?",
+      "bonne": "100 m",
+      "autres": [
+        "55 m",
+        "60 m",
+        "300 m"
+      ],
+      "appuis": [
+        {
+          "texte": "un câble 1G fait au plus 100 m",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2"
+            },
+            {
+              "code": "IEEE",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "100 m",
+      "calcul": null
+    },
+    {
+      "id": "Q-D13-1",
+      "fiche": "D13",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": null,
+      "question": "COEX en 5G, Brompton en 10G : quel câble demande le constructeur ?",
+      "bonne": "Du Cat6A",
+      "autres": [
+        "Du Cat5",
+        "Du Cat5e",
+        "N'importe quel câble réseau"
+      ],
+      "appuis": [
+        {
+          "texte": "5G et 10G demandent du Cat6A",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CX-WIKI5G",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2"
+            }
+          ]
+        }
+      ],
+      "cle": "Cat6A",
+      "calcul": null
+    },
+    {
+      "id": "Q-D14-1",
+      "fiche": "D14",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": null,
+      "question": "Carte de sortie COEX : quelle largeur ou hauteur maximale ?",
+      "bonne": "16 384 px",
+      "autres": [
+        "3 840 px",
+        "4 094 px",
+        "8 192 px"
+      ],
+      "appuis": [
+        {
+          "texte": "Carte de sortie COEX : 16 384 px au plus",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§6.3"
+            },
+            {
+              "code": "CX-MX6000",
+              "ref": "p.15-16"
+            }
+          ]
+        }
+      ],
+      "cle": "16 384",
+      "calcul": null
+    },
+    {
+      "id": "Q-D15-1",
+      "fiche": "D15",
+      "famille": "donnees",
+      "type": "consequence",
+      "theme": null,
+      "question": "COEX : un écran chargé à la fois par une carte de sortie 1G et une carte 5G. Que fait l'appli ?",
+      "bonne": "Elle refuse la configuration",
+      "autres": [
+        "Elle accepte sans alerte",
+        "Elle passe tout l'écran en 1G",
+        "Elle accepte avec du Cat6A partout"
+      ],
+      "appuis": [
+        {
+          "texte": "ne peuvent pas charger le même écran",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CX-MX6000",
+              "ref": "p.18"
+            }
+          ]
+        },
+        {
+          "texte": "l'appli refuse la configuration",
+          "partie": "consequence",
+          "sources": []
+        }
+      ],
+      "cle": "refuse la configuration",
+      "calcul": null
+    },
+    {
+      "id": "Q-D16-1",
+      "fiche": "D16",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": null,
+      "question": "Brompton : en dessous de quelle taille une dalle coûte-t-elle cher en traitement ?",
+      "bonne": "Moins de 16 px dans une dimension",
+      "autres": [
+        "Moins de 128 px de large",
+        "Plus de 1 280 px de haut",
+        "Moins de 256 px dans une dimension"
+      ],
+      "appuis": [
+        {
+          "texte": "les dalles de moins de 16 px dans une dimension coûtent cher en traitement",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.4"
+            }
+          ]
+        }
+      ],
+      "cle": "16 px",
+      "calcul": null
+    },
+    {
+      "id": "Q-D17-1",
+      "fiche": "D17",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": null,
+      "question": "Colorlight S20 : au-delà de quelle hauteur chargée la capacité d'un port baisse-t-elle ?",
+      "bonne": "1 280 px",
+      "autres": [
+        "1 080 px",
+        "2 160 px",
+        "4 096 px"
+      ],
+      "appuis": [
+        {
+          "texte": "la capacité d'un port baisse quand la zone chargée dépasse 1 280 px de haut",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CL-S20",
+              "ref": "p.2"
+            }
+          ]
+        }
+      ],
+      "cle": "1 280 px",
+      "calcul": null
+    },
+    {
+      "id": "Q-D18-1",
+      "fiche": "D18",
+      "famille": "donnees",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Un lien 2,5G vers les dalles : qu'est-ce qui doit le supporter ?",
+      "bonne": "Le processeur, le switch et la carte de réception",
+      "autres": [
+        "Le processeur seul",
+        "Le processeur et le switch",
+        "Le switch et la carte de réception"
+      ],
+      "appuis": [
+        {
+          "texte": "un lien plus rapide que 1G ne marche que si chaque maillon le supporte",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CX-CX40",
+              "ref": null
+            },
+            {
+              "code": "MP-SUP",
+              "ref": null
+            },
+            {
+              "code": "MP-HELIOS",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "texte": "processeur ou carte de sortie, switch, carte de réception de la dalle",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CX-CX40",
+              "ref": null
+            },
+            {
+              "code": "MP-SUP",
+              "ref": null
+            },
+            {
+              "code": "MP-HELIOS",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "carte de réception",
+      "calcul": null
+    },
+    {
+      "id": "Q-D19-1",
+      "fiche": "D19",
+      "famille": "donnees",
+      "type": "consequence",
+      "theme": null,
+      "question": "Processeur Brompton, dalles équipées de cartes Novastar : que se passe-t-il ?",
+      "bonne": "Le mur ne s'affiche pas",
+      "autres": [
+        "Ça marche, avec une capacité réduite",
+        "Ça marche après une mise à jour du firmware",
+        "Ça marche en 8 bits seulement"
+      ],
+      "appuis": [
+        {
+          "texte": "le mur ne s'affiche pas",
+          "partie": "consequence",
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "ne s'affiche pas",
+      "calcul": null
+    },
+    {
+      "id": "Q-D20-1",
+      "fiche": "D20",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": null,
+      "question": "Combien de pixels pilote au plus une carte de réception Brompton R2 ?",
+      "bonne": "262 144 px",
+      "autres": [
+        "131 072 px",
+        "525 000 px",
+        "650 000 px"
+      ],
+      "appuis": [
+        {
+          "texte": "262 144 px pour une Brompton R2 ou R2+",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BR-R2",
+              "ref": null
+            },
+            {
+              "code": "NS-CARTES",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "262 144",
+      "calcul": null
+    },
+    {
+      "id": "Q-D21-1",
+      "fiche": "D21",
+      "famille": "donnees",
+      "type": "valeur",
+      "theme": null,
+      "question": "Réseau Brompton : combien de switches au plus entre le processeur et la dalle la plus éloignée, XD et convertisseurs fibre compris ?",
+      "bonne": "5 switches",
+      "autres": [
+        "1 switch",
+        "3 switches",
+        "10 switches"
+      ],
+      "appuis": [
+        {
+          "texte": "5 switches au plus, XD et convertisseurs fibre compris",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2"
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "annexe B"
+            }
+          ]
+        }
+      ],
+      "cle": "5 switches",
+      "calcul": null
+    },
+    {
+      "id": "Q-D21-2",
+      "fiche": "D21",
+      "famille": "donnees",
+      "type": "consequence",
+      "theme": null,
+      "question": "Fibre Brompton : quel type de connecteur ne faut-il jamais utiliser ?",
+      "bonne": "APC",
+      "autres": [
+        "PC",
+        "UPC"
+      ],
+      "appuis": [
+        {
+          "texte": "connecteurs PC ou UPC, jamais APC",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§13.1.2"
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "annexe B"
+            }
+          ]
+        },
+        {
+          "texte": "un connecteur APC peut abîmer le SX40 ou le XD",
+          "partie": "consequence",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "annexe B"
+            }
+          ]
+        }
+      ],
+      "cle": "APC",
+      "calcul": null
+    },
+    {
+      "id": "Q-D22-1",
+      "fiche": "D22",
+      "famille": "donnees",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Tessera M2 ou T1 : un canevas autre que 1920 × 1080 passe en Low Latency Mode. Que perds-tu ?",
+      "bonne": "La mise à l'échelle et la conversion de fréquence",
+      "autres": [
+        "La moitié de la capacité des ports",
+        "Les réglages de luminosité et de contraste",
+        "La redondance des câbles"
+      ],
+      "appuis": [
+        {
+          "texte": "désactive la mise à l'échelle, le désentrelacement et la conversion de fréquence",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§6.4"
+            }
+          ]
+        }
+      ],
+      "cle": "mise à l'échelle",
+      "calcul": null
+    },
+    {
+      "id": "Q-E1-1",
+      "fiche": "E1",
+      "famille": "electricite",
+      "type": "valeur",
+      "theme": "marge80",
+      "question": "Jusqu'à quelle part de sa capacité peux-tu charger une ligne ?",
+      "bonne": "80 %",
+      "autres": [
+        "50 %",
+        "90 %",
+        "100 %"
+      ],
+      "appuis": [
+        {
+          "texte": "on ne charge jamais une ligne à plus de 80 % de sa capacité",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null
+            },
+            {
+              "code": "CDC",
+              "ref": "§4.1"
+            }
+          ]
+        }
+      ],
+      "cle": "80 %",
+      "calcul": null
+    },
+    {
+      "id": "Q-E1-2",
+      "fiche": "E1",
+      "famille": "electricite",
+      "type": "calcul",
+      "theme": "marge80",
+      "question": "Ligne protégée en 16 A. Quel courant au plus peux-tu prévoir ?",
+      "bonne": "12,8 A",
+      "autres": [
+        "8 A",
+        "14,4 A",
+        "16 A"
+      ],
+      "appuis": [
+        {
+          "texte": "on ne charge jamais une ligne à plus de 80 % de sa capacité",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null
+            },
+            {
+              "code": "CDC",
+              "ref": "§4.1"
+            }
+          ]
+        }
+      ],
+      "cle": "12,8",
+      "calcul": "16 A × 0,8 = 12,8 A."
+    },
+    {
+      "id": "Q-E1-3",
+      "fiche": "E1",
+      "famille": "electricite",
+      "type": "calcul",
+      "theme": "marge80",
+      "question": "Ligne 16 A en 230 V, dalles de 200 W au maximum. Combien de dalles au plus sur la ligne ?",
+      "bonne": "14 dalles",
+      "autres": [
+        "12 dalles",
+        "15 dalles",
+        "18 dalles"
+      ],
+      "appuis": [
+        {
+          "texte": "on ne charge jamais une ligne à plus de 80 % de sa capacité",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "F1",
+              "ref": null
+            },
+            {
+              "code": "CDC",
+              "ref": "§4.1"
+            }
+          ]
+        }
+      ],
+      "cle": "14",
+      "calcul": "16 A × 230 V = 3 680 W ; × 0,8 = 2 944 W ; 2 944 ÷ 200 = 14,7, donc 14 dalles. Sans la marge, on en compterait 18."
+    },
+    {
+      "id": "Q-E2-1",
+      "fiche": "E2",
+      "famille": "electricite",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Pourquoi allumer les lignes une par une ?",
+      "bonne": "Pour que les courants d'appel ne s'additionnent pas",
+      "autres": [
+        "Pour ménager les LED",
+        "Pour laisser le processeur trouver les dalles",
+        "Pour équilibrer les phases"
+      ],
+      "appuis": [
+        {
+          "texte": "ces appels s'additionnent",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "MW",
+              "ref": null
+            },
+            {
+              "code": "ETC",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "texte": "le disjoncteur saute à l'allumage alors que le mur, une fois allumé, tiendrait",
+          "partie": "consequence",
+          "sources": [
+            {
+              "code": "ETC",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "s'additionnent",
+      "calcul": null
+    },
+    {
+      "id": "Q-E2-2",
+      "fiche": "E2",
+      "famille": "electricite",
+      "type": "valeur",
+      "theme": null,
+      "question": "À l'allumage, une alimentation appelle un courant de combien de fois son courant nominal ?",
+      "bonne": "15 à 20 fois",
+      "autres": [
+        "1,5 à 2 fois",
+        "3 à 5 fois",
+        "100 à 200 fois"
+      ],
+      "appuis": [
+        {
+          "texte": "appellent un courant de 15 à 20 fois le courant nominal",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "MW",
+              "ref": null
+            },
+            {
+              "code": "ETC",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "15 à 20 fois",
+      "calcul": null
+    },
+    {
+      "id": "Q-E3-1",
+      "fiche": "E3",
+      "famille": "electricite",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Le différentiel 30 mA saute alors qu'aucune dalle n'est en panne. Cause probable ?",
+      "bonne": "Les fuites normales des dalles s'additionnent",
+      "autres": [
+        "Une phase trop chargée",
+        "Le courant d'appel d'une seule dalle",
+        "Un câble data trop long"
+      ],
+      "appuis": [
+        {
+          "texte": "un petit courant de fuite permanent et normal",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "SE",
+              "ref": null
+            },
+            {
+              "code": "WIKI-RCD",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "texte": "plusieurs appareils sur le même différentiel dépassent facilement 30 mA sans aucun défaut",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "SE",
+              "ref": null
+            },
+            {
+              "code": "WIKI-RCD",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "fuite",
+      "calcul": null
+    },
+    {
+      "id": "Q-E4-1",
+      "fiche": "E4",
+      "famille": "electricite",
+      "type": "valeur",
+      "theme": "phases",
+      "question": "Départ 32 A triphasé : quelle est la limite ?",
+      "bonne": "32 A par phase",
+      "autres": [
+        "96 A à répartir librement",
+        "10,7 A par phase",
+        "16 A par phase"
+      ],
+      "appuis": [
+        {
+          "texte": "un 32 A tri donne 32 A par phase, pas 96 A à répartir librement",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§4.2"
+            }
+          ]
+        }
+      ],
+      "cle": "32 A par phase",
+      "calcul": null
+    },
+    {
+      "id": "Q-E4-2",
+      "fiche": "E4",
+      "famille": "electricite",
+      "type": "calcul",
+      "theme": "phases",
+      "question": "Départ 32 A tri. Phase 1 : 40 A, phases 2 et 3 : 10 A chacune. Le total fait 60 A. Que fais-tu ?",
+      "bonne": "Je rééquilibre : la phase 1 dépasse 32 A",
+      "autres": [
+        "Rien : 60 A sur 96, ça tient",
+        "Je change le différentiel",
+        "Je baisse la luminosité des dalles de la phase 3"
+      ],
+      "appuis": [
+        {
+          "texte": "un 32 A tri donne 32 A par phase, pas 96 A à répartir librement",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§4.2"
+            }
+          ]
+        },
+        {
+          "texte": "une phase saute alors que le total tiendrait",
+          "partie": "consequence",
+          "sources": []
+        }
+      ],
+      "cle": "32 A",
+      "calcul": "limite par phase : 32 A. Phase 1 : 40 A, au-dessus. Le total, 60 A sur 96 A, ne compte pas."
+    },
+    {
+      "id": "Q-E4-3",
+      "fiche": "E4",
+      "famille": "electricite",
+      "type": "calcul",
+      "theme": "phases",
+      "question": "31 dalles identiques sur un départ triphasé. Comment les répartir ?",
+      "bonne": "11, 10 et 10",
+      "autres": [
+        "10, 10 et 10, une de côté",
+        "15, 15 et 1",
+        "31 sur une phase"
+      ],
+      "appuis": [
+        {
+          "texte": "la charge se calcule et s'équilibre phase par phase",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§4.2"
+            }
+          ]
+        }
+      ],
+      "cle": "11",
+      "calcul": "31 = 3 × 10 + 1 : une phase prend 11 dalles, les deux autres 10. L'appli signale la phase la plus chargée."
+    },
+    {
+      "id": "Q-E5-1",
+      "fiche": "E5",
+      "famille": "electricite",
+      "type": "consequence",
+      "theme": null,
+      "question": "Avant de brancher le mur sur une armoire, que fais-tu ?",
+      "bonne": "Je teste la sortie au testeur, ou je la fais tester par quelqu'un d'habilité",
+      "autres": [
+        "Je branche une seule dalle d'abord, pour voir",
+        "Je vérifie seulement le calibre du disjoncteur",
+        "Je vérifie la couleur des câbles dans l'armoire"
+      ],
+      "appuis": [
+        {
+          "texte": "teste la prise ou la sortie d'armoire au testeur avant de brancher le mur",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "testeur",
+      "calcul": null
+    },
+    {
+      "id": "Q-E6-1",
+      "fiche": "E6",
+      "famille": "electricite",
+      "type": "valeur",
+      "theme": null,
+      "question": "ROE Black Onyx : combien de dalles au plus sur un câble d'alimentation à 220 V ?",
+      "bonne": "20 dalles",
+      "autres": [
+        "7 dalles",
+        "10 dalles",
+        "30 dalles"
+      ],
+      "appuis": [
+        {
+          "texte": "20 Black Onyx ou Black Pearl à 220 V, 10 à 110 V",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "ROE-BO",
+              "ref": null
+            },
+            {
+              "code": "ROE-CB",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "20",
+      "calcul": null
+    },
+    {
+      "id": "Q-E6-2",
+      "fiche": "E6",
+      "famille": "electricite",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Pourquoi deux fois moins de dalles par câble à 110 V qu'à 220 V ?",
+      "bonne": "Il faut deux fois plus de courant pour la même puissance",
+      "autres": [
+        "Les dalles consomment deux fois plus de puissance",
+        "Les câbles sont plus fins",
+        "Les connecteurs sont différents"
+      ],
+      "appuis": [
+        {
+          "texte": "À 110 V, il faut deux fois plus de courant pour la même puissance",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "ROE-BO",
+              "ref": null
+            },
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "deux fois plus de courant",
+      "calcul": null
+    },
+    {
+      "id": "Q-I1-1",
+      "fiche": "I1",
+      "famille": "image",
+      "type": "valeur",
+      "theme": null,
+      "question": "Rafraîchissement minimal d'une dalle pour la télé et le sport ?",
+      "bonne": "3 840 Hz",
+      "autres": [
+        "60 Hz",
+        "960 Hz",
+        "1 920 Hz"
+      ],
+      "appuis": [
+        {
+          "texte": "au moins 3 840 Hz de rafraîchissement pour la télé et le sport",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "F3",
+              "ref": null
+            },
+            {
+              "code": "CDC",
+              "ref": "§5.2"
+            }
+          ]
+        }
+      ],
+      "cle": "3 840 Hz",
+      "calcul": null
+    },
+    {
+      "id": "Q-I1-2",
+      "fiche": "I1",
+      "famille": "image",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Pourquoi la caméra voit-elle des bandes noires sur une dalle à faible rafraîchissement ?",
+      "bonne": "Les LED clignotent, et la caméra attrape les moments éteints",
+      "autres": [
+        "Le câble data est trop long",
+        "Le contenu n'est pas à la résolution du mur",
+        "Les lots sont mélangés"
+      ],
+      "appuis": [
+        {
+          "texte": "la caméra, avec un temps de pose court, attrape les moments éteints",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "F17",
+              "ref": null
+            },
+            {
+              "code": "F17",
+              "ref": null
+            },
+            {
+              "code": "CDC",
+              "ref": "§5.2"
+            }
+          ]
+        }
+      ],
+      "cle": "moments éteints",
+      "calcul": null
+    },
+    {
+      "id": "Q-I2-1",
+      "fiche": "I2",
+      "famille": "image",
+      "type": "consequence",
+      "theme": null,
+      "question": "Sans genlock, que vois-tu à la caméra ?",
+      "bonne": "Des lignes noires qui défilent",
+      "autres": [
+        "Des dalles de teintes différentes",
+        "Des noirs gris",
+        "Une image coupée"
+      ],
+      "appuis": [
+        {
+          "texte": "lignes noires qui défilent à l'image",
+          "partie": "consequence",
+          "sources": []
+        }
+      ],
+      "cle": "lignes noires qui défilent",
+      "calcul": null
+    },
+    {
+      "id": "Q-I3-1",
+      "fiche": "I3",
+      "famille": "image",
+      "type": "consequence",
+      "theme": null,
+      "question": "Source à 50 Hz, processeur à 59,94 Hz. Que se passe-t-il ?",
+      "bonne": "L'écart fait doubler ou sauter des images",
+      "autres": [
+        "Rien : le processeur compense parfaitement",
+        "Les noirs deviennent gris",
+        "La capacité des ports double"
+      ],
+      "appuis": [
+        {
+          "texte": "un écart de fréquence fait doubler ou sauter des images",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.3.1"
+            },
+            {
+              "code": "F19",
+              "ref": null
+            },
+            {
+              "code": "F3",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "doubler ou sauter des images",
+      "calcul": null
+    },
+    {
+      "id": "Q-I4-1",
+      "fiche": "I4",
+      "famille": "image",
+      "type": "consequence",
+      "theme": "lots",
+      "question": "Des dalles de lots différents dans un même mur. Que vois-tu sur un fond blanc ?",
+      "bonne": "Des dalles qui tirent vers le rose ou le vert",
+      "autres": [
+        "Des lignes noires qui défilent",
+        "Des pixels morts",
+        "Une image coupée"
+      ],
+      "appuis": [
+        {
+          "texte": "mélangés, les blancs tirent vers le rose ou le vert",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§5.3"
+            },
+            {
+              "code": "NS-LCT",
+              "ref": "§10"
+            }
+          ]
+        }
+      ],
+      "cle": "rose ou le vert",
+      "calcul": null
+    },
+    {
+      "id": "Q-I4-2",
+      "fiche": "I4",
+      "famille": "image",
+      "type": "valeur",
+      "theme": "lots",
+      "question": "Quel réglage Novastar prévoit-il pour des dalles de plusieurs lots ?",
+      "bonne": "Multi-batch Adjustment",
+      "autres": [
+        "Genlock",
+        "Low Latency Mode",
+        "EDID personnalisé"
+      ],
+      "appuis": [
+        {
+          "texte": "Novastar prévoit un réglage par lot, Multi-batch Adjustment",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§5.3"
+            },
+            {
+              "code": "NS-LCT",
+              "ref": "§10"
+            }
+          ]
+        }
+      ],
+      "cle": "Multi-batch Adjustment",
+      "calcul": null
+    },
+    {
+      "id": "Q-I5-1",
+      "fiche": "I5",
+      "famille": "image",
+      "type": "calcul",
+      "theme": null,
+      "question": "Dalle au pas de 2,84 mm. Recul minimal et recul confortable ?",
+      "bonne": "2,8 m et 5,7 m",
+      "autres": [
+        "1,4 m et 2,8 m",
+        "5,7 m et 11,4 m",
+        "9,8 m et 19,6 m"
+      ],
+      "appuis": [
+        {
+          "texte": "recul minimal d'environ le pas en mètres, recul confortable d'environ deux fois le pas",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§2.3"
+            }
+          ]
+        }
+      ],
+      "cle": "2,8 m",
+      "calcul": "minimal ≈ 2,84 m, arrondi à 2,8 m ; confortable ≈ 2 × 2,84 = 5,68 m, arrondi à 5,7 m. Même calcul que la ligne « Recul » de la fiche contenu."
+    },
+    {
+      "id": "Q-I6-1",
+      "fiche": "I6",
+      "famille": "image",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Pourquoi créer le contenu à la résolution exacte du mur ?",
+      "bonne": "Pour éviter une mise à l'échelle, qui pixelise",
+      "autres": [
+        "Pour réduire la charge des ports",
+        "Pour éviter le HDCP",
+        "Pour garder le genlock"
+      ],
+      "appuis": [
+        {
+          "texte": "chaque mise à l'échelle introduit de la pixelisation",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "ELECOM",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§11.4"
+            }
+          ]
+        }
+      ],
+      "cle": "mise à l'échelle",
+      "calcul": null
+    },
+    {
+      "id": "Q-I7-1",
+      "fiche": "I7",
+      "famille": "image",
+      "type": "mecanisme",
+      "theme": "scan",
+      "question": "Pourquoi une dalle en scan 1/16 est-elle moins lumineuse qu'en scan 1/4 ?",
+      "bonne": "Chaque ligne n'est allumée qu'un seizième du temps",
+      "autres": [
+        "Ses LED reçoivent moins de données",
+        "Le processeur bride sa luminosité",
+        "Elle consomme plus"
+      ],
+      "appuis": [
+        {
+          "texte": "en scan 1/16, chaque ligne de LED n'est allumée qu'un seizième du temps",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§5.1"
+            },
+            {
+              "code": "F7",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "texte": "moins de lignes à tour de rôle donne plus de luminosité et plus de consommation",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§5.1"
+            },
+            {
+              "code": "F7",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "seizième",
+      "calcul": null
+    },
+    {
+      "id": "Q-I7-2",
+      "fiche": "I7",
+      "famille": "image",
+      "type": "valeur",
+      "theme": "scan",
+      "question": "Mur en extérieur, en plein soleil : quel scan choisir ?",
+      "bonne": "Un scan faible, de 1/2 à 1/8",
+      "autres": [
+        "Un scan élevé, de 1/16 à 1/64",
+        "Le plus élevé possible",
+        "Le scan ne change rien à la luminosité"
+      ],
+      "appuis": [
+        {
+          "texte": "scan faible (1/2 à 1/8) pour l'extérieur, scan élevé (1/16 à 1/64) pour l'intérieur et les studios",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "CDC",
+              "ref": "§5.1"
+            }
+          ]
+        },
+        {
+          "texte": "une dalle d'intérieur manque de luminosité en plein soleil",
+          "partie": "consequence",
+          "sources": []
+        }
+      ],
+      "cle": "scan faible",
+      "calcul": null
+    },
+    {
+      "id": "Q-I8-1",
+      "fiche": "I8",
+      "famille": "image",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Un ordinateur est branché sur le processeur. Qui décide de la résolution qu'il envoie ?",
+      "bonne": "C'est l'écran qui demande, par son EDID",
+      "autres": [
+        "L'ordinateur, sans rien demander",
+        "Le câble HDMI, selon sa longueur",
+        "Le mélangeur, toujours en 4K"
+      ],
+      "appuis": [
+        {
+          "texte": "C'est l'écran qui demande, pas la source qui décide",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            },
+            {
+              "code": "F15",
+              "ref": null
+            },
+            {
+              "code": "F15",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "p.205"
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§6.2"
+            },
+            {
+              "code": "F15",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.4"
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§6.2"
+            },
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "l'écran qui demande",
+      "calcul": null
+    },
+    {
+      "id": "Q-I8-2",
+      "fiche": "I8",
+      "famille": "image",
+      "type": "consequence",
+      "theme": null,
+      "question": "Pas d'image : l'utilisateur précédent a verrouillé l'EDID en 4K sur un mur HD. Que fais-tu ?",
+      "bonne": "Je remets l'EDID à zéro",
+      "autres": [
+        "Je passe le réseau en 10 bits",
+        "Je change le câble data",
+        "J'active le genlock"
+      ],
+      "appuis": [
+        {
+          "texte": "Un EDID verrouillé par l'utilisateur précédent, par exemple en 4K sur un mur HD, ne donne aucune image : remets-le à zéro",
+          "partie": "consequence",
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "à zéro",
+      "calcul": null
+    },
+    {
+      "id": "Q-I9-1",
+      "fiche": "I9",
+      "famille": "image",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Le bureau de l'ordinateur s'affiche, mais la vidéo reste noire. Cause probable ?",
+      "bonne": "La vidéo est protégée par HDCP",
+      "autres": [
+        "Le port est en surcharge",
+        "Les lots sont mélangés",
+        "Le genlock est coupé"
+      ],
+      "appuis": [
+        {
+          "texte": "la vidéo protégée reste noire, car la protection est dans le flux de la vidéo",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "F15",
+              "ref": null
+            },
+            {
+              "code": "F15",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "protégée",
+      "calcul": null
+    },
+    {
+      "id": "Q-I10-1",
+      "fiche": "I10",
+      "famille": "image",
+      "type": "valeur",
+      "theme": null,
+      "question": "Brompton, source en SDI. Quelle profondeur de réseau au minimum ?",
+      "bonne": "10 bits",
+      "autres": [
+        "6 bits",
+        "8 bits",
+        "12 bits"
+      ],
+      "appuis": [
+        {
+          "texte": "la profondeur du réseau ne doit jamais être inférieure à celle de la source",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.2"
+            }
+          ]
+        },
+        {
+          "texte": "SDI is 10 bit",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§12.2.2"
+            }
+          ]
+        }
+      ],
+      "cle": "10 bit",
+      "calcul": null
+    },
+    {
+      "id": "Q-I11-1",
+      "fiche": "I11",
+      "famille": "image",
+      "type": "consequence",
+      "theme": null,
+      "question": "La source envoie en plage Limited (16 à 235), le processeur lit en Full (0 à 255). Que vois-tu ?",
+      "bonne": "Le noir s'affiche gris, laiteux",
+      "autres": [
+        "Des lignes noires qui défilent",
+        "Des blancs roses",
+        "Pas d'image du tout"
+      ],
+      "appuis": [
+        {
+          "texte": "le noir s'affiche gris",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "BR-TESS",
+              "ref": "§9.5.1"
+            },
+            {
+              "code": "PCG",
+              "ref": null
+            },
+            {
+              "code": "PCG",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§9.4.1"
+            },
+            {
+              "code": "HDBT",
+              "ref": null
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§9.4.1"
+            },
+            {
+              "code": "BR-TESS",
+              "ref": "§9.4.2"
+            }
+          ]
+        }
+      ],
+      "cle": "s'affiche gris",
+      "calcul": null
+    },
+    {
+      "id": "Q-I12-1",
+      "fiche": "I12",
+      "famille": "image",
+      "type": "valeur",
+      "theme": null,
+      "question": "Quelle fréquence pixel demande le 1080p60 ?",
+      "bonne": "148,5 MHz",
+      "autres": [
+        "60 MHz",
+        "124 MHz",
+        "297 MHz"
+      ],
+      "appuis": [
+        {
+          "texte": "le 1080p60 demande 148,5 MHz",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "LW",
+              "ref": null
+            },
+            {
+              "code": "BARCO-E2G2",
+              "ref": null
+            },
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "148,5 MHz",
+      "calcul": null
+    },
+    {
+      "id": "Q-I12-2",
+      "fiche": "I12",
+      "famille": "image",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "1920 × 1080 × 60 = 124 millions de pixels par seconde. Pourquoi le 1080p60 demande-t-il 148,5 MHz ?",
+      "bonne": "Elle compte aussi les temps morts des lignes et des images",
+      "autres": [
+        "Le câble ajoute 20 % de marge",
+        "Le processeur double les pixels du bord",
+        "Le HDCP double certains pixels"
+      ],
+      "appuis": [
+        {
+          "texte": "la fréquence pixel compte les pixels de l'image plus les temps morts de chaque ligne et de chaque image",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "LW",
+              "ref": null
+            },
+            {
+              "code": "BARCO-E2G2",
+              "ref": null
+            },
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "temps morts",
+      "calcul": null
+    },
+    {
+      "id": "Q-I13-1",
+      "fiche": "I13",
+      "famille": "image",
+      "type": "calcul",
+      "theme": null,
+      "question": "Mur de 2112 × 1056 px, à envoyer en SDI. Quel format envoies-tu ?",
+      "bonne": "Du 3840 × 2160, mur en haut à gauche, noir autour",
+      "autres": [
+        "Du 2112 × 1056, le format exact du mur",
+        "Du 1920 × 1080, mur en haut à gauche, noir autour",
+        "Du 2112 × 1056 en ultra faible latence"
+      ],
+      "appuis": [
+        {
+          "texte": "seuls les formats normalisés passent, comme 1920 × 1080 ou 3840 × 2160",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "F-PDF",
+              "ref": "p.28"
+            },
+            {
+              "code": "SMPTE",
+              "ref": null
+            },
+            {
+              "code": "BMD-ATEM",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "texte": "Envoie le canevas dans un format standard, zone utile en haut à gauche, noir autour",
+          "partie": "consequence",
+          "sources": [
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "3840 × 2160",
+      "calcul": "2112 px de large dépasse 1920 : le plus petit format standard qui contient le mur est le 3840 × 2160."
+    },
+    {
+      "id": "Q-I14-1",
+      "fiche": "I14",
+      "famille": "image",
+      "type": "valeur",
+      "theme": null,
+      "question": "En HDBaseT sur Cat5e, jusqu'où passe le 4K30 ?",
+      "bonne": "70 m",
+      "autres": [
+        "30 m",
+        "100 m",
+        "150 m"
+      ],
+      "appuis": [
+        {
+          "texte": "En HDBaseT, le 1080p60 (148,5 MHz) passe sur 100 m de Cat5e, le 4K30 (297 MHz) sur 70 m",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "AA-SDI",
+              "ref": null
+            },
+            {
+              "code": "LW",
+              "ref": null
+            },
+            {
+              "code": "AA-SDI",
+              "ref": null
+            },
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        },
+        {
+          "texte": "plus le format est lourd, plus elle est courte",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "AA-SDI",
+              "ref": null
+            },
+            {
+              "code": "LW",
+              "ref": null
+            },
+            {
+              "code": "HDBT",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "70 m",
+      "calcul": null
+    },
+    {
+      "id": "Q-R1-1",
+      "fiche": "R1",
+      "famille": "regie",
+      "type": "valeur",
+      "theme": null,
+      "question": "Barco E2 Gen 2 : combien de pixels en program seul, sans preview ?",
+      "bonne": "40 millions",
+      "autres": [
+        "10 millions",
+        "20 millions",
+        "80 millions"
+      ],
+      "appuis": [
+        {
+          "texte": "20 millions en preview et program, 40 millions en program seul",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BARCO-E2G2",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "40 millions",
+      "calcul": null
+    },
+    {
+      "id": "Q-R1-2",
+      "fiche": "R1",
+      "famille": "regie",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Barco E2 Gen 2 : pourquoi traite-t-elle deux fois plus de pixels en program seul ?",
+      "bonne": "La preview demande autant de travail que le program",
+      "autres": [
+        "Le multiviewer s'éteint",
+        "Les sorties passent en 8 bits",
+        "La fréquence baisse"
+      ],
+      "appuis": [
+        {
+          "texte": "la preview demande autant de travail que le program",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "BARCO-E2G2",
+              "ref": null
+            },
+            {
+              "code": "BARCO-S3",
+              "ref": null
+            },
+            {
+              "code": "BARCO-E2G2",
+              "ref": null
+            },
+            {
+              "code": "AW-RS1",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "autant de travail",
+      "calcul": null
+    },
+    {
+      "id": "Q-R2-1",
+      "fiche": "R2",
+      "famille": "regie",
+      "type": "consequence",
+      "theme": null,
+      "question": "Chez Analog Way, un processeur branché sur une sortie Aux : que perds-tu ?",
+      "bonne": "Les transitions sans coupure",
+      "autres": [
+        "La moitié des pixels",
+        "Le genlock",
+        "Rien : une Aux fait tout comme une Program"
+      ],
+      "appuis": [
+        {
+          "texte": "leurs couches n'ont ni transitions sans coupure, ni couche alpha, ni bordures, ni gel",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "AW-AQ",
+              "ref": "p.64-65"
+            },
+            {
+              "code": "BARCO-GUIDE",
+              "ref": "§7.16"
+            }
+          ]
+        }
+      ],
+      "cle": "transitions sans coupure",
+      "calcul": null
+    },
+    {
+      "id": "Q-R3-1",
+      "fiche": "R3",
+      "famille": "regie",
+      "type": "valeur",
+      "theme": null,
+      "question": "Une couche 4K prend la place de combien de couches en simple lien ?",
+      "bonne": "4 simples liens",
+      "autres": [
+        "1 simple lien",
+        "2 simples liens",
+        "8 simples liens"
+      ],
+      "appuis": [
+        {
+          "texte": "l'appli compte 1 couche 4K = 2 doubles liens = 4 simples liens",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "PH-F8",
+              "ref": null
+            },
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "4 simples liens",
+      "calcul": null
+    },
+    {
+      "id": "Q-R4-1",
+      "fiche": "R4",
+      "famille": "regie",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Le même signal pour plus de processeurs que la régie n'a de sorties : que faut-il ?",
+      "bonne": "Un ampli de distribution",
+      "autres": [
+        "Un switch réseau",
+        "Un convertisseur fibre",
+        "Un câble HDMI plus long"
+      ],
+      "appuis": [
+        {
+          "texte": "il faut un ampli de distribution",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "BMD-ATEM",
+              "ref": null
+            },
+            {
+              "code": "AA-DA",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "ampli de distribution",
+      "calcul": null
+    },
+    {
+      "id": "Q-A1-1",
+      "fiche": "A1",
+      "famille": "accroche",
+      "type": "valeur",
+      "theme": null,
+      "question": "ROE BP2 V2 : combien de dalles au plus par colonne en accroche ?",
+      "bonne": "20 dalles",
+      "autres": [
+        "8 dalles",
+        "12 dalles",
+        "30 dalles"
+      ],
+      "appuis": [
+        {
+          "texte": "ROE BP2 V2, 20 en accroche, 12 en stack",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "ROE-BP2V2",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "20",
+      "calcul": null
+    },
+    {
+      "id": "Q-A1-2",
+      "fiche": "A1",
+      "famille": "accroche",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "En accroche, pourquoi un maximum de dalles par colonne ?",
+      "bonne": "Parce que la dalle du haut et ses verrous portent tout ce qui est en dessous",
+      "autres": [
+        "Parce que les ports data sont limités",
+        "Parce que le courant d'appel serait trop fort",
+        "Parce que les dalles chaufferaient trop"
+      ],
+      "appuis": [
+        {
+          "texte": "la dalle du haut et ses verrous portent tout ce qui est en dessous",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "ROE-BP2V2",
+              "ref": null
+            },
+            {
+              "code": "ROE-CB",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "portent tout ce qui est en dessous",
+      "calcul": null
+    },
+    {
+      "id": "Q-A2-1",
+      "fiche": "A2",
+      "famille": "accroche",
+      "type": "valeur",
+      "theme": null,
+      "question": "Où lis-tu la CMU d'un bumper ou d'un moteur ?",
+      "bonne": "Sur l'accessoire, où elle est marquée",
+      "autres": [
+        "Seulement dans l'appli",
+        "Sur l'étiquette du flight case",
+        "Sur le pont, près du point d'accroche"
+      ],
+      "appuis": [
+        {
+          "texte": "la charge maximale d'utilisation marquée sur l'accessoire",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "TISSOT",
+              "ref": null
+            },
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "marquée",
+      "calcul": null
+    },
+    {
+      "id": "Q-A3-1",
+      "fiche": "A3",
+      "famille": "accroche",
+      "type": "calcul",
+      "theme": null,
+      "question": "Pont continu sur 3 points, deux portées égales, charge régulière. Quelle part du total porte le point du milieu ?",
+      "bonne": "62,5 %",
+      "autres": [
+        "33 %",
+        "50 %",
+        "75 %"
+      ],
+      "appuis": [
+        {
+          "texte": "le point du milieu porte 62,5 % du total, pas un tiers",
+          "partie": "vrai",
+          "sources": [
+            {
+              "code": "ETB",
+              "ref": null
+            },
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "62,5 %",
+      "calcul": "1,25 ÷ (0,375 + 1,25 + 0,375) = 1,25 ÷ 2 = 0,625, soit 62,5 %."
+    },
+    {
+      "id": "Q-A4-1",
+      "fiche": "A4",
+      "famille": "accroche",
+      "type": "mecanisme",
+      "theme": null,
+      "question": "Pourquoi préférer les élingues acier aux sangles textiles ?",
+      "bonne": "Pour la tenue au feu",
+      "autres": [
+        "Pour leur légèreté",
+        "Pour leur souplesse",
+        "Pour un rangement plus facile"
+      ],
+      "appuis": [
+        {
+          "texte": "préfère les élingues acier aux sangles textiles, à cause de la tenue au feu",
+          "partie": "regle",
+          "sources": [
+            {
+              "code": "app",
+              "ref": null
+            }
+          ]
+        }
+      ],
+      "cle": "tenue au feu",
+      "calcul": null
+    }
+  ]
+}

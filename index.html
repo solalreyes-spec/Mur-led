@@ -893,6 +893,16 @@
     <div id="ecran-pourquoi" class="mf-defilant"></div>
   </div>
 
+  <!-- Mode entraînement : questions tirées des fiches « pourquoi », ouvert par « S'entraîner » en tête de la liste des
+       fiches ; « Fermer » ramène à la liste. -->
+  <div id="entrainement" class="montage entrainement" role="dialog" aria-modal="true" aria-labelledby="entrainement-titre" hidden>
+    <header class="montage-haut">
+      <h2 id="entrainement-titre" class="pourquoi-titre">S'entraîner</h2>
+      <button id="entrainement-fermer" class="bouton" type="button">Fermer</button>
+    </header>
+    <div id="ecran-entrainement" class="mf-defilant"></div>
+  </div>
+
   <!-- Guide de câblage pas à pas (option 1, port par port), ouvert depuis le Schéma : un port ou une ligne à la fois,
        dalles numérotées dans l'ordre du câble, case « branché » enregistrée sur l'appareil. -->
   <div id="montage" class="montage" role="dialog" aria-modal="true" aria-labelledby="montage-titre" hidden>

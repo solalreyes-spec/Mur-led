@@ -9,6 +9,7 @@ import * as rappels from '../src/rappels.js';
 import * as couleurs from '../src/couleurs.js';
 import * as montage from '../src/montage.js';
 import * as contenu from '../src/contenu.js';
+import * as entrainement from '../src/entrainement.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
@@ -19,6 +20,12 @@ import { processeurDeBase, liaisonsDeBase, regieDeBase, dalleDeBase, bumperDeBas
 
 // Tableau du manuel Tessera v3.5 §13.1.4 (repris dans le cahier des charges du projet) :
 // fréquence → [8, 10, 12 bits, 8, 10, 12 bits en ULL].
+// Questions du mode entraînement (data/entrainement.json, lues par la page de tests).
+function questionsEntrainement(contexte) {
+  if (!contexte?.entrainement?.questions) throw new Error(`data/entrainement.json non lu${contexte?.erreurentrainement ? ` : ${contexte.erreurentrainement}` : ''}`);
+  return contexte.entrainement.questions;
+}
+
 const TABLEAU_BROMPTON = {
   24: [1312500, 1050000, 875000, 656250, 525000, 437500],
   25: [1260000, 1008000, 840000, 630000, 504000, 420000],
@@ -4607,6 +4614,168 @@ export const REGLES = [
       const texte = contenu.texteFicheContenu(valeurs, contexte.ficheContenu.texte);
       v.vrai('texte partagé : la ligne du recul', texte.split('\n').includes('Recul : minimal environ 2,8 m, confortable environ 5,7 m'));
       v.egal('texte partagé sans tiret', texte.match(/[-—–]/g), null);
+    },
+  },
+  {
+    id: 'R225',
+    titre: 'Entraînement, boîtes (§ 2.3) : bonne réponse, boîte suivante jusqu\'à 3 (une question jamais vue part de la boîte 1 : juste, elle passe en boîte 2, choix de l\'utilisateur) ; mauvaise réponse ou « Je ne sais pas » : boîte 1 ; à revoir dès la séance suivante en boîte 1, 2 jours après la dernière réponse en boîte 2, 7 jours en boîte 3 ; dates locales, sans l\'heure',
+    etape: 'entrainement',
+    verifier(v) {
+      const e = entrainement;
+      v.egal('bonne réponse : jamais vue, 1, 2, 3', [e.boiteApres(undefined, true), e.boiteApres(1, true), e.boiteApres(2, true), e.boiteApres(3, true)], [2, 2, 3, 3]);
+      v.egal('mauvaise réponse ou « Je ne sais pas » : boîte 1', [e.boiteApres(undefined, false), e.boiteApres(2, false), e.boiteApres(3, false)], [1, 1, 1]);
+      v.egal('date locale, sans l\'heure', [e.dateLocale(new Date(2026, 9, 4, 23, 59)), e.dateLocale(new Date(2026, 0, 5, 0, 1))], ['2026-10-04', '2026-01-05']);
+      v.egal('jours entre deux dates (même jour, changement de mois, changement d\'heure du 25/10)', [e.joursEntre('2026-10-04', '2026-10-04'),
+        e.joursEntre('2026-09-29', '2026-10-01'), e.joursEntre('2026-10-24', '2026-10-26')], [0, 2, 2]);
+      const r = (boite, date) => e.aRevoir({ boite, date }, '2026-10-10');
+      v.egal('échéances : boîte 1 le jour même ; boîte 2 à 1 et 2 jours ; boîte 3 à 6 et 7 jours',
+        [r(1, '2026-10-10'), r(2, '2026-10-09'), r(2, '2026-10-08'), r(3, '2026-10-04'), r(3, '2026-10-03')], [true, false, true, false, true]);
+      const un = e.enregistrerReponse({}, 'Q-D1-1', true, '2026-10-04');
+      const deux = e.enregistrerReponse(un, 'Q-D1-1', true, '2026-10-06');
+      v.egal('fiche de suivi : boîte et date de la dernière réponse', [un, deux], [{ 'Q-D1-1': { boite: 2, date: '2026-10-04' } }, { 'Q-D1-1': { boite: 3, date: '2026-10-06' } }]);
+      v.egal('mauvaise réponse en boîte 3 : retour en boîte 1', e.enregistrerReponse(deux, 'Q-D1-1', false, '2026-10-20'), { 'Q-D1-1': { boite: 1, date: '2026-10-20' } });
+    },
+  },
+  {
+    id: 'R226',
+    titre: 'Entraînement, séance du jour (§ 2.3) : boîte 1 la plus ancienne d\'abord, puis boîte 2 à revoir, jamais vues au hasard, boîte 3 à revoir, puis les questions vues il y a le plus longtemps ; jamais deux questions d\'une même fiche ; toujours 5 questions, mélangées ; hasard injecté reproductible',
+    etape: 'entrainement',
+    verifier(v, contexte) {
+      const e = entrainement;
+      const qs = questionsEntrainement(contexte);
+      const fiche = (id) => qs.find((q) => q.id === id)?.fiche;
+      const opts = (graine) => ({ aujourdhui: '2026-10-10', hasard: e.hasardGraine(graine) });
+      const suivis = {
+        'Q-D8-1': { boite: 1, date: '2026-10-08' },
+        'Q-E2-1': { boite: 1, date: '2026-10-01' },
+        'Q-D1-1': { boite: 1, date: '2026-10-09' },
+        'Q-D1-2': { boite: 1, date: '2026-10-09' },
+        'Q-I9-1': { boite: 2, date: '2026-10-07' },
+        'Q-R4-1': { boite: 2, date: '2026-10-09' },
+        'Q-A4-1': { boite: 3, date: '2026-10-01' },
+      };
+      const choix = e.choisirSeance(qs, suivis, opts(3)).map((q) => q.id);
+      v.egal('boîte 1 (la plus ancienne d\'abord, une seule question de D1), puis boîte 2 à revoir', choix.slice(0, 4), ['Q-E2-1', 'Q-D8-1', 'Q-D1-1', 'Q-I9-1']);
+      v.vrai('cinquième : une question jamais vue', choix.length === 5 && !(choix[4] in suivis));
+      // Toutes vues : boîte 3 à revoir d'abord, puis les plus anciennes.
+      const toutes = Object.fromEntries(qs.map((q) => [q.id, { boite: 3, date: '2026-10-09' }]));
+      Object.assign(toutes, { 'Q-A4-1': { boite: 3, date: '2026-10-02' }, 'Q-I1-1': { boite: 3, date: '2026-10-05' }, 'Q-I2-1': { boite: 3, date: '2026-10-06' } });
+      v.egal('toutes vues : boîte 3 à revoir, puis les plus anciennes, puis l\'ordre de la banque (une question par fiche)',
+        e.choisirSeance(qs, toutes, opts(3)).map((q) => q.id), ['Q-A4-1', 'Q-I1-1', 'Q-I2-1', 'Q-D1-1', 'Q-D2-1']);
+      const graines = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      const seances = graines.map((g) => e.seanceDuJour(qs, suivis, opts(g)).map((q) => q.id));
+      v.vrai('toujours 5 questions, jamais deux d\'une même fiche', seances.every((s) => s.length === 5 && new Set(s.map(fiche)).size === 5));
+      v.egal('même hasard, même séance', e.seanceDuJour(qs, suivis, opts(4)).map((q) => q.id), seances[3]);
+      v.vrai('mélangée : mêmes questions que le choix, pas toujours dans le même ordre',
+        seances.every((s) => [...s].sort().join() === [...e.choisirSeance(qs, suivis, opts(graines[seances.indexOf(s)])).map((q) => q.id)].sort().join())
+        && new Set(seances.map((s) => s.slice(0, 4).join())).size > 1);
+      v.vrai('jamais vues : tirées au hasard (deux graines, deux tirages différents)', e.seanceDuJour(qs, {}, opts(1)).map((q) => q.id).join() !== e.seanceDuJour(qs, {}, opts(2)).map((q) => q.id).join());
+    },
+  },
+  {
+    id: 'R227',
+    titre: 'Entraînement, les 5 essentiels (§ 2.1 et § 2.3) : une question par thème du cahier des charges, dans l\'ordre (capacité d\'un port, marge de 80 %, équilibrage des phases, scan, lots), la question prioritaire de chaque thème selon la règle des boîtes',
+    etape: 'entrainement',
+    verifier(v, contexte) {
+      const e = entrainement;
+      const qs = questionsEntrainement(contexte);
+      const opts = { aujourdhui: '2026-10-10', hasard: e.hasardGraine(5) };
+      v.egal('un thème par question, dans l\'ordre', e.cinqEssentiels(qs, {}, opts).map((q) => q.theme), ['port', 'marge80', 'phases', 'scan', 'lots']);
+      const suivis = { 'Q-D3-1': { boite: 1, date: '2026-10-05' }, 'Q-E1-2': { boite: 2, date: '2026-10-01' }, 'Q-I4-2': { boite: 1, date: '2026-10-09' } };
+      const choix = e.cinqEssentiels(qs, suivis, opts).map((q) => q.id);
+      v.egal('port : la question en boîte 1 ; marge80 : la boîte 2 à revoir ; lots : la boîte 1', [choix[0], choix[1], choix[4]], ['Q-D3-1', 'Q-E1-2', 'Q-I4-2']);
+      v.egal('même hasard, mêmes questions', e.cinqEssentiels(qs, {}, { ...opts, hasard: e.hasardGraine(9) }).map((q) => q.id),
+        e.cinqEssentiels(qs, {}, { ...opts, hasard: e.hasardGraine(9) }).map((q) => q.id));
+    },
+  },
+  {
+    id: 'R228',
+    titre: 'Entraînement, par famille (§ 2.1 et § 2.3) : 5 questions de la famille choisie ; une seconde question d\'une même fiche seulement si la famille n\'a pas assez de fiches (Régie, Accroche), jamais à la suite',
+    etape: 'entrainement',
+    verifier(v, contexte) {
+      const e = entrainement;
+      const qs = questionsEntrainement(contexte);
+      const graines = Array.from({ length: 20 }, (_, i) => i + 1);
+      const seance = (famille, g) => e.parFamille(qs, {}, famille, { aujourdhui: '2026-10-10', hasard: e.hasardGraine(g) });
+      for (const famille of ['donnees', 'electricite', 'image']) {
+        v.vrai(`${famille} : 5 questions de la famille, 5 fiches différentes`, graines.every((g) => {
+          const s = seance(famille, g);
+          return s.length === 5 && s.every((q) => q.famille === famille) && new Set(s.map((q) => q.fiche)).size === 5;
+        }));
+      }
+      for (const famille of ['regie', 'accroche']) {
+        v.vrai(`${famille} : les 5 questions, la seconde d'une même fiche jamais à la suite`, graines.every((g) => {
+          const s = seance(famille, g);
+          return s.length === 5 && s.every((q) => q.famille === famille) && new Set(s.map((q) => q.id)).size === 5
+            && s.every((q, i) => i === 0 || q.fiche !== s[i - 1].fiche);
+        }));
+      }
+    },
+  },
+  {
+    id: 'R229',
+    titre: 'Entraînement : fiche de suivi d\'une question inconnue ignorée ; état « Jamais vues · À revoir · En cours · Acquises » ; effacement complet ; ordre des réponses (croissant quand toutes commencent par un nombre, virgule décimale et espaces de milliers ; mélangé sinon) ; bilan « 3 bonnes réponses sur 5. »',
+    etape: 'entrainement',
+    verifier(v, contexte) {
+      const e = entrainement;
+      const qs = questionsEntrainement(contexte);
+      const suivis = { 'Q-XX-9': { boite: 1, date: '2026-10-01' }, 'Q-D1-1': { boite: 2, date: '2026-10-01' }, 'Q-D2-1': { boite: 1, date: '2026-10-01' } };
+      v.egal('suivis : l\'inconnue ignorée', Object.keys(e.suivisConnus(suivis, qs)).sort(), ['Q-D1-1', 'Q-D2-1']);
+      v.egal('état', e.etatProgression(qs, suivis), { jamais: 65, aRevoir: 1, enCours: 1, acquises: 0 });
+      v.egal('texte de l\'état', e.texteEtat(e.etatProgression(qs, suivis)), 'Jamais vues 65 · À revoir 1 · En cours 1 · Acquises 0');
+      v.vrai('séance : l\'inconnue n\'est jamais tirée', e.choisirSeance(qs, suivis, { aujourdhui: '2026-10-10', hasard: e.hasardGraine(1) }).every((q) => q.id !== 'Q-XX-9'));
+      v.egal('effacement complet', e.etatProgression(qs, e.progressionVide().suivis), { jamais: 67, aRevoir: 0, enCours: 0, acquises: 0 });
+      v.egal('nombres en tête', ['1,4 m et 2,8 m', '262 500 px', '11, 10 et 10', '1,5 à 2 fois', '3 840 Hz', 'APC', 'Du 3840 × 2160'].map(e.nombreEnTete), [1.4, 262500, 11, 1.5, 3840, null, null]);
+      const q = (id) => qs.find((x) => x.id === id);
+      v.egal('Q-D1-1 : ordre croissant', e.ordreReponses(q('Q-D1-1'), e.hasardGraine(1)).map((x) => x.texte), ['262 144 px', '525 000 px', '650 000 px', '1 000 000 px']);
+      v.egal('Q-E4-3 : ordre croissant (11, 10 et 10 se lit 11)', e.ordreReponses(q('Q-E4-3'), e.hasardGraine(1)).map((x) => x.texte), ['10, 10 et 10, une de côté', '11, 10 et 10', '15, 15 et 1', '31 sur une phase']);
+      const apc = e.ordreReponses(q('Q-D21-2'), e.hasardGraine(2));
+      v.vrai('Q-D21-2 : réponses sans nombre, mélangées, une seule bonne', [...apc.map((x) => x.texte)].sort().join() === ['APC', 'PC', 'UPC'].join() && apc.filter((x) => x.bonne).map((x) => x.texte).join() === 'APC');
+      v.egal('bilan', [e.texteBilan(3, 5), e.texteBilan(1, 5), e.texteBilan(0, 5)], ['3 bonnes réponses sur 5.', '1 bonne réponse sur 5.', '0 bonne réponse sur 5.']);
+    },
+  },
+  {
+    id: 'R230',
+    titre: 'Entraînement, calculs (§ 3) : chaque calcul refait ; Q-D5-1 et Q-D5-2 comparés aux dalles par port et au câblage de l\'appli, Q-E1-3 aux dalles par ligne et à l\'onglet Électricité, Q-E4-3 à l\'équilibre des phases au plus juste, Q-I5-1 au recul de la fiche contenu, Q-I13-1 au format standard que l\'appli propose en SDI ; Q-D2-1 à la formule Brompton, Q-A3-1 aux parts du pont',
+    etape: 'entrainement',
+    verifier(v, contexte) {
+      const qs = questionsEntrainement(contexte);
+      const q = (id) => qs.find((x) => x.id === id);
+      const n = (id) => entrainement.nombreEnTete(q(id)?.bonne ?? '');
+      v.egal('les 10 questions de calcul', qs.filter((x) => x.type === 'calcul').map((x) => x.id),
+        ['Q-D2-1', 'Q-D5-1', 'Q-D5-2', 'Q-E1-2', 'Q-E1-3', 'Q-E4-2', 'Q-E4-3', 'Q-I5-1', 'Q-I13-1', 'Q-A3-1']);
+      // Q-D2-1
+      v.egal('Q-D2-1 : 525 000 × 60 ÷ 120, formule Brompton à 120 Hz en 8 bits, bonne réponse', [525000 * 60 / 120, calculs.capacitePort('brompton', { frequenceHz: 120, bits: 8 }), n('Q-D2-1')], [262500, 262500, 262500]);
+      // Q-D5-1
+      v.egal('Q-D5-1 : 525 000 ÷ (192 × 192), dalles par port de l\'appli, bonne réponse',
+        [Math.floor(525000 / (192 * 192)), calculs.capacitePort('brompton', { frequenceHz: 60, bits: 8 }), calculs.dallesParPort(525000, 192 * 192), n('Q-D5-1')], [14, 525000, 14, 14]);
+      // Q-D5-2
+      const d256 = { id: 'fictive-256', nom: 'Dalle 256 × 256 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 256, pxV: 256 };
+      const parPort = calculs.dallesParPort(650000, 256 * 256);
+      v.egal('Q-D5-2 : 9 dalles par port, 4 ports (câblage au plus juste de l\'appli, 29 dalles), 3 par la simple division, bonne réponse',
+        [Math.floor(650000 / 65536), parPort, Math.ceil(29 / 9), calculs.cablage(calculs.mur(d256, 29, 1), parPort).auPlusJuste, Math.ceil(29 * 65536 / 650000), calculs.capacitePort('novastar', { frequenceHz: 60, bits: 8 }), n('Q-D5-2')],
+        [9, 9, 4, 4, 3, 650000, 4]);
+      // Q-E1-2
+      v.egal('Q-E1-2 : 16 A × 0,8, bonne réponse', [16 * 0.8, n('Q-E1-2')], [12.8, 12.8]);
+      // Q-E1-3
+      const d200 = { id: 'fictive-200w', nom: 'Dalle 200 W', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192, pMaxW: 200 };
+      const elec = (colonnes, arrivee, tensionV = 230) => calculs.electricite(calculs.mur(d200, colonnes, 1), d200, { tensionV, marge: 0.8, departA: 16, arrivee });
+      v.egal('Q-E1-3 : 16 × 230 × 0,8 ÷ 200, dalles par ligne à 230 et 220 V, onglet Électricité, sans la marge, bonne réponse',
+        [Math.floor(16 * 230 * 0.8 / 200), calculs.dallesParLigne(200, { tensionV: 230, intensiteA: 16, marge: 0.8 }), calculs.dallesParLigne(200, { tensionV: 220, intensiteA: 16, marge: 0.8 }),
+          elec(4, { type: 'mono', intensiteA: 32 }).dallesParLigne.retenu, Math.floor(16 * 230 / 200), n('Q-E1-3')], [14, 14, 14, 14, 18, 14]);
+      // Q-E4-2
+      v.egal('Q-E4-2 : phase 1 au-dessus de 32 A, total sous 96 A', [40 > 32, 40 + 10 + 10 <= 3 * 32], [true, true]);
+      // Q-E4-3
+      const equilibre = elec(31, { type: 'tri', intensiteA: 32 }).triphase?.auPlusJuste?.equilibre;
+      const parPhase = [1, 2, 3].map((p) => (equilibre?.lignes ?? []).filter((l) => l.phase === p).reduce((t, l) => t + l.dalles, 0));
+      v.egal('Q-E4-3 : 31 = 3 × 10 + 1 ; équilibre des phases au plus juste de l\'onglet Électricité', [3 * 10 + 1, parPhase], [31, [11, 10, 10]]);
+      // Q-I5-1
+      v.egal('Q-I5-1 : recul de la fiche contenu au pas de 2,84 mm', contenu.reculVision(2.84), { minimalM: 2.8, confortableM: 5.7 });
+      // Q-I13-1
+      const sdi = liaisonsDeBase(contexte).find((l) => l.id === '12g-sdi');
+      v.egal('Q-I13-1 : format standard que l\'appli propose en SDI pour 2112 × 1056', calculs.controleLiaison(sdi, { largeurPx: 2112, hauteurPx: 1056, frequenceHz: 60 }).conteneur, { largeurPx: 3840, hauteurPx: 2160 });
+      // Q-A3-1
+      v.egal('Q-A3-1 : 1,25 ÷ 2, parts du pont sur 3 points de l\'appli, bonne réponse', [1.25 / (0.375 + 1.25 + 0.375), calculs.PARTS_PONT[3][1], n('Q-A3-1')], [0.625, 0.625, 62.5]);
     },
   },
 ];
