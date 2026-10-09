@@ -1,14 +1,18 @@
-/* Styles communs de l'appli mur LED : mode sombre par défaut, mobile d'abord, cibles de 48 px. */
+/* Styles communs de l'appli mur LED : mode sombre par défaut, mobile d'abord, cibles de 48 px. Nouveau look
+   « Couleurs LED » (spec du 09/10/2026) : une couleur par onglet, celle de sa famille (--famille), des gris pour tout le
+   reste ; aucune ombre, lueur, dégradé ni animation (N49). */
 
 :root {
   color-scheme: dark;
-  --fond: #0e1014;
-  --surface: #171a20;
-  --surface-2: #1f232b;
-  --bordure: #2b303a;
-  --texte: #e9ebef;
-  --texte-doux: #9aa2af;
-  --accent: #5aa9ff;
+  --fond: #0b0d11;
+  --surface: #151922;
+  --surface-2: #0f1218;
+  --puce: #1d222c;
+  --bordure: #2a303b;
+  --texte: #eceef2;
+  --texte-doux: #a3abb8;
+  --texte-calcul: #8b93a0;
+  --lien: #7db8ff;
   --ok: #45d17a;
   --ok-fond: #12301e;
   --echec: #ff6b6b;
@@ -22,7 +26,23 @@
   --cible: 48px;
   --police: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --police-chiffres: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --sur-accent: #06121f;
+  --sur-famille: #0b0d11;
+  /* Familles (§ 2) : couleur, fond teinté (16 % sur la surface) et bordure teintée (35 %), calculés d'avance (D62). */
+  --famille-image: #b08cff; --famille-image-fond: #2e2b45; --famille-image-bord: #4b416f;
+  --famille-donnees: #4da3ff; --famille-donnees-fond: #1e2f45; --famille-donnees-bord: #29496f;
+  --famille-electricite: #ffa53d; --famille-electricite-fond: #3a2f26; --famille-electricite-bord: #674a2b;
+  --famille-accroche: #5bd48c; --famille-accroche-fond: #203733; --famille-accroche-bord: #2e5a47;
+  --famille-depannage: #ff6b7f; --famille-depannage-fond: #3a2631; --famille-depannage-bord: #673643;
+  --famille-base: #a3abb8; --famille-base-fond: #2c303a; --famille-base-bord: #474c56;
+  --famille-apprendre: #f2d34b; --famille-apprendre-fond: #383729; --famille-apprendre-bord: #625a30;
+  --famille-regie: #3fd0c9; --famille-regie-fond: #1c363d; --famille-regie-bord: #24595c;
+  /* Points de progression et segments éteints (onglet Apprendre, S'entraîner, barres de charge). */
+  --point-eteint: #232a35;
+  --point-revoir: #ff7f6b;
+  --point-encours: #f3b845;
+  --point-acquise: #45d17a;
+  /* Gris du dessin du Schéma et du guide, inchangés par le nouveau look. */
+  --trait-schema: #9aa2af;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -55,7 +75,7 @@ h3 { font-size: 1rem; margin: 0; }
 .sous-titre { color: var(--texte-doux); margin: 6px 0 0; }
 .note { color: var(--texte-doux); font-size: 0.875rem; margin: -4px 0 12px; }
 
-a { color: var(--accent); }
+a { color: var(--lien); }
 
 .bouton {
   display: inline-flex;
@@ -72,7 +92,7 @@ a { color: var(--accent); }
   text-decoration: none;
   cursor: pointer;
 }
-.bouton:hover { border-color: var(--accent); }
+.bouton:hover { border-color: var(--famille); }
 
 .lien-retour {
   display: inline-flex;
@@ -83,7 +103,7 @@ a { color: var(--accent); }
 }
 
 a:focus-visible, .bouton:focus-visible, summary:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--famille);
   outline-offset: 2px;
 }
 
@@ -116,9 +136,12 @@ a:focus-visible, .bouton:focus-visible, summary:focus-visible {
   --surface: #0c0000;
   --surface-2: #150000;
   --bordure: #3d0b0b;
+  --puce: #1a0000;
   --texte: #e0403a;
-  --texte-doux: #a3302b;
-  --accent: #ff3b30;
+  /* Texte secondaire à la couleur du texte : le rouge doux n'atteignait que 3:1 (D62). */
+  --texte-doux: #e0403a;
+  --texte-calcul: #e0403a;
+  --lien: #ff3b30;
   --ok: #ff6a5c;
   --ok-fond: #1c0402;
   --echec: #ff2a1f;
@@ -128,8 +151,33 @@ a:focus-visible, .bouton:focus-visible, summary:focus-visible {
   --alerte: #ff7a4d;
   --alerte-fond: #1c0500;
   --info-fond: #140000;
-  --sur-accent: #000000;
+  --sur-famille: #000000;
+  --famille-image: #ff3b30; --famille-image-fond: #1c0403; --famille-image-bord: #611511;
+  --famille-donnees: #ff3b30; --famille-donnees-fond: #1c0403; --famille-donnees-bord: #611511;
+  --famille-electricite: #ff3b30; --famille-electricite-fond: #1c0403; --famille-electricite-bord: #611511;
+  --famille-accroche: #ff3b30; --famille-accroche-fond: #1c0403; --famille-accroche-bord: #611511;
+  --famille-depannage: #ff3b30; --famille-depannage-fond: #1c0403; --famille-depannage-bord: #611511;
+  --famille-base: #ff3b30; --famille-base-fond: #1c0403; --famille-base-bord: #611511;
+  --famille-apprendre: #ff3b30; --famille-apprendre-fond: #1c0403; --famille-apprendre-bord: #611511;
+  --famille-regie: #ff3b30; --famille-regie-fond: #1c0403; --famille-regie-bord: #611511;
+  /* Points : les états se distinguent par la clarté (et par la légende en texte). */
+  --point-eteint: #2b0503;
+  --point-revoir: #c0180e;
+  --point-encours: #ff3b30;
+  --point-acquise: #ffb3a3;
+  --trait-schema: #a3302b;
 }
+/* Famille d'un écran (panneau d'onglet, écran plein, encadré) : --famille, son fond et sa bordure teintés. La racine
+   prend la famille de l'onglet ouvert (app.js), pour l'en-tête et les écrans pleins. */
+:root { --famille: var(--famille-base); --famille-fond: var(--famille-base-fond); --famille-bord: var(--famille-base-bord); }
+[data-famille="image"] { --famille: var(--famille-image); --famille-fond: var(--famille-image-fond); --famille-bord: var(--famille-image-bord); }
+[data-famille="donnees"] { --famille: var(--famille-donnees); --famille-fond: var(--famille-donnees-fond); --famille-bord: var(--famille-donnees-bord); }
+[data-famille="electricite"] { --famille: var(--famille-electricite); --famille-fond: var(--famille-electricite-fond); --famille-bord: var(--famille-electricite-bord); }
+[data-famille="accroche"] { --famille: var(--famille-accroche); --famille-fond: var(--famille-accroche-fond); --famille-bord: var(--famille-accroche-bord); }
+[data-famille="depannage"] { --famille: var(--famille-depannage); --famille-fond: var(--famille-depannage-fond); --famille-bord: var(--famille-depannage-bord); }
+[data-famille="base"] { --famille: var(--famille-base); --famille-fond: var(--famille-base-fond); --famille-bord: var(--famille-base-bord); }
+[data-famille="apprendre"] { --famille: var(--famille-apprendre); --famille-fond: var(--famille-apprendre-fond); --famille-bord: var(--famille-apprendre-bord); }
+[data-famille="regie"] { --famille: var(--famille-regie); --famille-fond: var(--famille-regie-fond); --famille-bord: var(--famille-regie-bord); }
 /* Cases à cocher dessinées en rouge : le dessin natif du navigateur reste gris. */
 :root[data-mode="rouge"] input[type="checkbox"] {
   appearance: none;
@@ -140,29 +188,39 @@ a:focus-visible, .bouton:focus-visible, summary:focus-visible {
   border-radius: 5px;
   background: var(--surface-2);
 }
-:root[data-mode="rouge"] input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+:root[data-mode="rouge"] input[type="checkbox"]:checked { background: var(--famille); border-color: var(--famille); }
 :root[data-mode="rouge"] input[type="checkbox"]:checked::after {
   content: "";
   width: 10px;
   height: 5px;
-  border: solid var(--sur-accent);
+  border: solid var(--sur-famille);
   border-width: 0 0 3px 3px;
   transform: translateY(-1px) rotate(-45deg);
 }
 
 /* En-tête et onglets de l'appli */
 
-.entete-app {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
-}
-.outils-entete { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.entete-app { display: grid; gap: 10px; }
+/* En-tête (§ 3) : trois barres rouge, vert, bleu puis « Mur LED » en 24 px gras, la version à droite ; dessous, les trois
+   boutons sur une ligne, chacun avec sa petite icône (sur deux lignes en grand affichage). */
+.titre-app { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.entete-app h1 { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 700; }
+.logo-barres { display: inline-flex; gap: 3px; }
+.logo-barres span { display: block; width: 8px; height: 18px; border-radius: 2px; }
+.logo-barres span:nth-child(1) { background: #ff4d5e; }
+.logo-barres span:nth-child(2) { background: #3edc7a; }
+.logo-barres span:nth-child(3) { background: #4da3ff; }
+.version-appli { color: var(--texte-doux); font-size: 0.8125rem; font-family: var(--police-chiffres); }
+.outils-entete { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.outils-entete .bouton { min-width: 0; gap: 6px; padding: 4px 6px; font-size: 0.875rem; line-height: 1.15; text-align: center; }
+.icone-bouton { width: 16px; height: 16px; flex: none; }
+:root[data-taille="grand"] .outils-entete { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+:root[data-mode="rouge"] .logo-barres span { background: var(--texte); }
+:root[data-mode="rouge"] .logo-barres span:nth-child(2) { opacity: 0.6; }
+:root[data-mode="rouge"] .logo-barres span:nth-child(3) { opacity: 0.3; }
 /* Zones à toucher de 48 px au moins, gants compris (audit terrain du 02/10/2026). */
 .bouton-petit { min-height: var(--cible); min-width: var(--cible); padding: 0 12px; font-size: 0.9rem; }
-.bouton[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
+.bouton[aria-pressed="true"] { background: var(--famille); border-color: var(--famille); color: var(--sur-famille); }
 .barre-copie { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
 .etat-copie { color: var(--texte-doux); font-size: 0.875rem; }
 .etat-copie:empty { display: none; }
@@ -176,7 +234,7 @@ p.etat-copie { margin: 6px auto 0; }
   max-width: 760px;
   margin: 10px auto 0;
   padding: 10px 16px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--lien);
   border-radius: var(--rayon);
   background: var(--info-fond);
 }
@@ -204,14 +262,14 @@ details.manques p { margin: 0 14px 10px; }
   min-height: var(--cible); padding: 0 12px; border: 1px solid var(--bordure); border-radius: var(--rayon);
   background: var(--surface-2); color: var(--texte); font: inherit; font-size: 1rem; -webkit-appearance: none; appearance: none;
 }
-.groupe-marque > summary { cursor: pointer; min-height: var(--cible); display: flex; align-items: center; color: var(--accent); }
+.groupe-marque > summary { cursor: pointer; min-height: var(--cible); display: flex; align-items: center; color: var(--lien); }
 .groupe-gamme { margin: 0 0 8px 12px; }
 .groupe-gamme > .compte { margin: 6px 0 2px; }
 /* Lots et configs du mur (Mur, Data), rappels sourcés */
 .cases-lots { display: grid; gap: 4px; }
 .ligne-config { margin: 6px 0; overflow-wrap: anywhere; }
 .lots-groupe + .lots-groupe { margin-top: 12px; }
-.rappels-config > summary { cursor: pointer; min-height: var(--cible); display: flex; align-items: center; color: var(--accent); }
+.rappels-config > summary { cursor: pointer; min-height: var(--cible); display: flex; align-items: center; color: var(--lien); }
 .rappel-texte { margin: 4px 0 0; }
 .rappel-texte .citation { font-style: italic; }
 /* Check-list « Avant de partir » (bas de Data) */
@@ -229,7 +287,7 @@ details.manques p { margin: 0 14px 10px; }
 .config-lot { border-left: 2px solid var(--bordure); padding-left: 10px; margin: 12px 0; }
 .fichiers-joints > li { margin: 8px 0; }
 .fichier-joint { margin: 4px 0; overflow-wrap: anywhere; }
-.ajout-lot > summary { cursor: pointer; min-height: var(--cible); display: flex; align-items: center; color: var(--accent); }
+.ajout-lot > summary { cursor: pointer; min-height: var(--cible); display: flex; align-items: center; color: var(--lien); }
 .note.verifier { margin: 20px 0 0; }
 .bandeau-donnees { margin: 16px 0 0; }
 
@@ -266,7 +324,7 @@ body.montage-ouvert { overflow: hidden; }
 }
 .montage[hidden] { display: none; }
 .montage .bouton { min-height: 56px; min-width: 56px; }
-.montage .bouton-principal { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
+.montage .bouton-principal { background: var(--famille); border-color: var(--famille); color: var(--sur-famille); }
 .montage-haut { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .montage-sur-titre { margin: 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texte-doux); }
 .montage-commandes { display: flex; gap: 6px; }
@@ -297,9 +355,9 @@ body.montage-ouvert { overflow: hidden; }
 .montage-pied { display: grid; gap: 10px; }
 .montage-case {
   display: flex; align-items: center; gap: 14px; min-height: 64px; padding: 0 16px;
-  border: 2px solid var(--accent); border-radius: var(--rayon); background: var(--surface); font-size: 1.2rem; font-weight: 700; cursor: pointer;
+  border: 2px solid var(--famille); border-radius: var(--rayon); background: var(--surface); font-size: 1.2rem; font-weight: 700; cursor: pointer;
 }
-.montage-case input { width: 36px; height: 36px; flex: none; accent-color: var(--accent); margin: 0; }
+.montage-case input { width: 36px; height: 36px; flex: none; accent-color: var(--famille); margin: 0; }
 .montage-navigation { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .montage-navigation .bouton { font-size: 1rem; padding: 0 10px; white-space: nowrap; }
 .montage-panneau { position: absolute; inset: 0; z-index: 2; overflow-y: auto; background: var(--fond); padding: 16px 14px calc(16px + env(safe-area-inset-bottom)); }
@@ -344,7 +402,7 @@ html[data-taille="grand"] { font-size: 19px; }
   cursor: pointer;
 }
 .carte-variante strong { font-size: 0.95rem; }
-.carte-variante[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.carte-variante[aria-pressed="true"] { border-color: var(--famille); outline: 1px solid var(--famille); outline-offset: -2px; }
 .carte-variante.impossible { opacity: 0.75; border-style: dashed; }
 .carte-variante .badge { justify-self: start; margin-top: 2px; }
 .schema-cadre { position: relative; margin-top: 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--fond); overflow: hidden; }
@@ -353,9 +411,9 @@ html[data-taille="grand"] { font-size: 19px; }
 .schema-outils .bouton { min-height: var(--cible); min-width: var(--cible); padding: 0 10px; }
 .schema-cadre .dalle { fill: var(--surface-2); stroke: var(--bordure); }
 .schema-cadre .dalle.demi { fill: var(--surface); }
-.schema-cadre .dalle.choisie { stroke: var(--accent); }
+.schema-cadre .dalle.choisie { stroke: var(--famille); }
 .schema-cadre .etiquette-dalle { fill: var(--texte-dalle); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.schema-cadre .bloc { fill: none; stroke: var(--texte-doux); stroke-dasharray: 8 6; }
+.schema-cadre .bloc { fill: none; stroke: var(--trait-schema); stroke-dasharray: 8 6; }
 .schema-cadre .etiquette-bloc { fill: var(--texte); font-weight: 700; }
 .schema-cadre .trajet { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .schema-cadre .attenue { opacity: 0.12; }
@@ -367,7 +425,7 @@ html[data-taille="grand"] { font-size: 19px; }
   border: 1px solid var(--bordure); border-radius: 999px;
   background: var(--surface); color: var(--texte); font: inherit; font-size: 0.8rem; cursor: pointer;
 }
-.puce-trajet[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-2); }
+.puce-trajet[aria-pressed="true"] { border-color: var(--famille); background: var(--surface-2); }
 .puce-trajet svg { width: 26px; height: 10px; flex: none; }
 .legende-groupe { width: 100%; margin: 6px 0 0; color: var(--texte-doux); font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .legende-cle { display: inline-flex; align-items: center; gap: 6px; }
@@ -387,39 +445,39 @@ html[data-taille="grand"] { font-size: 19px; }
 }
 
 .onglets {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   max-width: 760px;
   margin: 8px auto 0;
   padding: 0 16px 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
-/* Téléphone : les huit onglets sur deux rangées de quatre, tous visibles (Schéma et Dépannage compris), sans faire
-   défiler la barre. Marges de 4 px (« .onglets .onglet » passe devant la règle générale « .onglet », écrite après).
-   « Dépannage » (86 px de texte pour 67 px) se coupe à son trait d'union conditionnel, « Dépan- / nage », sans grandir
-   l'onglet (deux lignes de 1,15 dans 48 px, 60 px en grand affichage) ; les autres noms restent sur une ligne. */
-@media (max-width: 600px) {
-  .onglets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow-x: visible; }
-  .onglets .onglet { min-width: 0; padding: 4px; white-space: normal; line-height: 1.15; text-align: center; hyphens: manual; -webkit-hyphens: manual; }
-}
+/* Onglets en grille de 3 × 3 (§ 3) : icône de trait dans la couleur de la famille de l'onglet, libellé dessous ; ouvert :
+   fond teinté, bordure de la famille, libellé en gras. « Dépannage » se coupe à son trait d'union conditionnel seulement
+   s'il ne tient pas (grand affichage). */
 .onglet {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: var(--cible);
-  min-width: 64px;
-  padding: 4px 12px;
+  gap: 2px;
+  min-width: 0;
+  min-height: max(52px, var(--cible));
+  padding: 4px;
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
   background: var(--surface);
   color: var(--texte);
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 1.15;
+  text-align: center;
   text-decoration: none;
-  white-space: nowrap;
+  hyphens: manual;
+  -webkit-hyphens: manual;
 }
-.onglet[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
+.icone-onglet { width: 22px; height: 22px; flex: none; color: var(--famille); }
+.onglet-libelle { max-width: 100%; }
+.onglet[aria-current="page"] { background: var(--famille-fond); border-color: var(--famille); font-weight: 700; }
 .onglet-inactif { color: var(--texte-doux); font-weight: 400; opacity: 0.7; }
 .onglet small { font-size: 0.7rem; }
 
@@ -430,7 +488,7 @@ html[data-taille="grand"] { font-size: 19px; }
   padding: 16px;
   background: var(--surface);
   border: 1px solid var(--bordure);
-  border-radius: var(--rayon);
+  border-radius: 14px;
 }
 /* Grilles à une ou deux colonnes : minmax(0, 1fr) empêche une liste ou un tableau d'élargir la page (Safari). */
 .formulaire { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
@@ -454,7 +512,7 @@ input:not([type]) { font-family: var(--police-chiffres); font-size: 1.1rem; }
 /* Date : Safari iOS centre la valeur et replie le champ vide sans ces réglages. */
 input[type="date"] { -webkit-appearance: none; appearance: none; display: block; line-height: calc(var(--cible) - 2px); }
 input[type="date"]::-webkit-date-and-time-value { text-align: left; }
-input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--famille); outline-offset: 1px; }
 
 .paire { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 /* Un sélecteur ne dépasse jamais l'écran : Safari lui donne sinon la largeur de sa plus longue option. */
@@ -468,12 +526,13 @@ select {
   white-space: nowrap;
   text-overflow: ellipsis;
   padding-right: 36px;
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--texte-doux) 50%),
-    linear-gradient(135deg, var(--texte-doux) 50%, transparent 50%);
-  background-position: calc(100% - 20px) 55%, calc(100% - 14px) 55%;
-  background-size: 6px 6px, 6px 6px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23a3abb8' stroke-width='2'/%3E%3C/svg%3E");
+  background-position: calc(100% - 14px) 50%;
+  background-size: 12px 8px;
   background-repeat: no-repeat;
+}
+:root[data-mode="rouge"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23e0403a' stroke-width='2'/%3E%3C/svg%3E");
 }
 main, main section, .carte, details, .champ, .resultats, .bloc-resultats { min-width: 0; }
 
@@ -485,7 +544,7 @@ main, main section, .carte, details, .champ, .resultats, .bloc-resultats { min-w
   font-size: 0.95rem;
   cursor: pointer;
 }
-.case input { width: 22px; height: 22px; margin: 0; flex: none; accent-color: var(--accent); }
+.case input { width: 22px; height: 22px; margin: 0; flex: none; accent-color: var(--famille); }
 
 .segmente { margin: 0; padding: 0; border: 0; min-width: 0; }
 .segmente legend { padding: 0; margin-bottom: 6px; }
@@ -510,8 +569,8 @@ main, main section, .carte, details, .champ, .resultats, .bloc-resultats { min-w
   font-weight: 600;
   cursor: pointer;
 }
-.segments input:checked + span { background: var(--accent); color: var(--sur-accent); }
-.segments input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.segments input:checked + span { background: var(--famille); color: var(--sur-famille); }
+.segments input:focus-visible + span { outline: 2px solid var(--famille); outline-offset: 2px; }
 
 .bloc-demi { display: grid; gap: 8px; }
 
@@ -519,7 +578,7 @@ main, main section, .carte, details, .champ, .resultats, .bloc-resultats { min-w
   display: flex;
   align-items: center;
   min-height: var(--cible);
-  color: var(--accent);
+  color: var(--lien);
   cursor: pointer;
 }
 .table-fiche { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
@@ -551,7 +610,7 @@ main, main section, .carte, details, .champ, .resultats, .bloc-resultats { min-w
   font-size: 0.92rem;
 }
 .alerte-erreur { border-color: var(--echec); background: var(--echec-fond); color: var(--echec); }
-.alerte-info { border-color: var(--accent); background: var(--info-fond); color: var(--texte); }
+.alerte-info { border-color: var(--lien); background: var(--info-fond); color: var(--texte); }
 .alerte-ok { border-color: var(--ok); background: var(--ok-fond); color: var(--ok); }
 /* Alertes et avertissements à 4,5:1 au moins en mode rouge (test N18) : les fonds d'alerte et d'erreur sont assez
    sombres pour le texte rouge (4,6:1), et le texte secondaire d'une alerte prend la couleur du texte (le rouge doux
@@ -582,7 +641,7 @@ textarea {
 .bouton-discret { background: transparent; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .puces { display: flex; gap: 6px; flex-wrap: wrap; }
-.badge-info { background: var(--info-fond); color: var(--accent); }
+.badge-info { background: var(--info-fond); color: var(--lien); }
 .badge-alerte { background: var(--alerte-fond); color: var(--alerte); }
 input[type="file"] { color: var(--texte); min-height: var(--cible); }
 .compte { color: var(--texte-doux); font-size: 0.85rem; }
@@ -626,19 +685,36 @@ input[type="file"] { color: var(--texte); min-height: var(--cible); }
 
 .resultats { margin-top: 16px; }
 .resultat-principal { margin-top: 0; }
+.resultat-principal { border-color: var(--famille-bord); }
+/* Chiffres clés (§ 3) : chasse fixe, gras, 40 à 44 px, unité plus petite ; le détail du calcul en petit dessous. */
 .chiffre-cle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.25em;
   margin: 0;
   font-family: var(--police-chiffres);
-  font-size: 2rem;
+  word-spacing: -0.3em;
+  font-size: 2.5rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 .chiffre-cle span { font-size: 1.1rem; font-weight: 400; color: var(--texte-doux); }
+.chiffre-cle .chiffre-groupe { display: inline-flex; align-items: baseline; column-gap: 0.25em; font-size: inherit; color: inherit; white-space: nowrap; }
+.chiffre-cle .chiffre-groupe span { font-size: 1.1rem; }
+.chiffre-cle .chiffre-second { font-size: inherit; font-weight: 700; color: var(--texte); }
+#data .chiffre-cle { font-size: 1.6rem; }
+.chiffres-cles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0 0 12px; }
+.chiffre { display: grid; align-content: start; gap: 2px; min-width: 0; }
+.chiffre-valeur { font-family: var(--police-chiffres); font-size: 2.5rem; font-weight: 700; line-height: 1.1; word-spacing: -0.3em; overflow-wrap: anywhere; }
+.chiffre-unite { margin-left: 0.2em; font-size: 1.1rem; font-weight: 400; color: var(--texte-doux); }
+.chiffre-libelle { color: var(--texte-doux); font-size: 0.8125rem; }
+.chiffres-cles .barre-charge { grid-column: 1 / -1; }
 .resultat-principal .demi { margin: 8px 0 0; color: var(--alerte); }
 
 .tuiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin: 12px 0 0;
 }
@@ -649,10 +725,15 @@ input[type="file"] { color: var(--texte); min-height: var(--cible); }
   border-radius: var(--rayon);
   min-width: 0;
 }
-.tuile dt { color: var(--texte-doux); font-size: 0.8rem; }
+/* Capitales par les petites capitales de la police : le texte lu (lecteurs d'écran, copie, innerText) reste celui de l'appli. */
+.tuile dt { color: var(--texte-doux); font-size: 0.875rem; font-weight: 600; letter-spacing: 0.04em; font-variant-caps: all-small-caps; }
 .tuile dd { margin: 2px 0 0; }
-.tuile-valeur { display: block; font-family: var(--police-chiffres); font-size: 1.05rem; font-weight: 700; }
-.tuile-detail { display: block; margin-top: 2px; color: var(--texte-doux); font-size: 0.78rem; }
+/* Tuiles de détail (§ 3) : libellé en capitales de 11 px, valeur en chasse fixe de 17 px, détail du calcul en 12 px. */
+/* Espaces resserrés en chasse fixe (« 2112 × 1056 px » tient dans une tuile de 375 px). */
+.tuile-valeur { display: block; font-family: var(--police-chiffres); font-size: 1.0625rem; font-weight: 700; word-spacing: -0.25em; overflow-wrap: anywhere; }
+/* Détail en police normale de 12 px (choix de l'utilisateur du 09/10/2026 : phrases et sources plus lisibles qu'en chasse fixe). */
+.tuile-detail { display: block; margin-top: 2px; color: var(--texte-calcul); font-size: 0.75rem; overflow-wrap: anywhere; }
+.tuile .barre-charge { margin-top: 6px; }
 
 .source { color: var(--texte-doux); font-size: 0.8rem; margin: 10px 0 0; }
 
@@ -766,28 +847,28 @@ ol.liste-numerotee { list-style: none; margin: 0; padding: 0; }
 .dep-marques-choix { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 @media (min-width: 480px) { .dep-marques-choix { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .dep-marques-choix .bouton { min-width: 0; padding: 0 6px; }
-.dep-marques-choix .bouton[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
+.dep-marques-choix .bouton[aria-pressed="true"] { background: var(--famille); border-color: var(--famille); color: var(--sur-famille); }
 .dep-reflexes, .dep-symptomes, .dep-annexes, .dep-reponses, .dep-lignes { display: grid; gap: 8px; }
 .dep-reflexe, .dep-ligne-marque { border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface); }
 .dep-reflexe > summary, .dep-ligne-marque > summary {
   display: flex; align-items: center; gap: 8px; min-height: var(--cible); padding: 6px 12px; cursor: pointer; font-weight: 700; list-style: none;
 }
 .dep-reflexe > summary::-webkit-details-marker, .dep-ligne-marque > summary::-webkit-details-marker { display: none; }
-.dep-reflexe > summary::before, .dep-ligne-marque > summary::before { content: "▸"; flex: none; color: var(--accent); }
+.dep-reflexe > summary::before, .dep-ligne-marque > summary::before { content: "▸"; flex: none; color: var(--lien); }
 .dep-reflexe[open] > summary::before, .dep-ligne-marque[open] > summary::before { content: "▾"; }
 .dep-corps { display: grid; gap: 6px; padding: 0 12px 12px; }
 .dep-etapes { display: grid; gap: 14px; }
 .dep-texte { overflow-wrap: anywhere; }
 .dep-sources { display: block; margin-top: 2px; color: var(--dep-doux); font-size: 0.8125rem; font-style: italic; font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; }
-.dep-sources a { color: var(--accent); }
+.dep-sources a { color: var(--lien); }
 .dep-source-numero { font-style: normal; font-weight: 700; }
-.dep-renvoi { font-size: 0.7em; line-height: 0; color: var(--accent); font-weight: 700; }
+.dep-renvoi { font-size: 0.7em; line-height: 0; color: var(--lien); font-weight: 700; }
 .dep-badge {
   display: inline-block; padding: 0 8px; border-radius: 999px; background: var(--alerte-fond); color: var(--alerte);
   font-size: 0.8125rem; font-style: normal; font-weight: 700; white-space: nowrap;
 }
 .dep-lien-annexe {
-  display: inline; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer;
+  display: inline; padding: 0; border: 0; background: none; color: var(--lien); font: inherit; text-decoration: underline; cursor: pointer;
 }
 .dep-symptome, .dep-reponse, .dep-bouton-annexe, .dep-bouton-sources {
   flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; line-height: 1.3; padding: 10px 16px;
@@ -823,16 +904,16 @@ ol.liste-numerotee { list-style: none; margin: 0; padding: 0; }
 :root[data-mode="rouge"] .mf { --mf-doux: var(--texte); }
 .mf p { margin: 0; }
 .mf-onglets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.mf-onglets .bouton[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
+.mf-onglets .bouton[aria-pressed="true"] { background: var(--famille); border-color: var(--famille); color: var(--sur-famille); }
 .mf-saisies, .mf-cadre, .mf-champs-fiche, .mf-mire, .mf-fiche, .mf-boutons, .mf-bloc { display: grid; gap: 10px; }
 .mf .champ label { color: var(--mf-doux); font-size: 0.9rem; }
 .mf-xy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 .mf-intertitre { margin: 8px 0 0; font-size: 1.1rem; }
 .mf-note { color: var(--mf-doux); font-size: 0.875rem; }
 .mf-sources { color: var(--mf-doux); font-size: 0.8125rem; font-style: italic; line-height: 1.35; overflow-wrap: anywhere; }
-.mf-sources a { color: var(--accent); }
+.mf-sources a { color: var(--lien); }
 .mf-source-numero { font-style: normal; font-weight: 700; }
-.mf-exposant { font-size: 0.7em; line-height: 0; color: var(--accent); font-weight: 700; }
+.mf-exposant { font-size: 0.7em; line-height: 0; color: var(--lien); font-weight: 700; }
 .mf-texte-ligne { overflow-wrap: anywhere; }
 .mf-boutons .bouton, .mf-renvois .bouton { justify-content: flex-start; text-align: left; line-height: 1.3; padding: 8px 14px; }
 .mf-liste, .mf-consignes { margin: 0; padding-left: 1.4em; display: grid; gap: 10px; }
@@ -860,7 +941,7 @@ ol.liste-numerotee { list-style: none; margin: 0; padding: 0; }
    texte à 19 px (seuls les renvois en exposant restent plus petits), cibles de 60 px (N32). */
 .lien-pourquoi { margin-left: 8px; vertical-align: middle; font-weight: 600; }
 .alerte > .lien-pourquoi, .tuile > .lien-pourquoi { display: flex; width: fit-content; margin: 8px 0 0; }
-.dep-lien-pourquoi { color: var(--accent); text-decoration: underline; font-weight: 700; }
+.dep-lien-pourquoi { color: var(--lien); text-decoration: underline; font-weight: 700; }
 .dep-bouton-pourquoi { justify-content: flex-start; text-align: left; }
 .pourquoi { z-index: 60; }
 .pourquoi .montage-haut { margin-bottom: 8px; }
@@ -888,25 +969,24 @@ ol.liste-numerotee { list-style: none; margin: 0; padding: 0; }
 .pq-texte::first-letter { text-transform: uppercase; }
 .pq-sources { color: var(--pq-doux); font-size: 0.8125rem; font-style: italic; line-height: 1.35; overflow-wrap: anywhere; }
 .pq-source-numero { font-style: normal; font-weight: 700; }
-.pq-renvoi { font-size: 0.7em; line-height: 0; color: var(--accent); font-weight: 700; }
+.pq-renvoi { font-size: 0.7em; line-height: 0; color: var(--lien); font-weight: 700; }
 .pq-lien-fiche {
-  display: inline; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700;
+  display: inline; padding: 0; border: 0; background: none; color: var(--lien); font: inherit; font-weight: 700;
   text-decoration: underline; cursor: pointer;
 }
 .pq-liste-sources { color: var(--pq-doux); font-size: 0.875rem; overflow-wrap: anywhere; }
 .pq-liste-sources h3 { color: var(--texte); }
-.pq-liste-sources a { color: var(--accent); }
+.pq-liste-sources a { color: var(--lien); }
 .pq-source-documents { margin: 6px 0 0; padding-left: 1.2em; display: grid; gap: 6px; }
 :root[data-taille="grand"] .pq-sources, :root[data-taille="grand"] .pq-contexte, :root[data-taille="grand"] .pq-note,
 :root[data-taille="grand"] .pq-liste-sources { font-size: 1rem; }
 
-/* Mode entraînement (src/ecran-entrainement.js) : écran plein au-dessus de la liste des fiches « pourquoi ». Le verdict
+/* Mode entraînement (src/ecran-entrainement.js) : écran plein au-dessus de l'onglet Apprendre. Le verdict
    et les marques des réponses sont écrits en texte (✓, ✗), la couleur ne fait que les renforcer ; texte à 4,5:1 en
    thème sombre et en mode rouge (en rouge, le texte secondaire prend la couleur du texte) ; boutons de 56 px, 64 px en
    grand affichage (règle de l'écran plein), tout le texte à 19 px en grand affichage (N41). Une réponse bloquée garde
    ses couleurs : jamais d'opacité, qui ferait baisser le contraste. */
 .entrainement { z-index: 70; }
-.pq-entrainement { width: 100%; }
 .en { --en-doux: var(--texte-doux); display: grid; gap: 12px; padding-bottom: 16px; color: var(--texte); }
 :root[data-mode="rouge"] .en { --en-doux: var(--texte); }
 .en p { margin: 0; }
@@ -914,7 +994,7 @@ ol.liste-numerotee { list-style: none; margin: 0; padding: 0; }
 .en-modes, .en-familles, .en-reponses, .en-boutons, .en-explication, .en-confirmation { display: grid; gap: 8px; }
 .en-familles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .en-familles .bouton { min-width: 0; padding: 0 8px; }
-.en-mode[aria-expanded="true"] { border-color: var(--accent); }
+.en-mode[aria-expanded="true"] { border-color: var(--famille); }
 .en-etat, .en-contexte, .en-note { color: var(--en-doux); font-size: 0.875rem; }
 .en-stockage { padding: 10px 12px; border: 1px solid var(--alerte); border-radius: var(--rayon); background: var(--alerte-fond); color: var(--alerte); }
 .en-confirmation { padding: 10px 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface); }
@@ -931,9 +1011,9 @@ ol.liste-numerotee { list-style: none; margin: 0; padding: 0; }
 .en-verdict { font-size: 1.15rem; font-weight: 800; }
 .en-verdict.juste { color: var(--ok); }
 .en-verdict.faux { color: var(--texte); }
-.en-verdict:focus { outline: 2px solid var(--accent); outline-offset: 4px; }
+.en-verdict:focus { outline: 2px solid var(--famille); outline-offset: 4px; }
 .en-bloc { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface); }
-.en-bloc-image { border-style: dashed; }
+.en-bloc-image { border-color: var(--famille-bord); background: var(--famille-fond); }
 .en-bloc h4 { margin: 0; font-size: 1rem; }
 .en-image::first-letter { text-transform: uppercase; }
 .en-image, .en-appui, .en-calcul { line-height: 1.4; overflow-wrap: anywhere; }
@@ -949,3 +1029,174 @@ ol.liste-numerotee { list-style: none; margin: 0; padding: 0; }
 :root[data-taille="grand"] .en-etat, :root[data-taille="grand"] .en-contexte, :root[data-taille="grand"] .en-note,
 :root[data-taille="grand"] .en-source, :root[data-taille="grand"] .en-bloc h4 { font-size: 1rem; }
 
+
+/* ------------------------------------------------------------------------------------------------------------------
+   Nouveau look, composants du § 3 (spec du 09/10/2026). Une seule couleur de famille par écran (--famille, posée par
+   le panneau de l'onglet ou l'écran plein) ; décor seulement s'il informe ; jamais d'ombre, de lueur, de dégradé ni
+   d'animation (N49).
+   ------------------------------------------------------------------------------------------------------------------ */
+
+/* Titre de section : trois petits carrés de la famille (opacité 1, 0,6, 0,3), puis le titre en capitales de 13 px. */
+main section h3:not(.ap-titre) {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px 10px;
+  color: var(--famille);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-variant-caps: all-small-caps;
+}
+main section h3:not(.ap-titre)::before {
+  content: "";
+  flex: none;
+  width: 22px;
+  height: 6px;
+  margin-top: 0.5em;
+  background: var(--famille);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 6'%3E%3Crect width='6' height='6'/%3E%3Crect x='8' width='6' height='6' opacity='.6'/%3E%3Crect x='16' width='6' height='6' opacity='.3'/%3E%3C/svg%3E") no-repeat center / 22px 6px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 6'%3E%3Crect width='6' height='6'/%3E%3Crect x='8' width='6' height='6' opacity='.6'/%3E%3Crect x='16' width='6' height='6' opacity='.3'/%3E%3C/svg%3E") no-repeat center / 22px 6px;
+}
+main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
+:root[data-taille="grand"] main section h3:not(.ap-titre) { font-size: 1rem; }
+
+/* Texte d'introduction d'un onglet : sans encadré, en texte doux. Les vraies alertes gardent leur encadré. */
+.alerte.bandeau-donnees { margin-top: 12px; padding: 0; border: 0; background: none; color: var(--texte-doux); }
+.alerte.bandeau-donnees::before { display: none; }
+
+/* Alertes : encadré coloré avec une icône (triangle pour une alerte, croix pour un refus, i pour une info). */
+.alerte { position: relative; padding-left: 42px; }
+.alerte::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 13px;
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M12 3 2 21h20z'/%3E%3Cpath d='M12 10v5M12 18h.01'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M12 3 2 21h20z'/%3E%3Cpath d='M12 10v5M12 18h.01'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+.alerte-erreur::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='m8.5 8.5 7 7M15.5 8.5l-7 7'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='m8.5 8.5 7 7M15.5 8.5l-7 7'/%3E%3C/svg%3E");
+}
+.alerte-info::before {
+  background: var(--lien);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='M12 11v6M12 7.5h.01'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='M12 11v6M12 7.5h.01'/%3E%3C/svg%3E");
+}
+.alerte-ok::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='m7.5 12.5 3 3 6-6.5'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='m7.5 12.5 3 3 6-6.5'/%3E%3C/svg%3E");
+}
+
+/* Bouton principal d'un écran (un seul) : fond de la famille, texte foncé. */
+.bouton-principal { background: var(--famille); border-color: var(--famille); color: var(--sur-famille); }
+.bouton-principal:hover { border-color: var(--texte); }
+
+/* Puces d'information : petites étiquettes arrondies pour les réglages en cours. */
+.puces-info { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; padding: 0; list-style: none; }
+.puce-info {
+  display: inline-flex; align-items: center; min-height: 28px; padding: 2px 10px;
+  border: 1px solid var(--bordure); border-radius: 999px; background: var(--puce); color: var(--texte); font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+.puce-info .puce-cle { color: var(--texte-doux); margin-right: 4px; }
+
+/* Barre de charge : 20 segments, allumés en couleur de famille jusqu'à 80 %, d'alerte au-delà, d'échec au-delà du seuil
+   de refus ; graduations dessous (un trait tous les 25 %, le seuil de 80 % plus long). */
+.barre-charge { display: grid; gap: 3px; margin: 4px 0 2px; }
+.bc-segments { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 2px; }
+.bc-seg { height: 10px; border-radius: 2px; background: var(--point-eteint); }
+.bc-seg.allume { background: var(--famille); }
+.barre-charge[data-niveau="alerte"] .bc-seg.allume { background: var(--alerte); }
+.barre-charge[data-niveau="echec"] .bc-seg.allume { background: var(--echec); }
+.bc-graduations { position: relative; height: 6px; }
+.bc-trait { position: absolute; top: 0; width: 1px; height: 4px; margin-left: -0.5px; background: var(--texte-calcul); }
+.bc-trait:first-child { margin-left: 0; }
+.bc-trait:nth-child(5) { margin-left: -1px; }
+.bc-trait.bc-seuil { height: 6px; background: var(--texte-doux); }
+
+/* Mur en petits carrés : damier de deux tons de la famille, aux proportions du mur (colonnes × lignes). */
+.mur-carres { display: grid; gap: 1px; width: 100%; max-width: 320px; margin: 12px 0 4px; aspect-ratio: var(--rapport); max-height: 180px; }
+.mur-carres .mc { background: var(--famille-bord); min-width: 0; min-height: 0; }
+.mur-carres .mc.ton-b { background: var(--famille); }
+
+/* Pastille « Pourquoi ? » : discrète, 32 px de haut à l'œil, zone de toucher de 48 px au moins (la pastille est dessinée
+   par ::before derrière le texte) ; taille normale de bouton en grand affichage. */
+.lien-pourquoi.bouton {
+  position: relative;
+  isolation: isolate;
+  min-height: var(--cible);
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--famille);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.lien-pourquoi.bouton::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 2px;
+  right: 2px;
+  top: 50%;
+  height: 32px;
+  margin-top: -16px;
+  border: 1px solid var(--famille-bord);
+  border-radius: 999px;
+  background: var(--famille-fond);
+}
+.lien-pourquoi.bouton:hover::before { border-color: var(--famille); }
+:root[data-taille="grand"] .lien-pourquoi.bouton { font-size: 1rem; }
+:root[data-taille="grand"] .lien-pourquoi.bouton::before { left: 0; right: 0; top: 0; height: 100%; margin-top: 0; border-radius: var(--rayon); }
+
+/* S'entraîner (§ 5) : progression en 5 segments (juste vert, faux ou « Je ne sais pas » corail, en cours couleur de la
+   famille de la question, à venir éteint) ; réponses chiffrées en chasse fixe. */
+.en-progression { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.en-segment { height: 8px; border-radius: 4px; background: var(--point-eteint); }
+.en-segment[data-etat="juste"] { background: var(--point-acquise); }
+.en-segment[data-etat="faux"] { background: var(--point-revoir); }
+.en-segment[data-etat="encours"] { background: var(--famille); }
+.en-reponse.chiffres { font-family: var(--police-chiffres); }
+
+/* Onglet Apprendre (§ 4, src/ecran-apprendre.js) : carte S'entraîner (67 points, 17 par ligne ; la légende en texte
+   porte l'information, la couleur la renforce), quatre images en tuiles sur deux colonnes, familles de fiches. */
+.ap { display: grid; gap: 16px; margin-top: 16px; }
+.ap > .carte { margin-top: 0; }
+.ap-entrainement { display: grid; gap: 12px; border-color: var(--famille-bord); }
+.ap-titre { margin: 0; font-size: 1.35rem; line-height: 1.2; }
+.ap-intro { margin: 0; color: var(--texte-doux); line-height: 1.4; }
+.ap-points { display: grid; grid-template-columns: repeat(17, minmax(0, 1fr)); gap: 5px; max-width: 340px; }
+.ap-point { aspect-ratio: 1; border-radius: 50%; background: var(--point-eteint); }
+.ap-point[data-etat="revoir"], .ap-cle[data-etat="revoir"]::before { background: var(--point-revoir); }
+.ap-point[data-etat="encours"], .ap-cle[data-etat="encours"]::before { background: var(--point-encours); }
+.ap-point[data-etat="acquise"], .ap-cle[data-etat="acquise"]::before { background: var(--point-acquise); }
+.ap-legende { margin: 0; color: var(--texte-doux); font-size: 0.875rem; line-height: 1.6; }
+.ap-cle { white-space: nowrap; }
+.ap-cle::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; background: var(--point-eteint); vertical-align: 0; }
+.ap-modes { display: grid; gap: 8px; }
+.ap-modes-second { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ap-modes .bouton { min-width: 0; padding: 0 10px; }
+.ap-images, .ap-familles, .ap-fiches-famille { display: grid; gap: 10px; }
+.ap h3 { margin: 0; }
+.ap-tuiles-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ap-image { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 12px; border: 1px solid var(--bordure); border-radius: 14px; background: var(--surface); }
+.ap-image strong { line-height: 1.25; }
+.ap-image p { margin: 0; color: var(--texte-doux); font-size: 0.875rem; line-height: 1.4; overflow-wrap: anywhere; }
+.ap-icone { width: 24px; height: 24px; color: var(--famille); }
+.ap-lignes { display: grid; gap: 8px; }
+.ap-famille { justify-content: flex-start; gap: 12px; min-height: max(56px, var(--cible)); padding: 8px 14px; font-weight: 600; text-align: left; }
+.ap-famille-titre { flex: 1; min-width: 0; }
+.ap-compte { flex: none; min-width: 2.2em; padding: 2px 8px; border-radius: 999px; background: var(--puce); color: var(--texte); font-family: var(--police-chiffres); text-align: center; }
+.ap-barre { display: flex; }
+:root[data-taille="grand"] .ap-legende, :root[data-taille="grand"] .ap-image p { font-size: 1rem; }
+:root[data-taille="grand"] .ap-tuiles-images { grid-template-columns: minmax(0, 1fr); }
+.cellule-barre { min-width: 72px; vertical-align: middle; }
+.table-charges td { white-space: nowrap; }
+.cellule-barre .barre-charge { margin: 0; }
+.carte-variante .barre-charge { margin: 4px 0 0; }
+#ecran-depannage { margin-top: 16px; }
+.en-reponse.chiffres .en-marque { font-family: var(--police); }

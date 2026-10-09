@@ -107,6 +107,29 @@ const normaliserEntrainement = (t) => String(t ?? '').replace(/\{\d+\}/g, '').re
 // Noms des relevés internes du Projet, cherchés par empreintes (deux mots collés) : jamais dans une fiche publiée.
 const EMPREINTES_RELEVES = new Set([0xb82bd84c, 0xc43f6430, 0x88105340, 0xbda87954]);
 
+// Nouveau look (spec du 09/10/2026) : jetons de couleur de styles.css, thème sombre (:root) puis mode rouge par-dessus.
+function jetonsLook(css) {
+  const sombre = {};
+  const rougeSeul = {};
+  for (const m of String(css ?? '').matchAll(/:root(\[data-mode="rouge"\])?\s*\{([^}]*)\}/g)) {
+    for (const [, nom, valeur] of m[2].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) (m[1] ? rougeSeul : sombre)[nom] = valeur.trim().toLowerCase();
+  }
+  return { sombre, rouge: { ...sombre, ...rougeSeul } };
+}
+const rvbLook = (hex) => [1, 3, 5].map((i) => parseInt(String(hex).slice(i, i + 2), 16));
+function contrasteLook(a, b) {
+  const lum = (hex) => {
+    const [r, g, bl] = rvbLook(hex).map((c) => c / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
+  return (x + 0.05) / (y + 0.05);
+}
+const FAMILLES_LOOK = {
+  image: '#b08cff', donnees: '#4da3ff', electricite: '#ffa53d', accroche: '#5bd48c',
+  depannage: '#ff6b7f', base: '#a3abb8', apprendre: '#f2d34b', regie: '#3fd0c9',
+};
+
 export const DONNEES = [
   {
     id: 'D1',
@@ -564,7 +587,7 @@ export const DONNEES = [
       }
       v.egal('nom, langue, affichage', [manifeste.name, manifeste.short_name, manifeste.lang, manifeste.display], ['Mur LED', 'Mur LED', 'fr', 'standalone']);
       v.egal('adresses relatives (publication dans un sous-dossier)', [manifeste.start_url, manifeste.scope], ['./index.html', './']);
-      v.egal('couleurs du mode sombre', [manifeste.background_color, manifeste.theme_color], ['#0e1014', '#0e1014']);
+      v.egal('couleurs du mode sombre', [manifeste.background_color, manifeste.theme_color], ['#0b0d11', '#0b0d11']);
       const icones = manifeste.icons ?? [];
       for (const taille of ['192x192', '512x512']) {
         const icone = icones.find((i) => i.sizes === taille && (i.purpose ?? 'any').includes('any'));
@@ -2077,6 +2100,47 @@ export const DONNEES = [
       v.egal('aucun nom interdit (empreintes)', [...employeursDans(texte), ...internesDans(texte), ...empreintesDans(texte, EMPREINTES_RELEVES, [9, 11, 19, 21]), ...exactsDans(texte, EMPREINTES_RELEVES)], []);
       v.egal('sources de conception non affichées, aucun fichier de document', ['DUNLOSKY', 'WEINSTEIN', 'BUTLER', 'LSCI', 'LITTLE', 'FLASH', 'YORK'].filter((c) => texte.includes(c))
         .concat(/\.md\b|\.pdf\b|Projet/.test(texte) ? ['fichier ou Projet cité'] : []), []);
+    },
+  },
+  {
+    id: 'D62',
+    titre: 'Nouveau look (§ 2) : neutres et couleurs de famille de la spec dans styles.css, fond teinté à 16 % et bordure teintée à 35 % sur la surface ; chaque couleur de famille et chaque texte à 4,5:1 au moins sur les fonds où il est posé (page, surface, champs, puces, fond teinté), texte foncé sur un bouton de famille à 4,5:1 ; idem en mode rouge ; états inchangés ; plus d\'accent global ; points de progression visibles à 3:1',
+    etape: 'look',
+    verifier(v, contexte) {
+      const css = contexte.fichiers?.['styles.css'];
+      v.vrai('styles.css lu', typeof css === 'string');
+      const { sombre, rouge } = jetonsLook(css);
+      v.egal('neutres du § 2', ['--fond', '--surface', '--surface-2', '--puce', '--bordure', '--texte', '--texte-doux', '--texte-calcul', '--lien'].map((n) => sombre[n]),
+        ['#0b0d11', '#151922', '#0f1218', '#1d222c', '#2a303b', '#eceef2', '#a3abb8', '#8b93a0', '#7db8ff']);
+      v.egal('couleurs de famille du § 2', Object.keys(FAMILLES_LOOK).map((f) => sombre[`--famille-${f}`]), Object.values(FAMILLES_LOOK));
+      const melange = (c, p) => rvbLook(c).map((x, i) => p * x + (1 - p) * rvbLook(sombre['--surface'])[i]);
+      const proche = (hex, attendu) => Boolean(hex) && rvbLook(hex).every((x, i) => Math.abs(x - attendu[i]) <= 1);
+      v.egal('fond teinté à 16 % et bordure teintée à 35 % sur la surface', Object.entries(FAMILLES_LOOK).filter(([f, c]) => !proche(sombre[`--famille-${f}-fond`], melange(c, 0.16))
+        || !proche(sombre[`--famille-${f}-bord`], melange(c, 0.35))).map(([f]) => f), []);
+      v.egal('états : rôle et valeurs inchangés', ['--ok', '--echec', '--alerte', '--ok-fond', '--echec-fond', '--alerte-fond', '--info-fond'].map((n) => sombre[n]),
+        ['#45d17a', '#ff6b6b', '#f3b845', '#12301e', '#3a1618', '#33280f', '#10233a']);
+      v.vrai('l\'accent bleu global a disparu (ni jeton --accent ni var(--accent))', !/--accent\s*:|var\(--accent\)/.test(css ?? ''));
+      for (const [mode, j] of [['sombre', sombre], ['rouge', rouge]]) {
+        const fautes = [];
+        const verifier = (texte, fond, quoi, mini = 4.5) => {
+          const k = j[texte] && j[fond] ? contrasteLook(j[texte], j[fond]) : 0;
+          if (k < mini) fautes.push(`${quoi} : ${texte} sur ${fond} à ${k.toFixed(2)}:1`);
+        };
+        for (const f of Object.keys(FAMILLES_LOOK)) {
+          for (const fond of ['--fond', '--surface', '--surface-2', `--famille-${f}-fond`]) verifier(`--famille-${f}`, fond, f);
+          verifier('--sur-famille', `--famille-${f}`, `bouton ${f}`);
+          for (const t of ['--texte', '--texte-doux']) verifier(t, `--famille-${f}-fond`, `fond teinté ${f}`);
+        }
+        for (const t of ['--texte', '--texte-doux', '--texte-calcul', '--lien']) for (const fond of ['--fond', '--surface', '--surface-2', '--puce']) verifier(t, fond, 'texte');
+        for (const p of ['--point-revoir', '--point-encours', '--point-acquise']) verifier(p, '--surface', 'point de progression', 3);
+        v.egal(`${mode} : contrastes`, fautes.slice(0, 12), []);
+      }
+      v.egal('mode rouge : toutes les couleurs de famille sont des rouges (rouge dominant, vert et bleu bas)', Object.keys(FAMILLES_LOOK).filter((f) => {
+        const [r, g, b] = rvbLook(rouge[`--famille-${f}`] ?? '#000000');
+        return !(r >= 200 && g <= 110 && b <= 110);
+      }), []);
+      v.egal('mode rouge : les quatre états des points se distinguent par leur clarté', new Set(['--point-eteint', '--point-revoir', '--point-encours', '--point-acquise'].map((n) => rouge[n])).size, 4);
+      v.egal('point éteint de la spec', sombre['--point-eteint'], '#232a35');
     },
   },
 ];

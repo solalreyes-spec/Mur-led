@@ -13,7 +13,7 @@ import { couleurPort, stylesLignes } from './couleurs.js';
 // trajet ; `texteSur(couleur)` : chiffre sur sa pastille. Noms de dalle (`nomDalle`) à 4,5:1 sur les deux fonds (N10).
 export const PALETTE_ECRAN = {
   fond: 'var(--fond)', dalle: 'var(--dalle-a)', dalleAlt: 'var(--dalle-b)', demi: 'var(--surface)', bord: 'var(--bordure)',
-  contour: 'var(--texte-doux)', texte: 'var(--texte)', texteDoux: 'var(--texte-doux)', nomDalle: 'var(--texte-dalle)', accent: 'var(--accent)', police: null,
+  contour: 'var(--trait-schema)', texte: 'var(--texte)', texteDoux: 'var(--trait-schema)', nomDalle: 'var(--texte-dalle)', accent: 'var(--famille)', police: null,
   principal: 'var(--trace-principal)', secours: 'var(--trace-secours)',
   trace: (c) => `var(--${c.cle})`, lisere: 'var(--phase-lisere)', texteSur: (c) => (c.lisere ? 'var(--texte-sur-phase-2)' : 'var(--fond)'),
   fleche: (c) => (c.lisere ? 'var(--phase-2-fleche)' : `var(--${c.cle})`),

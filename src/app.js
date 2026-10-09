@@ -20,6 +20,9 @@ import { monterDepannage, marqueDuProcesseur } from './ecran-depannage.js';
 import { monterMireFiche } from './ecran-mire.js';
 import { monterPourquoi, relierPourquoi } from './pourquoi.js';
 import { monterEntrainement } from './ecran-entrainement.js';
+import { monterApprendre } from './ecran-apprendre.js';
+import { FAMILLES_ONGLETS } from './look.js';
+import { versionAppli } from './mire.js';
 
 // Hors ligne : le service worker garde les fichiers de l'appli. Il prévient quand une nouvelle version est prête.
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
@@ -36,7 +39,7 @@ function appliquerMode(rouge) {
   if (rouge) document.documentElement.dataset.mode = 'rouge';
   else delete document.documentElement.dataset.mode;
   boutonRouge.setAttribute('aria-pressed', String(rouge));
-  document.querySelector('meta[name="theme-color"]').content = rouge ? '#000000' : '#0e1014';
+  document.querySelector('meta[name="theme-color"]').content = rouge ? '#000000' : '#0b0d11';
 }
 appliquerMode(document.documentElement.dataset.mode === 'rouge');
 boutonRouge.addEventListener('click', () => {
@@ -80,7 +83,7 @@ async function demanderStockagePersistant() {
 }
 let persistant = null;
 
-const ONGLETS = ['mur', 'data', 'canvas', 'elec', 'poids', 'schema', 'depannage', 'base'];
+const ONGLETS = ['mur', 'data', 'canvas', 'elec', 'poids', 'schema', 'depannage', 'base', 'apprendre'];
 
 async function lireJson(chemin) {
   const reponse = await fetch(chemin);
@@ -91,6 +94,8 @@ async function lireJson(chemin) {
 function afficherOnglet() {
   const demande = location.hash.slice(1);
   const actif = ONGLETS.includes(demande) ? demande : 'mur';
+  // Nouveau look : la racine prend la famille de l'onglet ouvert (en-tête, écrans pleins).
+  document.documentElement.dataset.famille = FAMILLES_ONGLETS[actif];
   for (const id of ONGLETS) {
     document.getElementById(id).hidden = id !== actif;
     const lien = document.querySelector(`.onglet[href="#${id}"]`);
@@ -348,8 +353,11 @@ const panneauPourquoi = document.getElementById('pourquoi');
 let ecranPourquoi = null;
 function ouvrirPourquoi(id = null) {
   if (!ecranPourquoi) return;
-  if (id) ecranPourquoi.afficherFiche(id);
-  else ecranPourquoi.afficherListe();
+  if (!id) {
+    allerApprendre();
+    return;
+  }
+  ecranPourquoi.afficherFiche(id);
   panneauPourquoi.hidden = false;
   document.body.classList.add('montage-ouvert');
   document.getElementById('ecran-pourquoi').scrollTop = 0;
@@ -360,13 +368,25 @@ function fermerPourquoi() {
   if (panneauMire.hidden) document.body.classList.remove('montage-ouvert');
   return true;
 }
-// Mode entraînement : écran plein au-dessus de la liste des fiches ; « Fermer » ou Échap ramène à la liste.
+// Onglet Apprendre (il remplace la liste des fiches) : tout ce qui menait à la liste y mène, écrans pleins fermés.
+let ecranApprendre = null;
+function allerApprendre() {
+  fermerEntrainement();
+  fermerPourquoi();
+  fermerMire();
+  ecranApprendre?.afficherAccueil();
+  location.hash = 'apprendre';
+}
+// Mode entraînement : écran plein au-dessus de l'onglet Apprendre ; « Fermer » ou Échap y ramène, et ses 67 points
+// suivent la séance. « Séance du jour » et « Les 5 essentiels » lancent la séance ; « Par famille » ouvre l'accueil du
+// mode, familles dépliées (« Effacer ma progression » y reste, en bas).
 const panneauEntrainement = document.getElementById('entrainement');
 const defilantEntrainement = document.getElementById('ecran-entrainement');
 let ecranEntrainement = null;
-function ouvrirEntrainement() {
+function ouvrirEntrainement(mode = null) {
   if (!ecranEntrainement) return;
-  ecranEntrainement.afficherAccueil();
+  if (mode === 'jour' || mode === 'essentiels') ecranEntrainement.demarrer(mode);
+  else ecranEntrainement.afficherAccueil({ familles: mode === 'famille' });
   panneauEntrainement.hidden = false;
   document.body.classList.add('montage-ouvert');
   defilantEntrainement.scrollTop = 0;
@@ -375,6 +395,7 @@ function fermerEntrainement() {
   if (panneauEntrainement.hidden) return false;
   panneauEntrainement.hidden = true;
   if (panneauPourquoi.hidden && panneauMire.hidden) document.body.classList.remove('montage-ouvert');
+  ecranApprendre?.actualiser();
   return true;
 }
 if (pourquoi && questionsEntrainement) {
@@ -391,7 +412,7 @@ if (pourquoi && liensPourquoi) {
   const defilant = document.getElementById('ecran-pourquoi');
   ecranPourquoi = monterPourquoi(defilant, pourquoi, {
     defiler: () => { defilant.scrollTop = 0; },
-    ouvrirEntrainement: ecranEntrainement ? ouvrirEntrainement : null,
+    ouvrirListe: allerApprendre,
   });
   const relier = () => relierPourquoi(liensPourquoi, { racine: document, ouvrir: ouvrirPourquoi });
   new MutationObserver(relier).observe(document.querySelector('main'), { childList: true, subtree: true });
@@ -399,6 +420,19 @@ if (pourquoi && liensPourquoi) {
   relier();
 }
 document.getElementById('pourquoi-fermer').addEventListener('click', fermerPourquoi);
+if (pourquoi) {
+  ecranApprendre = monterApprendre(document.getElementById('ecran-apprendre'), {
+    pourquoi,
+    entrainement: questionsEntrainement,
+    stockage: { lire, ecrire },
+    ouvrirFiche: ouvrirPourquoi,
+    ouvrirEntrainement,
+  });
+} else {
+  remplacer(document.getElementById('ecran-apprendre'), erreurAlerte('Fiches « pourquoi » introuvables : l\'onglet Apprendre ne peut pas s\'afficher.'));
+}
+// Version de l'appli à droite du titre : celle du cache qui sert l'appli.
+versionAppli().then((v) => { document.getElementById('version-appli').textContent = v ?? ''; });
 if (ficheContenu) {
   ecranMire = monterMireFiche(document.getElementById('ecran-mire'), ficheContenu, {
     contexte: cablageRetenu,
@@ -441,7 +475,7 @@ if (depannage) {
       ouvrirMire: () => ouvrirMire('mire'),
       liensPourquoi: ecranPourquoi ? liensPourquoi.liens : [],
       ouvrirPourquoi: ecranPourquoi ? ouvrirPourquoi : null,
-      ouvrirListePourquoi: ecranPourquoi ? () => ouvrirPourquoi() : null,
+      ouvrirListePourquoi: ecranApprendre ? () => allerApprendre() : null,
     });
   window.addEventListener('hashchange', async () => {
     if (location.hash === '#depannage') ecranDepannage.definirProjet(await projetDepannage());

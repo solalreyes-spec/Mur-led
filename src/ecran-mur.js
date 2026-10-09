@@ -4,6 +4,7 @@
 import { dimensionner, densite, pitchCalculeMm, dalleTournee } from './calculs.js';
 import { nombre, nombreCourt, signe, sourceCourte, dateCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
+import { murCarres } from './look.js';
 import { resumeMur } from './resumes.js';
 import { optionsInformations, configsDuMur, arbreDalles } from './fiches.js';
 
@@ -379,10 +380,17 @@ function afficherResultats(dalle, r, groupes = []) {
     + (m.rangeeDemi ? ` + ${nombreCourt(m.demi.hauteurMm)} mm (demi)` : '');
   const detailHauteurPx = `${m.lignes} × ${dalle.pxV} px` + (m.rangeeDemi ? ` + ${m.demi.pxV} px (demi)` : '');
 
+  // Nouveau look : les deux chiffres clés (colonnes × lignes, nombre de dalles) en grand, le réglage en puces (pas et
+  // pixels de la dalle), le mur en petits carrés pour ses proportions (rien au-delà de 1 000 dalles).
   const principal = el('div', { class: 'carte resultat-principal' },
+    el('ul', { class: 'puces-info' },
+      el('li', { class: 'puce-info' }, dalle.nom),
+      el('li', { class: 'puce-info' }, `${nombreCourt(d.pitchMm, 3)} mm`),
+      el('li', { class: 'puce-info' }, `${dalle.pxH} × ${dalle.pxV} px`)),
     el('p', { class: 'chiffre-cle' }, `${m.colonnes} × ${m.lignes}`,
-      el('span', {}, ` = ${nombre(m.dalles.entieres)} dalles`)),
+      el('span', { class: 'chiffre-groupe' }, el('span', {}, ' = '), el('strong', { class: 'chiffre-second' }, nombre(m.dalles.entieres)), el('span', {}, ' dalles'))),
     el('p', { class: 'sous-titre' }, 'colonnes × lignes, largeur en premier'),
+    murCarres(m.colonnes, m.lignes),
     m.rangeeDemi ? el('p', { class: 'demi' },
       `+ ${m.dalles.demi} demi-dalles (${m.demi.nom}), rangée ${m.positionDemi === 'haut' ? 'en haut' : 'en bas'}. `
       + `Total : ${m.dalles.total} éléments.`) : null);

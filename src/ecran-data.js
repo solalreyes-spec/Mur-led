@@ -8,6 +8,7 @@ import {
 import { portsEnCouleurs } from './couleurs.js';
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
+import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
 import {
   resumeData, consommationProcesseur, resumeAvantDePartir, texteCapaciteAppareil, texteLatence, texteAlimentation, texteWatts, texteLogicielReglage,
@@ -276,8 +277,18 @@ function sectionPorts(e, dalle, r) {
   const champCapacite = r.champCapacite;
   const qualite = [r.capaciteDeduite ? 'déduit' : null, r.capaciteAConfirmer ? 'à confirmer' : null].filter(Boolean).join(', ');
 
+  // Nouveau look : réglages en cours en puces, puis les deux chiffres clés (ports retenus, charge du port le plus
+  // chargé) avec la barre de charge (seuil de refus : le port plein, 100 %).
+  const tauxCharge = g.chargeMax.colonnes.taux;
   return el('section', { class: 'bloc-resultats' },
     el('h3', {}, `Ports — ${proc.nom}`),
+    el('ul', { class: 'puces-info' }, [proc.nom, `${nombreCourt(r.reglages.frequenceHz)} Hz`, `${r.reglages.bits} bits`,
+      r.reglages.ull ? 'ULL' : null, r.reglages.redondance ? 'redondance' : null].filter(Boolean).map((t) => el('li', { class: 'puce-info' }, t))),
+    el('div', { class: 'chiffres-cles' },
+      el('p', { class: 'chiffre' }, el('span', { class: 'chiffre-valeur' }, nombre(g.colonnes.ports)), el('span', { class: 'chiffre-libelle' }, 'Ports en colonnes entières')),
+      el('p', { class: 'chiffre' }, el('span', { class: 'chiffre-valeur' }, nombre(tauxCharge * 100, 1), el('span', { class: 'chiffre-unite' }, ' %')),
+        el('span', { class: 'chiffre-libelle' }, 'Port le plus chargé')),
+      barreCharge(tauxCharge)),
     el('dl', { class: 'tuiles' },
       tuile(`Capacité par port${proc.typePorts ? ` ${proc.typePorts}` : ''}`, `${nombre(entierInferieur(r.capacite))} px`, r.formule,
         `source : ${sourceLimite(proc, champCapacite)}`, qualite ? `valeur ${qualite}` : null,

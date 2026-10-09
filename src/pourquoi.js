@@ -2,10 +2,12 @@
 // l'appli. Deux usages :
 // - un lien « Pourquoi ? » à côté de chaque résultat, alerte ou refus qui découle d'une règle (table
 //   data/pourquoi-liens.json : écran, type d'élément, motif du texte, fiche), posé sans toucher aux calculs ;
-// - l'écran des fiches : les quatre images de base, les fiches par famille, puis une fiche (question, « La règle »,
-//   « L'image », « En vrai », « Si tu ne la respectes pas », source courte sous chaque ligne, titres complets en bas).
+// - l'écran des fiches : une fiche (question, « La règle », « L'image », « En vrai », « Si tu ne la respectes pas », source
+//   courte sous chaque ligne, titres complets en bas). La liste des fiches est dans l'onglet Apprendre
+//   (src/ecran-apprendre.js) ; « Toutes les fiches » y mène.
 
-import { el, remplacer, listeNumerotee } from './dom.js';
+import { el, remplacer } from './dom.js';
+import { familleDeFiche } from './look.js';
 
 const NIVEAUX_AFFICHES = { copie: 'copie', T: 'site tiers', R: 'revendeur' };
 
@@ -79,12 +81,12 @@ export function libelleSourceCourt(donnees, s) {
   return `${libelle}${niveau ? ` (${niveau})` : ''}`;
 }
 
-// `ouvrirEntrainement` : bouton « S'entraîner » en tête de la liste ; `versListe` faux : fiche seule, sans « Toutes les
+// `ouvrirListe` : « Toutes les fiches » (l'onglet Apprendre) ; `versListe` faux : fiche seule, sans « Toutes les
 // fiches » (lue depuis une question du mode entraînement).
-export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLine, defiler = () => {}, ouvrirEntrainement = null, versListe = true } = {}) {
+export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLine, defiler = () => {}, ouvrirListe = () => {}, versListe = true } = {}) {
   const fiches = new Map(donnees.fiches.map((f) => [f.id, f]));
   const familles = new Map(donnees.familles.map((f) => [f.id, f]));
-  const etat = { vue: 'liste', fiche: null };
+  const etat = { fiche: null };
   racine.classList.add('pq');
 
   // Texte : renvois {n} en exposant, renvois vers une autre fiche (« (E2) », « comme en D1 ») en lien.
@@ -124,26 +126,12 @@ export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLi
         ...s.documents.map((x) => el('li', { class: 'pq-source-document' }, titreLie(x.libelle, x.url)))) : null))),
     enLigne() ? null : el('p', { class: 'pq-note' }, 'Hors ligne : les liens servent seulement en ligne.'));
 
-  function dessinerListe() {
-    racine.dataset.vue = 'liste';
-    delete racine.dataset.fiche;
-    remplacer(racine,
-      ouvrirEntrainement ? el('button', { type: 'button', class: 'bouton pq-entrainement' }, 'S\'entraîner') : null,
-      el('section', { class: 'pq-images' },
-        el('h3', {}, 'Quatre images pour tout retenir'),
-        listeNumerotee({}, donnees.images.map((x) => ({ numero: x.numero, contenu: [el('strong', {}, x.titre), ` ${x.texte}`], attributs: { class: 'pq-image' } })))),
-      ...donnees.familles.map((f) => el('section', { class: 'pq-famille' },
-        el('h3', {}, f.titre),
-        el('div', { class: 'pq-fiches' }, ...f.fiches.map((id) => el('button', { type: 'button', class: 'bouton pq-fiche-bouton', 'data-fiche': id },
-          el('span', { class: 'pq-id' }, id), ` ${fiches.get(id).question}`))))),
-      listeSources(null));
-  }
-
   function dessinerFiche(id) {
     const f = fiches.get(id);
     if (!f) return;
     racine.dataset.vue = 'fiche';
     racine.dataset.fiche = id;
+    racine.dataset.famille = familleDeFiche(id) ?? 'base';
     const codes = new Set(f.parties.flatMap((p) => p.sources.map((s) => s.code)));
     remplacer(racine,
       versListe ? el('div', { class: 'pq-barre' }, el('button', { type: 'button', class: 'bouton pq-vers-liste' }, 'Toutes les fiches')) : null,
@@ -160,29 +148,18 @@ export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLi
     const b = e.target.closest('button');
     if (!b || !racine.contains(b)) return;
     if (b.dataset.fiche) {
-      etat.vue = 'fiche';
       etat.fiche = b.dataset.fiche;
       dessinerFiche(etat.fiche);
       defiler();
-    } else if (b.matches('.pq-entrainement')) {
-      ouvrirEntrainement?.();
     } else if (b.matches('.pq-vers-liste')) {
-      etat.vue = 'liste';
-      dessinerListe();
-      defiler();
+      ouvrirListe();
     }
   });
 
-  dessinerListe();
   return {
     afficherFiche(id) {
-      etat.vue = 'fiche';
       etat.fiche = id;
       dessinerFiche(id);
-    },
-    afficherListe() {
-      etat.vue = 'liste';
-      dessinerListe();
     },
   };
 }

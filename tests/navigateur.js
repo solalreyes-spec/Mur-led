@@ -90,6 +90,19 @@ function murCable(contexte, colonnes, lignes, id = 'brompton-s8') {
   return { mur: m, dalle, evaluation, variante: data.variantes.find((x) => x.mode === data.conseil) };
 }
 const rgbHex = (p) => `#${p.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+// Nouveau look : onglets et familles attendus (§ 3 de la spec du 09/10/2026) ; feuille de styles de l'appli chargée
+// dans la page de tests le temps d'un contrôle.
+const ONGLETS_LOOK = [['mur', 'image'], ['data', 'donnees'], ['canvas', 'image'], ['elec', 'electricite'], ['poids', 'accroche'],
+  ['schema', 'donnees'], ['depannage', 'depannage'], ['base', 'base'], ['apprendre', 'apprendre']];
+async function chargerStylesLook() {
+  const feuille = el('link', { rel: 'stylesheet', href: 'styles.css' });
+  await new Promise((fin) => {
+    feuille.onload = fin;
+    feuille.onerror = fin;
+    document.head.append(feuille);
+  });
+  return () => feuille.remove();
+}
 // Distance d'un point aux deux diagonales et au cercle de la mire : les pixels de contrôle s'en tiennent à l'écart.
 function loinDesTraits(plan, x, y) {
   const { largeur: W, hauteur: H } = plan.mur;
@@ -1312,13 +1325,13 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N31',
-    titre: 'Pourquoi ? : l\'écran de toutes les fiches s\'ouvre depuis l\'accueil du Dépannage (« Comprendre les règles ») ; il montre les quatre images de base en tête, puis les 50 fiches par famille, et une fiche s\'ouvre d\'un appui',
+    titre: 'Pourquoi ? : l\'accueil du Dépannage (« Comprendre les règles ») mène aux fiches, maintenant dans l\'onglet Apprendre ; il montre les quatre images de base, puis les cinq familles avec leur nombre de fiches (50 en tout), et une fiche s\'ouvre d\'un appui',
     etape: 'pourquoi',
     async verifier(v, contexte) {
-      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      const ap = await moduleAppli(v, '../src/ecran-apprendre.js');
       const moduleD = await moduleDepannage(v);
       const d = contexte.pourquoi;
-      if (!pq || !moduleD || !d) {
+      if (!ap || !moduleD || !d) {
         v.vrai('modules et données', false);
         return;
       }
@@ -1327,25 +1340,25 @@ export const NAVIGATEUR = [
       const bouton = m.racine.querySelector('.dep-bouton-pourquoi');
       v.egal('accueil du Dépannage : « Comprendre les règles »', texteDe(bouton), 'Comprendre les règles');
       bouton?.click();
-      v.egal('appui : l\'écran des fiches s\'ouvre', listes, ['liste']);
+      v.egal('appui : les fiches s\'ouvrent', listes, ['liste']);
       m.retirer();
       const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
       document.body.append(racine);
-      const ecran = pq.monterPourquoi(racine, d, { enLigne: () => false });
-      ecran.afficherListe();
-      v.egal('quatre images de base en tête', [...racine.querySelectorAll('.pq-image strong')].map(texteDe), d.images.map((x) => x.titre));
-      v.vrai('les images avant les familles', Boolean(racine.querySelector('.pq-images')?.compareDocumentPosition(racine.querySelector('.pq-famille')) & Node.DOCUMENT_POSITION_FOLLOWING));
-      v.egal('familles et nombre de fiches', [...racine.querySelectorAll('.pq-famille')].map((f) => `${texteDe(f.querySelector('h3'))} ${f.querySelectorAll('.pq-fiche-bouton').length}`), ['Données 22', 'Électricité 6', 'Image 14', 'Régie et chaîne vidéo 4', 'Accroche 4']);
+      const ouvertes = [];
+      const ecran = ap.monterApprendre(racine, { pourquoi: d, entrainement: contexte.entrainement, stockage: null, enLigne: () => false, ouvrirFiche: (id) => ouvertes.push(id), ouvrirEntrainement: () => {} });
+      await ecran.pret;
+      v.egal('quatre images de base', [...racine.querySelectorAll('.ap-image strong')].map(texteDe), d.images.map((x) => x.titre));
+      v.vrai('les images avant les familles', Boolean(racine.querySelector('.ap-images')?.compareDocumentPosition(racine.querySelector('.ap-familles')) & Node.DOCUMENT_POSITION_FOLLOWING));
+      v.egal('familles et nombre de fiches', [...racine.querySelectorAll('button.ap-famille')].map((f) => `${texteDe(f.querySelector('.ap-famille-titre'))} ${texteDe(f.querySelector('.ap-compte'))}`), ['Données 22', 'Électricité 6', 'Image 14', 'Régie et chaîne vidéo 4', 'Accroche 4']);
+      racine.querySelector('button.ap-famille[data-famille="image"]')?.click();
       racine.querySelector('.pq-fiche-bouton[data-fiche="I8"]')?.click();
-      v.egal('appui sur I8 : la fiche I8', texteDe(racine.querySelector('.pq-question')), d.fiches.find((f) => f.id === 'I8').question);
-      racine.querySelector('.pq-vers-liste')?.click();
-      v.vrai('« Toutes les fiches » revient à la liste', racine.querySelectorAll('.pq-fiche-bouton').length === 50);
+      v.egal('appui sur I8 : la fiche I8 s\'ouvre', ouvertes, ['I8']);
       racine.remove();
     },
   },
   {
     id: 'N32',
-    titre: 'Pourquoi ? hors ligne, en grand affichage, en thème sombre et en mode rouge : liste et fiche sans accès au réseau, texte de 19 px, boutons de 60 px, texte à 4,5:1, rien ne déborde à 375 px ; liens web des sources seulement en ligne',
+    titre: 'Pourquoi ? hors ligne, en grand affichage, en thème sombre et en mode rouge : fiche sans accès au réseau, texte de 19 px, boutons de 60 px, texte à 4,5:1, rien ne déborde à 375 px ; liens web des sources seulement en ligne',
     etape: 'pourquoi',
     async verifier(v, contexte) {
       const pq = await moduleAppli(v, '../src/pourquoi.js');
@@ -1356,7 +1369,6 @@ export const NAVIGATEUR = [
         document.body.append(racine);
         const ecran = pq.monterPourquoi(racine, d);
         ecran.afficherFiche('I8');
-        ecran.afficherListe();
         v.egal('hors ligne : aucun accès au réseau, aucun lien web', [appels, racine.querySelectorAll('a[href^="http"]').length], [[], 0]);
         racine.remove();
       });
@@ -1385,7 +1397,7 @@ export const NAVIGATEUR = [
             document.body.append(racine);
             const ecran = pq.monterPourquoi(racine, d, { enLigne: () => false });
             const fautes = [];
-            for (const [nom, aller] of [['liste', () => ecran.afficherListe()], ['I8', () => ecran.afficherFiche('I8')], ['E1', () => ecran.afficherFiche('E1')]]) {
+            for (const [nom, aller] of [['I8', () => ecran.afficherFiche('I8')], ['E1', () => ecran.afficherFiche('E1')]]) {
               aller();
               for (const e of [...racine.querySelectorAll('*')].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && x.getClientRects().length)) {
                 const style = getComputedStyle(e);
@@ -1604,7 +1616,7 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N37',
-    titre: 'Listes numérotées (Dépannage T5.2 et T1.3 avec un projet COEX, images des fiches « pourquoi », mode d\'emploi et consignes de la fiche contenu) à 375 px, en affichage normal et en grand affichage, encadrés de marque fermés puis ouverts : chaque numéro est écrit par l\'appli (pas la puce automatique, que Safari décale ou efface à côté d\'un bloc repliable), visible, et tous les numéros d\'une liste ont le même bord gauche ; le contenu de chaque étape, encadré compris, commence au même bord gauche',
+    titre: 'Listes numérotées (Dépannage T5.2 et T1.3 avec un projet COEX, mode d\'emploi et consignes de la fiche contenu) à 375 px, en affichage normal et en grand affichage, encadrés de marque fermés puis ouverts : chaque numéro est écrit par l\'appli (pas la puce automatique, que Safari décale ou efface à côté d\'un bloc repliable), visible, et tous les numéros d\'une liste ont le même bord gauche ; le contenu de chaque étape, encadré compris, commence au même bord gauche',
     etape: 'depannage',
     async verifier(v, contexte) {
       const moduleD = await moduleDepannage(v);
@@ -1656,11 +1668,6 @@ export const NAVIGATEUR = [
             fautes.push(...controleListe(`${noeud} ouverts`, m.racine.querySelector('ol.dep-etapes')));
           }
           m.retirer();
-          const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
-          document.body.append(racine);
-          pq.monterPourquoi(racine, contexte.pourquoi, { enLigne: () => false }).afficherListe();
-          fautes.push(...controleListe('images des fiches', racine.querySelector('.pq-images ol')));
-          racine.remove();
           const cadre = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
           document.body.append(cadre);
           const ecran = moduleMire.monterMireFiche(cadre, contexte.ficheContenu, { contexte: () => murCable(contexte, 4, 3), date: new Date(2026, 9, 3), version: 'v17', surfaceMax: 16777216 });
@@ -1680,24 +1687,25 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N38',
-    titre: 'Entraînement : le bouton « S\'entraîner » est en tête de la liste des fiches « pourquoi », au-dessus des quatre images, et ouvre le mode ; toujours 8 onglets, aucun pour le mode',
+    titre: 'Entraînement : la carte « S\'entraîner » est en tête de l\'onglet Apprendre et ouvre le mode ; 9 onglets, Apprendre le dernier, aucun pour le mode lui-même',
     etape: 'entrainement',
     async verifier(v, contexte) {
-      const pq = await moduleAppli(v, '../src/pourquoi.js');
-      if (!pq || !contexte.pourquoi) return;
+      const ap = await moduleAppli(v, '../src/ecran-apprendre.js');
+      if (!ap || !contexte.pourquoi) return;
       const ouvertures = [];
       const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
       document.body.append(racine);
-      pq.monterPourquoi(racine, contexte.pourquoi, { enLigne: () => false, ouvrirEntrainement: () => ouvertures.push('entrainement') }).afficherListe();
-      const bouton = racine.firstElementChild;
-      v.egal('premier élément de la liste : le bouton « S\'entraîner »', [bouton?.matches('button.pq-entrainement'), texteDe(bouton)], [true, 'S\'entraîner']);
-      v.vrai('les quatre images juste après', Boolean(bouton?.nextElementSibling?.matches('.pq-images')));
-      bouton?.click();
-      v.egal('appui : le mode s\'ouvre', ouvertures, ['entrainement']);
+      const ecran = ap.monterApprendre(racine, { pourquoi: contexte.pourquoi, entrainement: contexte.entrainement, stockage: null, enLigne: () => false, ouvrirFiche: () => {}, ouvrirEntrainement: (mode) => ouvertures.push(mode) });
+      await ecran.pret;
+      const carte = racine.firstElementChild;
+      v.egal('premier élément de l\'onglet : la carte « S\'entraîner »', [carte?.matches('.ap-entrainement'), texteDe(carte?.querySelector('h3'))], [true, 'S\'entraîner']);
+      v.vrai('les quatre images juste après', Boolean(carte?.nextElementSibling?.matches('.ap-images')));
+      carte?.querySelector('button.ap-mode')?.click();
+      v.egal('appui : le mode s\'ouvre', ouvertures, ['jour']);
       racine.remove();
       const page = new DOMParser().parseFromString(contexte.fichiers?.['index.html'] ?? '', 'text/html');
       const onglets = [...page.querySelectorAll('nav.onglets .onglet')];
-      v.egal('8 onglets, aucun pour le mode', [onglets.length, onglets.some((o) => /entra/i.test(o.textContent))], [8, false]);
+      v.egal('9 onglets, Apprendre le dernier, aucun pour le mode', [onglets.length, texteDe(onglets[8]), onglets.some((o) => /entra/i.test(o.textContent))], [9, 'Apprendre', false]);
       v.vrai('écran plein du mode dans la page, comme la mire', Boolean(page.querySelector('#entrainement.montage[role="dialog"] #ecran-entrainement')) && Boolean(page.querySelector('#entrainement-fermer')));
     },
   },
@@ -1927,6 +1935,381 @@ export const NAVIGATEUR = [
         v.egal('hors ligne : aucun accès au réseau', appels, []);
         racine.remove();
       });
+    },
+  },
+  {
+    id: 'N43',
+    titre: 'Nouveau look, onglets (§ 3) : 9 onglets en grille de 3 × 3 dans l\'ordre Mur, Data, Canvas / Élec, Poids, Schéma / Dépannage, Base, Apprendre, chacun avec sa famille et une icône de trait ; chaque panneau porte la famille de son onglet ; l\'onglet ouvert a le fond teinté et la bordure de sa famille, libellé en gras ; cibles de 48 px, 60 px en grand affichage',
+    etape: 'look',
+    async verifier(v, contexte) {
+      const look = await moduleAppli(v, '../src/look.js');
+      const page = new DOMParser().parseFromString(contexte.fichiers?.['index.html'] ?? '', 'text/html');
+      const onglets = [...page.querySelectorAll('nav.onglets a.onglet')];
+      v.egal('9 onglets dans l\'ordre, chacun avec sa famille', onglets.map((o) => `${o.getAttribute('href')} ${o.dataset.famille}`), ONGLETS_LOOK.map(([o, f]) => `#${o} ${f}`));
+      v.egal('une icône de trait par onglet', onglets.filter((o) => !o.querySelector('svg.icone-onglet')).map((o) => o.getAttribute('href')), []);
+      v.egal('chaque panneau porte la famille de son onglet', ONGLETS_LOOK.map(([o]) => page.getElementById(o)?.dataset.famille ?? null), ONGLETS_LOOK.map(([, f]) => f));
+      if (look) v.egal('src/look.js : même correspondance', ONGLETS_LOOK.map(([o]) => look.FAMILLES_ONGLETS?.[o] ?? null), ONGLETS_LOOK.map(([, f]) => f));
+      const { sombre } = await jetonsStyles();
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const avant = html.dataset.taille;
+      try {
+        for (const taille of ['normal', 'grand']) {
+          if (taille === 'grand') html.dataset.taille = 'grand';
+          else delete html.dataset.taille;
+          const cadre = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+          cadre.innerHTML = page.querySelector('nav.onglets')?.outerHTML ?? '';
+          document.body.append(cadre);
+          const liens = [...cadre.querySelectorAll('a.onglet')];
+          liens.forEach((a) => a.removeAttribute('aria-current'));
+          liens[3]?.setAttribute('aria-current', 'page');
+          const ouvert = liens[3];
+          if (ouvert) {
+            const s = getComputedStyle(ouvert);
+            v.egal(`${taille} : onglet Élec ouvert, bordure et fond teinté de sa famille, libellé en gras`,
+              [rgbVersHex(s.borderTopColor), rgbVersHex(s.backgroundColor), Number(s.fontWeight) >= 700],
+              [sombre['--famille-electricite'], sombre['--famille-electricite-fond'], true]);
+            v.egal(`${taille} : un onglet fermé garde la bordure neutre`, rgbVersHex(getComputedStyle(liens[0]).borderTopColor), sombre['--bordure']);
+          }
+          const hauts = liens.map((a) => Math.round(a.getBoundingClientRect().top));
+          v.vrai(`${taille} : grille de 3 × 3 (trois onglets par rangée, trois rangées)`, hauts.length === 9 && hauts[0] === hauts[2] && hauts[3] > hauts[2] && hauts[3] === hauts[5] && hauts[6] > hauts[5] && hauts[6] === hauts[8]);
+          const mini = taille === 'grand' ? 60 : 48;
+          v.egal(`${taille} : cibles de ${mini} px au moins, aucun libellé coupé, rien ne déborde`, liens.filter((a) => a.getBoundingClientRect().height < mini - 0.5 || a.scrollWidth > a.clientWidth + 0.5
+            || a.getBoundingClientRect().right > cadre.getBoundingClientRect().right + 0.5).map((a) => texteDe(a)), []);
+          v.egal(`${taille} : icône dans la couleur de famille de son onglet`, liens.filter((a) => {
+            const c = getComputedStyle(a.querySelector('svg.icone-onglet') ?? a).color;
+            return rgbVersHex(c) !== sombre[`--famille-${a.dataset.famille}`];
+          }).map((a) => texteDe(a)), []);
+          cadre.remove();
+        }
+      } finally {
+        retirer();
+        if (avant) html.dataset.taille = avant;
+        else delete html.dataset.taille;
+      }
+    },
+  },
+  {
+    id: 'N44',
+    titre: 'Onglet Apprendre (§ 4) : carte S\'entraîner en tête (titre, phrase, 67 points dans l\'ordre de la banque, 17 par ligne, éteints, à revoir, en cours, acquis selon la progression enregistrée, légende en texte avec les quatre nombres, étiquette accessible ; « Séance du jour » en bouton principal, puis « Les 5 essentiels » et « Par famille ») ; quatre images en tuiles avec leur icône ; cinq familles avec leur nombre de fiches, qui ouvrent leurs fiches',
+    etape: 'look',
+    async verifier(v, contexte) {
+      const ap = await moduleAppli(v, '../src/ecran-apprendre.js');
+      const calc = await moduleAppli(v, '../src/entrainement.js');
+      const d = contexte.pourquoi;
+      const banque = contexte.entrainement?.questions ?? [];
+      if (!ap || !calc || !d || banque.length !== 67) return;
+      const suivis = {
+        [banque[0].id]: { boite: 1, date: '2026-10-01' }, [banque[1].id]: { boite: 2, date: '2026-10-01' },
+        [banque[2].id]: { boite: 3, date: '2026-10-01' }, 'Q-XX-9': { boite: 2, date: '2026-10-01' },
+      };
+      const memoire = new Map([['entrainement', { version: 1, suivis }]]);
+      const stockage = { lire: async (k) => memoire.get(k), ecrire: async (k, x) => { memoire.set(k, x); return true; } };
+      const fiches = [];
+      const modes = [];
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      try {
+        const ecran = ap.monterApprendre(racine, { pourquoi: d, entrainement: contexte.entrainement, stockage, enLigne: () => false,
+          ouvrirFiche: (id) => fiches.push(id), ouvrirEntrainement: (mode) => modes.push(mode) });
+        await ecran.pret;
+        const carte = racine.querySelector('.ap-entrainement');
+        v.vrai('carte S\'entraîner en tête de l\'onglet', Boolean(carte) && racine.firstElementChild === carte);
+        v.egal('titre et phrase', [texteDe(carte?.querySelector('h3')), texteDe(carte?.querySelector('.ap-intro'))],
+          ['S\'entraîner', '5 questions tirées des fiches. Après chaque réponse, l\'image et l\'explication. Pas de chrono.']);
+        const points = [...racine.querySelectorAll('.ap-points .ap-point')];
+        const attendus = banque.map((q, i) => ['revoir', 'encours', 'acquise'][i] ?? 'jamais');
+        v.egal('67 points dans l\'ordre de la banque, selon la progression enregistrée (question inconnue ignorée)',
+          [points.length, points.map((p) => p.dataset.question).join(','), points.map((p) => p.dataset.etat).join(',')],
+          [67, banque.map((q) => q.id).join(','), attendus.join(',')]);
+        const etat = calc.texteEtat(calc.etatProgression(banque, suivis));
+        v.egal('légende en texte et étiquette accessible du groupe : les quatre nombres', [etat, texteDe(racine.querySelector('.ap-legende')), racine.querySelector('.ap-points')?.getAttribute('aria-label'), racine.querySelector('.ap-points')?.getAttribute('role')],
+          ['Jamais vues 64 · À revoir 1 · En cours 1 · Acquises 1', etat, etat, 'img']);
+        const hauts = points.map((p) => Math.round(p.getBoundingClientRect().top));
+        v.vrai('17 points par ligne', hauts[0] === hauts[16] && hauts[17] > hauts[16] && hauts[17] === hauts[33] && hauts[34] > hauts[33]);
+        const { sombre } = await jetonsStyles();
+        v.egal('couleurs des points : éteint, corail, ambre, vert', [points[66], points[0], points[1], points[2]].map((p) => rgbVersHex(getComputedStyle(p).backgroundColor)),
+          ['--point-eteint', '--point-revoir', '--point-encours', '--point-acquise'].map((n) => sombre[n]));
+        const boutons = [...(carte?.querySelectorAll('button.ap-mode') ?? [])];
+        v.egal('« Séance du jour » en bouton principal, puis « Les 5 essentiels » et « Par famille »', boutons.map((b) => `${texteDe(b)}${b.classList.contains('bouton-principal') ? ' (principal)' : ''}`),
+          ['Séance du jour (principal)', 'Les 5 essentiels', 'Par famille']);
+        boutons.forEach((b) => b.click());
+        v.egal('chaque bouton ouvre le mode', modes, ['jour', 'essentiels', 'famille']);
+        const images = [...racine.querySelectorAll('.ap-images .ap-image')];
+        v.egal('quatre images en tuiles, chacune avec l\'icône de sa famille, son titre et sa phrase',
+          images.map((t) => `${t.dataset.famille} ${Boolean(t.querySelector('svg.ap-icone'))} ${texteDe(t.querySelector('strong'))} ${texteDe(t.querySelector('p'))}`),
+          d.images.map((x, i) => `${['donnees', 'electricite', 'image', 'accroche'][i]} true ${x.titre} ${x.texte}`));
+        const colonnes = images.map((t) => Math.round(t.getBoundingClientRect().left));
+        v.vrai('tuiles en deux colonnes', colonnes.length === 4 && colonnes[0] === colonnes[2] && colonnes[1] === colonnes[3] && colonnes[1] > colonnes[0]);
+        const familles = [...racine.querySelectorAll('button.ap-famille')];
+        v.egal('cinq familles avec leur nombre de fiches', familles.map((b) => `${b.dataset.famille} ${texteDe(b.querySelector('.ap-famille-titre'))} ${texteDe(b.querySelector('.ap-compte'))}`),
+          d.familles.map((f) => `${f.id} ${f.titre} ${f.fiches.length}`));
+        familles.find((b) => b.dataset.famille === 'image')?.click();
+        v.egal('Image : ses 14 fiches', [racine.dataset.vue, [...racine.querySelectorAll('.pq-fiche-bouton')].map((b) => b.dataset.fiche).join(',')],
+          ['famille', d.familles.find((f) => f.id === 'image').fiches.join(',')]);
+        racine.querySelector('.pq-fiche-bouton[data-fiche="I8"]')?.click();
+        v.egal('appui sur I8 : la fiche s\'ouvre', fiches, ['I8']);
+        racine.querySelector('.ap-retour')?.click();
+        v.vrai('« Retour » ramène à l\'onglet', racine.dataset.vue === 'accueil' && racine.firstElementChild?.matches('.ap-entrainement'));
+        memoire.set('entrainement', { version: 1, suivis: { ...suivis, [banque[3].id]: { boite: 3, date: '2026-10-02' } } });
+        await ecran.actualiser();
+        v.egal('après une séance : les points et la légende suivent', [racine.querySelectorAll('.ap-point[data-etat="acquise"]').length, texteDe(racine.querySelector('.ap-legende'))],
+          [2, 'Jamais vues 63 · À revoir 1 · En cours 1 · Acquises 2']);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N45',
+    titre: 'Anciens liens vers la liste des fiches : la liste et son bouton « S\'entraîner » ont disparu ; « Toutes les fiches » d\'une fiche ouvre l\'onglet Apprendre ; « Comprendre les règles » du Dépannage et « Fermer » du mode mènent à l\'onglet Apprendre',
+    etape: 'look',
+    async verifier(v, contexte) {
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      if (!pq || !contexte.pourquoi) return;
+      const listes = [];
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const ecran = pq.monterPourquoi(racine, contexte.pourquoi, { enLigne: () => false, ouvrirListe: () => listes.push('apprendre') });
+      v.vrai('plus de vue « liste » dans l\'écran des fiches', typeof ecran.afficherListe === 'undefined');
+      ecran.afficherFiche('E2');
+      v.vrai('plus de bouton « S\'entraîner » dans l\'écran des fiches', !racine.querySelector('.pq-entrainement'));
+      racine.querySelector('.pq-vers-liste')?.click();
+      v.egal('« Toutes les fiches » ouvre l\'onglet Apprendre', listes, ['apprendre']);
+      racine.remove();
+      const app = contexte.fichiers?.['src/app.js'] ?? '';
+      v.vrai('app.js : onglet « apprendre » dans la liste des onglets', /const ONGLETS = \[[^\]]*'apprendre'/.test(app));
+      v.vrai('app.js : « Comprendre les règles », « Toutes les fiches » et « Fermer » du mode mènent à l\'onglet Apprendre',
+        /ouvrirListePourquoi:[^,\n]*allerApprendre/.test(app) && /ouvrirListe:[^,\n]*allerApprendre/.test(app) && /function allerApprendre\(\)[\s\S]{0,200}location\.hash = 'apprendre'/.test(app) && !/afficherListe/.test(app));
+    },
+  },
+  {
+    id: 'N46',
+    titre: 'Barre de charge (§ 3) : 20 segments, allumés à la proportion de la charge, en couleur de famille jusqu\'à 80 %, en couleur d\'alerte au-delà, en couleur d\'échec au-delà du seuil de refus ; graduations dessous ; décorative (la charge reste écrite)',
+    etape: 'look',
+    async verifier(v) {
+      const look = await moduleAppli(v, '../src/look.js');
+      if (!look) return;
+      v.egal('segments allumés et niveau', [0, 0.01, 0.5, 0.8, 0.805, 0.885, 1, 1.02, 1.6].map((c) => {
+        const s = look.segmentsCharge(c);
+        return `${s.allumes} ${s.niveau}`;
+      }), ['0 famille', '1 famille', '10 famille', '16 famille', '16 alerte', '18 alerte', '20 alerte', '20 echec', '20 echec']);
+      v.egal('seuil de refus réglable', `${look.segmentsCharge(0.97, { seuilRefus: 0.95 }).niveau}`, 'echec');
+      const { sombre } = await jetonsStyles();
+      const retirer = await chargerStylesLook();
+      const cadre = el('div', { 'data-famille': 'donnees', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(cadre);
+      try {
+        for (const [charge, couleur] of [[0.5, '--famille-donnees'], [0.885, '--alerte'], [1.02, '--echec']]) {
+          const barre = look.barreCharge(charge);
+          cadre.append(barre);
+          const segs = [...barre.querySelectorAll('.bc-seg')];
+          const allumes = segs.filter((s) => s.classList.contains('allume'));
+          v.egal(`${charge * 100} % : 20 segments, ${look.segmentsCharge(charge).allumes} allumés en ${couleur}, éteints en --point-eteint, graduations, cachée aux lecteurs d'écran`,
+            [segs.length, allumes.length, rgbVersHex(getComputedStyle(allumes[0]).backgroundColor), rgbVersHex(getComputedStyle(segs[19].classList.contains('allume') ? segs[0] : segs[19]).backgroundColor),
+              Boolean(barre.querySelector('.bc-graduations')), barre.getAttribute('aria-hidden')],
+            [20, look.segmentsCharge(charge).allumes, sombre[couleur], segs[19].classList.contains('allume') ? sombre[couleur] : sombre['--point-eteint'], true, 'true']);
+        }
+      } finally {
+        cadre.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N47',
+    titre: 'Mur en petits carrés (§ 3) : une grille colonnes × lignes en damier de deux tons de la famille, présente à 72 dalles (12 × 6), absente au-delà de 1 000 dalles',
+    etape: 'look',
+    async verifier(v) {
+      const look = await moduleAppli(v, '../src/look.js');
+      if (!look) return;
+      const { sombre } = await jetonsStyles();
+      const retirer = await chargerStylesLook();
+      const cadre = el('div', { 'data-famille': 'image', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(cadre);
+      try {
+        const grille = look.murCarres(12, 6);
+        cadre.append(grille ?? '');
+        const carres = [...(grille?.querySelectorAll('.mc') ?? [])];
+        const hauts = carres.map((c) => Math.round(c.getBoundingClientRect().top));
+        v.egal('12 × 6 : 72 carrés, 12 par rangée, damier (36 et 36)', [carres.length, hauts[0] === hauts[11] && hauts[12] > hauts[11], carres.filter((c) => c.classList.contains('ton-b')).length,
+          carres[0]?.classList.contains('ton-b'), carres[1]?.classList.contains('ton-b'), carres[12]?.classList.contains('ton-b')], [72, true, 36, false, true, true]);
+        v.egal('deux tons de la famille', [rgbVersHex(getComputedStyle(carres[0]).backgroundColor), rgbVersHex(getComputedStyle(carres[1]).backgroundColor)],
+          [sombre['--famille-image-bord'], sombre['--famille-image']]);
+        v.vrai('décorative : cachée aux lecteurs d\'écran', grille?.getAttribute('aria-hidden') === 'true');
+        v.egal('1 000 dalles : présente ; 1 001 et 40 × 26 : absente', [Boolean(look.murCarres(40, 25)), look.murCarres(1001, 1), look.murCarres(40, 26)], [true, null, null]);
+      } finally {
+        cadre.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N48',
+    titre: 'Pastille « Pourquoi ? » (§ 3) : discrète (fond teinté, bordure teintée, texte en couleur de famille), 32 px de haut à l\'œil, zone de toucher de 48 px au moins ; taille normale de bouton en grand affichage (60 px)',
+    etape: 'look',
+    async verifier(v) {
+      const pq = await moduleAppli(v, '../src/pourquoi.js');
+      if (!pq) return;
+      const { sombre } = await jetonsStyles();
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const avant = html.dataset.taille;
+      try {
+        for (const taille of ['normal', 'grand']) {
+          if (taille === 'grand') html.dataset.taille = 'grand';
+          else delete html.dataset.taille;
+          const cadre = el('div', { class: 'zone-essai', 'data-famille': 'donnees', style: 'position:absolute;left:-10000px;top:0;width:375px' },
+            el('p', { class: 'alerte' }, 'Essai de pastille'));
+          document.body.append(cadre);
+          pq.relierPourquoi({ ecrans: { essai: '.zone-essai' }, liens: [{ ecran: 'essai', element: 'alerte', motif: 'Essai', fiche: 'D1' }] }, { racine: cadre, ouvrir: () => {} });
+          const b = cadre.querySelector('.lien-pourquoi');
+          const avantB = b ? getComputedStyle(b, '::before') : null;
+          const [mini, visuel] = taille === 'grand' ? [60, 60] : [48, 32];
+          v.egal(`${taille} : zone de toucher de ${mini} px au moins, pastille visible de ${visuel} px`, [b ? b.getBoundingClientRect().height >= mini - 0.5 : false, avantB ? Math.round(parseFloat(avantB.height)) >= visuel - 1 && Math.round(parseFloat(avantB.height)) <= Math.max(visuel, b.getBoundingClientRect().height) : false],
+            [true, true]);
+          if (taille === 'normal') v.egal('normal : 32 px à l\'œil', avantB ? Math.round(parseFloat(avantB.height)) : null, 32);
+          v.egal(`${taille} : texte en couleur de famille, fond et bordure teintés`, [rgbVersHex(getComputedStyle(b).color), avantB ? rgbVersHex(avantB.backgroundColor) : null, avantB ? rgbVersHex(avantB.borderTopColor) : null],
+            [sombre['--famille-donnees'], sombre['--famille-donnees-fond'], sombre['--famille-donnees-bord']]);
+          cadre.remove();
+        }
+      } finally {
+        retirer();
+        if (avant) html.dataset.taille = avant;
+        else delete html.dataset.taille;
+      }
+    },
+  },
+  {
+    id: 'N49',
+    titre: 'Nouveau look sans décor (§ 1) : aucune ombre portée, lueur, dégradé ni animation dans styles.css (box-shadow, text-shadow, drop-shadow, gradient, @keyframes)',
+    etape: 'look',
+    async verifier(v, contexte) {
+      const css = contexte.fichiers?.['styles.css'] ?? '';
+      v.egal('aucune ombre, lueur, dégradé ni animation', ['box-shadow', 'text-shadow', 'drop-shadow', 'gradient', '@keyframes'].filter((m) => css.includes(m)), []);
+    },
+  },
+  {
+    id: 'N50',
+    titre: 'Onglet Apprendre hors ligne, en grand affichage, en thème sombre et en mode rouge : aucun accès au réseau ; texte de 19 px, boutons de 60 px, texte à 4,5:1 sur son fond, rien ne déborde à 375 px ; en mode rouge, les points restent distincts par leur clarté',
+    etape: 'look',
+    async verifier(v, contexte) {
+      const ap = await moduleAppli(v, '../src/ecran-apprendre.js');
+      if (!ap || !contexte.pourquoi || !contexte.entrainement) return;
+      const banque = contexte.entrainement.questions;
+      const suivis = { [banque[0].id]: { boite: 1, date: '2026-10-01' }, [banque[1].id]: { boite: 2, date: '2026-10-01' }, [banque[2].id]: { boite: 3, date: '2026-10-01' } };
+      const stockage = { lire: async () => ({ version: 1, suivis }), ecrire: async () => true };
+      const monter = async () => {
+        const racine = el('div', { 'data-famille': 'apprendre', style: 'position:absolute;left:-10000px;top:0;width:375px;background:var(--fond);color:var(--texte)' });
+        document.body.append(racine);
+        const ecran = ap.monterApprendre(racine, { pourquoi: contexte.pourquoi, entrainement: contexte.entrainement, stockage, enLigne: () => false, ouvrirFiche: () => {}, ouvrirEntrainement: () => {} });
+        await ecran.pret;
+        return { racine, ecran };
+      };
+      await sansReseau(async (appels) => {
+        const { racine, ecran } = await monter();
+        racine.querySelector('button.ap-famille')?.click();
+        ecran.afficherAccueil();
+        v.egal('hors ligne : aucun accès au réseau, aucun lien web', [appels, racine.querySelectorAll('a[href^="http"]').length], [[], 0]);
+        racine.remove();
+      });
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const avant = { taille: html.dataset.taille, mode: html.dataset.mode };
+      try {
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          for (const taille of ['normal', 'grand']) {
+            if (taille === 'grand') html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            const [mini, police] = taille === 'grand' ? [60, 19] : [48, 0];
+            const { racine, ecran } = await monter();
+            const fautes = [];
+            for (const [nom, aller] of [['accueil', () => ecran.afficherAccueil()], ['famille', () => ecran.afficherFamille('donnees')]]) {
+              aller();
+              for (const e of [...racine.querySelectorAll('*')].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && x.getClientRects().length)) {
+                const style = getComputedStyle(e);
+                if (police && parseFloat(style.fontSize) < police - 0.05) fautes.push(`${nom} : « ${texteDe(e).slice(0, 30)} » en ${style.fontSize}`);
+                const k = contraste(rgbVersHex(style.color), fondDe(e));
+                if (k < 4.5) fautes.push(`${nom} : « ${texteDe(e).slice(0, 30)} » à ${k.toFixed(2)}:1`);
+              }
+              for (const b of racine.querySelectorAll('button')) {
+                if (!b.getClientRects().length) continue;
+                const h = b.getBoundingClientRect().height;
+                if (h < mini - 0.5) fautes.push(`${nom} : « ${texteDe(b).slice(0, 30)} » haut de ${h.toFixed(0)} px`);
+              }
+              if (racine.scrollWidth > 375.5) fautes.push(`${nom} : ${racine.scrollWidth} px de large`);
+            }
+            v.egal(`${mode}, ${taille} : texte, contrastes, cibles et largeur`, fautes.slice(0, 12), []);
+            if (mode === 'rouge' && taille === 'normal') {
+              ecran.afficherAccueil();
+              const couleursPoints = ['revoir', 'encours', 'acquise', 'jamais'].map((e) => rgbVersHex(getComputedStyle(racine.querySelector(`.ap-point[data-etat="${e}"]`)).backgroundColor));
+              v.egal('mode rouge : quatre clartés de points distinctes', new Set(couleursPoints).size, 4);
+            }
+            racine.remove();
+          }
+        }
+      } finally {
+        retirer();
+        if (avant.taille) html.dataset.taille = avant.taille;
+        else delete html.dataset.taille;
+        if (avant.mode) html.dataset.mode = avant.mode;
+        else delete html.dataset.mode;
+      }
+    },
+  },
+  {
+    id: 'N51',
+    titre: 'S\'entraîner (§ 5) : progression en 5 segments (juste vert, faux ou « Je ne sais pas » corail, en cours couleur de famille, à venir éteint), chacun avec son étiquette « Question n sur 5 » ; réponses chiffrées en chasse fixe ; après la réponse, le verdict puis l\'image en premier, dans un encadré au fond teinté de la famille de la question ; « Question suivante » en bouton principal de cette famille',
+    etape: 'look',
+    async verifier(v, contexte) {
+      const ent = await moduleAppli(v, '../src/ecran-entrainement.js');
+      const calc = await moduleAppli(v, '../src/entrainement.js');
+      if (!ent || !calc || !contexte.entrainement || !contexte.pourquoi) return;
+      const memoire = new Map();
+      const stockage = { lire: async (k) => memoire.get(k), ecrire: async (k, x) => { memoire.set(k, x); return true; } };
+      const { sombre } = await jetonsStyles();
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      try {
+        const ecran = ent.monterEntrainement(racine, { donnees: contexte.entrainement, pourquoi: contexte.pourquoi, stockage, hasard: calc.hasardGraine(3), aujourdhui: () => '2026-10-09', enLigne: () => false });
+        await ecran.pret;
+        const banque = new Map(contexte.entrainement.questions.map((q) => [q.id, q]));
+        ecran.demarrerAvec(['Q-I5-1', 'Q-D1-1', 'Q-E1-1', 'Q-A1-1', 'Q-R1-1'].filter((id) => banque.has(id)), 'essentiels');
+        const segments = () => [...racine.querySelectorAll('.en-progression .en-segment')];
+        v.egal('5 segments, étiquettes « Question n sur 5 »', segments().map((s) => s.getAttribute('aria-label')), [1, 2, 3, 4, 5].map((n) => `Question ${n} sur 5`));
+        v.egal('au départ : en cours, puis à venir', segments().map((s) => s.dataset.etat), ['encours', 'avenir', 'avenir', 'avenir', 'avenir']);
+        v.egal('texte du contexte inchangé', texteDe(racine.querySelector('.en-contexte')), 'Question 1 sur 5 · Image');
+        const reponses = [...racine.querySelectorAll('.en-reponse')];
+        v.vrai('Q-I5-1 : réponses chiffrées en chasse fixe', reponses.length > 0 && reponses.every((b) => b.classList.contains('chiffres') && /mono|menlo|consolas/i.test(getComputedStyle(b).fontFamily)));
+        v.egal('couleur du segment en cours : celle de la famille de la question', rgbVersHex(getComputedStyle(segments()[0]).backgroundColor), sombre['--famille-image']);
+        reponses.find((b) => texteDe(b) !== banque.get('Q-I5-1').bonne && !texteDe(b).startsWith(banque.get('Q-I5-1').bonne))?.click();
+        await new Promise((r) => setTimeout(r, 50));
+        const enfants = [...(racine.querySelector('.en-explication')?.children ?? [])];
+        v.egal('après une mauvaise réponse : le verdict, puis l\'image en premier', enfants.slice(0, 2).map((e) => e.className.split(' ').find((c) => ['en-verdict', 'en-bloc-image'].includes(c)) ?? e.className), ['en-verdict', 'en-bloc-image']);
+        const image = racine.querySelector('.en-bloc-image');
+        v.egal('encadré de l\'image au fond teinté de la famille de la question', [image?.closest('[data-famille]')?.dataset.famille, image ? rgbVersHex(getComputedStyle(image).backgroundColor) : null], ['image', sombre['--famille-image-fond']]);
+        const suivante = racine.querySelector('.en-suivante');
+        v.egal('« Question suivante » : bouton principal de la famille, texte foncé', [suivante?.classList.contains('bouton-principal'), rgbVersHex(getComputedStyle(suivante).backgroundColor), rgbVersHex(getComputedStyle(suivante).color)],
+          [true, sombre['--famille-image'], sombre['--sur-famille']]);
+        v.egal('segment 1 : faux, en corail', [segments()[0].dataset.etat, rgbVersHex(getComputedStyle(segments()[0]).backgroundColor)], ['faux', sombre['--point-revoir']]);
+        suivante?.click();
+        v.egal('question 2 : 1 faux, 2 en cours', segments().map((s) => s.dataset.etat), ['faux', 'encours', 'avenir', 'avenir', 'avenir']);
+        [...racine.querySelectorAll('.en-reponse')].find((b) => texteDe(b).startsWith(banque.get('Q-D1-1').bonne))?.click();
+        await new Promise((r) => setTimeout(r, 50));
+        v.egal('segment 2 : juste, en vert', [segments()[1].dataset.etat, rgbVersHex(getComputedStyle(segments()[1]).backgroundColor)], ['juste', sombre['--point-acquise']]);
+        racine.querySelector('.en-suivante')?.click();
+        racine.querySelector('.en-ne-sait-pas')?.click();
+        await new Promise((r) => setTimeout(r, 50));
+        v.egal('« Je ne sais pas » : corail ; à venir : éteint', [segments()[2].dataset.etat, rgbVersHex(getComputedStyle(segments()[4]).backgroundColor)], ['faux', sombre['--point-eteint']]);
+      } finally {
+        racine.remove();
+        retirer();
+      }
     },
   },
 ];

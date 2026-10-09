@@ -4,6 +4,7 @@
 import { poids, ErreurSaisie } from './calculs.js';
 import { nombre, nombreCourt, lireNombre, sourceCourte, mentionType } from './format.js';
 import { el, remplacer } from './dom.js';
+import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
 import { resumePoids } from './resumes.js';
 
@@ -78,10 +79,13 @@ function sectionMaximum(r) {
   const mx = r.maximum;
   if (!mx) return null;
   const unite = { dalles: 'dalles en hauteur', m: 'm de haut', kg: 'kg par colonne' }[mx.unite];
-  return tuile(`Maximum en ${mx.mode === 'stack' ? 'stack' : 'accroche'}`, `${nombreCourt(mx.valeur, 2)} / ${nombreCourt(mx.limite, 2)} ${unite}`,
+  const t = tuile(`Maximum en ${mx.mode === 'stack' ? 'stack' : 'accroche'}`, `${nombreCourt(mx.valeur, 2)} / ${nombreCourt(mx.limite, 2)} ${unite}`,
     mx.ok ? 'tenu' : 'dépassé',
     mx.conditions ? `conditions : ${mx.conditions}` : null,
     mx.sources.length ? `source : ${mx.sources.map(sourceCourte).join(', ')}` : null);
+  // Barre de charge : la valeur sur le maximum du constructeur (au-delà : dépassé).
+  if (mx.limite > 0) t.querySelector('dd').append(barreCharge(mx.valeur / mx.limite));
+  return t;
 }
 
 function tablePoints(r) {
@@ -99,13 +103,15 @@ function tablePoints(r) {
     el('th', { scope: 'row' }, `n° ${pt.numero}`),
     el('td', {}, pt.part !== undefined ? `${nombreCourt(pt.part * 100, 2)} %` : `colonnes ${pt.colonnes[0]} à ${pt.colonnes[1]}`),
     el('td', {}, kg(pt.kg)),
-    cmu ? el('td', { class: pt.kg > cmu ? 'ko' : 'ok' }, pt.kg > cmu ? '✗' : '✓') : null));
+    cmu ? el('td', { class: pt.kg > cmu ? 'ko' : 'ok' }, pt.kg > cmu ? '✗' : '✓') : null,
+    // Barre de charge du point sur la CMU du moteur (au-delà : ✗).
+    cmu ? el('td', { class: 'cellule-barre' }, barreCharge(pt.kg / cmu)) : null));
   return el('section', { class: 'bloc-resultats' },
     el('h3', {}, titre),
     el('div', { class: 'tableau-defilant' },
-      el('table', { class: 'table-donnees' },
+      el('table', { class: 'table-donnees table-charges' },
         el('thead', {}, el('tr', {}, el('th', {}, 'Point'), el('th', {}, p.type === 'pont' ? 'Part' : 'Porte'), el('th', {}, 'Charge'),
-          cmu ? el('th', {}, `CMU ${kg(cmu)}${p.configurationMoteur ? ` (${p.configurationMoteur})` : ''}`) : null)),
+          cmu ? el('th', {}, `CMU ${kg(cmu)}${p.configurationMoteur ? ` (${p.configurationMoteur})` : ''}`) : null, cmu ? el('th', {}, '') : null)),
         el('tbody', {}, lignes))),
     el('p', { class: 'source' }, p.type === 'pont'
       ? 'Pont continu à portées égales, charge répartie : valeurs indicatives.'
@@ -163,6 +169,8 @@ function mettreAJour() {
     alertesSansManques(r.alertes, r.manques).map((texte) => alerte(texte)),
     el('section', { class: 'bloc-resultats' },
       el('h3', {}, accroche ? 'Charge suspendue' : 'Charge au sol'),
+      // Nouveau look : le poids total en chiffre clé, son détail dans la tuile.
+      el('p', { class: 'chiffre-cle' }, nombreCourt(r.suspenduKg, 2), el('span', {}, 'kg')),
       el('dl', { class: 'tuiles' },
         tuile(accroche ? 'Total suspendu' : 'Total', kg(r.suspenduKg),
           `dalles ${kg(r.dallesKg)}, câbles ${kg(r.cablesKg)}`,

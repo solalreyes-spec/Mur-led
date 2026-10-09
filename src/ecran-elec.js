@@ -4,6 +4,7 @@
 import { electricite, ARRIVEES, LIBELLES_COIN, ErreurSaisie } from './calculs.js';
 import { nombre, nombreCourt, lireNombre, sourceCourte, mentionType } from './format.js';
 import { el, remplacer } from './dom.js';
+import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
 import { resumeElec } from './resumes.js';
 
@@ -74,7 +75,9 @@ function tablePhases(option, capaciteW, titre, conseil) {
     el('td', { class: 'nombre' }, nombre(p.lignes)),
     el('td', {}, watts(p.puissanceW)),
     el('td', {}, `${nombreCourt(p.intensiteA, 1)} A`),
-    el('td', { class: p.puissanceW > capaciteW ? 'ko' : 'ok' }, p.puissanceW > capaciteW ? '✗' : '✓')));
+    el('td', { class: p.puissanceW > capaciteW ? 'ko' : 'ok' }, p.puissanceW > capaciteW ? '✗' : '✓'),
+    // Barre de charge de la phase, sur sa capacité utile (au-delà : refusée, comme le ✗).
+    el('td', { class: 'cellule-barre' }, barreCharge(p.puissanceW / capaciteW))));
   const enColonnes = Boolean(option.lignes[0]?.colonnes);
   const detailLignes = option.lignes.map((l) => (enColonnes ? l.colonnes : l.dalles)).join(' + ');
   return el('div', {},
@@ -82,8 +85,8 @@ function tablePhases(option, capaciteW, titre, conseil) {
     el('p', { class: 'source' }, `${pluriel(option.lignes.length, 'ligne', 'lignes')} de ${detailLignes} ${enColonnes ? 'colonnes' : 'dalles'}. `
       + `Écart entre phases : ${watts(option.ecartW)}, soit ${nombreCourt(option.ecartPourcent, 0)} % de la phase la plus chargée.`),
     el('div', { class: 'tableau-defilant' },
-      el('table', { class: 'table-donnees' },
-        el('thead', {}, el('tr', {}, el('th', {}, 'Phase'), el('th', {}, 'Lignes'), el('th', {}, 'Charge'), el('th', {}, 'Intensité'), el('th', {}, ''))),
+      el('table', { class: 'table-donnees table-charges' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Phase'), el('th', {}, 'Lignes'), el('th', {}, 'Charge'), el('th', {}, 'Intensité'), el('th', {}, ''), el('th', {}, ''))),
         el('tbody', {}, lignes))));
 }
 
@@ -178,6 +181,15 @@ function mettreAJour() {
     ? `${pluriel(colonnes.colonnesParLigne, 'colonne', 'colonnes')} par ligne`
     : `chaque colonne en ${colonnes.segments.length} segments égaux : ${colonnes.segments.join(' + ')}`;
 
+  // Nouveau look : les deux chiffres clés (lignes retenues, charge de la ligne la plus chargée sur son départ, U × I),
+  // avec la barre de charge : couleur de famille jusqu'à 80 %, alerte au-delà, refus au-delà de la puissance utile.
+  const lignesRetenues = (r.triphase?.colonnes.equilibre ?? r.lignes.colonnes).lignes;
+  const ligneMaxW = Math.max(...lignesRetenues.map((l) => l.puissanceW));
+  const chiffres = el('div', { class: 'chiffres-cles' },
+    el('p', { class: 'chiffre' }, el('span', { class: 'chiffre-valeur' }, nombre(r.lignes.retenues)), el('span', { class: 'chiffre-libelle' }, 'Lignes en colonnes entières')),
+    el('p', { class: 'chiffre' }, el('span', { class: 'chiffre-valeur' }, nombre(ligneMaxW / r.ligne.theoriqueW * 100, 1), el('span', { class: 'chiffre-unite' }, ' %')),
+      el('span', { class: 'chiffre-libelle' }, `Ligne la plus chargée : ${watts(ligneMaxW)} sur ${watts(r.ligne.theoriqueW)} (${nombreCourt(r.reglages.tensionV)} V × ${nombreCourt(r.reglages.departA)} A)`)),
+    barreCharge(ligneMaxW / r.ligne.theoriqueW, { seuilRefus: r.ligne.utileW / r.ligne.theoriqueW }));
   remplacer(zone,
     recap,
     alerte('Résultats indicatifs : l\'électricité est validée par l\'électricien.', 'alerte-info'),
@@ -186,6 +198,7 @@ function mettreAJour() {
     alertesSansManques(r.alertes, r.manques).map((texte) => alerte(texte)),
     el('section', { class: 'bloc-resultats' },
       el('h3', {}, 'Puissance et lignes'),
+      chiffres,
       el('dl', { class: 'tuiles' },
         tuile('Puissance totale', kw(r.puissanceTotaleW), `${nombre(r.btuH)} BTU/h à évacuer`),
         tuile('Ligne', watts(r.ligne.utileW),

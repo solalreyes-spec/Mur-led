@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-famille="image">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
   <meta name="robots" content="noindex, nofollow">
-  <meta name="theme-color" content="#0e1014">
+  <meta name="theme-color" content="#0b0d11">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Mur LED">
@@ -25,11 +25,14 @@
 </head>
 <body>
   <header class="entete entete-app">
-    <h1>Mur LED</h1>
+    <div class="titre-app">
+      <h1><span class="logo-barres" aria-hidden="true"><span></span><span></span><span></span></span>Mur LED</h1>
+      <span id="version-appli" class="version-appli"></span>
+    </div>
     <div class="outils-entete">
-      <button id="tout-copier" class="bouton bouton-petit" type="button">Tout copier</button>
-      <button id="mode-rouge" class="bouton bouton-petit" type="button" aria-pressed="false">Mode rouge</button>
-      <button id="grand-affichage" class="bouton bouton-petit" type="button" aria-pressed="false">Grand affichage</button>
+      <button id="tout-copier" class="bouton bouton-petit" type="button"><svg class="icone-bouton" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span>Tout copier</span></button>
+      <button id="mode-rouge" class="bouton bouton-petit" type="button" aria-pressed="false"><svg class="icone-bouton" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><span>Mode rouge</span></button>
+      <button id="grand-affichage" class="bouton bouton-petit" type="button" aria-pressed="false"><svg class="icone-bouton" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20 9 6l5 14M6 15h6M15 20l3-8 3 8M16 18h4"/></svg><span>Grand affichage</span></button>
     </div>
   </header>
   <p id="etat-copie-global" class="etat-copie entete" aria-live="polite"></p>
@@ -39,18 +42,19 @@
   </div>
 
   <nav class="onglets" aria-label="Modules">
-    <a class="onglet" href="#mur" aria-current="page">Mur</a>
-    <a class="onglet" href="#data">Data</a>
-    <a class="onglet" href="#canvas">Canvas</a>
-    <a class="onglet" href="#elec">Élec</a>
-    <a class="onglet" href="#poids">Poids</a>
-    <a class="onglet" href="#schema">Schéma</a>
-    <a class="onglet" href="#depannage">Dépan&shy;nage</a>
-    <a class="onglet" href="#base">Base</a>
+    <a class="onglet" href="#mur" data-famille="image" aria-current="page"><svg class="icone-onglet" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14M15 5v14M3 12h18"/></svg><span class="onglet-libelle">Mur</span></a>
+    <a class="onglet" href="#data" data-famille="donnees"><svg class="icone-onglet" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h11M4 12h16M4 17h8"/><circle cx="18" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg><span class="onglet-libelle">Data</span></a>
+    <a class="onglet" href="#canvas" data-famille="image"><svg class="icone-onglet" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="13" rx="1"/><path d="M8 21h8M12 17v4"/></svg><span class="onglet-libelle">Canvas</span></a>
+    <a class="onglet" href="#elec" data-famille="electricite"><svg class="icone-onglet" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 2 5 14h6l-1 8 8-12h-6z"/></svg><span class="onglet-libelle">Élec</span></a>
+    <a class="onglet" href="#poids" data-famille="accroche"><svg class="icone-onglet" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v4M6 7h12l2 13H4z"/><circle cx="12" cy="3" r="1"/></svg><span class="onglet-libelle">Poids</span></a>
+    <a class="onglet" href="#schema" data-famille="donnees"><svg class="icone-onglet" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M10 6.5h4.5a2 2 0 0 1 2 2V14"/></svg><span class="onglet-libelle">Schéma</span></a>
+    <a class="onglet" href="#depannage" data-famille="depannage"><svg class="icone-onglet" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14.5 5.5a4 4 0 0 0-5 5L4 16l4 4 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-3-1-1-3z"/></svg><span class="onglet-libelle">Dépan&shy;nage</span></a>
+    <a class="onglet" href="#base" data-famille="base"><svg class="icone-onglet" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span class="onglet-libelle">Base</span></a>
+    <a class="onglet" href="#apprendre" data-famille="apprendre"><svg class="icone-onglet" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6"/></svg><span class="onglet-libelle">Apprendre</span></a>
   </nav>
 
   <main>
-    <section id="mur" aria-labelledby="titre-mur">
+    <section id="mur" aria-labelledby="titre-mur" data-famille="image">
       <h2 id="titre-mur" class="cache-visuel">Dimensionnement du mur</h2>
       <p class="alerte alerte-info bandeau-donnees">Données de départ relevées sur des fiches constructeur, des loueurs ou des bases tierces, chacune avec sa source. Vérifie la fiche officielle de ta dalle avant une presta.</p>
 
@@ -165,7 +169,7 @@
       <div id="resultats" class="resultats" aria-live="polite"></div>
     </section>
 
-    <section id="data" aria-labelledby="titre-data" hidden>
+    <section id="data" aria-labelledby="titre-data" data-famille="donnees" hidden>
       <h2 id="titre-data" class="cache-visuel">Data et processeur</h2>
 
       <form id="form-data" class="carte formulaire" novalidate>
@@ -325,7 +329,7 @@
       </section>
     </section>
 
-    <section id="canvas" aria-labelledby="titre-canvas" hidden>
+    <section id="canvas" aria-labelledby="titre-canvas" data-famille="image" hidden>
       <h2 id="titre-canvas" class="cache-visuel">Canvas et source</h2>
 
       <form id="form-source" class="carte formulaire" novalidate>
@@ -498,7 +502,7 @@
       <div id="resultats-canvas" class="resultats" aria-live="polite"></div>
     </section>
 
-    <section id="elec" aria-labelledby="titre-elec" hidden>
+    <section id="elec" aria-labelledby="titre-elec" data-famille="electricite" hidden>
       <h2 id="titre-elec" class="cache-visuel">Électricité</h2>
 
       <form id="form-elec" class="carte formulaire" novalidate>
@@ -559,7 +563,7 @@
       <div id="resultats-elec" class="resultats" aria-live="polite"></div>
     </section>
 
-    <section id="poids" aria-labelledby="titre-poids" hidden>
+    <section id="poids" aria-labelledby="titre-poids" data-famille="accroche" hidden>
       <h2 id="titre-poids" class="cache-visuel">Poids et accroche</h2>
 
       <form id="form-poids" class="carte formulaire" novalidate>
@@ -651,7 +655,7 @@
       <div id="resultats-poids" class="resultats" aria-live="polite"></div>
     </section>
 
-    <section id="schema" aria-labelledby="titre-schema" hidden>
+    <section id="schema" aria-labelledby="titre-schema" data-famille="donnees" hidden>
       <h2 id="titre-schema" class="cache-visuel">Schéma de câblage et pixel map</h2>
 
       <!-- Dessin avant les réglages (audit terrain du 02/10/2026) : vue et câblage affiché en haut, puis le dessin,
@@ -745,13 +749,13 @@
       </section>
     </section>
 
-    <section id="depannage" aria-labelledby="titre-depannage" hidden>
+    <section id="depannage" aria-labelledby="titre-depannage" data-famille="depannage" hidden>
       <h2 id="titre-depannage" class="cache-visuel">Dépannage</h2>
       <!-- Arbres de diagnostic sourcés (data/depannage.json), utilisables hors ligne : src/ecran-depannage.js. -->
       <div id="ecran-depannage"></div>
     </section>
 
-    <section id="base" aria-labelledby="titre-base" hidden>
+    <section id="base" aria-labelledby="titre-base" data-famille="base" hidden>
       <h2 id="titre-base" class="cache-visuel">Base locale</h2>
       <p class="alerte alerte-info bandeau-donnees">Données de départ relevées sur des fiches constructeur, des loueurs ou des bases tierces, chacune avec sa source. Vérifie la fiche officielle de ta dalle avant une presta.</p>
       <div id="etat-stockage"></div>
@@ -868,6 +872,11 @@
 
       <p class="note verifier"><a href="tests.html">Vérifier les calculs</a> : relance les cas tests et toutes les règles sur cette version de l'appli (connexion nécessaire).</p>
     </section>
+
+    <section id="apprendre" aria-labelledby="titre-apprendre" data-famille="apprendre" hidden>
+      <h2 id="titre-apprendre" class="cache-visuel">Apprendre</h2>
+      <div id="ecran-apprendre"></div>
+    </section>
   </main>
 
   <footer class="pied">
@@ -875,7 +884,7 @@
   </footer>
 
   <!-- Mire et fiche contenu, ouvertes depuis le Mur ou le Dépannage. -->
-  <div id="mire-fiche" class="montage mire-fiche" role="dialog" aria-modal="true" aria-labelledby="mire-fiche-titre" hidden>
+  <div id="mire-fiche" class="montage mire-fiche" data-famille="image" role="dialog" aria-modal="true" aria-labelledby="mire-fiche-titre" hidden>
     <header class="montage-haut">
       <h2 id="mire-fiche-titre" class="mire-fiche-titre">Mire et fiche contenu</h2>
       <button id="mire-fermer" class="bouton" type="button">Fermer</button>
@@ -895,7 +904,7 @@
 
   <!-- Mode entraînement : questions tirées des fiches « pourquoi », ouvert par « S'entraîner » en tête de la liste des
        fiches ; « Fermer » ramène à la liste. -->
-  <div id="entrainement" class="montage entrainement" role="dialog" aria-modal="true" aria-labelledby="entrainement-titre" hidden>
+  <div id="entrainement" class="montage entrainement" data-famille="apprendre" role="dialog" aria-modal="true" aria-labelledby="entrainement-titre" hidden>
     <header class="montage-haut">
       <h2 id="entrainement-titre" class="pourquoi-titre">S'entraîner</h2>
       <button id="entrainement-fermer" class="bouton" type="button">Fermer</button>
@@ -905,7 +914,7 @@
 
   <!-- Guide de câblage pas à pas (option 1, port par port), ouvert depuis le Schéma : un port ou une ligne à la fois,
        dalles numérotées dans l'ordre du câble, case « branché » enregistrée sur l'appareil. -->
-  <div id="montage" class="montage" role="dialog" aria-modal="true" aria-labelledby="montage-titre" hidden>
+  <div id="montage" class="montage" data-famille="donnees" role="dialog" aria-modal="true" aria-labelledby="montage-titre" hidden>
     <header class="montage-entete">
       <div class="montage-haut">
         <p id="montage-sur-titre" class="montage-sur-titre"></p>

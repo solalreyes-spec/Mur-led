@@ -6,6 +6,7 @@ import {
 } from './calculs.js';
 import { nombre, nombreCourt, lireNombre, sourceCourte } from './format.js';
 import { el, remplacer, listeNumerotee } from './dom.js';
+import { barreCharge } from './look.js';
 import { resumeCanvas } from './resumes.js';
 
 const formulaire = document.getElementById('form-source');
@@ -131,7 +132,7 @@ function sectionLiaison(source, r, proc) {
         : tuile(`Débit maxi ${l.nom}`, mpx(c.debitMax),
           `${l.formatMaxLargeurPx} × ${l.formatMaxHauteurPx} à ${l.formatMaxFrequenceHz} Hz, en approximation`,
           sourceFormat ? `source : ${sourceFormat}` : null),
-      tuile('Utilisation', `${nombre(c.taux * 100)} %`, c.ok ? 'la liaison passe' : 'la liaison ne passe pas'),
+      avecBarre(tuile('Utilisation', `${nombre(c.taux * 100)} %`, c.ok ? 'la liaison passe' : 'la liaison ne passe pas'), c.taux),
       tuile(`Entrée du ${proc.modele}`, r.entree.liaison.nom, proc.entrees ? `entrées : ${proc.entrees}` : null)));
 }
 
@@ -173,8 +174,21 @@ function sectionRegie(r, regie, source) {
         r.mode ? `mode ${r.mode.nom}, jusqu'à ${r.mode.largeurMaxPx} × ${r.mode.hauteurMaxPx} à ${r.mode.frequenceHz} Hz` : 'aucun mode ne convient',
         r.mode?.source ? `source : ${regieSources[r.mode.source] ?? r.mode.source}` : null),
       tuile('Format envoyé', `${source.largeurPx} × ${source.hauteurPx}`, `${nombreCourt(source.frequenceHz)} Hz`),
-      r.budget?.budget ? tuile('Budget', `${nombreCourt(r.budget.pixels / 1e6, 1)} MP`, `pour ${nombreCourt(r.budget.budget.mpx / 1e6, 1)} MP ${r.budget.budget.libelle}`,
-        `source : ${regieSources[r.budget.budget.source] ?? r.budget.budget.source}`) : null));
+      r.budget?.budget ? tuileBudget(r.budget, regieSources) : null));
+}
+
+// Barre de charge sous la valeur d'une tuile (débit de la liaison sur son maximum ; au-delà : refusé).
+function avecBarre(t, charge) {
+  t.querySelector('dd').append(barreCharge(charge));
+  return t;
+}
+
+// Budget de la régie avec sa barre de charge : les mégapixels envoyés sur le budget retenu (au-delà : refusé).
+function tuileBudget(b, regieSources) {
+  const t = tuile('Budget', `${nombreCourt(b.pixels / 1e6, 1)} MP`, `pour ${nombreCourt(b.budget.mpx / 1e6, 1)} MP ${b.budget.libelle}`,
+    `source : ${regieSources[b.budget.source] ?? b.budget.source}`);
+  if (b.budget.mpx > 0) t.querySelector('dd').append(barreCharge(b.pixels / b.budget.mpx));
+  return t;
 }
 
 function sectionChaine(chaine, source) {

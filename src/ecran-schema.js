@@ -7,6 +7,7 @@ import {
 import { resumeCablage } from './resumes.js';
 import { nombre, nombreCourt, lireNombre } from './format.js';
 import { el, svg, remplacer } from './dom.js';
+import { barreCharge } from './look.js';
 import {
   trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT, tiretsMotif, cadrageGuide as calculerCadrageGuide,
 } from './dessin-schema.js';
@@ -210,12 +211,13 @@ function choisir(cible) {
 // Cartes des variantes, légende, fiche d'une dalle, canvas
 // ---------------------------------------------------------------------------
 
-function carteVariante(v, choisie, conseil, champ, lignes) {
+function carteVariante(v, choisie, conseil, champ, lignes, charge = null) {
   const bouton = el('button', {
     type: 'button', class: `carte-variante${v.possible ? '' : ' impossible'}`, 'aria-pressed': String(v === choisie),
   },
   el('strong', {}, v.libelle.charAt(0).toUpperCase() + v.libelle.slice(1)),
   lignes.map((l) => el('span', {}, l)),
+  charge === null ? null : barreCharge(charge),
   v.mention ? el('span', { class: 'mention' }, v.mention) : null,
   v.mode === conseil ? el('span', { class: 'badge badge-reussi' }, 'conseillé') : null,
   v.possible ? null : el('span', { class: 'badge badge-echec' }, 'impossible'));
@@ -233,7 +235,7 @@ function cartesData(t, vd) {
       `${pluriel(v.ports, 'port', 'ports')}${v.portsSecours ? ` + ${v.portsSecours} de secours` : ''}`,
       `charge maxi ${pourcent(v.chargeMax)}`,
       `${pluriel(v.cablesTete, 'câble de tête', 'câbles de tête')}, ${pluriel(v.liaisons, 'liaison', 'liaisons')}`,
-    ])));
+    ], v.possible ? v.chargeMax : null)));
 }
 
 function cartesElec(t, ve) {

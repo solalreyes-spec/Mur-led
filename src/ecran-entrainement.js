@@ -1,5 +1,7 @@
 // Écran du mode entraînement (spec du 03/10/2026, § 1 et § 2) : accueil, question, fiche lue depuis une question ou le
-// bilan, bilan. Monté dans l'écran plein #entrainement, ouvert par « S'entraîner » en tête de la liste des fiches.
+// bilan, bilan. Monté dans l'écran plein #entrainement, ouvert depuis la carte S'entraîner de l'onglet Apprendre.
+// Nouveau look (spec du 09/10/2026, § 5) : progression en 5 segments, réponses chiffrées en chasse fixe, l'image d'abord
+// dans un encadré teinté de la famille de la question, « Question suivante » en bouton principal de cette famille.
 // Questions de data/entrainement.json, fiches de data/pourquoi.json. Stockage injecté (celui de l'appli, IndexedDB avec
 // repli en mémoire), hasard et date injectés (tests reproductibles). Pas de chrono, pas de note : le bilan dit combien
 // de réponses étaient bonnes et quelles fiches relire.
@@ -7,6 +9,7 @@
 import { el, remplacer } from './dom.js';
 import { monterPourquoi, libelleSourceCourt } from './pourquoi.js';
 import * as e from './entrainement.js';
+import { familleDeFiche } from './look.js';
 
 const CLE = 'entrainement';
 const TITRES_PARTIES = { regle: 'La règle', vrai: 'En vrai', consequence: 'Si tu ne la respectes pas' };
@@ -107,16 +110,30 @@ export function monterEntrainement(racine, {
     ];
   }
 
+  // Progression : un segment par question (juste, faux ou « Je ne sais pas », en cours, à venir), la couleur ne porte
+  // jamais seule l'information (étiquette de chaque segment, contexte écrit dessous).
+  function progression() {
+    const s = etat.seance;
+    return el('div', { class: 'en-progression' }, ...s.ids.map((id, i) => {
+      const r = s.reponses[i];
+      const etatSegment = r ? (r.juste ? 'juste' : 'faux') : i === s.index ? 'encours' : 'avenir';
+      return el('span', { class: 'en-segment', 'data-etat': etatSegment, role: 'img', 'aria-label': `Question ${i + 1} sur ${s.ids.length}` });
+    }));
+  }
+
   function dessinerQuestion() {
     const s = etat.seance;
     const q = parId.get(s.ids[s.index]);
     const r = s.reponses[s.index];
+    const chiffrees = s.ordres[s.index].every((rep) => e.nombreEnTete(rep.texte) !== null);
+    racine.dataset.famille = familleDeFiche(q.fiche) ?? 'apprendre';
     remplacer(racine,
+      progression(),
       el('p', { class: 'en-contexte' }, `Question ${s.index + 1} sur ${s.ids.length} · ${familles.get(q.famille) ?? ''}`),
       el('h3', { class: 'en-enonce' }, q.question),
       el('div', { class: 'en-reponses' }, ...s.ordres[s.index].map((rep, i) => el('button', {
         type: 'button',
-        class: `bouton en-reponse${r && rep.bonne ? ' bonne' : ''}${r && r.choix === i && !rep.bonne ? ' fausse' : ''}`,
+        class: `bouton en-reponse${chiffrees ? ' chiffres' : ''}${r && rep.bonne ? ' bonne' : ''}${r && r.choix === i && !rep.bonne ? ' fausse' : ''}`,
         'data-index': i,
         disabled: r ? '' : null,
       }, rep.texte, marque(rep, i, r)))),
@@ -164,6 +181,7 @@ export function monterEntrainement(racine, {
 
   function dessiner() {
     racine.dataset.vue = etat.vue;
+    if (etat.vue !== 'question') racine.dataset.famille = 'apprendre';
     if (etat.vue === 'question') dessinerQuestion();
     else if (etat.vue === 'bilan') dessinerBilan();
     else if (etat.vue === 'fiche') dessinerFiche();
@@ -224,9 +242,10 @@ export function monterEntrainement(racine, {
   return {
     pret,
     // Accueil du mode : une séance fermée en cours garde ses réponses, elle ne reprend pas.
-    afficherAccueil() {
+    // `familles` : familles dépliées (« Par famille » de l'onglet Apprendre).
+    afficherAccueil({ familles = false } = {}) {
       etat.vue = 'accueil';
-      etat.familles = false;
+      etat.familles = familles;
       etat.confirmer = false;
       etat.message = null;
       dessiner();
