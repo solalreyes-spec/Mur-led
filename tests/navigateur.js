@@ -2312,6 +2312,190 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N52',
+    titre: 'Éditeur de zones de l\'onglet Mur (étape 9a) : une carte par zone (nom, colonnes, rangées, écart réel, hauteur du bas), ajouter, retirer, déplacer à gauche ; aucun champ dans le formulaire (seul le texte gardé l\'est) ; « À la main » reprend les valeurs calculées et montre un écart en px par écart et un Y par zone ; 12 zones au plus ; zones à toucher de 48 px',
+    etape: '9a',
+    async verifier(v) {
+      const zones = await moduleAppli(v, '../src/zones.js');
+      if (!zones) return;
+      const retirer = await chargerStylesLook();
+      const formulaire = el('form', { 'data-famille': 'image', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(formulaire);
+      let recu = null;
+      const monter = (saisie, mur = null) => {
+        const editeur = zones.monterEditeurZones({ saisie, mur, surChange: (s) => { recu = s; } });
+        formulaire.replaceChildren(editeur);
+        return editeur;
+      };
+      try {
+        let ed = monter(zones.lireSaisieZones(''));
+        const cartes = () => [...ed.querySelectorAll('.carte-zone')];
+        v.egal('deux cartes, champs de chaque carte', [cartes().length, cartes()[1].querySelectorAll('[data-champ]').length, cartes()[0].querySelectorAll('[data-champ]').length], [2, 5, 4]);
+        v.egal('aucun champ de l\'éditeur dans le formulaire', formulaire.elements.length, 0);
+        v.egal('nom : 12 caractères au plus', cartes()[0].querySelector('[data-champ="nom"]').maxLength, 12);
+        v.egal('déplacer à gauche : pas sur la première ; retirer possible', [cartes()[0].querySelector('[data-action="gauche"]').disabled, cartes()[1].querySelector('[data-action="gauche"]').disabled,
+          cartes()[0].querySelector('[data-action="retirer"]').disabled], [true, false, false]);
+        const colonnes = cartes()[1].querySelector('[data-champ="colonnes"]');
+        colonnes.value = '7';
+        colonnes.dispatchEvent(new Event('input', { bubbles: true }));
+        v.egal('saisie : colonnes de la zone 2', recu?.zones[1].colonnes, 7);
+        ed.querySelector('[data-action="ajouter"]').click();
+        v.egal('ajouter : trois zones, trois cartes', [recu?.zones.length, cartes().length], [3, 3]);
+        cartes()[2].querySelector('[data-action="gauche"]').click();
+        v.egal('déplacer à gauche', recu?.zones.map((z) => z.nom), ['Zone 1', 'Zone 3', 'Zone 2']);
+        cartes()[0].querySelector('[data-action="retirer"]').click();
+        v.egal('retirer', recu?.zones.map((z) => z.nom), ['Zone 3', 'Zone 2']);
+        const choix = [...ed.querySelectorAll('.choix-ecarts input')];
+        v.egal('écarts dans la pixel map : trois choix', choix.map((c) => c.closest('label').textContent.trim()), ['Comme l\'écart réel', 'À la main', 'Zones collées']);
+        const dalle = { id: 'f', nom: 'f', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
+        const saisie = { ...zones.lireSaisieZones(''), zones: [{ nom: 'A', colonnes: 2, rangees: 3 }, { nom: 'B', colonnes: 2, rangees: 2, ecartMm: 260 }] };
+        const calculs = await import('../src/calculs.js');
+        ed = monter(saisie, calculs.murZones(dalle, ...zones.argumentsMurZones(saisie)));
+        const main = [...ed.querySelectorAll('.choix-ecarts input')].find((c) => c.value === 'main');
+        main.checked = true;
+        main.dispatchEvent(new Event('change', { bubbles: true }));
+        v.egal('à la main : valeurs calculées reprises', [recu?.ecarts, recu?.ecartsPx, recu?.yPx], ['main', [100], [0, 192]]);
+        v.egal('à la main : un écart en px et un Y par zone à l\'écran', [ed.querySelectorAll('[data-champ="ecartPx"]').length, ed.querySelectorAll('[data-champ="yPx"]').length], [1, 2]);
+        let douze = zones.lireSaisieZones('');
+        for (let i = 0; i < 10; i += 1) douze = zones.ajouterZone(douze);
+        ed = monter(douze);
+        v.egal('12 zones : ajouter grisé', ed.querySelector('[data-action="ajouter"]').disabled, true);
+        ed = monter(zones.retirerZone(zones.lireSaisieZones(''), 0));
+        v.egal('une seule zone : retirer grisé', ed.querySelector('[data-action="retirer"]').disabled, true);
+        const petits = [...ed.querySelectorAll('button, input:not([type="radio"])')].filter((b) => b.getBoundingClientRect().height < 48 - 0.5);
+        v.egal('zones à toucher de 48 px au moins', petits.map((b) => b.textContent || b.dataset.champ), []);
+      } finally {
+        formulaire.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N57',
+    titre: 'Mur en petits carrés en mode Zones (étape 9a) : une grille par zone, à sa place réelle (écarts et hauteur du bas, en % du mur), autant de carrés que de dalles, décoratif ; rien au-delà de 1 000 dalles',
+    etape: '9a',
+    async verifier(v) {
+      const look = await moduleAppli(v, '../src/look.js');
+      if (!look) return;
+      const calculs = await import('../src/calculs.js');
+      const retirer = await chargerStylesLook();
+      const cadre = el('div', { 'data-famille': 'image', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(cadre);
+      try {
+        const dalle = { id: 'f', nom: 'f', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
+        const m = calculs.murZones(dalle, [{ nom: 'A', colonnes: 4, rangees: 4 }, { nom: 'B', colonnes: 2, rangees: 2, ecartMm: 1000, basMm: 500 }]);
+        const dessin = look.murCarresZones(m);
+        cadre.append(dessin ?? '');
+        const grilles = [...(dessin?.querySelectorAll('.mur-carres') ?? [])];
+        v.egal('une grille par zone, un carré par dalle', [grilles.length, grilles.map((g) => g.querySelectorAll('.mc').length)], [2, [16, 4]]);
+        const boite = dessin.getBoundingClientRect();
+        const b = grilles[1].getBoundingClientRect();
+        const pc = (x) => Math.round((100 * x) / boite.width);
+        v.egal('zone B : à 3 m du bord gauche sur 4 m, 1 m de large (en % de la largeur)', [pc(b.left - boite.left), pc(b.width)], [75, 25]);
+        v.egal('zone B : bas à 0,5 m du sol, haut à 1,5 m sur 2 m (en % de la hauteur)', [Math.round((100 * (b.top - boite.top)) / boite.height), Math.round((100 * b.height) / boite.height)], [25, 50]);
+        v.vrai('proportions du mur réel (4 × 2 m)', Math.abs(boite.width / boite.height - 2) < 0.02);
+        v.vrai('décoratif : caché aux lecteurs d\'écran', dessin.getAttribute('aria-hidden') === 'true');
+        const grand = calculs.murZones(dalle, [{ nom: 'A', colonnes: 40, rangees: 20 }, { nom: 'B', colonnes: 21, rangees: 10 }]);
+        v.egal('au-delà de 1 000 dalles : rien', look.murCarresZones(grand), null);
+      } finally {
+        cadre.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N58',
+    titre: 'Schéma en zones (étape 9a4) : dalles à leur place, aucune dalle dans un vide, nom de chaque zone hors du mur, au-dessus de sa zone, du côté opposé au départ, et dans sa largeur ; noms des dalles courts (« C3 R2 »), dans leur dalle, hors des traits',
+    etape: '9a',
+    async verifier(v, contexte) {
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const m = calculs.murZones(upad, [{ nom: 'A', colonnes: 4, rangees: 3 }, { nom: 'B', colonnes: 3, rangees: 3, ecartMm: 1000 }], { ecarts: 'reel' });
+      const e = calculs.evaluerProcesseur(m, upad, processeurDeBase(contexte, 'novastar-mctrl4k'), { frequenceHz: 60, bits: 8, departCablage: 'bas-gauche' });
+      const data = calculs.cablageData(m, upad, e, { depart: 'bas-gauche' });
+      const vd = data.variantes.find((x) => x.mode === data.conseil);
+      for (const vueNom of ['physique', 'pixels']) {
+        const vue = { vue: vueNom, canvasVue: 'mur', cablage: 'data' };
+        const geo = geometrieSchema(vue, m, upad, calculs.pixelMap(m, upad, e));
+        const { svg } = construireSvg({ geo, trajets: trajetsSchema(vue, vd, null, null), coin: 'bas-gauche', blocs: [], palette: PALETTE_EXPORT, largeurPx: 2000 });
+        svg.style.position = 'absolute';
+        svg.style.left = '-5000px';
+        document.body.append(svg);
+        try {
+          const rects = [...svg.querySelectorAll('[data-dalle] rect')].map((r) => ['x', 'width'].map((a) => Number(r.getAttribute(a))));
+          const finA = Math.max(...geo.zones.filter((z) => z.nom === 'A').map((z) => z.x + z.w));
+          const debutB = geo.zones.find((z) => z.nom === 'B').x;
+          v.vrai(`${vueNom} : un vide entre A et B, sans dalle`, debutB > finA + 1 && rects.every(([x, w]) => x + w <= finA + 1e-6 || x >= debutB - 1e-6));
+          const noms = [...svg.querySelectorAll('.nom-zone')];
+          v.egal(`${vueNom} : noms des zones`, noms.map((t) => t.textContent), ['A', 'B']);
+          v.vrai(`${vueNom} : chaque nom au-dessus de sa zone (départ en bas), dans sa largeur`, noms.every((t, i) => {
+            const b = t.getBBox();
+            const z = geo.zones[i];
+            return b.y + b.height <= z.y + 1e-6 && b.x >= z.x - 1e-6 && b.x + b.width <= z.x + z.w + 1e-6;
+          }));
+          v.egal(`${vueNom} : noms des dalles courts`, [...svg.querySelectorAll('[data-dalle="B · C1 R1"] .etiquette-dalle tspan')].slice(0, 2).map((t) => t.textContent), ['C1', 'R1']);
+        } finally {
+          svg.remove();
+        }
+      }
+    },
+  },
+  {
+    id: 'N54',
+    titre: 'Export PNG de la pixel map en zones (étape 9a4b) : vides en noir, deux tons d\'une couleur par zone, étiquette de chaque zone ou morceau comme la slide de la formation (nom, « x, y // largeur × hauteur », taille en m) ; cas réel 1 : 11 856 × 1536 px en 2 tuiles, chaque processeur en un fichier',
+    etape: '9a',
+    async verifier(v, contexte) {
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const zones = [['C', 14], ['B-C', 9], ['B', 14], ['A-B', 9], ['A', 14]].map(([nom, colonnes]) => ({ nom, colonnes, rangees: 8 }));
+      const m = calculs.murZones(upad, zones, { ecarts: 'main', ecartsPx: [84, 84, 84, 84] });
+      const e = calculs.evaluerProcesseur(m, upad, processeurDeBase(contexte, 'novastar-mctrl4k'), { frequenceHz: 50, bits: 8 });
+      const pm = calculs.pixelMap(m, upad, e);
+      const motifMur = calculs.motifPixelMap(pm.mur);
+      v.egal('mur : étiquettes des zones', motifMur.etiquettes.map((x) => x.lignes), [
+        ['C', '0, 0 // 2688 × 1536', '7 × 4 m'], ['B-C', '2772, 0 // 1728 × 1536', '4,5 × 4 m'], ['B', '4584, 0 // 2688 × 1536', '7 × 4 m'],
+        ['A-B', '7356, 0 // 1728 × 1536', '4,5 × 4 m'], ['A', '9168, 0 // 2688 × 1536', '7 × 4 m']]);
+      v.egal('mur : 2 tuiles au-delà de 16,7 M px', calculs.tuilesImage(pm.mur.largeurPx, pm.mur.hauteurPx).length, 2);
+      const motif2 = calculs.motifPixelMap(pm.canvas[1]);
+      v.egal('processeur 2 : étiquettes des morceaux', motif2.etiquettes.map((x) => x.lignes), [
+        ['B-C 2/2', '0, 0 // 576 × 1536', '1,5 × 4 m'], ['B', '660, 0 // 2688 × 1536', '7 × 4 m'], ['A-B 1/2', '3432, 0 // 576 × 1536', '1,5 × 4 m']]);
+      v.egal('processeur 2 : une seule image', calculs.tuilesImage(pm.canvas[1].bloc.largeurPx, pm.canvas[1].bloc.hauteurPx).length, 1);
+      const canvas = pixelMapEnCanvas(pm.canvas[1]);
+      v.egal('processeur 2 : taille exacte', [canvas.width, canvas.height], [4008, 1536]);
+      const ctx = canvas.getContext('2d');
+      const pixel = (x, y) => [...ctx.getImageData(x, y, 1, 1).data].slice(0, 3).join(',');
+      v.egal('vide entre B-C et B (x 600) : noir', pixel(600, 1400), '0,0,0');
+      const bc = pixel(100, 1400);
+      const b = pixel(2000, 1400);
+      v.vrai(`B-C et B : deux couleurs de zone différentes, ni noires (${bc} ; ${b})`, bc !== b && bc !== '0,0,0' && b !== '0,0,0');
+      v.vrai('deux tons dans une zone : deux dalles voisines de B différentes', pixel(700, 1400) !== pixel(900, 1400));
+      const seul = calculs.pixelMap(calculs.mur(upad, 4, 3), upad, null);
+      v.egal('mur d\'une seule pièce : pas d\'étiquette de zone, teintes d\'avant', [calculs.motifPixelMap(seul.mur).etiquettes.length, calculs.motifPixelMap(seul.mur).fonds.map((f) => f.teinte).slice(0, 4)], [0, [0, 1, 0, 1]]);
+    },
+  },
+  {
+    id: 'N55',
+    titre: 'Mire en zones (étape 9a4b) : vides au gris « hors mur » (#141414), dalles nommées avec leur zone ; cas réel 1 : mire du mur entier trop grande pour un iPhone, une mire par processeur',
+    etape: '9a',
+    async verifier(v, contexte) {
+      const mire = await moduleAppli(v, '../src/mire.js');
+      if (!mire) return;
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const zones = [['C', 14], ['B-C', 9], ['B', 14], ['A-B', 9], ['A', 14]].map(([nom, colonnes]) => ({ nom, colonnes, rangees: 8 }));
+      const m = calculs.murZones(upad, zones, { ecarts: 'main', ecartsPx: [84, 84, 84, 84] });
+      const e = calculs.evaluerProcesseur(m, upad, processeurDeBase(contexte, 'novastar-mctrl4k'), { frequenceHz: 50, bits: 8, departCablage: 'bas-gauche' });
+      const data = calculs.cablageData(m, upad, e, { depart: 'bas-gauche' });
+      const variante = data.variantes.find((x) => x.mode === data.conseil);
+      const mires = mire.preparerMires({ mur: m, dalle: upad, evaluation: e, variante, surfaceMax: 16777216 });
+      v.egal('mur entier : refusé sur iPhone, renvoi aux mires par processeur', [mires.mur.possible, /mires par processeur/.test(mires.mur.message ?? '')], [false, true]);
+      v.egal('mires par processeur', mires.processeurs.map((p) => [p.possible, p.largeur, p.hauteur]), [[true, 3924, 1536], [true, 4008, 1536], [true, 3924, 1536]]);
+      const plan = mires.processeurs[1].plan;
+      v.vrai('dalle nommée avec sa zone', plan.dalles.find((d) => d.id === 'B · C1 R1')?.textes.some((t) => t.texte === 'B · C1 R1'));
+      const canvas = mire.dessinerMire(plan);
+      const ctx = canvas.getContext('2d');
+      const pixel = (x, y) => [...ctx.getImageData(x, y, 1, 1).data].slice(0, 3).map((c) => c.toString(16).padStart(2, '0')).join('');
+      v.egal('vide entre B-C et B (x 610, y 1400) : gris hors mur', pixel(610, 1400), '141414');
+    },
+  },
 ];
 
 // Contraste WCAG entre deux couleurs « #rrggbb ».

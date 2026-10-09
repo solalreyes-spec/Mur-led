@@ -276,6 +276,129 @@ export function mur(dalle, colonnes, lignes, { demi = null, rangeeDemi = false, 
   };
 }
 
+// ---------------------------------------------------------------------------
+// Mur en plusieurs zones (étape 9a) : rectangles de dalles côte à côte, de gauche à droite vu de face, séparés par
+// un écart réel et, dans la pixel map, par des pixels vides. Une seule dalle pour toutes les zones (mur mixte en 9b).
+// ---------------------------------------------------------------------------
+
+export const ZONES_MAX = 12;
+export const NOM_ZONE_MAX = 12;
+const MODES_ECARTS = ['reel', 'main', 'colles'];
+// Arrondi au pixel le plus proche (84,5 → 85), sans le bruit des nombres à virgule.
+const arrondiPx = (x) => Math.floor(x + 0.5 + EPS);
+const positifOuNul = (x) => x === undefined || x === null || (Number.isFinite(x) && x >= 0);
+const entierPositifOuNul = (x) => Number.isInteger(x) && x >= 0;
+
+// Pas qui convertit des millimètres en pixels : taille de la dalle ÷ ses pixels, en largeur et en hauteur. Le pas de la
+// fiche est souvent arrondi (1,9 mm pour 1,953) : avec lui, deux zones posées au sol ne seraient plus alignées en bas
+// dans la pixel map. Il reste donné pour mémoire.
+function pasDeLaDalle(dalle) {
+  return { mm: dalle.largeurMm / dalle.pxH, verticalMm: dalle.hauteurMm / dalle.pxV, ficheMm: dalle.pitchMm > 0 ? dalle.pitchMm : null };
+}
+
+// Zones : [{ nom, colonnes, rangees, ecartMm (avec la zone de gauche, à partir de la 2e), basMm (hauteur du bas au-dessus
+// du bas le plus bas) }]. Écarts dans la pixel map : 'reel' (écart réel ÷ pas, arrondi), 'main' (ecartsPx entre deux
+// zones et, si donné, yPx de chaque zone) ou 'colles' (0 px). Y d'une zone : (haut le plus haut − haut de la zone) ÷ pas.
+// Mur : pixel map avec ses vides (pxLargeur, pxHauteur, pxCanvas), pixels utiles des dalles (pxTotal), taille réelle avec
+// les écarts. Une seule zone : exactement le mur du mode Dalles, avec la description de sa zone.
+export function murZones(dalle, zones, { ecarts = 'reel', ecartsPx = [], yPx = null } = {}) {
+  if (!Array.isArray(zones) || zones.length === 0) throw new ErreurSaisie('Ajoute au moins une zone.');
+  if (zones.length > ZONES_MAX) throw new ErreurSaisie(`${ZONES_MAX} zones au plus.`);
+  if (!MODES_ECARTS.includes(ecarts)) throw new ErreurSaisie('Choisis les écarts dans la pixel map : comme l\'écart réel, à la main ou zones collées.');
+  const noms = [];
+  zones.forEach((z, i) => {
+    const zone = `Zone ${i + 1}`;
+    if (!Number.isInteger(z.colonnes) || z.colonnes < 1) throw new ErreurSaisie(`${zone} : le nombre de colonnes doit être un entier d'au moins 1.`);
+    if (!Number.isInteger(z.rangees) || z.rangees < 1) throw new ErreurSaisie(`${zone} : le nombre de rangées doit être un entier d'au moins 1.`);
+    const nom = String(z.nom ?? '').trim();
+    if (!nom) throw new ErreurSaisie(`${zone} : donne-lui un nom.`);
+    if (nom.length > NOM_ZONE_MAX) throw new ErreurSaisie(`${zone} : ${NOM_ZONE_MAX} caractères au plus pour le nom, pour qu'il tienne sur le dessin.`);
+    if (noms.includes(nom)) throw new ErreurSaisie(`Deux zones portent le même nom (« ${nom} ») : donne-leur des noms différents.`);
+    noms.push(nom);
+    if (i > 0 && !positifOuNul(z.ecartMm)) throw new ErreurSaisie(`${zone} : l'écart avec la zone de gauche est un nombre de millimètres positif ou nul.`);
+    if (!positifOuNul(z.basMm)) throw new ErreurSaisie(`${zone} : la hauteur du bas est un nombre de millimètres positif ou nul.`);
+  });
+  if (ecarts === 'main') {
+    for (let i = 1; i < zones.length; i += 1) {
+      if (!entierPositifOuNul(ecartsPx[i - 1])) throw new ErreurSaisie(`Écart ${i} dans la pixel map : un nombre entier de pixels, positif ou nul.`);
+    }
+    if (yPx) {
+      zones.forEach((z, i) => {
+        if (!entierPositifOuNul(yPx[i])) throw new ErreurSaisie(`Zone ${i + 1} : la position Y dans la pixel map est un nombre entier de pixels, positif ou nul.`);
+      });
+    }
+  }
+
+  const pas = pasDeLaDalle(dalle);
+  const murs = zones.map((z) => mur(dalle, z.colonnes, z.rangees));
+  const listeEcarts = [];
+  let xMm = 0;
+  let x = 0;
+  let colonne = 1;
+  const description = zones.map((z, i) => {
+    const m = murs[i];
+    if (i > 0) {
+      const mm = z.ecartMm ?? 0;
+      const pxCalcule = arrondiPx(mm / pas.mm);
+      const px = { main: ecartsPx[i - 1], colles: 0, reel: pxCalcule }[ecarts];
+      listeEcarts.push({ entre: [noms[i - 1], noms[i]], mm, px, pxCalcule });
+      xMm += mm;
+      x += px;
+    }
+    const d = {
+      index: i, nom: noms[i], colonnes: z.colonnes, lignes: z.rangees, premiereColonne: colonne,
+      xMm, basMm: z.basMm ?? 0, largeurMm: m.largeurMm, hauteurMm: m.hauteurMm,
+      x, y: 0, pxLargeur: m.pxLargeur, pxHauteur: m.pxHauteur, dalles: m.dalles.total, pxTotal: m.pxTotal,
+    };
+    xMm += m.largeurMm;
+    x += m.pxLargeur;
+    colonne += z.colonnes;
+    return d;
+  });
+  const saisie = { zones: zones.map((z) => ({ ...z })), options: { ecarts, ecartsPx: [...ecartsPx], yPx: yPx ? [...yPx] : null } };
+  if (zones.length === 1) return { ...murs[0], zones: description, ecarts: [], pas, modeEcarts: ecarts, pxCanvas: murs[0].pxTotal, saisie };
+
+  const hautMax = Math.max(...description.map((d) => d.basMm + d.hauteurMm));
+  const basMin = Math.min(...description.map((d) => d.basMm));
+  description.forEach((d, i) => {
+    d.y = ecarts === 'main' && yPx ? yPx[i] : arrondiPx((hautMax - d.basMm - d.hauteurMm) / pas.verticalMm);
+  });
+  const pxLargeur = x;
+  const pxHauteur = Math.max(...description.map((d) => d.y + d.pxHauteur));
+  const entieres = description.reduce((s, d) => s + d.dalles, 0);
+  const lignes = Math.max(...zones.map((z) => z.rangees));
+  return {
+    colonnes: colonne - 1,
+    lignes,
+    rangeeDemi: false,
+    positionDemi: null,
+    demi: null,
+    rangees: Array(lignes).fill('entiere'),
+    dalles: { entieres, demi: 0, total: entieres },
+    largeurMm: xMm,
+    hauteurMm: hautMax - basMin,
+    pxLargeur,
+    pxHauteur,
+    // Pixels utiles : les dalles seulement ; la pixel map avec ses vides est pxCanvas.
+    pxTotal: description.reduce((s, d) => s + d.pxTotal, 0),
+    pxCanvas: pxLargeur * pxHauteur,
+    surfaceM2: murs.reduce((s, m) => s + m.surfaceM2, 0),
+    // Murs séparés : une diagonale ne veut rien dire.
+    diagonaleM: null,
+    ratio: ratio(pxLargeur, pxHauteur),
+    zones: description,
+    ecarts: listeEcarts,
+    pas,
+    modeEcarts: ecarts,
+    saisie,
+  };
+}
+
+const plusieursZones = (m) => (m.zones?.length ?? 0) > 1;
+const mursDesZones = (m, dalle) => m.zones.map((z) => mur(dalle, z.colonnes, z.lignes));
+// Hauteur la plus grande que charge un port : celle du mur, ou de la zone la plus haute.
+const hauteurPortsPx = (m) => (plusieursZones(m) ? Math.max(...m.zones.map((z) => z.pxHauteur)) : m.pxHauteur);
+
 // Nombre de dalles le plus proche de la cible dans une dimension ; à égalité, la plus petite taille,
 // puis sans demi-dalles. Avec `neDepassePas`, seulement les tailles inférieures ou égales à la cible.
 function choisirNombre(cible, pas, { demiPas = null, neDepassePas = false } = {}) {
@@ -1210,31 +1333,46 @@ function repartirSurCartes(zones, fusion, tient, { sorties = null, facteur = 1 }
   return repartition;
 }
 
-function cartesParZones(proc, sous, c, dalle, { redondance = false } = {}) {
-  const carte = proc.carteSortie;
+// Rectangle (en pixels) chargé par chaque port d'un sous-mur placé en (ox, oy), dans l'ordre du câblage en colonnes
+// entières : k colonnes par port, ou chaque segment d'une colonne trop haute.
+function rectanglesPorts(sous, c, dalle, ox = 0, oy = 0) {
   const hauteurs = sous.rangees.map((t) => (t === 'demi' ? sous.demi.pxV : dalle.pxV));
   const pxRangees = sous.rangees.map((t) => (t === 'demi' ? sous.demi.pxH * sous.demi.pxV : dalle.pxH * dalle.pxV));
+  const debut = hauteurs.map((_, r) => hauteurs.slice(0, r).reduce((x, y) => x + y, 0));
   const somme = (t, a, b) => t.slice(a, b + 1).reduce((x, y) => x + y, 0);
+  const rectangle = (c0, c1, r0, r1) => ({
+    x0: ox + c0 * dalle.pxH, x1: ox + (c1 + 1) * dalle.pxH - 1, y0: oy + debut[r0], y1: oy + debut[r1] + hauteurs[r1] - 1,
+    px: (c1 - c0 + 1) * somme(pxRangees, r0, r1),
+  });
   const ports = [];
   const k = c.colonnes.colonnesParPort;
   if (k) {
-    for (let x = 0; x < sous.colonnes; x += k) ports.push({ c0: x, c1: Math.min(x + k, sous.colonnes) - 1, r0: 0, r1: hauteurs.length - 1 });
+    for (let x = 0; x < sous.colonnes; x += k) ports.push(rectangle(x, Math.min(x + k, sous.colonnes) - 1, 0, hauteurs.length - 1));
   } else {
     for (let x = 0; x < sous.colonnes; x += 1) {
       let r = 0;
       for (const n of c.colonnes.segments) {
-        ports.push({ c0: x, c1: x, r0: r, r1: r + n - 1 });
+        ports.push(rectangle(x, x, r, r + n - 1));
         r += n;
       }
     }
   }
+  return ports;
+}
+
+// Cartes de sortie à zones : les ports, dans l'ordre, vont sur une carte tant que le rectangle qu'elle charge tient.
+function cartesParRectangles(proc, rectangles, { redondance = false } = {}) {
+  const carte = proc.carteSortie;
   const parCarte = redondance && !proc.portsRedondance ? Math.floor(carte.portsParCarte / 2) : carte.portsParCarte;
   // MX2000 Pro : pas de zone par carte, seulement ses ports et son plafond.
   const tient = (z, n) => n <= parCarte && z.px <= (carte.pixelsMax ?? Infinity)
-    && (z.c1 - z.c0 + 1) * dalle.pxH <= (carte.largeurMaxPx ?? Infinity) && somme(hauteurs, z.r0, z.r1) <= (carte.hauteurMaxPx ?? Infinity);
-  const zones = ports.map((p) => ({ ...p, px: (p.c1 - p.c0 + 1) * somme(pxRangees, p.r0, p.r1) }));
-  const fusion = (a, b) => ({ c0: Math.min(a.c0, b.c0), c1: Math.max(a.c1, b.c1), r0: Math.min(a.r0, b.r0), r1: Math.max(a.r1, b.r1), px: a.px + b.px });
-  return repartirSurCartes(zones, fusion, tient, optionsConvertisseurs(proc, redondance));
+    && z.x1 - z.x0 + 1 <= (carte.largeurMaxPx ?? Infinity) && z.y1 - z.y0 + 1 <= (carte.hauteurMaxPx ?? Infinity);
+  const fusion = (a, b) => ({ x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), y0: Math.min(a.y0, b.y0), y1: Math.max(a.y1, b.y1), px: a.px + b.px });
+  return repartirSurCartes(rectangles, fusion, tient, optionsConvertisseurs(proc, redondance));
+}
+
+function cartesParZones(proc, sous, c, dalle, options = {}) {
+  return cartesParRectangles(proc, rectanglesPorts(sous, c, dalle), options);
 }
 
 // MX2000 Pro et MX6000 Pro : CVT10 comptés carte par carte, avec la répartition qui en demande le moins.
@@ -1301,6 +1439,7 @@ function blocProcesseur(m, dalle, proc, contexte, { colonnes, premiereColonne, r
 // Contrôles d'un processeur pour tout le mur, puis découpage : en colonnes entières d'abord,
 // en rangées si le mur est trop haut, en grille s'il est à la fois trop large et trop haut.
 function decouper(m, dalle, proc, contexte) {
+  if (plusieursZones(m)) return decouperZones(m, dalle, proc, contexte);
   const global = cablage(m, contexte.parPort, contexte.charge, { pair: contexte.pair });
   const ports = portsFaceALimite(global, proc, contexte);
   const hauteurMax = Math.max(...formatsCanvas(proc).map((f) => f.hauteurPx));
@@ -1360,6 +1499,314 @@ function decouper(m, dalle, proc, contexte) {
   }
   resultat.impossible = `Aucun découpage en colonnes et en rangées ne tient dans des ${proc.nom}.`;
   return resultat;
+}
+
+// Mur en plusieurs zones (étape 9a) ---------------------------------------------------------------------------------
+
+// Colonnes par port (ou par ligne) d'un ensemble de zones : la plus petite de celles que la largeur de leur zone ne
+// borne pas (une zone de 3 colonnes en prend au plus 3 par port) ; si toutes sont bornées, la plus grande.
+function colonnesParPortZones(valeurs, colonnes) {
+  if (valeurs.some((k) => k === null)) return null;
+  const libres = valeurs.filter((k, i) => k < colonnes[i]);
+  return libres.length ? Math.min(...libres) : Math.max(...valeurs);
+}
+
+// Câblage de plusieurs morceaux de zones : chacun câblé à part (un port ne passe jamais d'une zone à l'autre), puis
+// les décomptes additionnés. `parties` : le câblage de chaque morceau, dans l'ordre.
+function cablageZones(murs, parPort, charge, options) {
+  const parties = murs.map((s) => cablage(s, parPort, charge, options));
+  const somme = (f) => parties.reduce((t, c) => t + f(c), 0);
+  const maxi = (f) => {
+    const valeurs = parties.map(f).filter((x) => x !== null && x !== undefined);
+    return valeurs.length ? Math.max(...valeurs) : null;
+  };
+  const colonnes = murs.map((s) => s.colonnes);
+  const plusHaute = murs.reduce((a, s, i) => (s.pxHauteur > murs[a].pxHauteur ? i : a), 0);
+  const ports = somme((c) => c.colonnes.ports);
+  const auPlusJuste = somme((c) => c.auPlusJuste);
+  return {
+    dallesParPort: parPort,
+    auPlusJuste,
+    dallesMaxParPortAuPlusJuste: maxi((c) => c.dallesMaxParPortAuPlusJuste),
+    pxMaxParPortAuPlusJuste: maxi((c) => c.pxMaxParPortAuPlusJuste),
+    colonnes: {
+      colonnesParPort: colonnesParPortZones(parties.map((c) => c.colonnes.colonnesParPort), colonnes),
+      colonnesParPortMax: colonnesParPortZones(parties.map((c) => c.colonnes.colonnesParPortMax ?? null), colonnes),
+      segments: parties[plusHaute].colonnes.segments,
+      ports,
+      dallesMaxParPort: maxi((c) => c.colonnes.dallesMaxParPort),
+      pxMaxParPort: maxi((c) => c.colonnes.pxMaxParPort),
+    },
+    redondance: { auPlusJuste: 2 * auPlusJuste, colonnes: 2 * ports },
+    seuil: { dallesEnMoins: null },
+    remplissage: parties.flatMap((c) => c.remplissage),
+    total: somme((c) => c.total),
+    parties,
+  };
+}
+
+// Câblage d'un mur, d'une seule pièce ou en zones.
+function cablageMur(m, dalle, parPort, charge, options) {
+  return plusieursZones(m) ? cablageZones(mursDesZones(m, dalle), parPort, charge, options) : cablage(m, parPort, charge, options);
+}
+
+// Abscisse (px) d'une colonne du mur, comptée de 1 à m.colonnes à travers les zones.
+function xColonne(m, dalle, colonne) {
+  const z = m.zones.find((x) => colonne < x.premiereColonne + x.colonnes);
+  return z.x + (colonne - z.premiereColonne) * dalle.pxH;
+}
+
+// Largeur seule : le moins de blocs de colonnes entières dont la pixel map, vides compris, tient dans `largeurMax`.
+function blocsEnLargeur(m, dalle, largeurMax) {
+  if (dalle.pxH > largeurMax) return Infinity;
+  let blocs = 1;
+  let debut = xColonne(m, dalle, 1);
+  for (let c = 2; c <= m.colonnes; c += 1) {
+    const x = xColonne(m, dalle, c);
+    if (x + dalle.pxH - debut > largeurMax) {
+      blocs += 1;
+      debut = x;
+    }
+  }
+  return blocs;
+}
+
+// Zones découpables en rangées : toutes de mêmes rangées, à la même hauteur dans la pixel map.
+const zonesUniformes = (m) => m.zones.every((z) => z.lignes === m.zones[0].lignes && z.y === m.zones[0].y);
+
+// Bloc d'un processeur à travers les zones : les colonnes [premiereColonne, +colonnes[ du mur, et en zones uniformes les
+// rangées [premiereRangee, +rangees[. Chaque morceau de zone est câblé à part ; le bloc est contrôlé sur son propre
+// canvas, du coin haut gauche de son premier morceau au coin bas droit du dernier, vides compris.
+function blocZones(m, dalle, proc, contexte, { colonnes, premiereColonne, rangees, premiereRangee }) {
+  const fin = premiereColonne + colonnes - 1;
+  const morceaux = [];
+  for (const z of m.zones) {
+    const a = Math.max(premiereColonne, z.premiereColonne);
+    const b = Math.min(fin, z.premiereColonne + z.colonnes - 1);
+    if (a > b) continue;
+    const nbRangees = rangees ?? z.lignes;
+    const r0 = rangees ? premiereRangee : 1;
+    const sous = mur(dalle, b - a + 1, nbRangees);
+    morceaux.push({
+      zone: z.index, nom: z.nom, premiereColonne: a - z.premiereColonne + 1, colonnes: b - a + 1, premiereRangee: r0, rangees: nbRangees,
+      x: z.x + (a - z.premiereColonne) * dalle.pxH, y: z.y + (r0 - 1) * dalle.pxV, sous,
+    });
+  }
+  const c = cablageZones(morceaux.map((p) => p.sous), contexte.parPort, contexte.charge, { pair: contexte.pair });
+  const x0 = Math.min(...morceaux.map((p) => p.x));
+  const x1 = Math.max(...morceaux.map((p) => p.x + p.sous.pxLargeur - 1));
+  const y0 = Math.min(...morceaux.map((p) => p.y));
+  const y1 = Math.max(...morceaux.map((p) => p.y + p.sous.pxHauteur - 1));
+  const largeurPx = x1 - x0 + 1;
+  const hauteurPx = y1 - y0 + 1;
+  const px = morceaux.reduce((s, p) => s + p.sous.pxTotal, 0);
+  const dalles = morceaux.reduce((s, p) => s + p.sous.dalles.total, 0);
+  const ports = portsFaceALimite(c, proc, contexte);
+  const canvas = canvasProcesseur(proc, largeurPx, hauteurPx);
+  const sorties = proc.sortiesParDistributeur;
+  // Série H, X100 Pro, Z8t, MX6000 Pro : cartes comptées par zones, sur les rectangles des ports dans le canvas du bloc.
+  const rectangles = () => morceaux.flatMap((p, i) => rectanglesPorts(p.sous, c.parties[i], dalle, p.x, p.y));
+  const parZones = proc.carteSortie?.largeurMaxPx || proc.carteSortie?.pixelsMax ? {
+    colonnes: cartesParRectangles(proc, rectangles()),
+    redondance: cartesParRectangles(proc, rectangles(), { redondance: true }),
+  } : null;
+  const zones = parZones && { colonnes: parZones.colonnes?.length ?? Infinity, redondance: parZones.redondance?.length ?? Infinity };
+  const convertisseurs = (liste, facteur) => (liste ? liste.reduce((t, n) => t + Math.ceil((facteur * n) / sorties), 0) : Infinity);
+  const ok = px <= proc.pixelsMax
+    && canvas !== null
+    && ports.valeur <= ports.limite
+    && (!proc.dallesMax || dalles <= proc.dallesMax)
+    && (!zones || (contexte.redondance ? zones.redondance : zones.colonnes) <= proc.emplacementsSortie);
+  // Ports numérotés dans le processeur, morceau après morceau, de gauche à droite.
+  let numero = 1;
+  const parties = morceaux.map((p, i) => {
+    const cp = c.parties[i];
+    const n = cp.colonnes.ports;
+    const partie = {
+      zone: p.zone,
+      nom: p.nom,
+      nomAffiche: p.nom,
+      premiereColonne: p.premiereColonne,
+      colonnes: p.colonnes,
+      premiereRangee: p.premiereRangee,
+      rangees: p.rangees,
+      // Coin haut gauche dans la pixel map du mur, et dans l'entrée du processeur (le bloc en haut à gauche de sa source).
+      x: p.x,
+      y: p.y,
+      dansEntree: { x: p.x - x0, y: p.y - y0 },
+      largeurPx: p.sous.pxLargeur,
+      hauteurPx: p.sous.pxHauteur,
+      dalles: p.sous.dalles.total,
+      px: p.sous.pxTotal,
+      ports: { colonnes: n, premier: numero, dernier: numero + n - 1, auPlusJuste: cp.auPlusJuste, redondance: cp.redondance },
+    };
+    numero += n;
+    return partie;
+  });
+  return {
+    colonnes,
+    premiereColonne,
+    derniereColonne: fin,
+    rangees: rangees ?? Math.max(...morceaux.map((p) => p.rangees)),
+    premiereRangee: rangees ? premiereRangee : 1,
+    derniereRangee: rangees ? premiereRangee + rangees - 1 : Math.max(...morceaux.map((p) => p.rangees)),
+    format: canvas?.format ?? null,
+    canvas,
+    x: [x0, x1],
+    y: [y0, y1],
+    dalles,
+    px,
+    largeurPx,
+    hauteurPx,
+    // Pixels vides dans la largeur du bloc (écarts entre ses morceaux).
+    videsLargeurPx: largeurPx - parties.reduce((s, p) => s + p.largeurPx, 0),
+    ports: { auPlusJuste: c.auPlusJuste, colonnes: c.colonnes.ports, redondance: c.redondance },
+    distributeurs: sorties ? {
+      colonnes: parZones ? convertisseurs(parZones.colonnes, 1) : Math.ceil(c.colonnes.ports / sorties),
+      auPlusJuste: Math.ceil(c.auPlusJuste / sorties),
+      redondance: parZones
+        ? (proc.portsRedondance ? 2 * convertisseurs(parZones.redondance, 1) : convertisseurs(parZones.redondance, 2))
+        : 2 * Math.ceil(c.colonnes.ports / sorties),
+    } : null,
+    cartesSortie: zones ?? (proc.carteSortie ? {
+      colonnes: cartesPour(proc, c.colonnes.ports, px),
+      redondance: cartesPour(proc, proc.portsRedondance ? c.colonnes.ports : 2 * c.colonnes.ports, px),
+    } : null),
+    chargeMax: chargePx(c.colonnes.pxMaxParPort, contexte.capacite),
+    parties,
+    ok,
+  };
+}
+
+// Morceau d'une zone partagée entre plusieurs blocs : « B-C 1/2 », « B-C 2/2 » ; une zone entière garde son nom.
+function nommerMorceaux(blocs) {
+  const parZone = new Map();
+  for (const b of blocs) for (const p of b.parties) parZone.set(p.zone, [...(parZone.get(p.zone) ?? []), p]);
+  for (const liste of parZone.values()) {
+    if (liste.length > 1) liste.forEach((p, i) => { p.nomAffiche = `${p.nom} ${i + 1}/${liste.length}`; });
+  }
+}
+
+// Contrôles et découpage d'un mur en zones : pixels utiles (les vides ne chargent aucun port) ; largeur et hauteur de
+// la pixel map, vides compris ; ports zone par zone. Colonnes entières à travers les zones, en groupes aussi égaux que
+// possible ; en rangées seulement si toutes les zones ont les mêmes rangées à la même hauteur.
+function decouperZones(m, dalle, proc, contexte) {
+  const murs = mursDesZones(m, dalle);
+  const global = cablageZones(murs, contexte.parPort, contexte.charge, { pair: contexte.pair });
+  const ports = portsFaceALimite(global, proc, contexte);
+  const hauteurMax = Math.max(...formatsCanvas(proc).map((f) => f.hauteurPx));
+  const largeurMax = largeurMaxPour(proc, Math.min(m.pxHauteur, hauteurMax));
+  const colonnesMax = Math.floor(largeurMax.largeurPx / dalle.pxH);
+  const controle = (valeur, limiteValeur, nombre) => ({ valeur, limite: limiteValeur, nombre, depasse: valeur > limiteValeur });
+  const controles = {
+    pixels: controle(m.pxTotal, proc.pixelsMax, Math.ceil(m.pxTotal / proc.pixelsMax)),
+    largeur: { ...controle(m.pxLargeur, largeurMax.largeurPx, blocsEnLargeur(m, dalle, largeurMax.largeurPx)), colonnesMax, format: largeurMax.format },
+    hauteur: controle(m.pxHauteur, hauteurMax, Math.ceil(m.pxHauteur / hauteurMax)),
+    ports: { ...controle(ports.valeur, ports.limite, Math.ceil(ports.valeur / ports.limite)), principaux: ports.principaux },
+  };
+  if (proc.dallesMax) {
+    controles.dalles = controle(m.dalles.total, proc.dallesMax, Math.ceil(m.dalles.total / proc.dallesMax));
+  }
+  if (proc.carteSortie?.largeurMaxPx) {
+    const rectangles = m.zones.flatMap((z, i) => rectanglesPorts(murs[i], global.parties[i], dalle, z.x, z.y));
+    const cartes = cartesParRectangles(proc, rectangles, { redondance: contexte.redondance })?.length ?? null;
+    controles.cartes = {
+      ...controle(cartes ?? Infinity, proc.emplacementsSortie, cartes === null ? Infinity : Math.ceil(cartes / proc.emplacementsSortie)),
+      zone: { largeurPx: proc.carteSortie.largeurMaxPx, hauteurPx: proc.carteSortie.hauteurMaxPx },
+    };
+  }
+  const limites = Object.entries(controles).filter(([, c]) => c.nombre > 1).map(([nom]) => nom);
+  const resultat = { global, controles, limites, nombre: null, grille: null, groupes: [], impossible: null };
+
+  const unite = blocProcesseur(mur(dalle, 1, 1), dalle, proc, contexte, { colonnes: 1, premiereColonne: 1, rangees: 1, premiereRangee: 1 });
+  if (!unite.ok) {
+    resultat.impossible = `Une seule dalle (${dalle.pxH} × ${dalle.pxV} px) dépasse les limites d'un ${proc.nom}.`;
+    return resultat;
+  }
+
+  const uniformes = zonesUniformes(m);
+  const nbRangees = uniformes ? m.zones[0].lignes : 1;
+  const depart = Math.max(1, ...Object.values(controles).map((c) => c.nombre));
+  for (let n = depart; Number.isFinite(n) && n <= m.colonnes * nbRangees; n += 1) {
+    for (let nr = 1; nr <= Math.min(n, nbRangees); nr += 1) {
+      const nc = n / nr;
+      if (!Number.isInteger(nc) || nc > m.colonnes) continue;
+      const blocs = [];
+      let premiereRangee = 1;
+      for (const rangees of repartir(nbRangees, nr)) {
+        let premiereColonne = 1;
+        for (const colonnes of repartir(m.colonnes, nc)) {
+          blocs.push(blocZones(m, dalle, proc, contexte, { colonnes, premiereColonne, rangees: uniformes ? rangees : null, premiereRangee }));
+          premiereColonne += colonnes;
+        }
+        premiereRangee += rangees;
+      }
+      if (blocs.every((b) => b.ok)) {
+        nommerMorceaux(blocs);
+        return { ...resultat, nombre: n, grille: { colonnes: nc, rangees: nr }, groupes: blocs };
+      }
+    }
+  }
+  resultat.impossible = !uniformes && controles.hauteur.depasse
+    ? `Mur trop haut pour un ${proc.nom} avec des zones de hauteurs différentes : le découpage en rangées de zones inégales `
+      + 'arrive à l\'étape 9b. Donne aux zones les mêmes rangées à la même hauteur, ou choisis un processeur plus haut.'
+    : `Aucun découpage en colonnes et en rangées ne tient dans des ${proc.nom}.`;
+  return resultat;
+}
+
+// Minimum théorique (au plus juste, zone par zone) face au décompte retenu en colonnes entières.
+function minimumTheoriqueZones(c, minimum, murs, unite, { pair = false } = {}) {
+  const retenu = c.colonnes.ports;
+  const pl = (n) => `${n} ${unite}${n > 1 ? 's' : ''}`;
+  const un = unite === 'ligne' ? 'une' : 'un';
+  const raisons = [];
+  if (c.parties.some((p) => !p.colonnes.colonnesParPort)) {
+    raisons.push(`une colonne dépasse ${un} ${unite} : elle est coupée en segments égaux`);
+  }
+  const sansPair = c.parties.reduce((t, p, i) => t + (p.colonnes.colonnesParPortMax
+    ? Math.ceil(murs[i].colonnes / p.colonnes.colonnesParPortMax) : p.colonnes.ports), 0);
+  if (pair && retenu > sansPair) {
+    raisons.push(`en redondance, nombre pair de colonnes par ${unite} : chaque chaîne revient au bord de départ (${pl(sansPair)} sans cette règle)`);
+  }
+  if (sansPair > minimum) raisons.push(`une colonne n'est jamais coupée entre deux ${unite}s, et ${un} ${unite} ne passe jamais d'une zone à l'autre`);
+  return {
+    nombre: minimum,
+    raisons,
+    texte: retenu === minimum ? null
+      : `Minimum théorique : ${pl(minimum)} au plus juste, contre ${retenu} en colonnes entières. Écart : ${raisons.join(' ; ')}.`,
+  };
+}
+
+// Seuil processeur en zones : le moins de colonnes à retirer d'une seule zone pour économiser un processeur, et les
+// zones où ce nombre suffit.
+function seuilZones(m, dalle, proc, contexte, nombre) {
+  let meilleur = null;
+  const zonesEnMoins = [];
+  if (nombre > 1) {
+    m.saisie.zones.forEach((z, i) => {
+      for (let c = 1; c < z.colonnes && (meilleur === null || c <= meilleur); c += 1) {
+        const zones = m.saisie.zones.map((x, j) => (j === i ? { ...x, colonnes: x.colonnes - c } : x));
+        const n = decouper(murZones(dalle, zones, m.saisie.options), dalle, proc, contexte).nombre;
+        if (n !== null && n < nombre) {
+          if (meilleur === null || c < meilleur) {
+            meilleur = c;
+            zonesEnMoins.length = 0;
+          }
+          zonesEnMoins.push(m.zones[i].nom);
+          break;
+        }
+      }
+    });
+  }
+  return { colonnesEnMoins: meilleur, zonesEnMoins };
+}
+
+// Rectangles NovaLCT zone par zone (un port ne passe jamais d'une zone à l'autre).
+function rectanglesZones(m, dalle, capacite) {
+  const parZone = mursDesZones(m, dalle).map((s) => rectanglesNovaLCT(s, dalle, capacite));
+  if (parZone.some((r) => !r)) return null;
+  const ports = parZone.reduce((t, r) => t + r.ports, 0);
+  return { ports, colonnes: parZone[0].colonnes, rangees: parZone[0].rangees, redondance: 2 * ports, parZone };
 }
 
 // NovaLCT (MCTRL, VX, NovaPro) compte pour chaque port tout le rectangle qui englobe ses dalles, vides compris.
@@ -1754,7 +2201,7 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   if (lmin && d.global) {
     const col = d.global.colonnes;
     const largeur = (col.colonnesParPort ?? 1) * dalle.pxH;
-    const hauteur = col.colonnesParPort ? m.pxHauteur : Math.max(...col.segments) * dalle.pxV;
+    const hauteur = col.colonnesParPort ? hauteurPortsPx(m) : Math.max(...col.segments) * dalle.pxV;
     if (largeur < lmin) {
       // Ports 5G : manuel MX6000 Pro V1.5.1 (p. 49), ou la même règle par analogie (CX40 Pro, MX2000 Pro).
       const s = proc.sources?.largeurChargeeMinPx;
@@ -1770,13 +2217,13 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   // Colorlight : zone d'un port limitée en largeur et en hauteur ; alerte chiffrée quand la limite coûte des ports.
   const dmax = proc.dimensionMaxPortPx;
   if (dmax && d.global) {
-    const sansLimite = cablage(m, parPort, { ...contexte.charge, dimensionMaxPx: undefined }, { pair: contexte.pair });
+    const sansLimite = cablageMur(m, dalle, parPort, { ...contexte.charge, dimensionMaxPx: undefined }, { pair: contexte.pair });
     const col = d.global.colonnes;
     if (col.ports > sansLimite.colonnes.ports) {
       const source = proc.sources?.dimensionMaxPortPx;
       const detail = col.colonnesParPort
         ? `${quantite(col.colonnesParPort, 'colonne')} par port au lieu de ${sansLimite.colonnes.colonnesParPort ?? 1}`
-        : `chaque colonne (${nombreCourt(m.pxHauteur)} px de haut) coupée en ${col.segments.length} segments égaux (${col.segments.join(' + ')} dalles)`;
+        : `chaque colonne (${nombreCourt(hauteurPortsPx(m))} px de haut) coupée en ${col.segments.length} segments égaux (${col.segments.join(' + ')} dalles)`;
       alertes.push(`Ports du ${proc.nom} : ${dmax} px de large ou de haut au plus par port (${source?.source.court ?? 'fiche'}`
         + `${/déduit/.test(source?.source.confiance ?? '') ? ', déduit' : ''}) : ${detail}, `
         + `${quantite(col.ports, 'port')} au lieu de ${quantite(sansLimite.colonnes.ports, 'port')}.`);
@@ -1786,7 +2233,7 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   // simple note sur les autres.
   if (proc.famille === 'colorlight' && proc.typePorts !== '5G' && d.global) {
     const col = d.global.colonnes;
-    const hauteurPort = col.colonnesParPort ? m.pxHauteur : Math.max(...col.segments) * dalle.pxV;
+    const hauteurPort = col.colonnesParPort ? hauteurPortsPx(m) : Math.max(...col.segments) * dalle.pxV;
     const seuil = proc.hauteurReduitePortPx ?? HAUTEUR_REDUITE_S20_PX;
     if (hauteurPort > seuil) {
       const source = proc.sources?.hauteurReduitePortPx?.source;
@@ -1807,10 +2254,27 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   }
   // Au plus juste le long du vrai serpentin : il fait foi quand il diffère du décompte théorique (demi-dalles).
   const departCablage = reglages.departCablage ?? 'haut-gauche';
-  for (const g of d.groupes) {
-    g.ports.auPlusJusteSerpentin = portsSerpentin(sousMur(m, dalle, g.colonnes, g.premiereRangee, g.rangees), contexte.charge, departCablage).length;
+  const zones = plusieursZones(m);
+  // Mur en zones : ports numérotés dans chaque processeur depuis le côté du départ, comme le Schéma.
+  if (zones && departCablage.endsWith('droite')) {
+    for (const g of d.groupes) {
+      let numero = 1;
+      for (const p of [...g.parties].reverse()) {
+        p.ports.premier = numero;
+        p.ports.dernier = numero + p.ports.colonnes - 1;
+        numero += p.ports.colonnes;
+      }
+    }
   }
-  const serpentinGlobal = portsSerpentin(m, contexte.charge, departCablage);
+  for (const g of d.groupes) {
+    g.ports.auPlusJusteSerpentin = zones
+      ? g.parties.reduce((t, p) => t + portsSerpentin(mur(dalle, p.colonnes, p.rangees), contexte.charge, departCablage).length, 0)
+      : portsSerpentin(sousMur(m, dalle, g.colonnes, g.premiereRangee, g.rangees), contexte.charge, departCablage).length;
+  }
+  // En zones, le serpentin de chaque zone : un port ne passe jamais d'une zone à l'autre.
+  const serpentinGlobal = zones
+    ? mursDesZones(m, dalle).flatMap((s) => portsSerpentin(s, contexte.charge, departCablage))
+    : portsSerpentin(m, contexte.charge, departCablage);
   const somme = (f) => d.groupes.reduce((total, g) => total + f(g), 0);
   const sorties = proc.sortiesParDistributeur;
   const totaux = d.nombre === null ? null : {
@@ -1844,7 +2308,9 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
 
   // Alerte de seuil processeur : colonnes à retirer pour économiser un processeur.
   let colonnesEnMoins = null;
-  if (d.nombre > 1) {
+  const seuilEnZones = zones ? seuilZones(m, dalle, proc, contexte, d.nombre) : null;
+  if (seuilEnZones) colonnesEnMoins = seuilEnZones.colonnesEnMoins;
+  else if (d.nombre > 1) {
     for (let c = m.colonnes - 1; c >= 1; c -= 1) {
       const n = decouper(sousMur(m, dalle, c, 1, m.rangees.length), dalle, proc, contexte).nombre;
       if (n !== null && n < d.nombre) {
@@ -1854,7 +2320,7 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     }
   }
 
-  const rectangles = proc.logiciel === 'NovaLCT' ? rectanglesNovaLCT(m, dalle, capacite) : null;
+  const rectangles = proc.logiciel !== 'NovaLCT' ? null : (zones ? rectanglesZones(m, dalle, capacite) : rectanglesNovaLCT(m, dalle, capacite));
 
   // Chaque contrôle dépassé donne une alerte explicite, en plus du tableau.
   const c = d.controles;
@@ -1901,7 +2367,8 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
             + 'un port ne peut pas toujours être rempli au plus juste.',
       },
       // Décompte retenu en colonnes entières ; minimum théorique au plus juste donné en second.
-      minimum: minimumTheorique(d.global, serpentinGlobal.length, m, 'port', { pair: contexte.pair }),
+      minimum: zones ? minimumTheoriqueZones(d.global, serpentinGlobal.length, mursDesZones(m, dalle), 'port', { pair: contexte.pair })
+        : minimumTheorique(d.global, serpentinGlobal.length, m, 'port', { pair: contexte.pair }),
       // Décompte global, sans découpage par processeur (celui du formateur).
       distributeurs: sorties ? {
         auPlusJuste: Math.ceil(d.global.auPlusJuste / sorties),
@@ -1924,7 +2391,7 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     impossible: d.impossible,
     groupes: d.groupes,
     totaux,
-    seuil: { dallesEnMoins: d.global.seuil.dallesEnMoins, colonnesEnMoins },
+    seuil: { dallesEnMoins: d.global.seuil.dallesEnMoins, colonnesEnMoins, ...(seuilEnZones ? { zonesEnMoins: seuilEnZones.zonesEnMoins } : {}) },
   };
 }
 
@@ -2237,6 +2704,14 @@ export function controleSource(source, evaluation, liaisons, data) {
     xSource: [0, g.largeurPx - 1],
     ySource: [0, g.hauteurPx - 1],
     tient: g.largeurPx <= largeurPx && g.hauteurPx <= hauteurPx,
+    // Mur en zones : chaque morceau de zone dans la source (le bloc en haut à gauche), position à régler dans le processeur.
+    ...(g.parties ? {
+      parties: g.parties.map((p) => ({
+        nom: p.nomAffiche,
+        x: [p.dansEntree.x, p.dansEntree.x + p.largeurPx - 1],
+        y: [p.dansEntree.y, p.dansEntree.y + p.hauteurPx - 1],
+      })),
+    } : {}),
   }));
   const tropGrands = blocs.filter((b) => !b.tient);
   if (tropGrands.length > 0) {
@@ -2921,10 +3396,148 @@ function repartitionEquilibree(lignes, tensionV, capacitePhaseW) {
 
 const multipleDe3 = (n) => Math.ceil(n / 3) * 3;
 
+// Alertes de plusieurs zones : une alerte commune à toutes les zones est donnée une fois ; une alerte propre à
+// certaines zones les nomme (« Zone A : … », « Zones A, B : … »).
+function regrouperAlertes(listes, noms) {
+  const ordre = [];
+  const zonesDe = new Map();
+  listes.forEach((liste, i) => liste.forEach((texte) => {
+    if (!zonesDe.has(texte)) {
+      zonesDe.set(texte, []);
+      ordre.push(texte);
+    }
+    if (!zonesDe.get(texte).includes(noms[i])) zonesDe.get(texte).push(noms[i]);
+  }));
+  return ordre.map((texte) => {
+    const zones = zonesDe.get(texte);
+    return zones.length === listes.length ? texte : `${zones.length > 1 ? 'Zones' : 'Zone'} ${zones.join(', ')} : ${texte}`;
+  });
+}
+
+// Électricité d'un mur en zones (étape 9a) : lignes calculées zone par zone, jamais à cheval sur deux zones ; en
+// triphasé, équilibre des phases sur toutes les lignes de toutes les zones ensemble, avec les critères du mur d'une
+// seule pièce (écart entre phases le plus faible ; à écart égal, le moins de lignes ; à lignes égales, les plus
+// régulières). Recherche : on part du minimum de lignes de chaque zone, puis on change la répartition d'une seule zone à
+// la fois (n'importe laquelle de ses répartitions en colonnes entières), en gardant le meilleur changement, tant qu'il
+// améliore (choix de conception : le nombre de combinaisons croît trop vite pour toutes les essayer).
+function electriciteZones(m, dalle, reglages) {
+  const murs = mursDesZones(m, dalle);
+  const parZone = murs.map((s) => electricite(s, dalle, reglages));
+  const premier = parZone[0];
+  const { tensionV, arrivee, depart } = premier.reglages;
+  const noms = m.zones.map((z) => z.nom);
+  // La phase d'une ligne vient de la répartition de tout le mur, jamais du calcul d'une zone seule.
+  const avecZone = (lignes, i) => lignes.map(({ phase, ...l }) => ({ ...l, zone: noms[i] }));
+  const lignesColonnes = parZone.flatMap((r, i) => avecZone(r.lignes.colonnes.lignes, i));
+  const lignesApj = parZone.flatMap((r, i) => avecZone(r.lignes.auPlusJuste.lignes, i));
+  const puissanceTotaleW = arrondiW(parZone.reduce((t, r) => t + r.puissanceTotaleW, 0));
+  const capacitePhaseW = premier.arrivee.capacitePhaseW;
+  // Les contrôles de l'arrivée se font sur tout le mur, pas zone par zone.
+  const alertes = regrouperAlertes(parZone.map((r) => r.alertes.filter((a) => !/^(L'arrivée mono|Arrivée tri)/.test(a))), noms);
+  const apj = lignesApj.length;
+  const minimum = { nombre: apj, raisons: [], texte: null };
+  const pose = (retenues, raisonEquilibre = null) => {
+    minimum.raisons = [];
+    if (lignesColonnes.length > apj) minimum.raisons.push('une colonne n\'est jamais coupée entre deux lignes, et une ligne ne passe jamais d\'une zone à l\'autre');
+    if (raisonEquilibre) minimum.raisons.push(raisonEquilibre);
+    minimum.texte = retenues === apj ? null
+      : `Minimum théorique : ${apj} ligne${apj > 1 ? 's' : ''} au plus juste, contre ${retenues} en colonnes entières. Écart : ${minimum.raisons.join(' ; ')}.`;
+  };
+  const resultat = {
+    reglages: premier.reglages,
+    pMax: premier.pMax,
+    manques: premier.manques,
+    puissanceTotaleW,
+    btuH: puissanceTotaleW * BTU_PAR_W,
+    ligne: premier.ligne,
+    dallesParLigne: premier.dallesParLigne,
+    zones: parZone.map((r, i) => ({ nom: noms[i], lignes: r.lignes.colonnes.nombre, lignesAuPlusJuste: r.lignes.auPlusJuste.nombre, puissanceW: r.puissanceTotaleW })),
+    lignes: {
+      auPlusJuste: { nombre: apj, lignes: lignesApj, theorique: parZone.reduce((t, r) => t + r.lignes.auPlusJuste.theorique, 0), depart, ecart: null },
+      colonnes: {
+        nombre: lignesColonnes.length,
+        colonnesParLigne: colonnesParPortZones(parZone.map((r) => r.lignes.colonnes.colonnesParLigne), murs.map((s) => s.colonnes)),
+        segments: parZone[murs.reduce((a, x, i) => (x.pxHauteur > murs[a].pxHauteur ? i : a), 0)].lignes.colonnes.segments,
+        lignes: lignesColonnes,
+      },
+      retenues: lignesColonnes.length,
+      minimum,
+    },
+    arrivee: premier.arrivee,
+    monophase: null,
+    triphase: null,
+    appel: parZone.map((r) => r.appel).filter(Boolean).reduce((a, b) => (!a || b.picLigneA > a.picLigneA ? b : a), null),
+    alertes,
+  };
+  const copie = (lignes) => lignes.map((l) => ({ ...l }));
+  if (arrivee.type === 'mono') {
+    const ok = puissanceTotaleW <= capacitePhaseW + EPS;
+    resultat.monophase = { puissanceW: puissanceTotaleW, capaciteW: capacitePhaseW, intensiteA: puissanceTotaleW / tensionV, ok };
+    if (!ok) {
+      alertes.push(`L'arrivée mono ${nombreCourt(arrivee.intensiteA)} A porte ${nombreCourt(capacitePhaseW)} W utiles `
+        + `(${nombreCourt(tensionV)} V, marge ${nombreCourt(premier.reglages.marge * 100)} %) : le mur demande ${nombreCourt(puissanceTotaleW)} W. `
+        + 'Il faut une arrivée plus forte ou du triphasé.');
+    }
+    pose(lignesColonnes.length);
+    return resultat;
+  }
+  // Répartitions possibles de chaque zone en colonnes entières, du minimum de lignes à une colonne par ligne : au
+  // minimum, le plus de colonnes par ligne (3 + 1) et la plus régulière (2 + 2) ; colonne coupée en segments : lignes fixes.
+  const pDalle = premier.pMax.dalle.valeurW;
+  const options = parZone.map((r, i) => {
+    const lc = r.lignes.colonnes;
+    if (!lc.colonnesParLigne) return [avecZone(lc.lignes, i)];
+    const z = m.zones[i];
+    const tailles = [lc.lignes.map((l) => l.colonnes), ...suite(lc.lignes.length, z.colonnes).map((n) => repartir(z.colonnes, n))]
+      .filter((t, j, liste) => liste.findIndex((u) => u.join() === t.join()) === j);
+    return tailles.map((t) => t.map((k) => ({ colonnes: k, dalles: k * z.lignes, puissanceW: arrondiW(k * z.lignes * pDalle), zone: z.nom })));
+  });
+  const evaluer = (indices) => {
+    const lignes = indices.flatMap((j, i) => copie(options[i][j]));
+    const tailles = lignes.map((l) => l.colonnes);
+    const option = repartitionMinimale(lignes, tensionV, capacitePhaseW);
+    return { ecartW: option.ecartW, n: lignes.length, irregularite: Math.max(...tailles) - Math.min(...tailles), option, indices };
+  };
+  const avant = (a, b) => a.ecartW < b.ecartW - EPS
+    || (Math.abs(a.ecartW - b.ecartW) <= EPS && (a.n < b.n || (a.n === b.n && a.irregularite < b.irregularite)));
+  let courant = evaluer(options.map(() => 0));
+  for (;;) {
+    let meilleur = null;
+    options.forEach((o, i) => {
+      for (let j = 0; j < o.length; j += 1) {
+        if (j === courant.indices[i]) continue;
+        const essai = evaluer(courant.indices.map((x, k) => (k === i ? j : x)));
+        if (!meilleur || avant(essai, meilleur)) meilleur = essai;
+      }
+    });
+    if (!meilleur || !avant(meilleur, courant)) break;
+    courant = meilleur;
+  }
+  const equilibre = courant.option;
+  const minimumColonnes = repartitionMinimale(copie(lignesColonnes), tensionV, capacitePhaseW);
+  resultat.triphase = {
+    // Au plus juste à phases équilibrées (lignes en multiple de 3 le long du serpentin) : pas encore en zones.
+    auPlusJuste: { equilibre: null, minimum: repartitionMinimale(copie(lignesApj), tensionV, capacitePhaseW) },
+    colonnes: { equilibre, minimum: minimumColonnes },
+  };
+  resultat.lignes.retenues = equilibre.lignes.length;
+  const pc = (x) => `${nombreCourt(x, 0)} %`;
+  pose(equilibre.lignes.length, equilibre.lignes.length > minimumColonnes.lignes.length
+    ? `équilibre des phases : ${equilibre.lignes.length} lignes au lieu de ${minimumColonnes.lignes.length}, `
+      + `écart entre phases ${pc(equilibre.ecartPourcent)} au lieu de ${pc(minimumColonnes.ecartPourcent)}` : null);
+  if (!equilibre.ok) {
+    const max = Math.max(...equilibre.phases.map((p) => p.puissanceW));
+    alertes.push(`Arrivée tri ${nombreCourt(arrivee.intensiteA)} A : la phase la plus chargée demande ${nombreCourt(max)} W `
+      + `pour ${nombreCourt(capacitePhaseW)} W utiles par phase, même équilibrée. Il faut une arrivée plus forte.`);
+  }
+  return resultat;
+}
+
 // Électricité d'un mur, calculée par phase, jamais sur le total.
 // Réglages : tensionV (220), marge (0,8), puissanceUtileW (facultatif), departA (16),
 // arrivee { type: 'mono' | 'tri', intensiteA }, courbe ('B', 'C', 'D' ou null).
 export function electricite(m, dalle, reglages = {}) {
+  if (plusieursZones(m)) return electriciteZones(m, dalle, reglages);
   const {
     tensionV = TENSION_CALCUL_V, marge = MARGE_DEFAUT, puissanceUtileW = null, departA = DEPART_DEFAUT_A,
     arrivee = { type: 'tri', intensiteA: 32 }, courbe = null, depart = 'haut-gauche',
@@ -3154,6 +3767,57 @@ export const RAPPELS_POIDS = [
 const arrondiKg = (kg) => Math.round(kg * 1e6) / 1e6;
 const texteKg = (kg) => `${nombreCourt(kg, 2)} kg`;
 
+// Poids d'un mur en zones (étape 9a) : chaque zone est une structure à part (ses bumpers, ses points, son maximum en
+// accroche ou en stack), puis les totaux ; les autres charges suspendues comptent une fois, pour tout le mur.
+function poidsZones(m, dalle, reglages) {
+  const { mode = 'accroche', autresKg = 0, accroche = { type: 'bumpers' } } = reglages;
+  if (!(autresKg >= 0)) throw new ErreurSaisie('Les poids de câbles et d\'autres charges sont positifs ou nuls.');
+  const noms = m.zones.map((z) => z.nom);
+  const parZone = mursDesZones(m, dalle).map((s) => poids(s, dalle, { ...reglages, autresKg: 0 }));
+  const somme = (f) => arrondiKg(parZone.reduce((t, r) => t + f(r), 0));
+  const dallesKg = somme((r) => r.dallesKg);
+  const cablesKg = somme((r) => r.cablesKg);
+  const bumpersKg = somme((r) => r.bumpersKg);
+  const murKg = arrondiKg(dallesKg + cablesKg);
+  const suspenduKg = arrondiKg(murKg + bumpersKg + autresKg);
+  const alertes = regrouperAlertes(parZone.map((r) => r.alertes), noms);
+  // Les autres charges ne sont sur aucun point de zone : à placer avec le rigger, pont compris.
+  if (mode === 'accroche' && autresKg > 0) {
+    alertes.push(`Autres charges suspendues (${texteKg(autresKg)}) : à reprendre sur un point ou sur la structure, avec le rigger.`);
+  }
+  if (mode === 'accroche' && accroche.type === 'pont' && accroche.poidsPontKg > 0) {
+    alertes.push(`Pont : chaque zone pend à son propre pont ; ses ${texteKg(accroche.poidsPontKg)} sont comptés pour chacune des `
+      + `${m.zones.length} zones. Si plusieurs zones partagent un pont, la répartition doit être établie par le rigger.`);
+  }
+  const manques = parZone.flatMap((r) => r.manques).filter((x, i, t) => t.findIndex((y) => y.texte === x.texte) === i);
+  // Maximum le plus juste : la zone la plus proche de sa limite (ou au-delà).
+  const maxima = parZone.map((r, i) => r.maximum && { ...r.maximum, zone: noms[i] }).filter(Boolean);
+  const maximum = maxima.length ? maxima.reduce((a, b) => (b.valeur / b.limite > a.valeur / a.limite ? b : a)) : null;
+  return {
+    mode,
+    poidsDalleKg: dalle.poidsKg,
+    poidsDemiKg: null,
+    dallesKg,
+    cablesKg,
+    bumpersKg,
+    autresKg,
+    murKg,
+    suspenduKg,
+    kgParM2: dallesKg / m.surfaceM2,
+    kgParMetre: suspenduKg / (m.zones.reduce((t, z) => t + z.largeurMm, 0) / 1000),
+    colonnes: parZone.flatMap((r, i) => r.colonnes.map((c) => ({ ...c, zone: noms[i] }))),
+    bumpers: parZone.flatMap((r, i) => r.bumpers.map((b) => ({ ...b, zone: noms[i] }))),
+    // Points d'accroche : zone par zone (chaque zone pend à sa structure).
+    points: null,
+    maximum,
+    zones: parZone.map((r, i) => ({ nom: noms[i], ...r })),
+    alertes,
+    manques,
+    rappels: RAPPELS_POIDS,
+    indicatif: true,
+  };
+}
+
 // Poids d'un mur et répartition sur les points d'accroche.
 // Réglages : mode ('accroche' ou 'stack'), bumper { poidsKg, colonnes, cmuKg }, cablesKgParDalle, autresKg,
 // accroche { type: 'bumpers' | 'pont', points, porteesEgales, poidsPontKg, cmuMoteurKg, configurationMoteur }.
@@ -3161,6 +3825,7 @@ export function poids(m, dalle, reglages = {}) {
   const {
     mode = 'accroche', bumper = null, cablesKgParDalle = 0, autresKg = 0, accroche = { type: 'bumpers' },
   } = reglages;
+  if (plusieursZones(m)) return poidsZones(m, dalle, reglages);
   if (!['accroche', 'stack'].includes(mode)) throw new ErreurSaisie('Choisis accroche ou stack.');
   if (!(dalle.poidsKg > 0)) throw new ErreurSaisie(`Fiche incomplète : poids absent de la fiche ${dalle.nom}, pas de calcul de poids.`);
   if (m.demi && !(m.demi.poidsKg > 0)) throw new ErreurSaisie(`Fiche incomplète : poids absent de la fiche ${m.demi.nom}, pas de calcul de poids.`);
@@ -3331,11 +3996,24 @@ export const MODELES_DISTRIBUTEUR = {
 };
 
 export const idDalle = (colonne, rangee) => `C${colonne} R${rangee}`;
+// Mur en zones (étape 9a, D4) : « B · C3 R2 », colonne et rangée comptées dans la zone.
+export const idDalleZone = (zone, colonne, rangee) => `${zone} · C${colonne} R${rangee}`;
+
+// Identifiant d'une position [colonne du mur, rangée] : en zones, la colonne est comptée de 1 à m.colonnes à travers les
+// zones et la rangée dans la zone.
+function identifiantDalle(m) {
+  if (!plusieursZones(m)) return (c, r) => idDalle(c, r);
+  return (c, r) => {
+    const z = m.zones.find((x) => c < x.premiereColonne + x.colonnes);
+    return idDalleZone(z.nom, c - z.premiereColonne + 1, r);
+  };
+}
 const suite = (debut, fin) => Array.from({ length: fin - debut + 1 }, (_, i) => debut + i);
 
 // Dalles du mur, rangée par rangée : position et taille en millimètres et en pixels, chacune avec sa fiche
 // (la demi-dalle garde la sienne).
 export function dallesDuMur(m, dalle) {
+  if (plusieursZones(m)) return dallesDesZones(m, dalle);
   const dalles = [];
   let yMm = 0;
   let yPx = 0;
@@ -3358,14 +4036,47 @@ export function dallesDuMur(m, dalle) {
   return dalles;
 }
 
+// Mur en zones : chaque zone à sa place réelle (mm, haut le plus haut à 0) et dans la pixel map (px, vides compris).
+function dallesDesZones(m, dalle) {
+  const basMin = Math.min(...m.zones.map((z) => z.basMm));
+  const hautMax = basMin + m.hauteurMm;
+  return m.zones.flatMap((z) => {
+    const yMm = hautMax - z.basMm - z.hauteurMm;
+    const dalles = [];
+    for (let r = 1; r <= z.lignes; r += 1) {
+      for (let j = 1; j <= z.colonnes; j += 1) {
+        dalles.push({
+          id: idDalleZone(z.nom, j, r),
+          colonne: z.premiereColonne + j - 1,
+          colonneZone: j,
+          rangee: r,
+          zone: z.nom,
+          type: 'entiere',
+          fiche: dalle,
+          mm: { x: z.xMm + (j - 1) * dalle.largeurMm, y: yMm + (r - 1) * dalle.hauteurMm, largeur: dalle.largeurMm, hauteur: dalle.hauteurMm },
+          px: { x: z.x + (j - 1) * dalle.pxH, y: z.y + (r - 1) * dalle.pxV, largeur: dalle.pxH, hauteur: dalle.pxV },
+        });
+      }
+    }
+    return dalles;
+  });
+}
+
 // Pixel map : le mur à sa résolution native, puis un canvas par processeur (bloc posé en (0,0) de son canvas,
 // à la même place dans sa source). Chaque dalle : x et y de son premier à son dernier pixel.
 export function pixelMap(m, dalle, evaluation = null) {
   const dalles = dallesDuMur(m, dalle);
+  const enZones = plusieursZones(m);
+  const indexZone = enZones ? new Map(m.zones.map((z, i) => [z.nom, i])) : null;
   const zone = (d, x0 = 0, y0 = 0) => ({
     id: d.id, colonne: d.colonne, rangee: d.rangee, type: d.type,
+    ...(enZones ? { zone: indexZone.get(d.zone), colonneZone: d.colonneZone } : {}),
     x: [d.px.x - x0, d.px.x - x0 + d.px.largeur - 1],
     y: [d.px.y - y0, d.px.y - y0 + d.px.hauteur - 1],
+  });
+  // Mur en zones (étape 9a) : chaque zone, ou morceau de zone dans un canvas, pour les étiquettes de la pixel map.
+  const etiquette = (nom, index, x, y, largeurPx, hauteurPx, colonnes, rangees) => ({
+    nom, index, x, y, largeurPx, hauteurPx, largeurM: (colonnes * dalle.largeurMm) / 1000, hauteurM: (rangees * dalle.hauteurMm) / 1000,
   });
   const canvas = (evaluation?.groupes ?? []).map((g, i) => ({
     numero: i + 1,
@@ -3377,8 +4088,19 @@ export function pixelMap(m, dalle, evaluation = null) {
     dalles: dalles
       .filter((d) => d.colonne >= g.premiereColonne && d.colonne <= g.derniereColonne && d.rangee >= g.premiereRangee && d.rangee <= g.derniereRangee)
       .map((d) => zone(d, g.x[0], g.y[0])),
+    ...(g.parties ? {
+      zones: g.parties.map((p) => etiquette(p.nomAffiche, p.zone, p.dansEntree.x, p.dansEntree.y, p.largeurPx, p.hauteurPx, p.colonnes, p.rangees)),
+    } : {}),
   }));
-  return { mur: { largeurPx: m.pxLargeur, hauteurPx: m.pxHauteur, dalles: dalles.map((d) => zone(d)) }, canvas };
+  return {
+    mur: {
+      largeurPx: m.pxLargeur,
+      hauteurPx: m.pxHauteur,
+      dalles: dalles.map((d) => zone(d)),
+      ...(enZones ? { zones: m.zones.map((z, i) => etiquette(z.nom, i, z.x, z.y, z.pxLargeur, z.pxHauteur, z.colonnes, z.lignes)) } : {}),
+    },
+    canvas,
+  };
 }
 
 // Positions [colonne, rangée] d'un bloc en serpentin depuis un coin : vertical (colonne après colonne)
@@ -3549,7 +4271,8 @@ export function cablageData(m, dalle, evaluation, {
   const capacite = evaluation.capacite;
   const plafond = redondance && proc.maxDallesParBoucleRedondance ? proc.maxDallesParBoucleRedondance : Infinity;
   const dalles = new Map(dallesDuMur(m, dalle).map((d) => [d.id, d]));
-  const tuile = ([c, r]) => dalles.get(idDalle(c, r));
+  const cle = identifiantDalle(m);
+  const tuile = ([c, r]) => dalles.get(cle(c, r));
   const poids = (p) => (tuile(p).type === 'demi' ? evaluation.pxParDemi : evaluation.pxParDalle);
   const hauteurs = m.rangees.map((type) => (type === 'demi' ? m.demi.pxV : dalle.pxV));
   const charge = { capacite, pxParDalle: evaluation.pxParDalle, pxParDemi: evaluation.pxParDemi ?? evaluation.pxParDalle, plafond, ...chargeGeometrie(proc, dalle, m) };
@@ -3616,9 +4339,15 @@ export function cablageData(m, dalle, evaluation, {
     const notes = [];
     const orientation = mode === 'rangees' ? 'rangees' : 'colonnes';
     const processeurs = evaluation.groupes.map((g, i) => {
-      const cols = suite(g.premiereColonne, g.derniereColonne);
-      const rows = suite(g.premiereRangee, g.derniereRangee);
-      const sous = sousMur(m, dalle, g.colonnes, g.premiereRangee, g.rangees);
+      // Mur en zones : chaque morceau de zone câblé à part (un port ne passe jamais d'une zone à l'autre), les morceaux
+      // pris depuis le côté du départ ; sinon le bloc entier.
+      const morceaux = g.parties
+        ? g.parties.map((p) => {
+          const c0 = m.zones[p.zone].premiereColonne + p.premiereColonne - 1;
+          return { cols: suite(c0, c0 + p.colonnes - 1), rows: suite(p.premiereRangee, p.premiereRangee + p.rangees - 1), sous: mur(dalle, p.colonnes, p.rangees) };
+        })
+        : [{ cols: suite(g.premiereColonne, g.derniereColonne), rows: suite(g.premiereRangee, g.derniereRangee), sous: sousMur(m, dalle, g.colonnes, g.premiereRangee, g.rangees) }];
+      const groupesDuMorceau = ({ cols, rows, sous }) => {
       let groupes;
       if (mode === 'colonnes') {
         // Mêmes colonnes par port que l'onglet Data : le plus possible, en nombre pair en redondance
@@ -3656,6 +4385,9 @@ export function cablageData(m, dalle, evaluation, {
         const ordreLotsRows = depart.startsWith('haut') ? lotsRows : [...lotsRows].reverse();
         groupes = ordreLotsCols.flatMap((lc) => ordreLotsRows.map((lr) => serpentin(lc, lr, 'vertical', depart)));
       }
+      return groupes;
+      };
+      const groupes = (depart.endsWith('droite') ? [...morceaux].reverse() : morceaux).flatMap(groupesDuMorceau);
 
       const nb = groupes.length;
       if (utilises(nb) > limite) {
@@ -3685,7 +4417,7 @@ export function cablageData(m, dalle, evaluation, {
         }
         return {
           ...base,
-          dalles: grp.map(([c, r]) => idDalle(c, r)),
+          dalles: grp.map(([c, r]) => cle(c, r)),
           px,
           taux: (px + (penalite ? penalite(grp) : 0)) / capacite,
           longueurCuivreM: distanceRegieM === null ? null : (surDistributeur ? trajet : distanceRegieM + trajet) * mou,
@@ -3775,7 +4507,8 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
   if (!COINS.includes(depart)) throw new ErreurSaisie('Choisis le coin de départ du câblage.');
   if (!(margeMou >= 0)) throw new ErreurSaisie('La marge de mou est positive ou nulle.');
   const dalles = new Map(dallesDuMur(m, dalle).map((d) => [d.id, d]));
-  const tuile = ([c, r]) => dalles.get(idDalle(c, r));
+  const cle = identifiantDalle(m);
+  const tuile = ([c, r]) => dalles.get(cle(c, r));
   const pDalle = elec.pMax.dalle.valeurW;
   const pDemi = elec.pMax.demi ? elec.pMax.demi.valeurW : pDalle;
   const poids = (p) => (tuile(p).type === 'demi' ? pDemi : pDalle);
@@ -3786,7 +4519,10 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
   const capacitePhaseW = elec.arrivee.capacitePhaseW;
   const cols = suite(1, m.colonnes);
   const rows = suite(1, m.rangees.length);
-  const c = cablage(m, elec.dallesParLigne.retenu, { capacite: utileW, pxParDalle: pDalle, pxParDemi: pDemi, plafond });
+  const charge = { capacite: utileW, pxParDalle: pDalle, pxParDemi: pDemi, plafond };
+  // Mur en zones : lignes zone par zone (jamais à cheval), les zones prises depuis le côté du départ.
+  if (plusieursZones(m)) return cablageElecZones(m, dalle, elec, { depart, distanceArmoireM, margeMou, tuile, cle, poids, charge });
+  const c = cablage(m, elec.dallesParLigne.retenu, charge);
   const serpent = serpentin(cols, rows, 'vertical', depart);
 
   // Une ligne prend autant de colonnes entières qu'elle en supporte avec la marge choisie ; jamais une colonne
@@ -3830,7 +4566,7 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
       return {
         numero: i + 1,
         phase: null,
-        dalles: grp.map(([col, r]) => idDalle(col, r)),
+        dalles: grp.map(([col, r]) => cle(col, r)),
         puissanceW,
         taux: puissanceW / utileW,
         longueurTeteM: distanceArmoireM === null ? null : (distanceArmoireM + trajetDepuisCoin(m, depart, tuile(grp[0]))) * (1 + margeMou),
@@ -3862,6 +4598,71 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
     };
   });
   // Conseil : en triphasé, l'équilibre des phases en colonnes entières ; en monophasé, le minimum de lignes.
+  return { depart, conseil: modes.includes('colonnesEquilibre') ? 'colonnesEquilibre' : 'colonnes', variantes, alertes: [] };
+}
+
+// Câblage élec d'un mur en zones (étape 9a) : chaque zone câblée à part, dans les variantes par colonnes (au minimum de
+// lignes, et en triphasé celles de l'équilibre de l'onglet Élec), par rangées et au plus juste ; phases comme le mur
+// d'une seule pièce. L'au plus juste à phases équilibrées n'existe pas encore en zones.
+function cablageElecZones(m, dalle, elec, { depart, distanceArmoireM, margeMou, tuile, cle, poids, charge }) {
+  const mono = elec.arrivee.type === 'mono';
+  const { tensionV } = elec.reglages;
+  const capacitePhaseW = elec.arrivee.capacitePhaseW;
+  const utileW = elec.ligne.utileW;
+  const plafond = charge.plafond;
+  const zones = (depart.endsWith('droite') ? [...m.zones].reverse() : m.zones).map((z) => ({
+    z, cols: suite(z.premiereColonne, z.premiereColonne + z.colonnes - 1), rows: suite(1, z.lignes),
+    c: cablage(mur(dalle, z.colonnes, z.lignes), elec.dallesParLigne.retenu, charge),
+  }));
+  const coupees = zones.filter((x) => !x.c.colonnes.colonnesParPort).map((x) => x.z.nom);
+  const coupee = coupees.length ? `Une colonne dépasse une ligne (zone${coupees.length > 1 ? 's' : ''} ${coupees.join(', ')}) : elle est coupée en segments égaux, `
+    + 'les lignes éloignées du bord démarrent au milieu de leur colonne.' : null;
+  const tailles = (option) => option?.lignes.map((l) => l.colonnes).join(' ');
+  const equilibre = elec.triphase?.colonnes.equilibre;
+  const equilibreDistinct = !mono && !coupees.length && equilibre && tailles(equilibre) !== tailles(elec.triphase.colonnes.minimum);
+  const groupesDe = {
+    colonnes: () => zones.flatMap(({ cols, rows, c }) => (c.colonnes.colonnesParPort
+      ? lotsDeColonnes(cols, rows, c.colonnes.colonnesParPort, depart) : segmentsDeColonnes(cols, rows, c.colonnes.segments, depart))),
+    colonnesEquilibre: () => zones.flatMap(({ z, cols, rows }) => lotsDeColonnes(cols, rows,
+      equilibre.lignes.filter((l) => l.zone === z.nom).map((l) => l.colonnes).sort((a, b) => b - a), depart)),
+    rangees: () => zones.flatMap(({ cols, rows }) => groupesRangees(cols, rows, poids, utileW, plafond, depart)),
+    auPlusJuste: () => zones.flatMap(({ cols, rows }) => remplirGlouton(serpentin(cols, rows, 'vertical', depart), poids, utileW, plafond)),
+  };
+  const notes = { colonnes: coupee, colonnesEquilibre: coupee };
+  const modes = ['colonnes', ...(equilibreDistinct ? ['colonnesEquilibre'] : []), 'rangees', 'auPlusJuste'];
+  const variantes = modes.map((mode) => {
+    const lignesDetail = groupesDe[mode]().map((grp, i) => {
+      const puissanceW = arrondiW(grp.reduce((s, p) => s + poids(p), 0));
+      return {
+        numero: i + 1,
+        phase: null,
+        dalles: grp.map(([col, r]) => cle(col, r)),
+        puissanceW,
+        taux: puissanceW / utileW,
+        longueurTeteM: distanceArmoireM === null ? null : (distanceArmoireM + trajetDepuisCoin(m, depart, tuile(grp[0]))) * (1 + margeMou),
+      };
+    });
+    const { phases, ok } = phasesDesLignes(lignesDetail, { equilibre: mode === 'rangees', mono, tensionV, capacitePhaseW });
+    const charges = phases.map((p) => p.puissanceW);
+    return {
+      mode,
+      libelle: LIBELLES_ELEC[mode],
+      orientation: mode === 'rangees' ? 'rangees' : 'colonnes',
+      mention: mode === 'auPlusJuste' ? MENTION_AU_PLUS_JUSTE : null,
+      ecart: notes[mode] ?? null,
+      possible: true,
+      raison: null,
+      lignesDetail,
+      lignes: lignesDetail.length,
+      phases,
+      ecartPhasesPourcent: mono || Math.max(...charges) === 0 ? null : (100 * (Math.max(...charges) - Math.min(...charges))) / Math.max(...charges),
+      ok,
+      chargeMax: Math.max(...lignesDetail.map((l) => l.taux)),
+      cablesTete: lignesDetail.length,
+      liaisons: lignesDetail.reduce((s, l) => s + l.dalles.length - 1, 0),
+      alertes: ok ? [] : [`Une phase dépasse les ${nombreCourt(capacitePhaseW)} W utiles de l'arrivée : il faut une arrivée plus forte.`],
+    };
+  });
   return { depart, conseil: modes.includes('colonnesEquilibre') ? 'colonnesEquilibre' : 'colonnes', variantes, alertes: [] };
 }
 
@@ -3927,6 +4728,8 @@ export function motifPixelMap(zone, { grille = false, cercles = false, diagonale
     largeur: d.x[1] - d.x[0] + 1,
     hauteur: d.y[1] - d.y[0] + 1,
     teinte: ((d.colonne - 1) % 2) + 2 * ((d.rangee - 1) % 2),
+    // Mur en zones : une couleur par zone, deux tons en damier (comme la slide de la formation).
+    ...(d.zone !== undefined ? { zone: d.zone, ton: (d.colonneZone + d.rangee) % 2 } : {}),
   }));
   const x0 = Math.min(...fonds.map((f) => f.x));
   const y0 = Math.min(...fonds.map((f) => f.y));
@@ -3959,5 +4762,13 @@ export function motifPixelMap(zone, { grille = false, cercles = false, diagonale
         taille: Math.max(8, Math.round(Math.min(f.largeur, f.hauteur) * 0.16)),
       }))
       : [],
+    // Mur en zones : au centre de chaque zone (ou morceau), son nom, « x, y // largeur × hauteur » et sa taille en m.
+    etiquettes: (zone.zones ?? []).map((z) => ({
+      x: z.x + z.largeurPx / 2,
+      y: z.y + z.hauteurPx / 2,
+      lignes: [z.nom, `${z.x}, ${z.y} // ${z.largeurPx} × ${z.hauteurPx}`, `${nombreCourt(z.largeurM, 2)} × ${nombreCourt(z.hauteurM, 2)} m`],
+      taille: Math.max(12, Math.round(Math.min(z.largeurPx, z.hauteurPx) * 0.05)),
+      largeurMax: z.largeurPx * 0.9,
+    })),
   };
 }

@@ -103,6 +103,7 @@
             <label><input type="radio" name="mode" value="taille" checked><span>Taille</span></label>
             <label><input type="radio" name="mode" value="resolution"><span>Résolution</span></label>
             <label><input type="radio" name="mode" value="dalles"><span>Dalles</span></label>
+            <label><input type="radio" name="mode" value="zones"><span>Zones</span></label>
           </div>
         </fieldset>
 
@@ -143,6 +144,13 @@
             <input id="lignes" name="lignes" inputmode="numeric" autocomplete="off" value="6">
           </div>
         </div>
+
+        <!-- Mur en plusieurs zones (étape 9a) : l'éditeur est monté par ecran-mur.js ; la liste est gardée dans le champ caché. -->
+        <div class="groupe-mode" data-modes="zones" hidden>
+          <div id="editeur-zones"></div>
+          <p id="note-demi-zones" class="note" hidden>Demi-dalles en mode Zones : étape 9b.</p>
+        </div>
+        <input name="zones" type="text" hidden value="">
 
         <div id="bloc-demi" class="bloc-demi" hidden>
           <label class="case"><input type="checkbox" name="demi"><span id="libelle-demi">Demi-dalles disponibles</span></label>

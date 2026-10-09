@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CAS } from './cas.js';
+import { CAS_REELS } from './cas-reels.js';
 import { REGLES } from './regles.js';
 import { DONNEES } from './donnees.js';
 import { BANC } from './banc.js';
@@ -68,7 +69,7 @@ const contexte = {
   }),
 };
 
-for (const cas of [...BANC, ...DONNEES, ...REGLES, ...CAS]) {
+for (const cas of [...BANC, ...DONNEES, ...REGLES, ...CAS, ...CAS_REELS]) {
   const nom = `${'attendu' in cas ? 'Cas ' : ''}${cas.id} : ${cas.titre}`;
   if (typeof cas.verifier !== 'function') {
     test.todo(`${nom} (étape ${cas.etape})`);

@@ -6,7 +6,7 @@ import { nombre, nombreCourt, lireNombre, sourceCourte, mentionType } from './fo
 import { el, remplacer } from './dom.js';
 import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
-import { resumeElec } from './resumes.js';
+import { resumeElec, lignesParZone } from './resumes.js';
 
 const formulaire = document.getElementById('form-elec');
 const zone = document.getElementById('resultats-elec');
@@ -111,8 +111,26 @@ function sectionArrivee(r) {
       ? el('p', { class: 'source' }, 'Au minimum de lignes : mêmes lignes, même répartition.')
       : tablePhases(t.colonnes.minimum, a.capacitePhaseW, 'Au minimum de lignes', false),
     el('h4', {}, 'Au plus juste (minimum théorique)'),
-    tablePhases(t.auPlusJuste.equilibre, a.capacitePhaseW, 'Équilibre (lignes en multiple de 3)', false),
+    t.auPlusJuste.equilibre ? tablePhases(t.auPlusJuste.equilibre, a.capacitePhaseW, 'Équilibre (lignes en multiple de 3)', false)
+      : (r.zones ? el('p', { class: 'source' }, 'Équilibre au plus juste (lignes en multiple de 3) : pas encore en mode Zones.') : null),
     tablePhases(t.auPlusJuste.minimum, a.capacitePhaseW, 'Au minimum de lignes', false));
+}
+
+// Mur en zones (étape 9a) : lignes retenues zone par zone ; une ligne ne passe jamais d'une zone à l'autre.
+function sectionZones(parZone) {
+  if (!parZone) return null;
+  return el('section', { class: 'bloc-resultats' },
+    el('h3', {}, 'Lignes par zone'),
+    el('div', { class: 'tableau-defilant' },
+      el('table', { class: 'table-donnees' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Zone'), el('th', {}, 'Dalles'), el('th', {}, 'Puissance'), el('th', {}, 'Lignes'), el('th', {}, 'Ligne la plus chargée'))),
+        el('tbody', {}, parZone.map((z) => el('tr', {},
+          el('th', { scope: 'row' }, z.nom),
+          el('td', {}, nombre(z.dalles)),
+          el('td', {}, kw(z.puissanceW)),
+          el('td', {}, nombre(z.lignes.length), el('span', { class: 'source-ligne' }, `${z.lignes.map((l) => l.colonnes).join(' + ')} colonnes`)),
+          el('td', {}, watts(z.ligneMaxW))))))),
+    el('p', { class: 'source' }, 'Une ligne ne passe jamais d\'une zone à l\'autre ; les phases se répartissent sur toutes les lignes du mur.'));
 }
 
 function sectionAppel(r) {
@@ -169,8 +187,9 @@ function mettreAJour() {
 
   dernier = { r, dalle, mur };
   publier({ r, dalle, mur });
+  const parZone = lignesParZone(r, mur);
   const recap = el('p', { class: 'recap-mur' },
-    `Mur : ${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}. P max retenue : ${textePMax(dalle, r.pMax.dalle)}`
+    `Mur : ${parZone ? `${pluriel(mur.zones.length, 'zone', 'zones')}, ` : ''}${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}. P max retenue : ${textePMax(dalle, r.pMax.dalle)}`
     + `${r.pMax.demi ? ` ; demi-dalle : ${textePMax(mur.demi, r.pMax.demi)}` : ''}. `,
     el('a', { href: '#mur' }, 'Modifier le mur'));
   const d = r.dallesParLigne;
@@ -213,11 +232,13 @@ function mettreAJour() {
         tuile('Lignes en colonnes entières', nombre(r.lignes.retenues),
           equilibreDistinct ? `phases équilibrées : ${taillesLignes(r.triphase.colonnes.equilibre)} colonnes` : detailColonnes,
           equilibreDistinct ? `au minimum : ${pluriel(colonnes.nombre, 'ligne', 'lignes')}, ${detailColonnes}` : null,
+          parZone ? `zone par zone : ${parZone.map((z) => `${z.nom} ${z.lignes.length}`).join(', ')}` : null,
           'retenues, comme le schéma'),
         tuile('Minimum théorique', nombre(r.lignes.auPlusJuste.nombre), `au plus juste, serpentin depuis ${LIBELLES_COIN[r.lignes.auPlusJuste.depart]}`,
           r.lignes.auPlusJuste.ecart ? `décompte théorique : ${nombre(r.lignes.auPlusJuste.theorique)}` : null,
           `dalles : ${r.lignes.auPlusJuste.lignes.map((l) => l.dalles).join(' + ')}`,
           ...r.lignes.minimum.raisons.map((raison) => `écart : ${raison}`)))),
+    sectionZones(parZone),
     sectionArrivee(r),
     sectionAppel(r),
     el('section', { class: 'bloc-resultats' },

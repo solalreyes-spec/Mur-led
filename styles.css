@@ -1122,6 +1122,15 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .mur-carres { display: grid; gap: 1px; width: 100%; max-width: 320px; margin: 12px 0 4px; aspect-ratio: var(--rapport); max-height: 180px; }
 .mur-carres .mc { background: var(--famille-bord); min-width: 0; min-height: 0; }
 .mur-carres .mc.ton-b { background: var(--famille); }
+/* Éditeur des zones (étape 9a) : une carte par zone, encadrée, sans numéro de liste (le titre le donne). */
+.liste-zones { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 12px; }
+.carte-zone { border: 1px solid var(--bordure); border-radius: 14px; padding: 12px; background: var(--surface-2); min-width: 0; }
+.titre-zone { margin: 0 0 4px; font-weight: 700; }
+.actions-zone { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.editeur-zones .choix-ecarts { margin-top: 12px; }
+/* Mur en zones (étape 9a) : chaque zone à sa place réelle, en % du mur. */
+.mur-carres-zones { position: relative; width: 100%; max-width: 320px; margin: 12px 0 4px; aspect-ratio: var(--rapport); }
+.mur-carres-zones > .mur-carres { position: absolute; margin: 0; max-width: none; max-height: none; aspect-ratio: auto; }
 
 /* Pastille « Pourquoi ? » : discrète, 32 px de haut à l'œil, zone de toucher de 48 px au moins (la pastille est dessinée
    par ::before derrière le texte) ; taille normale de bouton en grand affichage. */

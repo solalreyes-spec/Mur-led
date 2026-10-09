@@ -153,7 +153,25 @@ function tableBlocs(r, proc) {
           el('th', {}, proc.modele), el('th', {}, 'Bloc (px)'), el('th', {}, 'Canvas'),
           el('th', {}, 'Dans le mur'), el('th', {}, 'Dans sa source'), el('th', {}, ''))),
         el('tbody', {}, lignes))),
-    el('p', { class: 'source' }, 'Les coordonnées commencent à 0 : un canvas de 1920 px va de 0 à 1919.'));
+    el('p', { class: 'source' }, 'Les coordonnées commencent à 0 : un canvas de 1920 px va de 0 à 1919.'),
+    r.blocs[0]?.parties ? tableMorceaux(r, proc) : null);
+}
+
+// Mur en zones (étape 9a) : chaque morceau de zone dans la source de son processeur, à régler dans le logiciel.
+function tableMorceaux(r, proc) {
+  const lignes = r.blocs.flatMap((b) => b.parties.map((p, i) => el('tr', {},
+    el('th', { scope: 'row' }, i === 0 ? `n° ${b.numero}` : ''),
+    el('td', {}, p.nom),
+    el('td', {}, `x ${intervalle(p.x)}`, el('span', { class: 'source-ligne' }, `y ${intervalle(p.y)}`)))));
+  return [
+    el('h4', {}, 'Morceaux de zones dans la source'),
+    el('div', { class: 'tableau-defilant' },
+      el('table', { class: 'table-donnees' },
+        el('thead', {}, el('tr', {}, el('th', {}, proc.modele), el('th', {}, 'Morceau'), el('th', {}, 'Dans sa source'))),
+        el('tbody', {}, lignes))),
+    el('p', { class: 'source' }, 'Mur en zones : « Dans le mur » est la découpe de chaque sortie dans la pixel map du mur ; '
+      + 'le coin haut gauche de chaque morceau se règle dans le logiciel du processeur (onglet Data).'),
+  ];
 }
 
 function sectionRegie(r, regie, source) {

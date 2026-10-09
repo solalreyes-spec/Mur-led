@@ -37,7 +37,56 @@ function sourcesDimensions(...fiches) {
 
 // ---------------------------------------------------------------------------
 
+// Mur en plusieurs zones (étape 9a) : une ligne par zone et par écart, taille réelle avec les écarts, pixel map avec ses
+// vides, pixels utiles.
+const MENTIONS_ECARTS = { main: ' (saisi à la main)', colles: ' (zones collées)', reel: '' };
+function resumeMurZones(dalle, m) {
+  const sources = sourcesDimensions(dalle);
+  const lignes = [
+    'MUR',
+    `Dalle : ${dalle.nom}`,
+    `Zones : ${m.zones.length}, de gauche à droite vu de face`,
+  ];
+  m.zones.forEach((z, i) => {
+    if (i > 0) {
+      const e = m.ecarts[i - 1];
+      lignes.push(`Écart entre ${e.entre[0]} et ${e.entre[1]} : ${nombreCourt(e.mm)} mm, ${nombre(e.px)} px dans la pixel map${MENTIONS_ECARTS[m.modeEcarts]}`);
+    }
+    lignes.push(`Zone ${z.nom} : ${z.colonnes} × ${z.lignes} = ${pluriel(z.dalles, 'dalle', 'dalles')}, `
+      + `${nombreCourt(z.largeurMm / 1000, 2)} × ${nombreCourt(z.hauteurMm / 1000, 2)} m, ${z.pxLargeur} × ${z.pxHauteur} px, X ${z.x}, Y ${z.y}`
+      + `${z.basMm > 0 ? `, bas à ${nombreCourt(z.basMm)} mm` : ''}`);
+  });
+  lignes.push(
+    `Dalles : ${nombre(m.dalles.total)}`,
+    `Taille réelle : ${nombre(m.largeurMm / 1000, 2)} × ${nombre(m.hauteurMm / 1000, 2)} m, écarts compris`,
+    `Pixel map : ${nombre(m.pxLargeur)} × ${nombre(m.pxHauteur)} px, vides compris`,
+    `Pixels utiles : ${nombre(m.pxTotal)} px`,
+    `Surface des dalles : ${nombre(m.surfaceM2, 2)} m²`,
+    `Pitch : ${nombreCourt(pitchCalculeMm(dalle), 3)} mm`,
+    sources ? `Dimensions et pixels : ${sources}` : null,
+    dalle.gabarit ? 'Alerte : gabarit générique non sourcé, pour une estimation seulement' : null,
+  );
+  return texte(lignes);
+}
+
+// Réglage des zones dans le logiciel du processeur : NovaLCT, un screen par zone ; Tessera, un groupe par zone ;
+// sinon, le nom du réglage reste à vérifier dans le manuel.
+export function texteReglageZones(proc) {
+  if (!proc) return null;
+  if (proc.logiciel === 'NovaLCT') {
+    return 'NovaLCT, un screen par zone (Screen Connection, Quantity of Screens), ces positions en Coordinate (guide NovaLCT V5.0.0, § 5.1.2.2)';
+  }
+  if (proc.famille === 'brompton') return 'Tessera, un groupe par zone, à ces positions dans le canvas (manuel Tessera V3.5, § 7.14.3)';
+  return `${proc.logiciel ?? 'logiciel du processeur'}, règle les mêmes positions ; nom du réglage à vérifier dans son manuel`;
+}
+
+const textePorts = (premier, dernier) => {
+  if (premier === dernier) return `port ${premier}`;
+  return `ports ${premier} ${dernier === premier + 1 ? 'et' : 'à'} ${dernier}`;
+};
+
 export function resumeMur({ dalle, mur: m }) {
+  if ((m.zones?.length ?? 0) > 1) return resumeMurZones(dalle, m);
   const sources = sourcesDimensions(dalle, m.demi);
   return texte([
     'MUR',
@@ -183,6 +232,23 @@ export function resumeData(r, {
       + `${r.grille?.rangees > 1 ? `, rangées ${gr.premiereRangee} à ${gr.derniereRangee}` : ''}`
       + ` (${pluriel(gr.dalles, 'dalle', 'dalles')}, ${pluriel(ports, 'port', 'ports')})`);
   });
+  // Mur en zones : sortie de chaque processeur dans la pixel map du mur, puis chaque morceau de zone, ses ports et sa
+  // position dans l'entrée (à régler dans le logiciel du processeur).
+  if (r.groupes[0]?.parties) {
+    r.groupes.forEach((gr, i) => {
+      lignes.push(`${proc.modele} n° ${i + 1}, sortie dans la pixel map du mur : x ${gr.x[0]} à ${gr.x[1]}, y ${gr.y[0]} à ${gr.y[1]}`);
+      for (const p of gr.parties) {
+        lignes.push(`${proc.modele} n° ${i + 1}, ${p.nomAffiche} : ${pluriel(p.colonnes, 'colonne', 'colonnes')}, `
+          + `${textePorts(p.ports.premier, p.ports.dernier)}, dans l'entrée x ${p.dansEntree.x}, y ${p.dansEntree.y}`);
+      }
+    });
+    lignes.push(`Réglage des zones : ${texteReglageZones(proc)}`);
+    if (r.seuil?.colonnesEnMoins) {
+      const z = r.seuil.zonesEnMoins ?? [];
+      lignes.push(`Seuil : ${pluriel(r.seuil.colonnesEnMoins, 'colonne', 'colonnes')} en moins dans une seule zone `
+        + `(${z.length > 1 ? `${z.slice(0, -1).join(', ')} ou ${z[z.length - 1]}` : z[0]}) évitent un ${proc.modele}`);
+    }
+  }
   // Ports du câblage retenu avec leur couleur, comme dans le Schéma.
   for (const p of ports) {
     lignes.push(`${p.modele} n° ${p.processeur}, ${p.libelle} : ${pluriel(p.dalles.length, 'dalle', 'dalles')} `
@@ -230,6 +296,7 @@ export function resumeCanvas(r, { evaluation, source, regie = null, rRegie = nul
     if (b.canvas) lignes.push(`Processeur n° ${b.numero}, canvas : ${b.canvas.largeurPx} × ${b.canvas.hauteurPx}${b.canvas.format ? ` (${b.canvas.format})` : ''}`);
     lignes.push(`Processeur n° ${b.numero}, dans le mur : x ${b.x[0]} à ${b.x[1]}, y ${b.y[0]} à ${b.y[1]}`);
     lignes.push(`Processeur n° ${b.numero}, dans sa source : x ${b.xSource[0]} à ${b.xSource[1]}, y ${b.ySource[0]} à ${b.ySource[1]}`);
+    for (const p of b.parties ?? []) lignes.push(`Processeur n° ${b.numero}, ${p.nom} dans sa source : x ${p.x[0]} à ${p.x[1]}, y ${p.y[0]} à ${p.y[1]}`);
   }
   if (regie && rRegie) {
     if (rRegie.aCompleter?.length) {
@@ -258,6 +325,17 @@ function textePMax(fiche, p, libelle) {
   return `P max retenue${libelle} : ${watts(p.valeurW)}${origine ? ` (${origine})` : ''}`;
 }
 
+// Mur en zones (étape 9a) : lignes retenues de chaque zone (en triphasé, celles de l'équilibre des phases), colonnes de
+// chaque ligne de la plus grande à la plus petite, et puissance de la zone. Null pour un mur d'une seule pièce.
+export function lignesParZone(r, m) {
+  if (!r.zones) return null;
+  const retenues = (r.triphase?.colonnes.equilibre ?? r.lignes.colonnes).lignes;
+  return r.zones.map((z, i) => {
+    const lignes = retenues.filter((l) => l.zone === z.nom).sort((a, b) => b.colonnes - a.colonnes || b.puissanceW - a.puissanceW);
+    return { nom: z.nom, dalles: m.zones[i].dalles, puissanceW: z.puissanceW, lignes, ligneMaxW: Math.max(...lignes.map((l) => l.puissanceW)) };
+  });
+}
+
 export function resumeElec(r, { dalle, mur: m }) {
   const reg = r.reglages;
   const d = r.dallesParLigne;
@@ -273,6 +351,9 @@ export function resumeElec(r, { dalle, mur: m }) {
       : `Puissance utile par ligne : ${watts(r.ligne.utileW)} (${nombreCourt(reg.tensionV)} V × ${nombreCourt(reg.departA)} A × ${nombreCourt(reg.marge * 100)} %)`,
     `Dalles par ligne : ${nombre(d.retenu)}${d.limite === 'chaînage' ? ', limité par le chaînage du constructeur' : ''}`,
     `Lignes en colonnes entières : ${nombre(r.lignes.retenues)}`,
+    ...(lignesParZone(r, m) ? [`Zones : ${m.zones.length}, une ligne ne passe jamais d'une zone à l'autre`,
+      ...lignesParZone(r, m).map((z) => `Zone ${z.nom} : ${pluriel(z.lignes.length, 'ligne', 'lignes')} de ${z.lignes.map((l) => l.colonnes).join(' + ')} `
+        + `colonne${z.lignes.length === 1 && z.lignes[0].colonnes === 1 ? '' : 's'}, ${nombreCourt(z.puissanceW / 1000, 2)} kW`)] : []),
     `Minimum théorique : ${nombre(r.lignes.auPlusJuste.nombre)} lignes au plus juste, serpentin depuis ${LIBELLES_COIN[r.lignes.auPlusJuste.depart]}`,
     r.lignes.minimum.raisons.length ? `Écart : ${r.lignes.minimum.raisons.join(' ; ')}` : null,
     r.lignes.auPlusJuste.ecart ? `Décompte théorique au plus juste : ${nombre(r.lignes.auPlusJuste.theorique)} lignes` : null,
@@ -305,6 +386,14 @@ export function resumeElec(r, { dalle, mur: m }) {
   return texte(lignes);
 }
 
+// Poids d'une colonne : un seul chiffre, ou de la plus légère à la plus lourde (zones de hauteurs différentes).
+export function texteParColonne(r) {
+  const kgs = r.colonnes.map((c) => c.kg);
+  const min = Math.min(...kgs);
+  const max = Math.max(...kgs);
+  return min === max ? kg(max) : `de ${nombreCourt(min, 2)} à ${kg(max)}`;
+}
+
 export function resumePoids(r, { dalle, mur: m }) {
   const accroche = r.mode === 'accroche';
   const sourcePoids = sourcesDe(dalle, 'poidsKg');
@@ -318,7 +407,7 @@ export function resumePoids(r, { dalle, mur: m }) {
     `Câbles : ${kg(r.cablesKg)}`,
     accroche ? `Bumpers ou barres : ${kg(r.bumpersKg)}` : null,
     accroche ? `Autres charges suspendues : ${kg(r.autresKg)}` : null,
-    `Par colonne : ${kg(r.colonnes[0].kg)}`,
+    `Par colonne : ${texteParColonne(r)}`,
     `Charge surfacique : ${nombreCourt(r.kgParM2, 1)} kg/m²`,
     `Par mètre linéaire : ${nombreCourt(r.kgParMetre, 1)} kg/m`,
   ];
@@ -326,8 +415,24 @@ export function resumePoids(r, { dalle, mur: m }) {
   if (mx) {
     const unite = { dalles: 'dalles en hauteur', m: 'm de haut', kg: 'kg par colonne' }[mx.unite];
     lignes.push(`Maximum en ${mx.mode === 'stack' ? 'stack' : 'accroche'} : ${nombreCourt(mx.valeur, 2)} pour ${nombreCourt(mx.limite, 2)} ${unite}, `
-      + `${mx.ok ? 'tenu' : 'dépassé'}${mx.conditions ? ` (${mx.conditions})` : ''}`);
+      + `${mx.ok ? 'tenu' : 'dépassé'}${mx.conditions ? ` (${mx.conditions})` : ''}${mx.zone ? `, zone ${mx.zone}` : ''}`);
   }
+  // Mur en zones : une ligne par zone, puis ses points d'accroche (chaque zone pend à sa structure).
+  for (const z of r.zones ?? []) {
+    lignes.push(`Zone ${z.nom} : ${pluriel(z.colonnes.reduce((s, c) => s + c.dalles, 0), 'dalle', 'dalles')}, ${kg(z.dallesKg)} de dalles, `
+      + `${kg(z.cablesKg)} de câbles${accroche ? `, ${kg(z.bumpersKg)} de bumpers` : ''}, ${kg(z.suspenduKg)} en tout`);
+  }
+  for (const z of r.zones ?? []) {
+    const pz = z.points;
+    if (pz?.points) {
+      if (pz.points.length > 1 && pz.points.every((pt) => pt.kg === pz.points[0].kg)) lignes.push(`Zone ${z.nom}, points d'accroche : ${pz.points.length} × ${kg(pz.points[0].kg)}`);
+      else for (const pt of pz.points) lignes.push(`Zone ${z.nom}, point n° ${pt.numero} : ${kg(pt.kg)}`);
+    } else if (pz) {
+      lignes.push(`Zone ${z.nom}, points d'accroche : répartition à faire établir par le rigger`);
+    }
+  }
+  const pzCmu = (r.zones ?? []).find((z) => z.points?.cmuMoteurKg)?.points;
+  if (pzCmu) lignes.push(`CMU du moteur : ${kg(pzCmu.cmuMoteurKg)}${pzCmu.configurationMoteur ? ` en ${pzCmu.configurationMoteur}` : ''}`);
   const p = r.points;
   if (p?.points) {
     // Charges toutes égales : une seule ligne.

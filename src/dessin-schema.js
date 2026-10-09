@@ -46,7 +46,8 @@ const detailPort = (port, p, plusieurs) => `${pluriel(port.dalles.length, 'dalle
 // pixel (« x 1536 », « y 512 »).
 export const rangDansTrajet = (trajet, id) => trajet.dalles.indexOf(id) + 1;
 export const libellePortRang = (trajet, id) => `${trajet.numero} · ${rangDansTrajet(trajet, id)}`;
-export const lignesNomDalle = (id) => id.split(' ');
+// Mur en zones : « B · C3 R2 » s'écrit « C3 R2 » sur la dalle, le nom de la zone est au-dessus de la zone.
+export const lignesNomDalle = (id) => (id.includes(' · ') ? id.split(' · ')[1] : id).split(' ');
 export const lignesPremierPixel = (r) => [`x ${r.x}`, `y ${r.y}`];
 
 // Trajets à dessiner : un par port (data) ou par ligne (élec), avec son rang (fond alterné), son sens et ses dalles.
@@ -101,6 +102,26 @@ export function trajetsSchema(vue, vd, ve, canvasNumero = null) {
 // Géométrie de la vue : rectangles des dalles (mm ou px) et taille du cadre.
 // `vue.vue` : 'physique' ou 'pixels' ; `vue.canvasVue` : 'mur' ou 'p2' (canvas du processeur n° 2).
 export function geometrieSchema(vue, mur, dalle, pm) {
+  return avecZones(geometrieSansZones(vue, mur, dalle, pm));
+}
+
+// Mur en zones (étape 9a) : rectangle de chaque zone (ou morceau de zone) dans la vue, d'après ses dalles.
+function avecZones(geo) {
+  const parZone = new Map();
+  for (const r of geo.rects.values()) {
+    if (!r.d?.zone) continue;
+    const z = parZone.get(r.d.zone) ?? { nom: r.d.zone, x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+    z.x0 = Math.min(z.x0, r.x);
+    z.y0 = Math.min(z.y0, r.y);
+    z.x1 = Math.max(z.x1, r.x + r.w);
+    z.y1 = Math.max(z.y1, r.y + r.h);
+    parZone.set(r.d.zone, z);
+  }
+  const zones = [...parZone.values()].map((z) => ({ nom: z.nom, x: z.x0, y: z.y0, w: z.x1 - z.x0, h: z.y1 - z.y0 }));
+  return zones.length ? { ...geo, zones } : geo;
+}
+
+function geometrieSansZones(vue, mur, dalle, pm) {
   const dalles = dallesDuMur(mur, dalle);
   if (vue.vue === 'physique') {
     return {
@@ -320,6 +341,16 @@ export function construireSvg({
       geo.unite === 'px' ? coordonnees(r) : null);
   });
 
+  // Mur en zones : nom de chaque zone hors du mur, du côté opposé au départ, au-delà du nom des blocs ; réduit pour
+  // tenir dans la largeur de sa zone.
+  const nomsZones = (geo.zones ?? []).map((z) => {
+    const taille = Math.min(police * 1.3, (z.w * 0.9) / (0.62 * Math.max(1, z.nom.length)));
+    const y = coin.startsWith('haut') ? z.y + z.h + police * 3.2 + taille : z.y - police * 2.8;
+    return svg('text', {
+      class: 'nom-zone', x: z.x + z.w / 2, y, 'font-size': taille, 'text-anchor': 'middle', 'font-weight': 700, style: `fill: ${palette.texte}`,
+    }, z.nom);
+  });
+
   // Nom du bloc du côté opposé au départ des câbles, pour ne pas croiser leurs numéros.
   const contours = blocs.map((b) => svg('g', {},
     svg('rect', { class: 'bloc', x: b.x, y: b.y, width: b.w, height: b.h, style: `fill: none; stroke: ${palette.contour}`, 'stroke-width': trait * 0.6, 'stroke-dasharray': `${trait * 2} ${trait * 1.5}` }),
@@ -499,7 +530,9 @@ export function construireSvg({
     id, viewBox: '0 0 10 10', refX: 5, refY: 5, markerWidth: 3.2, markerHeight: 3.2, orient: 'auto',
   }, svg('path', { d: 'M1,1 L9,5 L1,9 z', style: `fill: ${couleur}` })))),
   svg('rect', { x: complet.x, y: complet.y, width: complet.w, height: complet.h, style: `fill: ${palette.fond}` }),
-  svg('rect', { x: 0, y: 0, width: largeur, height: hauteur, style: `fill: none; stroke: ${palette.texteDoux}`, 'stroke-width': cote * 0.02 }),
-  tuiles, contours, dessinRepere, lignes);
+  // Cadre du mur ; en zones, seulement en vue pixels (le cadre de la pixel map, vides compris).
+  geo.zones && geo.unite !== 'px' ? null
+    : svg('rect', { x: 0, y: 0, width: largeur, height: hauteur, style: `fill: none; stroke: ${palette.texteDoux}`, 'stroke-width': cote * 0.02 }),
+  tuiles, contours, nomsZones, dessinRepere, lignes);
   return { svg: racine, complet };
 }

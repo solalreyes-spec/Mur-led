@@ -49,6 +49,24 @@ export function murCarres(colonnes, lignes) {
   return el('div', { class: 'mur-carres', 'aria-hidden': 'true', style: `grid-template-columns: repeat(${colonnes}, minmax(0, 1fr)); --rapport: ${colonnes} / ${lignes}` }, ...carres);
 }
 
+// Mur en zones (étape 9a) : une grille par zone, à sa place réelle (écarts et hauteur du bas), en % du mur entier,
+// aux proportions du mur réel ; rien au-delà de 1 000 dalles en tout.
+export function murCarresZones(m) {
+  if (!m?.zones?.length || m.dalles.total > DALLES_MAX_CARRES || !(m.largeurMm > 0 && m.hauteurMm > 0)) return null;
+  const basMin = Math.min(...m.zones.map((z) => z.basMm));
+  const hautMax = basMin + m.hauteurMm;
+  const pc = (x) => `${(100 * x).toFixed(4)}%`;
+  const grilles = m.zones.map((z) => {
+    const grille = murCarres(z.colonnes, z.lignes);
+    grille.style.left = pc(z.xMm / m.largeurMm);
+    grille.style.width = pc(z.largeurMm / m.largeurMm);
+    grille.style.top = pc((hautMax - z.basMm - z.hauteurMm) / m.hauteurMm);
+    grille.style.height = pc(z.hauteurMm / m.hauteurMm);
+    return grille;
+  });
+  return el('div', { class: 'mur-carres-zones', 'aria-hidden': 'true', style: `--rapport: ${m.largeurMm} / ${m.hauteurMm}` }, ...grilles);
+}
+
 // Icônes de trait (24 × 24, trait de 2 px, couleur du texte qui les porte).
 const TRACES = {
   mur: '<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14M15 5v14M3 12h18"/>',

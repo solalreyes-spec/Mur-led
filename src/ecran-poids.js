@@ -6,7 +6,7 @@ import { nombre, nombreCourt, lireNombre, sourceCourte, mentionType } from './fo
 import { el, remplacer } from './dom.js';
 import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
-import { resumePoids } from './resumes.js';
+import { resumePoids, texteParColonne } from './resumes.js';
 
 const formulaire = document.getElementById('form-poids');
 const zone = document.getElementById('resultats-poids');
@@ -80,7 +80,7 @@ function sectionMaximum(r) {
   if (!mx) return null;
   const unite = { dalles: 'dalles en hauteur', m: 'm de haut', kg: 'kg par colonne' }[mx.unite];
   const t = tuile(`Maximum en ${mx.mode === 'stack' ? 'stack' : 'accroche'}`, `${nombreCourt(mx.valeur, 2)} / ${nombreCourt(mx.limite, 2)} ${unite}`,
-    mx.ok ? 'tenu' : 'dépassé',
+    `${mx.ok ? 'tenu' : 'dépassé'}${mx.zone ? `, zone ${mx.zone} (la plus proche de sa limite)` : ''}`,
     mx.conditions ? `conditions : ${mx.conditions}` : null,
     mx.sources.length ? `source : ${mx.sources.map(sourceCourte).join(', ')}` : null);
   // Barre de charge : la valeur sur le maximum du constructeur (au-delà : dépassé).
@@ -88,12 +88,32 @@ function sectionMaximum(r) {
   return t;
 }
 
-function tablePoints(r) {
+// Mur en zones (étape 9a) : chaque zone est une structure à part ; poids zone par zone.
+function sectionZones(r, accroche) {
+  if (!r.zones) return null;
+  return el('section', { class: 'bloc-resultats' },
+    el('h3', {}, 'Poids par zone'),
+    el('div', { class: 'tableau-defilant' },
+      el('table', { class: 'table-donnees' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Zone'), el('th', {}, 'Dalles'), el('th', {}, 'Câbles'),
+          accroche ? el('th', {}, 'Bumpers') : null, el('th', {}, 'Total'))),
+        el('tbody', {}, r.zones.map((z) => el('tr', {},
+          el('th', { scope: 'row' }, z.nom),
+          el('td', {}, kg(z.dallesKg), el('span', { class: 'source-ligne' }, pluriel(z.colonnes.reduce((s, c) => s + c.dalles, 0), 'dalle', 'dalles'))),
+          el('td', {}, kg(z.cablesKg)),
+          accroche ? el('td', {}, kg(z.bumpersKg)) : null,
+          el('td', {}, kg(z.suspenduKg))))))),
+    el('p', { class: 'source' }, accroche
+      ? 'Chaque zone pend à sa propre structure : ses points d\'accroche sont donnés plus bas, zone par zone.'
+      : 'Chaque zone est posée sur sa propre structure.'));
+}
+
+function tablePoints(r, prefixe = '') {
   const p = r.points;
   if (!p) return null;
-  const titre = p.type === 'pont'
+  const titre = prefixe + (p.type === 'pont'
     ? `Pont (truss) sur ${p.points ? p.points.length : '?'} points : ${kg(p.totalKg)} avec son poids propre`
-    : `Un point par ${r.bumpers.length ? 'bumper' : 'colonne'} : parts égales`;
+    : `Un point par ${r.bumpers.length ? 'bumper' : 'colonne'} : parts égales`);
   if (!p.points) {
     return el('section', { class: 'bloc-resultats' }, el('h3', {}, titre),
       alerte('Répartition à faire établir par le rigger (plus de 4 points, portées inégales ou porte-à-faux).', 'alerte-info'));
@@ -153,7 +173,7 @@ function mettreAJour() {
   dernier = { r, dalle, mur };
   const sourcePoids = [...(dalle.sources?.poidsKg?.sources ?? []).map(sourceCourte), mentionType(dalle.sources?.poidsKg)].filter(Boolean).join(', ');
   const recap = el('p', { class: 'recap-mur' },
-    `Mur : ${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}, ${kg(r.poidsDalleKg)} par dalle`
+    `Mur : ${r.zones ? `${pluriel(r.zones.length, 'zone', 'zones')}, ` : ''}${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}, ${kg(r.poidsDalleKg)} par dalle`
     + `${sourcePoids ? ` (${sourcePoids})` : ''}${r.poidsDemiKg ? ` ; demi-dalle : ${kg(r.poidsDemiKg)}` : ''}. `,
     el('a', { href: '#mur' }, 'Modifier le mur'));
 
@@ -175,12 +195,16 @@ function mettreAJour() {
         tuile(accroche ? 'Total suspendu' : 'Total', kg(r.suspenduKg),
           `dalles ${kg(r.dallesKg)}, câbles ${kg(r.cablesKg)}`,
           accroche ? `bumpers ${kg(r.bumpersKg)}, autres ${kg(r.autresKg)}` : null),
-        tuile('Par colonne', kg(r.colonnes[0].kg), `${pluriel(r.colonnes[0].dalles, 'dalle', 'dalles')}, câbles compris`),
+        r.zones
+          ? tuile('Par colonne', texteParColonne(r), 'selon la hauteur de la zone, câbles compris')
+          : tuile('Par colonne', kg(r.colonnes[0].kg), `${pluriel(r.colonnes[0].dalles, 'dalle', 'dalles')}, câbles compris`),
         tuile('Charge surfacique', `${nombreCourt(r.kgParM2, 1)} kg/m²`, 'dalles seules'),
         tuile('Par mètre linéaire', `${nombreCourt(r.kgParMetre, 1)} kg/m`, 'charge totale sur la largeur du mur'),
         sectionMaximum(r)),
       bumpers),
+    sectionZones(r, accroche),
     tablePoints(r),
+    (r.zones ?? []).map((z) => tablePoints(z, `Zone ${z.nom} : `)),
     el('section', { class: 'bloc-resultats' },
       el('h3', {}, 'Rappels'),
       el('ul', { class: 'rappels' }, r.rappels.map((texte) => el('li', {}, texte)))));

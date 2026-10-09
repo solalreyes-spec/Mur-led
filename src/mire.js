@@ -177,7 +177,9 @@ export function planMire({ geo, trajets, largeur, hauteur, lignesBloc, cadre = n
     const t = parDalle.get(id) ?? null;
     const bord = t?.couleur?.ecran ?? '#808080';
     const [x, y] = [r.x + decalage.x, r.y + decalage.y];
-    const lignes = [t ? libellePortRang(t, id) : '', lignesNomDalle(id).join(' '), lignesPremierPixel({ x, y }).join(' ')];
+    // Mur en zones : la mire n'a pas de nom de zone au-dessus des zones, la dalle garde donc le nom de sa zone.
+    const nom = id.includes(' · ') ? id : lignesNomDalle(id).join(' ');
+    const lignes = [t ? libellePortRang(t, id) : '', nom, lignesPremierPixel({ x, y }).join(' ')];
     return { id, x, y, w: r.w, h: r.h, bord, fond: assombrir(bord), textes: textesDalle(lignes, x, y, r.w, r.h) };
   });
   const { bloc, damier, zone: zoneBloc } = blocCentral(lignesBloc, mur, dalles);
@@ -192,6 +194,8 @@ export function planMire({ geo, trajets, largeur, hauteur, lignesBloc, cadre = n
     damier,
     zoneBloc,
     horsMur: cadre ? mentionHorsMur(cadre, mur) : null,
+    // Mur en zones : les vides entre les zones au gris « hors mur », pour ne pas les confondre avec un noir du contenu.
+    vides: Boolean(geo.zones),
   };
 }
 
@@ -274,7 +278,7 @@ export function dessinerMire(plan) {
   const { mur } = plan;
   ctx.fillStyle = plan.horsMur || plan.largeur !== mur.largeur || plan.hauteur !== mur.hauteur ? GRIS_HORS_MUR : NOIR;
   ctx.fillRect(0, 0, plan.largeur, plan.hauteur);
-  ctx.fillStyle = NOIR;
+  ctx.fillStyle = plan.vides ? GRIS_HORS_MUR : NOIR;
   ctx.fillRect(mur.x, mur.y, mur.largeur, mur.hauteur);
 
   // Dalles : fond du port assombri, bord de 1 px à l'intérieur de la dalle, couleur du port.

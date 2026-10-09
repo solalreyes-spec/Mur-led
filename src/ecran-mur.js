@@ -1,10 +1,11 @@
 // Onglet Mur (dimensionnement). Aucune règle de calcul ici : tout passe par calculs.js,
 // et chaque résultat affiche la valeur utilisée et sa source.
 
-import { dimensionner, densite, pitchCalculeMm, dalleTournee } from './calculs.js';
+import { dimensionner, densite, pitchCalculeMm, dalleTournee, murZones, ErreurSaisie } from './calculs.js';
 import { nombre, nombreCourt, signe, sourceCourte, dateCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
-import { murCarres } from './look.js';
+import { murCarres, murCarresZones } from './look.js';
+import { lireSaisieZones, ecrireSaisieZones, argumentsMurZones, monterEditeurZones } from './zones.js';
 import { resumeMur } from './resumes.js';
 import { optionsInformations, configsDuMur, arbreDalles } from './fiches.js';
 
@@ -423,6 +424,70 @@ function afficherResultats(dalle, r, groupes = []) {
   remplacer(zoneResultats, principal, tuiles, source, sectionLots(groupes), tableauVariantes(r));
 }
 
+// Mur en plusieurs zones (étape 9a) : chiffres clés, mur en petits carrés à sa place réelle, tuiles et tableau des zones.
+function afficherResultatsZones(dalle, r, groupes = []) {
+  dernier = r.erreurs.length > 0 ? null : { dalle, mur: r.mur };
+  if (r.erreurs.length > 0) {
+    remplacer(zoneResultats, el('div', { class: 'alerte alerte-erreur', role: 'alert' }, r.erreurs.join(' ')));
+    return;
+  }
+  const m = r.mur;
+  const d = densite(dalle);
+  const ecartsPx = m.ecarts.reduce((s, e) => s + e.px, 0);
+  const ecartsMm = m.ecarts.reduce((s, e) => s + e.mm, 0);
+  const mode = { reel: 'comme l\'écart réel', main: 'saisis à la main', colles: 'zones collées' }[m.modeEcarts];
+  const principal = el('div', { class: 'carte resultat-principal' },
+    el('ul', { class: 'puces-info' },
+      el('li', { class: 'puce-info' }, dalle.nom),
+      el('li', { class: 'puce-info' }, `${nombreCourt(d.pitchMm, 3)} mm`),
+      el('li', { class: 'puce-info' }, `${dalle.pxH} × ${dalle.pxV} px`)),
+    el('p', { class: 'chiffre-cle' }, pluriel(m.zones.length, 'zone', 'zones'),
+      el('span', { class: 'chiffre-groupe' }, el('span', {}, ' = '), el('strong', { class: 'chiffre-second' }, nombre(m.dalles.total)), el('span', {}, ' dalles'))),
+    el('p', { class: 'sous-titre' }, 'zones de gauche à droite vu de face'),
+    murCarresZones(m));
+  const tuiles = el('dl', { class: 'tuiles' },
+    tuile('Taille réelle', texteTaille(m), `écarts compris : ${pluriel(m.ecarts.length, 'écart', 'écarts')}, ${nombreCourt(ecartsMm / 1000, 2)} m en tout`),
+    tuile('Pixel map', texteResolution(m), `vides compris : ${nombre(ecartsPx)} px en largeur, ${mode}`, 'pixel 0, 0 en haut à gauche'),
+    tuile('Pixels utiles', `${nombre(m.pxTotal)} px`, 'les dalles seulement : les vides ne chargent aucun port'),
+    tuile('Surface des dalles', `${nombre(m.surfaceM2, 2)} m²`),
+    tuile('Ratio', m.ratio.fraction ? `${m.ratio.fraction}` : `${nombre(m.ratio.valeur, 2)}:1`, 'de la pixel map'),
+    tuile('Pitch', `${nombreCourt(d.pitchMm, 3)} mm`,
+      `${nombreCourt(dalle.largeurMm)} mm / ${dalle.pxH} px, pour convertir les écarts en pixels`
+      + (dalle.pitchMm ? ` · fiche : ${nombreCourt(dalle.pitchMm, 3)} mm` : '')));
+  const lignes = m.zones.map((z, i) => el('tr', {},
+    el('th', { scope: 'row' }, z.nom,
+      i > 0 ? el('span', { class: 'source-ligne' }, `écart ${nombreCourt(m.ecarts[i - 1].mm)} mm, ${nombre(m.ecarts[i - 1].px)} px`) : null),
+    el('td', {}, `${z.colonnes} × ${z.lignes}`, el('span', { class: 'source-ligne' }, pluriel(z.dalles, 'dalle', 'dalles'))),
+    el('td', {}, `${nombreCourt(z.largeurMm / 1000, 2)} × ${nombreCourt(z.hauteurMm / 1000, 2)} m`,
+      z.basMm > 0 ? el('span', { class: 'source-ligne' }, `bas à ${nombreCourt(z.basMm)} mm`) : null),
+    el('td', {}, `${nombre(z.pxLargeur)} × ${nombre(z.pxHauteur)}`),
+    el('td', {}, `X ${nombre(z.x)}`, el('span', { class: 'source-ligne' }, `Y ${nombre(z.y)}`))));
+  const tableau = el('section', { class: 'bloc-resultats' },
+    el('h3', {}, 'Zones et pixel map'),
+    el('div', { class: 'tableau-defilant' },
+      el('table', { class: 'table-donnees' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Zone'), el('th', {}, 'Dalles'), el('th', {}, 'Taille'), el('th', {}, 'Pixels'), el('th', {}, 'Position'))),
+        el('tbody', {}, lignes))),
+    el('p', { class: 'source' }, 'Position : coin haut gauche de la zone dans la pixel map du mur, en pixels, de 0 à largeur − 1.'));
+  const source = el('p', { class: 'source' }, `Dimensions et pixels : ${sourcesDimensions(dalle)}.`);
+  remplacer(zoneResultats, principal, tuiles, tableau, source, sectionLots(groupes));
+}
+
+// Éditeur des zones : monté au premier calcul en mode Zones, remonté quand la liste gardée change hors de l'éditeur
+// (saisies remises, réglages par défaut), jamais pendant la frappe.
+let editeurZones = null;
+let dernierMurZones = null;
+function preparerEditeurZones(saisie) {
+  const texte = ecrireSaisieZones(saisie);
+  if (editeurZones && ecrireSaisieZones(editeurZones.saisie()) === texte) return;
+  editeurZones = monterEditeurZones({
+    saisie,
+    mur: () => dernierMurZones,
+    surChange: (s) => { formulaire.elements.zones.value = ecrireSaisieZones(s); },
+  });
+  remplacer(document.getElementById('editeur-zones'), editeurZones);
+}
+
 function tableauVariantes(r) {
   const unite = r.cible?.unite;
   const lignes = r.variantes.map((v) => {
@@ -462,13 +527,32 @@ function mettreAJour(fiches, surChangement) {
   for (const groupe of formulaire.querySelectorAll('.groupe-mode')) {
     groupe.hidden = !groupe.dataset.modes.split(' ').includes(e.mode);
   }
-  document.getElementById('bloc-demi').hidden = !demi;
+  document.getElementById('bloc-demi').hidden = !demi || e.mode === 'zones';
+  document.getElementById('note-demi-zones').hidden = !demi;
   document.getElementById('libelle-demi').textContent = e.mode === 'dalles'
     ? 'Ajouter une rangée de demi-dalles' : 'Demi-dalles disponibles';
   document.getElementById('position-demi').hidden = !(demi && e.demi);
 
   afficherAlertesDalle(dalle);
   afficherFiche(dalle, demi);
+
+  // Mur en plusieurs zones : la liste gardée dans le champ caché, calculée par murZones.
+  if (e.mode === 'zones') {
+    const saisie = lireSaisieZones(formulaire.elements.zones.value);
+    preparerEditeurZones(saisie);
+    let resultat;
+    try {
+      resultat = { mur: murZones(dalle, ...argumentsMurZones(saisie)), erreurs: [] };
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaisie)) throw erreur;
+      resultat = { mur: null, erreurs: [erreur.message] };
+    }
+    dernierMurZones = resultat.mur;
+    const groupes = resultat.erreurs.length ? [] : groupesLots(fiche, resultat.mur);
+    afficherResultatsZones(dalle, resultat, groupes);
+    surChangement({ dalle, mur: resultat.mur, erreurs: resultat.erreurs, lots: groupes });
+    return;
+  }
 
   const avecDemi = Boolean(demi && e.demi);
   const options = {

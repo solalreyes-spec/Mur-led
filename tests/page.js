@@ -2,6 +2,7 @@
 // du contrôle des données et du banc de test.
 
 import { CAS } from './cas.js';
+import { CAS_REELS } from './cas-reels.js';
 import { REGLES } from './regles.js';
 import { DONNEES } from './donnees.js';
 import { BANC } from './banc.js';
@@ -121,7 +122,7 @@ function carteCas(cas, resultat) {
   details.append(
     el('summary', {},
       el('span', { class: `badge badge-${resultat.statut}` }, LIBELLES[resultat.statut]),
-      el('span', { class: 'cas-id' }, estCasCdc ? `Cas ${cas.id.split(' ')[0]}` : cas.id),
+      el('span', { class: 'cas-id' }, cas.etiquette ?? (estCasCdc ? `Cas ${cas.id.split(' ')[0]}` : cas.id)),
       el('span', { class: 'cas-titre' }, cas.titre),
       resultat.statut === 'a-venir' && cas.etape ? el('span', { class: 'cas-etape' }, `étape ${cas.etape}`) : null),
   );
@@ -156,6 +157,7 @@ function afficher(liste, conteneur, contexte) {
 
 const contexte = await chargerContexte();
 const cas = afficher(CAS, document.getElementById('liste-cas'), contexte);
+const reels = afficher(CAS_REELS, document.getElementById('liste-cas-reels'), contexte);
 const regles = afficher(REGLES, document.getElementById('liste-regles'), contexte);
 const donnees = afficher(DONNEES, document.getElementById('liste-donnees'), contexte);
 const banc = afficher(BANC, document.getElementById('liste-banc'), contexte);
@@ -171,7 +173,7 @@ const nav = {
   reussis: resultatsNav.filter((r) => r.statut === 'reussi').length,
   problemes: resultatsNav.filter((r) => r.statut === 'echec' || r.statut === 'erreur').length,
 };
-const problemes = cas.problemes + regles.problemes + donnees.problemes + banc.problemes + nav.problemes;
+const problemes = cas.problemes + reels.problemes + regles.problemes + donnees.problemes + banc.problemes + nav.problemes;
 const sur = (bilanSection) => `${bilanSection.reussis} sur ${bilanSection.total}`;
 
 const bilan = document.getElementById('bilan');
@@ -181,7 +183,7 @@ bilan.replaceChildren(
   problemes ? `✗ ${pluriel(problemes, 'test en échec', 'tests en échec')}` : '✓ Aucun test en échec',
   el('small', {},
     `Cas tests : ${pluriel(cas.reussis, 'réussi', 'réussis')} · ${cas.problemes} en échec · ${cas.aVenir} à venir. `
-    + `Règles : ${sur(regles)}. Données : ${sur(donnees)}. Navigateur : ${sur(nav)}. Banc de test : ${sur(banc)}. `
+    + `Cas réels : ${sur(reels)}. Règles : ${sur(regles)}. Données : ${sur(donnees)}. Navigateur : ${sur(nav)}. Banc de test : ${sur(banc)}. `
     + `Lancé à ${new Date().toLocaleTimeString('fr-FR')}.`),
 );
 document.title = `${problemes ? '✗' : '✓'} Tests — Mur LED`;

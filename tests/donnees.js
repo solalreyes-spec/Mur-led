@@ -84,6 +84,8 @@ function exactsDans(texte, empreintes) {
   }
   return [...trouves];
 }
+// Noms du cas réel 1 (client, salle, prestataire), lus sur ses synoptiques : mots seuls ou deux mots collés, par empreintes.
+const EMPREINTES_CAS_REELS = new Set([0x712ba18b, 0x62dfc8e0, 0x7cebfba5]);
 const internesDans = (texte) => [...empreintesDans(texte, EMPREINTES_ORGANISME, [8]), ...exactsDans(texte, EMPREINTES_INTERNES)];
 
 // Mire et fiche contenu (data/fiche-contenu.json).
@@ -2141,6 +2143,24 @@ export const DONNEES = [
       }), []);
       v.egal('mode rouge : les quatre états des points se distinguent par leur clarté', new Set(['--point-eteint', '--point-revoir', '--point-encours', '--point-acquise'].map((n) => rouge[n])).size, 4);
       v.egal('point éteint de la spec', sombre['--point-eteint'], '#232a35');
+    },
+  },
+  {
+    id: 'D63',
+    titre: 'Cas réel 1 (étape 9a) : la dalle Upad IV 2.6 et le MCTRL4K de la base ont les valeurs du cas (192 × 192 px, 500 × 500 mm, pas 2,604 mm, 6,3 kg ; 16 ports, 7680 × 7680 px, 8,8 M px, CVT4K de 16 ports) ; aucun nom du cas réel (client, salle, prestataire) dans les fichiers publiés, cherché par empreintes',
+    etape: '9a',
+    verifier(v, contexte) {
+      const d = calculs.resoudreFiche(lireBase(contexte).dalles.find((x) => x.id === 'unilumin-upad-iv-2-6'), lireBase(contexte).sources);
+      v.egal('Upad IV 2.6 : pixels, taille, pas, poids', [d.pxH, d.pxV, d.largeurMm, d.hauteurMm, d.pitchMm, d.poidsKg], [192, 192, 500, 500, 2.604, 6.3]);
+      const base = baseProcesseurs(contexte);
+      const p = calculs.resoudreFiche(base.processeurs.find((x) => x.id === 'novastar-mctrl4k'), base.sources);
+      v.egal('MCTRL4K : ports, largeur et hauteur maxi, pixels, convertisseur et ses ports',
+        [p.ports, p.largeurMaxPx, p.hauteurMaxPx, p.pixelsMax, p.distributeur, p.sortiesParDistributeur], [16, 7680, 7680, 8800000, 'novastar-cvt4k', 16]);
+      const publies = contexte.publies;
+      if (!publies) throw new Error(`fichiers publiés non lus${contexte.erreurPublies ? ` : ${contexte.erreurPublies}` : ''}`);
+      const lus = Object.entries(publies).filter(([, texte]) => typeof texte === 'string');
+      v.vrai('page de tests et cas réels lus', typeof publies['tests/cas-reels.js'] === 'string' && lus.length > 40);
+      v.egal('noms du cas réel 1 (fichier : empreinte trouvée)', lus.flatMap(([chemin, texte]) => exactsDans(texte, EMPREINTES_CAS_REELS).map((h) => `${chemin} : ${h}`)), []);
     },
   },
 ];

@@ -12,7 +12,7 @@ import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
 import {
   resumeData, consommationProcesseur, resumeAvantDePartir, texteCapaciteAppareil, texteLatence, texteAlimentation, texteWatts, texteLogicielReglage,
-  texteAlternativeSX40,
+  texteAlternativeSX40, texteReglageZones,
 } from './resumes.js';
 import {
   configsDuMur, logicielDuProcesseur, texteLogicielParc, avantDePartir, arbreProcesseurs, MARQUES_FAMILLE, LOGICIELS,
@@ -310,7 +310,9 @@ function sectionPorts(e, dalle, r) {
         ...g.minimum.raisons.map((raison) => `écart : ${raison}`)),
       g.rectangles
         ? tuile('Conseil NovaLCT', nombre(g.rectangles.ports),
-          `rectangles de ${pluriel(g.rectangles.colonnes, 'colonne', 'colonnes')} × ${pluriel(g.rectangles.rangees, 'rangée', 'rangées')}`,
+          g.rectangles.parZone
+            ? `rectangles zone par zone : ${g.rectangles.parZone.map((x) => x.ports).join(' + ')} ports`
+            : `rectangles de ${pluriel(g.rectangles.colonnes, 'colonne', 'colonnes')} × ${pluriel(g.rectangles.rangees, 'rangée', 'rangées')}`,
           redondance(g.rectangles.redondance), 'chaque port compte le rectangle qui englobe ses dalles')
         : null,
       g.seuil.dallesEnMoins !== null
@@ -376,6 +378,7 @@ function tableDecoupage(r) {
     el('th', { scope: 'row' }, `n° ${i + 1}`),
     el('td', {}, `${g.premiereColonne} à ${g.derniereColonne}`,
       el('span', { class: 'source-ligne' }, pluriel(g.colonnes, 'colonne', 'colonnes')),
+      g.parties ? el('span', { class: 'source-ligne' }, g.parties.map((p) => p.nomAffiche).join(', ')) : null,
       r.grille.rangees > 1 ? el('span', { class: 'source-ligne' }, `rangées ${g.premiereRangee} à ${g.derniereRangee}`) : null,
       g.format ? el('span', { class: 'source-ligne' }, `canvas ${g.format}`) : null),
     el('td', {}, nombre(g.dalles), el('span', { class: 'source-ligne' }, millions(g.px))),
@@ -398,6 +401,34 @@ function tableDecoupage(r) {
         el('th', {}, red ? 'Ports (redondance)' : 'Ports'),
         distributeur ? el('th', {}, distributeur) : null)),
       el('tbody', {}, lignes, total)));
+}
+
+// Mur en zones (étape 9a) : pour chaque processeur, son bloc, sa sortie dans la pixel map du mur et ses morceaux de
+// zones, avec leurs ports et leur position dans l'entrée, à régler dans le logiciel du processeur.
+function sectionZones(r) {
+  if (!r.groupes?.[0]?.parties) return null;
+  const proc = r.processeur;
+  const red = r.reglages.redondance;
+  const ports = (p) => {
+    const { premier, dernier } = p.ports;
+    if (premier === dernier) return `${premier}`;
+    return `${premier} ${dernier === premier + 1 ? 'et' : 'à'} ${dernier}`;
+  };
+  return el('section', { class: 'bloc-resultats' },
+    el('h3', {}, 'Zones et offsets'),
+    r.groupes.flatMap((g, i) => [
+      el('h4', {}, `${proc.modele} n° ${i + 1} : ${nombre(g.largeurPx)} × ${nombre(g.hauteurPx)} px`
+        + `${g.videsLargeurPx > 0 ? `, dont ${nombre(g.videsLargeurPx)} px de vides` : ''}`),
+      el('p', { class: 'source' }, `Sortie dans la pixel map du mur : x ${g.x[0]} à ${g.x[1]}, y ${g.y[0]} à ${g.y[1]}.`),
+      el('div', { class: 'tableau-defilant' },
+        el('table', { class: 'table-donnees' },
+          el('thead', {}, el('tr', {}, el('th', {}, 'Morceau'), el('th', {}, 'Colonnes'), el('th', {}, red ? 'Ports principaux' : 'Ports'), el('th', {}, 'Dans l\'entrée'))),
+          el('tbody', {}, g.parties.map((p) => el('tr', {},
+            el('th', { scope: 'row' }, p.nomAffiche),
+            el('td', {}, `${p.premiereColonne} à ${p.premiereColonne + p.colonnes - 1}`, el('span', { class: 'source-ligne' }, pluriel(p.colonnes, 'colonne', 'colonnes'))),
+            el('td', {}, ports(p)),
+            el('td', {}, `x ${p.dansEntree.x}`, el('span', { class: 'source-ligne' }, `y ${p.dansEntree.y}`)))))))]),
+    el('p', { class: 'source' }, `Réglage : ${texteReglageZones(proc)}. Un port ne passe jamais d'une zone à l'autre.`));
 }
 
 function sectionProcesseur(r, conseil) {
@@ -424,12 +455,15 @@ function sectionProcesseur(r, conseil) {
             ? `Mur découpé en grille : ${pluriel(r.grille.colonnes, 'bloc', 'blocs')} de colonnes × ${pluriel(r.grille.rangees, 'bloc', 'blocs')} de rangées.`
             : 'Mur découpé en colonnes entières.')),
       r.seuil.colonnesEnMoins
-        ? el('p', { class: 'demi' }, `${pluriel(r.seuil.colonnesEnMoins, 'colonne', 'colonnes')} en moins évitent un ${proc.nom}.`)
+        ? el('p', { class: 'demi' }, r.seuil.zonesEnMoins
+          ? `${pluriel(r.seuil.colonnesEnMoins, 'colonne', 'colonnes')} en moins dans une seule zone (${r.seuil.zonesEnMoins.join(', ')}) évitent un ${proc.nom}.`
+          : `${pluriel(r.seuil.colonnesEnMoins, 'colonne', 'colonnes')} en moins évitent un ${proc.nom}.`)
         : null),
     tableControles(r),
     el('p', { class: 'source' }, 'Ports comptés en colonnes entières. Le nombre de processeurs est le plus grand des contrôles.'),
     el('h4', {}, r.grille.rangees > 1 ? 'Découpage en grille' : 'Découpage en colonnes entières'),
     tableDecoupage(r),
+    r.groupes[0]?.parties ? el('p', { class: 'source' }, 'Colonnes comptées de 1 à la dernière, à travers les zones, de gauche à droite.') : null,
     el('p', { class: 'source' }, globalTexte),
     el('p', { class: 'source' }, [
       proc.entrees ? `Entrées : ${proc.entrees}.` : null,
@@ -682,8 +716,10 @@ function calculer(e) {
 
   const carte = [dalle.carteReceptionMarque, dalle.carteReceptionModele].filter(Boolean).join(' ');
   const sourceCarte = dalle.sources?.carteReceptionModele ?? dalle.sources?.carteReceptionMarque;
+  const enZones = (mur.zones?.length ?? 0) > 1;
   const recap = el('p', { class: 'recap-mur' },
-    `Mur : ${mur.colonnes} × ${mur.lignes}${mur.rangeeDemi ? ' + rangée de demi-dalles' : ''} = ${pluriel(mur.dalles.total, 'dalle', 'dalles')} `
+    (enZones ? `Mur : ${pluriel(mur.zones.length, 'zone', 'zones')}, ${pluriel(mur.dalles.total, 'dalle', 'dalles')} `
+      : `Mur : ${mur.colonnes} × ${mur.lignes}${mur.rangeeDemi ? ' + rangée de demi-dalles' : ''} = ${pluriel(mur.dalles.total, 'dalle', 'dalles')} `)
     + `${dalle.nom}, ${nombre(mur.pxLargeur)} × ${nombre(mur.pxHauteur)} px (${millions(mur.pxTotal)}). `
     + (carte ? `Carte de réception : ${carte}${sourceCarte ? ` (${sourceCarte.sources.map(sourceCourte).join(', ')})` : ''}. ` : ''),
     el('a', { href: '#mur' }, 'Modifier le mur'));
@@ -722,6 +758,7 @@ function calculer(e) {
     choisie.global ? sectionPorts(e, dalle, choisie) : null,
     sectionCouleurs(ports),
     sectionProcesseur(choisie, conseil),
+    sectionZones(choisie),
     sectionConfigs(configs),
     sectionAutres(e, evaluations, choisie),
   );

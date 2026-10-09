@@ -6,6 +6,11 @@ import { motifPixelMap, SURFACE_MAX_IMAGE } from './calculs.js';
 
 // Teintes des dalles, alternées pour que deux voisines ne se confondent jamais.
 export const TEINTES = ['#2f5b8c', '#3d7a4b', '#7a4677', '#8a6a2a'];
+// Mur en zones (étape 9a) : une couleur par zone, en deux tons (clair, sombre) alternés en damier.
+export const TEINTES_ZONES = [
+  ['#e0675a', '#7a2c25'], ['#e0954a', '#7a4a1c'], ['#8fc04a', '#45631d'], ['#d9cb3f', '#6e6519'],
+  ['#5a9ee0', '#24507a'], ['#a77ee0', '#52347a'], ['#4ac0b5', '#1d6359'], ['#e05aa0', '#7a2552'],
+];
 const MIRE = 'rgba(255, 255, 255, 0.85)';
 const MIRE_BLOC = '#ffd400';
 
@@ -32,7 +37,7 @@ export function pixelMapEnCanvas(zone, options = {}, tuile = null) {
   ctx.fillRect(0, 0, t.largeurPx, t.hauteurPx);
   ctx.translate(-t.x, -t.y);
   for (const f of motif.fonds) {
-    ctx.fillStyle = TEINTES[f.teinte];
+    ctx.fillStyle = f.zone !== undefined ? TEINTES_ZONES[f.zone % TEINTES_ZONES.length][f.ton] : TEINTES[f.teinte];
     ctx.fillRect(f.x, f.y, f.largeur, f.hauteur);
   }
   // Traits d'un pixel posés sur les pixels (décalage d'un demi-pixel), bords de dalles compris.
@@ -65,6 +70,23 @@ export function pixelMapEnCanvas(zone, options = {}, tuile = null) {
       ctx.fillStyle = '#ffffff';
       ctx.fillText(texte, tx.x, tx.y + dy * tx.taille);
     }
+  }
+  // Mur en zones : étiquette de chaque zone sur fond sombre, texte blanc (comme la slide de la formation).
+  for (const et of motif.etiquettes ?? []) {
+    let taille = et.taille;
+    ctx.font = `700 ${taille}px Helvetica, Arial, sans-serif`;
+    const largeurTexte = () => Math.max(...et.lignes.map((l) => ctx.measureText(l).width));
+    while (taille > 8 && largeurTexte() > et.largeurMax) {
+      taille -= 1;
+      ctx.font = `700 ${taille}px Helvetica, Arial, sans-serif`;
+    }
+    const interligne = taille * 1.35;
+    const w = largeurTexte() + taille;
+    const h = interligne * et.lignes.length + taille * 0.4;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx.fillRect(et.x - w / 2, et.y - h / 2, w, h);
+    ctx.fillStyle = '#ffffff';
+    et.lignes.forEach((ligne, i) => ctx.fillText(ligne, et.x, et.y - h / 2 + taille * 0.2 + interligne * (i + 0.5)));
   }
   return canvas;
 }
