@@ -1,12 +1,13 @@
 // Service worker : l'appli marche hors ligne. Chaque fichier de l'appli est servi depuis le cache, puis
-// vérifié en arrière-plan ; si un fichier a changé, il est rangé dans le cache et la page propose de recharger.
+// vérifié en arrière-plan ; si un fichier a changé, le navigateur va chercher la nouvelle version de l'appli entière
+// (jamais un fichier rangé seul : une mise à jour coupée en route mélangerait deux versions, incident du 10/10/2026).
 // La page de tests lit toujours les derniers fichiers. Ajouter ici tout nouveau fichier de l'appli (test D23).
 // Chaque publication qui change un fichier de l'appli change VERSION et EMPREINTE (test N8) : ce fichier change
 // donc aussi, le navigateur installe la nouvelle version d'un bloc (tous les fichiers dans un cache neuf),
 // supprime l'ancien cache et la page propose de recharger.
 
-const VERSION = 21;
-const EMPREINTE = 'e2d88aa7627234f393623baf743fc4a23bd499b8be6d6d873b933686801ec267';
+const VERSION = 22;
+const EMPREINTE = 'ce2660a7cf184f39fad626741eab8bafd3e69f26c34a626f7666d36c90bb0d34';
 const CACHE = `mur-led-v${VERSION}`;
 const FICHIERS = [
   './',
@@ -125,7 +126,9 @@ async function repondre(evenement, adresse) {
   return (await verifier(cache, adresse, null)) ?? Response.error();
 }
 
-// Télécharge la dernière version ; si elle diffère de celle du cache, la range et prévient les pages ouvertes.
+// Télécharge la dernière version d'un fichier. Absent du cache : il y est rangé. Différent de celui du cache : rien
+// n'est rangé, le navigateur va chercher le nouveau sw.js, qui installe tous les fichiers d'un bloc puis propose de
+// recharger (activate).
 async function verifier(cache, adresse, ancienne) {
   let reponse;
   try {
@@ -140,9 +143,11 @@ async function verifier(cache, adresse, ancienne) {
   }
   const [avant, apres] = await Promise.all([ancienne.arrayBuffer(), reponse.clone().arrayBuffer()]);
   if (!memesOctets(avant, apres)) {
-    await cache.put(adresse, reponse.clone());
-    const pages = await self.clients.matchAll({ type: 'window' });
-    for (const page of pages) page.postMessage({ type: 'nouvelle-version' });
+    try {
+      await self.registration.update();
+    } catch (erreur) {
+      // sw.js injoignable (réseau coupé) : la version en cache reste entière ; nouvel essai à la prochaine ouverture.
+    }
   }
   return reponse;
 }

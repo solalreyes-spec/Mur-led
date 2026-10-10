@@ -989,7 +989,33 @@
     if (location.protocol === 'file:') {
       signalerChargement('Ouvre l\'appli avec lancer.command (double-clic dans le Finder) : le navigateur bloque les modules JavaScript quand on ouvre le fichier directement.');
     }
+    // Mise à jour coupée en route (fichiers de deux versions en cache : un module ne trouve pas un nom de l'autre) :
+    // les fichiers en cache sont vidés et l'appli rechargée une fois depuis le réseau. Saisies et base (IndexedDB,
+    // localStorage) ne sont pas touchées.
+    var CLE_REPARATION = 'mur-led-reparation';
+    var reparation = false;
+    function reparerCache(message) {
+      if (!/Importing binding name|does not provide an export named/.test(message || '')) return false;
+      if (!navigator.onLine || !window.caches) return false;
+      try {
+        if (sessionStorage.getItem(CLE_REPARATION)) return false;
+        sessionStorage.setItem(CLE_REPARATION, '1');
+      } catch (x) {
+        return false;
+      }
+      reparation = true;
+      signalerChargement('Mise à jour incomplète : je recharge l\'appli.');
+      caches.keys()
+        .then(function (cles) { return Promise.all(cles.map(function (c) { return caches.delete(c); })); })
+        .then(function () { location.reload(); }, function () { location.reload(); });
+      return true;
+    }
+    window.addEventListener('load', function () {
+      if (reparation) return;
+      try { sessionStorage.removeItem(CLE_REPARATION); } catch (x) { /* stockage bloqué */ }
+    });
     window.addEventListener('error', function (e) {
+      if (reparerCache(e.message)) return;
       var ou = e.filename ? ' (' + e.filename.split('/').pop() + ', ligne ' + e.lineno + ')' : '';
       signalerChargement('Erreur dans l\'appli : ' + e.message + ou);
     });
