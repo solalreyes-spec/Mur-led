@@ -189,10 +189,17 @@ function mettreAJour() {
   publier({ r, dalle, mur });
   const parZone = lignesParZone(r, mur);
   const recap = el('p', { class: 'recap-mur' },
-    `Mur : ${parZone ? `${pluriel(mur.zones.length, 'zone', 'zones')}, ` : ''}${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}. P max retenue : ${textePMax(dalle, r.pMax.dalle)}`
-    + `${r.pMax.demi ? ` ; demi-dalle : ${textePMax(mur.demi, r.pMax.demi)}` : ''}. `,
+    // Mur mixte (9b5) : la P max de la dalle de chaque zone.
+    (mur.mixte && r.zones?.[0]?.pMax
+      ? `Mur : ${pluriel(mur.zones.length, 'zone', 'zones')}, ${pluriel(mur.dalles.total, 'dalle', 'dalles')} de `
+        + `${new Set(mur.zones.map((z) => z.dalle.id)).size} types. P max retenue : `
+        + `${r.zones.map((z, i) => `zone ${z.nom}, ${textePMax(mur.zones[i].dalle, z.pMax.dalle)}`
+          + `${z.pMax.demi && mur.zones[i].demi ? `, demi-dalle : ${textePMax(mur.zones[i].demi, z.pMax.demi)}` : ''}`).join(' ; ')}. `
+      : `Mur : ${parZone ? `${pluriel(mur.zones.length, 'zone', 'zones')}, ` : ''}${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}. P max retenue : ${textePMax(dalle, r.pMax.dalle)}`
+        + `${r.pMax.demi ? ` ; demi-dalle : ${textePMax(mur.demi, r.pMax.demi)}` : ''}. `),
     el('a', { href: '#mur' }, 'Modifier le mur'));
   const d = r.dallesParLigne;
+  const mixte = Boolean(mur.mixte && r.zones?.[0]?.dallesParLigne);
   const colonnes = r.lignes.colonnes;
   const equilibreDistinct = Boolean(r.triphase)
     && taillesLignes(r.triphase.colonnes.equilibre) !== taillesLignes(r.triphase.colonnes.minimum);
@@ -225,10 +232,17 @@ function mettreAJour() {
             ? 'puissance utile saisie'
             : `${nombreCourt(r.reglages.tensionV)} V × ${nombreCourt(r.reglages.departA)} A × ${nombreCourt(r.reglages.marge * 100)} %`,
           `maxi théorique à 230 V : ${watts(r.ligne.maxi230W)}`),
-        tuile('Dalles par ligne', nombre(d.retenu),
-          d.limite === 'chaînage' ? `limité par le chaînage du constructeur (${d.chainage}) ; ${d.puissance} en puissance` : null,
-          d.chainage && d.limite !== 'chaînage' ? `chaînage du constructeur : ${d.chainage}` : null,
-          `${d.theoriques230} théoriques à 230 V, jamais appliqué`),
+        // Mur mixte : les dalles par ligne de chaque zone, à la P max et au chaînage de sa dalle.
+        mixte
+          ? tuile('Dalles par ligne', r.zones.map((z) => `${z.nom} ${nombre(z.dallesParLigne.retenu)}`).join(' · '),
+            ...r.zones.map((z, i) => `zone ${z.nom}, ${mur.zones[i].dalle.nom} : ${z.dallesParLigne.limite === 'chaînage'
+              ? `limité par le chaînage du constructeur (${z.dallesParLigne.chainage}) ; ${z.dallesParLigne.puissance} en puissance`
+              : `${z.dallesParLigne.puissance} en puissance`}`),
+            'jamais à cheval sur deux zones')
+          : tuile('Dalles par ligne', nombre(d.retenu),
+            d.limite === 'chaînage' ? `limité par le chaînage du constructeur (${d.chainage}) ; ${d.puissance} en puissance` : null,
+            d.chainage && d.limite !== 'chaînage' ? `chaînage du constructeur : ${d.chainage}` : null,
+            `${d.theoriques230} théoriques à 230 V, jamais appliqué`),
         tuile('Lignes en colonnes entières', nombre(r.lignes.retenues),
           equilibreDistinct ? `phases équilibrées : ${taillesLignes(r.triphase.colonnes.equilibre)} colonnes` : detailColonnes,
           equilibreDistinct ? `au minimum : ${pluriel(colonnes.nombre, 'ligne', 'lignes')}, ${detailColonnes}` : null,

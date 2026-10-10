@@ -49,6 +49,17 @@ export function murCarres(colonnes, lignes) {
   return el('div', { class: 'mur-carres', 'aria-hidden': 'true', style: `grid-template-columns: repeat(${colonnes}, minmax(0, 1fr)); --rapport: ${colonnes} / ${lignes}` }, ...carres);
 }
 
+// Zone de forme libre (9b) : une case par place, en % de la zone, décalages compris ; dalle absente en creux.
+function carresForme(z) {
+  const pc = (x) => `${(100 * x).toFixed(4)}%`;
+  const largeur = 1 / z.colonnes;
+  const carres = z.forme.colonnes.flatMap((col, j) => col.cases.map((x, r) => el('span', {
+    class: `mc${(r + j) % 2 ? ' ton-b' : ''}${x.presente ? '' : ' absente'}`,
+    style: `left: ${pc(j * largeur)}; width: ${pc(largeur)}; top: ${pc(x.yMm / z.hauteurMm)}; height: ${pc(x.hMm / z.hauteurMm)}`,
+  })));
+  return el('div', { class: 'mur-carres mur-carres-forme', 'aria-hidden': 'true' }, ...carres);
+}
+
 // Mur en zones (étape 9a) : une grille par zone, à sa place réelle (écarts et hauteur du bas), en % du mur entier,
 // aux proportions du mur réel ; rien au-delà de 1 000 dalles en tout.
 export function murCarresZones(m) {
@@ -57,7 +68,8 @@ export function murCarresZones(m) {
   const hautMax = basMin + m.hauteurMm;
   const pc = (x) => `${(100 * x).toFixed(4)}%`;
   const grilles = m.zones.map((z) => {
-    const grille = murCarres(z.colonnes, z.lignes);
+    // Forme libre (9b) : chaque place à sa position réelle dans la zone, les dalles absentes en creux.
+    const grille = z.forme ? carresForme(z) : murCarres(z.colonnes, z.lignes);
     grille.style.left = pc(z.xMm / m.largeurMm);
     grille.style.width = pc(z.largeurMm / m.largeurMm);
     grille.style.top = pc((hautMax - z.basMm - z.hauteurMm) / m.hauteurMm);

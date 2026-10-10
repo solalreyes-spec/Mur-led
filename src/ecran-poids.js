@@ -6,7 +6,7 @@ import { nombre, nombreCourt, lireNombre, sourceCourte, mentionType } from './fo
 import { el, remplacer } from './dom.js';
 import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
-import { resumePoids, texteParColonne } from './resumes.js';
+import { resumePoids, texteParColonne, fichesMixtes, fichesDemiMixtes } from './resumes.js';
 
 const formulaire = document.getElementById('form-poids');
 const zone = document.getElementById('resultats-poids');
@@ -98,11 +98,13 @@ function sectionZones(r, accroche) {
         el('thead', {}, el('tr', {}, el('th', {}, 'Zone'), el('th', {}, 'Dalles'), el('th', {}, 'Câbles'),
           accroche ? el('th', {}, 'Bumpers') : null, el('th', {}, 'Total'))),
         el('tbody', {}, r.zones.map((z) => el('tr', {},
-          el('th', { scope: 'row' }, z.nom),
-          el('td', {}, kg(z.dallesKg), el('span', { class: 'source-ligne' }, pluriel(z.colonnes.reduce((s, c) => s + c.dalles, 0), 'dalle', 'dalles'))),
+          el('th', { scope: 'row' }, z.nom,
+            z.accrocheeSous ? el('span', { class: 'source-ligne' }, `accrochée sous ${z.accrocheeSous}`) : null),
+          el('td', {}, kg(z.dallesKg), el('span', { class: 'source-ligne' }, pluriel(z.dallesPropres ?? z.colonnes.reduce((s, c) => s + c.dalles, 0), 'dalle', 'dalles'))),
           el('td', {}, kg(z.cablesKg)),
           accroche ? el('td', {}, kg(z.bumpersKg)) : null,
-          el('td', {}, kg(z.suspenduKg))))))),
+          el('td', {}, kg(z.suspenduKg),
+            z.ajoutKg ? el('span', { class: 'source-ligne' }, `dont ${kg(z.ajoutKg)} accrochés dessous`) : null)))))),
     el('p', { class: 'source' }, accroche
       ? 'Chaque zone pend à sa propre structure : ses points d\'accroche sont donnés plus bas, zone par zone.'
       : 'Chaque zone est posée sur sa propre structure.'));
@@ -171,10 +173,15 @@ function mettreAJour() {
   }
 
   dernier = { r, dalle, mur };
-  const sourcePoids = [...(dalle.sources?.poidsKg?.sources ?? []).map(sourceCourte), mentionType(dalle.sources?.poidsKg)].filter(Boolean).join(', ');
+  const sourceDe = (f) => [...(f.sources?.poidsKg?.sources ?? []).map(sourceCourte), mentionType(f.sources?.poidsKg)].filter(Boolean).join(', ');
+  const sourcePoids = sourceDe(dalle);
   const recap = el('p', { class: 'recap-mur' },
-    `Mur : ${r.zones ? `${pluriel(r.zones.length, 'zone', 'zones')}, ` : ''}${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}, ${kg(r.poidsDalleKg)} par dalle`
-    + `${sourcePoids ? ` (${sourcePoids})` : ''}${r.poidsDemiKg ? ` ; demi-dalle : ${kg(r.poidsDemiKg)}` : ''}. `,
+    (mur.mixte
+      ? `Mur : ${pluriel(r.zones.length, 'zone', 'zones')}, ${pluriel(mur.dalles.total, 'dalle', 'dalles')} : `
+        + `${[...fichesMixtes(mur, 'dalle').map((f) => `${f.nom}, ${kg(f.poidsKg)} par dalle${sourceDe(f) ? ` (${sourceDe(f)})` : ''}`),
+          ...fichesDemiMixtes(mur).map((f) => `${f.nom}, ${kg(f.poidsKg)} par demi-dalle${sourceDe(f) ? ` (${sourceDe(f)})` : ''}`)].join(' ; ')}`
+      : `Mur : ${r.zones ? `${pluriel(r.zones.length, 'zone', 'zones')}, ` : ''}${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}, ${kg(r.poidsDalleKg)} par dalle`)
+    + `${sourcePoids && !mur.mixte ? ` (${sourcePoids})` : ''}${r.poidsDemiKg && !mur.mixte ? ` ; demi-dalle : ${kg(r.poidsDemiKg)}` : ''}. `,
     el('a', { href: '#mur' }, 'Modifier le mur'));
 
   const bumpers = r.bumpers.length

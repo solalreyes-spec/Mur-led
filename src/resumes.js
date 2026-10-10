@@ -40,29 +40,48 @@ function sourcesDimensions(...fiches) {
 // Mur en plusieurs zones (étape 9a) : une ligne par zone et par écart, taille réelle avec les écarts, pixel map avec ses
 // vides, pixels utiles.
 const MENTIONS_ECARTS = { main: ' (saisi à la main)', colles: ' (zones collées)', reel: '' };
+// Placement d'une zone empilée ou libre (9b2), pour le texte copié.
+const ALIGNEMENTS_TEXTE = { gauche: 'alignée à gauche', centre: 'centrée', droite: 'alignée à droite' };
+function textePlacement(p) {
+  if (!p || p.type === 'droite' || !p.type) return null;
+  if (p.type === 'libre') return `position libre, X ${nombreCourt(p.xMm)} mm, bas à ${nombreCourt(p.basMm)} mm`;
+  const ecart = p.ecartMm > 0 ? `, ${nombreCourt(p.ecartMm)} mm plus ${p.type === 'dessus' ? 'haut' : 'bas'}` : '';
+  const decalage = p.decalageMm ? `, décalée de ${nombreCourt(p.decalageMm)} mm` : '';
+  return `${p.type === 'dessus' ? 'sur' : 'sous'} ${p.zone}, ${ALIGNEMENTS_TEXTE[p.alignement ?? 'gauche']}${ecart}${decalage}`;
+}
+
 function resumeMurZones(dalle, m) {
   const sources = sourcesDimensions(dalle);
+  const saisies = m.saisie?.zones ?? [];
+  const placees = saisies.some((z) => z.placement && z.placement.type !== 'droite');
   const lignes = [
     'MUR',
     `Dalle : ${dalle.nom}`,
-    `Zones : ${m.zones.length}, de gauche à droite vu de face`,
+    placees ? `Zones : ${m.zones.length}` : `Zones : ${m.zones.length}, de gauche à droite vu de face`,
   ];
+  const ecarts = new Map((m.ecarts ?? []).map((e) => [e.entre[1], e]));
   m.zones.forEach((z, i) => {
-    if (i > 0) {
-      const e = m.ecarts[i - 1];
-      lignes.push(`Écart entre ${e.entre[0]} et ${e.entre[1]} : ${nombreCourt(e.mm)} mm, ${nombre(e.px)} px dans la pixel map${MENTIONS_ECARTS[m.modeEcarts]}`);
-    }
-    lignes.push(`Zone ${z.nom} : ${z.colonnes} × ${z.lignes} = ${pluriel(z.dalles, 'dalle', 'dalles')}, `
+    const e = i > 0 ? ecarts.get(z.nom) : null;
+    if (e) lignes.push(`Écart entre ${e.entre[0]} et ${e.entre[1]} : ${nombreCourt(e.mm)} mm, ${nombre(e.px)} px dans la pixel map${MENTIONS_ECARTS[m.modeEcarts]}`);
+    // Formes libres et mur mixte (9b) : dalles présentes sur les places de la grille, dalle propre, placement.
+    const places = z.forme ? z.colonnes * z.forme.types.length : null;
+    const dalles = z.forme ? `${z.colonnes} × ${z.lignes}, ${nombre(z.dalles)} dalles sur ${nombre(places)}` : `${z.colonnes} × ${z.lignes} = ${pluriel(z.dalles, 'dalle', 'dalles')}`;
+    const propre = m.mixte && z.dalle && z.dalle.id !== dalle.id ? `, dalle ${z.dalle.nom}` : '';
+    const placement = textePlacement(saisies[i]?.placement);
+    lignes.push(`Zone ${z.nom} : ${dalles}${propre}, `
       + `${nombreCourt(z.largeurMm / 1000, 2)} × ${nombreCourt(z.hauteurMm / 1000, 2)} m, ${z.pxLargeur} × ${z.pxHauteur} px, X ${z.x}, Y ${z.y}`
-      + `${z.basMm > 0 ? `, bas à ${nombreCourt(z.basMm)} mm` : ''}`);
+      + `${z.basMm > 0 && !placement ? `, bas à ${nombreCourt(z.basMm)} mm` : ''}${placement ? `, ${placement}` : ''}`);
   });
+  for (const saut of m.sauts ?? []) {
+    lignes.push(`Saut dans une chaîne : ${m.zones.length > 1 ? `${saut.zone} · ` : ''}C${saut.colonne}, ${nombreCourt(saut.mm / 1000, 1)} m entre R${saut.entre[0]} et R${saut.entre[1]}`);
+  }
   lignes.push(
     `Dalles : ${nombre(m.dalles.total)}`,
     `Taille réelle : ${nombre(m.largeurMm / 1000, 2)} × ${nombre(m.hauteurMm / 1000, 2)} m, écarts compris`,
     `Pixel map : ${nombre(m.pxLargeur)} × ${nombre(m.pxHauteur)} px, vides compris`,
     `Pixels utiles : ${nombre(m.pxTotal)} px`,
     `Surface des dalles : ${nombre(m.surfaceM2, 2)} m²`,
-    `Pitch : ${nombreCourt(pitchCalculeMm(dalle), 3)} mm`,
+    m.mixte ? `Pas de référence : ${nombreCourt(m.pas.mm, 3)} mm (le plus fin des dalles du mur)` : `Pitch : ${nombreCourt(pitchCalculeMm(dalle), 3)} mm`,
     sources ? `Dimensions et pixels : ${sources}` : null,
     dalle.gabarit ? 'Alerte : gabarit générique non sourcé, pour une estimation seulement' : null,
   );
@@ -86,7 +105,7 @@ const textePorts = (premier, dernier) => {
 };
 
 export function resumeMur({ dalle, mur: m }) {
-  if ((m.zones?.length ?? 0) > 1) return resumeMurZones(dalle, m);
+  if ((m.zones?.length ?? 0) > 1 || m.zones?.[0]?.forme || m.mixte) return resumeMurZones(dalle, m);
   const sources = sourcesDimensions(dalle, m.demi);
   return texte([
     'MUR',
@@ -228,10 +247,22 @@ export function resumeData(r, {
   if (logiciel) lignes.push(logiciel.replace(/\.$/, ''));
   r.groupes.forEach((gr, i) => {
     const ports = reg.redondance ? gr.ports.redondance.colonnes : gr.ports.colonnes;
-    lignes.push(`${proc.modele} n° ${i + 1} : colonnes ${gr.premiereColonne} à ${gr.derniereColonne}`
-      + `${r.grille?.rangees > 1 ? `, rangées ${gr.premiereRangee} à ${gr.derniereRangee}` : ''}`
-      + ` (${pluriel(gr.dalles, 'dalle', 'dalles')}, ${pluriel(ports, 'port', 'ports')})`);
+    // Bloc d'un découpage par lignes de coupe ou d'une variante (9b2) : nommé par ses morceaux de zones.
+    const colonnes = gr.premiereColonne === null || gr.premiereColonne === undefined
+      ? gr.parties.map((p) => p.nomAffiche).join(', ')
+      : `colonnes ${gr.premiereColonne} à ${gr.derniereColonne}${r.grille?.rangees > 1 ? `, rangées ${gr.premiereRangee} à ${gr.derniereRangee}` : ''}`;
+    lignes.push(`${proc.modele} n° ${i + 1} : ${colonnes} (${pluriel(gr.dalles, 'dalle', 'dalles')}, ${pluriel(ports, 'port', 'ports')})`);
   });
+  // Mur mixte (9b3) : mapping et pixels comptés par dalle de zone ; découpage retenu et variantes (9b2).
+  if (r.mapping) {
+    lignes.push(`Mapping : ${r.mapping === 'interpole' ? `interpolé, pitch le plus fin ${nombreCourt(r.mur.pasInterpole, 3)} mm` : '1:1'} ; `
+      + `pixels comptés par dalle : ${r.pixelsParDalle.map((x) => `${x.zone} ${nombre(x.px)}`).join(', ')}`);
+  }
+  const NOMS_VARIANTES = { zonesEntieres: 'zones entières', unParZone: 'un processeur par zone' };
+  if (r.decoupage) lignes.push(`Découpage : ${NOMS_VARIANTES[r.decoupage]} (variante retenue), ${r.nombre} × ${proc.modele}`);
+  if (r.variantes) {
+    lignes.push(`Variantes : ${Object.entries(r.variantes).map(([mode, x]) => `${NOMS_VARIANTES[mode]}, ${x.nombre === null ? 'impossible' : `${x.nombre} × ${proc.modele}`}`).join(' ; ')}`);
+  }
   // Mur en zones : sortie de chaque processeur dans la pixel map du mur, puis chaque morceau de zone, ses ports et sa
   // position dans l'entrée (à régler dans le logiciel du processeur).
   if (r.groupes[0]?.parties) {
@@ -325,6 +356,8 @@ function textePMax(fiche, p, libelle) {
   return `P max retenue${libelle} : ${watts(p.valeurW)}${origine ? ` (${origine})` : ''}`;
 }
 
+const texteDallesParLigne = (d, libelle) => `Dalles par ligne${libelle} : ${nombre(d.retenu)}${d.limite === 'chaînage' ? ', limité par le chaînage du constructeur' : ''}`;
+
 // Mur en zones (étape 9a) : lignes retenues de chaque zone (en triphasé, celles de l'équilibre des phases), colonnes de
 // chaque ligne de la plus grande à la plus petite, et puissance de la zone. Null pour un mur d'une seule pièce.
 export function lignesParZone(r, m) {
@@ -341,15 +374,21 @@ export function resumeElec(r, { dalle, mur: m }) {
   const d = r.dallesParLigne;
   const lignes = [
     'ÉLECTRICITÉ : indicatif, à valider par l\'électricien',
-    `Dalles : ${nombre(m.dalles.total)} ${dalle.nom}`,
-    textePMax(dalle, r.pMax.dalle, ' par dalle'),
-    textePMax(m.demi, r.pMax.demi, ' par demi-dalle'),
+    // Mur mixte (9b5) : la P max de la dalle de chaque zone.
+    ...(m.mixte && r.zones?.[0]?.pMax
+      ? [`Dalles : ${nombre(m.dalles.total)}, de ${new Set(m.zones.map((z) => z.dalle.id)).size} types`,
+        ...r.zones.flatMap((z, i) => [textePMax(m.zones[i].dalle, z.pMax.dalle, ` par dalle (zone ${z.nom}, ${m.zones[i].dalle.nom})`),
+          z.pMax.demi && m.zones[i].demi ? textePMax(m.zones[i].demi, z.pMax.demi, ` par demi-dalle (zone ${z.nom}, ${m.zones[i].demi.nom})`) : null])]
+      : [`Dalles : ${nombre(m.dalles.total)} ${dalle.nom}`, textePMax(dalle, r.pMax.dalle, ' par dalle'), textePMax(m.demi, r.pMax.demi, ' par demi-dalle')]),
     `Puissance totale : ${nombreCourt(r.puissanceTotaleW / 1000, 2)} kW`,
     `Chaleur à évacuer : ${nombre(r.btuH)} BTU/h`,
     r.ligne.origine === 'champ'
       ? `Puissance utile par ligne : ${watts(r.ligne.utileW)}, saisie`
       : `Puissance utile par ligne : ${watts(r.ligne.utileW)} (${nombreCourt(reg.tensionV)} V × ${nombreCourt(reg.departA)} A × ${nombreCourt(reg.marge * 100)} %)`,
-    `Dalles par ligne : ${nombre(d.retenu)}${d.limite === 'chaînage' ? ', limité par le chaînage du constructeur' : ''}`,
+    // Mur mixte : les dalles par ligne de chaque zone, à la P max et au chaînage de sa dalle.
+    ...(m.mixte && r.zones?.[0]?.dallesParLigne
+      ? r.zones.map((z, i) => texteDallesParLigne(z.dallesParLigne, ` (zone ${z.nom}, ${m.zones[i].dalle.nom})`))
+      : [texteDallesParLigne(d, '')]),
     `Lignes en colonnes entières : ${nombre(r.lignes.retenues)}`,
     ...(lignesParZone(r, m) ? [`Zones : ${m.zones.length}, une ligne ne passe jamais d'une zone à l'autre`,
       ...lignesParZone(r, m).map((z) => `Zone ${z.nom} : ${pluriel(z.lignes.length, 'ligne', 'lignes')} de ${z.lignes.map((l) => l.colonnes).join(' + ')} `
@@ -394,6 +433,20 @@ export function texteParColonne(r) {
   return min === max ? kg(max) : `de ${nombreCourt(min, 2)} à ${kg(max)}`;
 }
 
+// Mur mixte : les fiches différentes des dalles des zones, puis celles des demi-dalles des zones qui ont une rangée de
+// demi-dalles.
+export const fichesMixtes = (m, champ) => [...new Map(m.zones.map((z) => [z[champ]?.id, z[champ]]).filter(([id]) => id)).values()];
+export const fichesDemiMixtes = (m) => fichesMixtes({ zones: m.zones.filter((z) => z.forme?.dalles.demi > 0) }, 'demi');
+
+// Cartes de réception d'un mur mixte : celle de chaque dalle, avec sa source.
+export function texteCartesMixte(m) {
+  return `Cartes de réception : ${fichesMixtes(m, 'dalle').map((f) => {
+    const carte = [f.carteReceptionMarque, f.carteReceptionModele].filter(Boolean).join(' ');
+    const source = sourcesDe(f, f.sources?.carteReceptionModele ? 'carteReceptionModele' : 'carteReceptionMarque');
+    return `${f.nom}, ${carte ? `${carte}${source ? ` (${source})` : ''}` : 'non précisée'}`;
+  }).join(' ; ')}. `;
+}
+
 export function resumePoids(r, { dalle, mur: m }) {
   const accroche = r.mode === 'accroche';
   const sourcePoids = sourcesDe(dalle, 'poidsKg');
@@ -401,8 +454,13 @@ export function resumePoids(r, { dalle, mur: m }) {
     'POIDS : indicatif, à valider par le rigger',
     `Mode : ${accroche ? 'accroche' : 'stack (au sol)'}`,
     `${accroche ? 'Total suspendu' : 'Total'} : ${kg(r.suspenduKg)}`,
-    `Poids d'une dalle : ${kg(r.poidsDalleKg)}${sourcePoids ? ` (${sourcePoids})` : ''}`,
-    r.poidsDemiKg ? `Poids d'une demi-dalle : ${kg(r.poidsDemiKg)}` : null,
+    // Mur mixte (9b5) : le poids de la dalle de chaque zone.
+    // Mur mixte (9b5) : le poids de la dalle et de la demi-dalle de chaque zone, avec leur source.
+    ...(m.mixte
+      ? [...fichesMixtes(m, 'dalle').map((f) => `Poids d'une dalle ${f.nom} : ${kg(f.poidsKg)}${sourcesDe(f, 'poidsKg') ? ` (${sourcesDe(f, 'poidsKg')})` : ''}`),
+        ...fichesDemiMixtes(m).map((f) => `Poids d'une demi-dalle ${f.nom} : ${kg(f.poidsKg)}${sourcesDe(f, 'poidsKg') ? ` (${sourcesDe(f, 'poidsKg')})` : ''}`)]
+      : [`Poids d'une dalle : ${kg(r.poidsDalleKg)}${sourcePoids ? ` (${sourcePoids})` : ''}`,
+        r.poidsDemiKg ? `Poids d'une demi-dalle : ${kg(r.poidsDemiKg)}` : null]),
     `Poids des dalles : ${kg(r.dallesKg)} pour ${pluriel(m.dalles.total, 'élément', 'éléments')}`,
     `Câbles : ${kg(r.cablesKg)}`,
     accroche ? `Bumpers ou barres : ${kg(r.bumpersKg)}` : null,
@@ -419,8 +477,9 @@ export function resumePoids(r, { dalle, mur: m }) {
   }
   // Mur en zones : une ligne par zone, puis ses points d'accroche (chaque zone pend à sa structure).
   for (const z of r.zones ?? []) {
-    lignes.push(`Zone ${z.nom} : ${pluriel(z.colonnes.reduce((s, c) => s + c.dalles, 0), 'dalle', 'dalles')}, ${kg(z.dallesKg)} de dalles, `
-      + `${kg(z.cablesKg)} de câbles${accroche ? `, ${kg(z.bumpersKg)} de bumpers` : ''}, ${kg(z.suspenduKg)} en tout`);
+    lignes.push(`Zone ${z.nom} : ${pluriel(z.dallesPropres ?? z.colonnes.reduce((s, c) => s + c.dalles, 0), 'dalle', 'dalles')}, ${kg(z.dallesKg)} de dalles, `
+      + `${kg(z.cablesKg)} de câbles${accroche ? `, ${kg(z.bumpersKg)} de bumpers` : ''}, ${kg(z.suspenduKg)} en tout`
+      + `${z.ajoutKg ? `, dont ${kg(z.ajoutKg)} accrochés dessous` : ''}${z.accrocheeSous ? `, accrochée sous ${z.accrocheeSous}` : ''}`);
   }
   for (const z of r.zones ?? []) {
     const pz = z.points;

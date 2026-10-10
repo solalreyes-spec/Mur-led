@@ -86,6 +86,8 @@ function exactsDans(texte, empreintes) {
 }
 // Noms du cas réel 1 (client, salle, prestataire), lus sur ses synoptiques : mots seuls ou deux mots collés, par empreintes.
 const EMPREINTES_CAS_REELS = new Set([0x712ba18b, 0x62dfc8e0, 0x7cebfba5]);
+// Nom du studio d'un communiqué de presse cité par la spec de la 9b (cas F5), deux mots collés, par empreinte.
+const EMPREINTES_SOURCES_PUBLIQUES = new Set([0x36f7e1c3]);
 const internesDans = (texte) => [...empreintesDans(texte, EMPREINTES_ORGANISME, [8]), ...exactsDans(texte, EMPREINTES_INTERNES)];
 
 // Mire et fiche contenu (data/fiche-contenu.json).
@@ -2161,6 +2163,30 @@ export const DONNEES = [
       const lus = Object.entries(publies).filter(([, texte]) => typeof texte === 'string');
       v.vrai('page de tests et cas réels lus', typeof publies['tests/cas-reels.js'] === 'string' && lus.length > 40);
       v.egal('noms du cas réel 1 (fichier : empreinte trouvée)', lus.flatMap(([chemin, texte]) => exactsDans(texte, EMPREINTES_CAS_REELS).map((h) => `${chemin} : ${h}`)), []);
+    },
+  },
+  {
+    id: 'D64',
+    titre: 'Formes libres (étape 9b) : les dalles et les processeurs des cas F1 à F7 ont dans la base les valeurs des cas ; aucun nom de studio, de salle ni d\'événement d\'une source publique dans les fichiers publiés, cherché par empreintes',
+    etape: '9b',
+    verifier(v, contexte) {
+      const base = lireBase(contexte);
+      const dalle = (id) => calculs.resoudreFiche(base.dalles.find((x) => x.id === id), base.sources);
+      const taille = (d) => [d.largeurMm, d.hauteurMm, d.pxH, d.pxV];
+      v.egal('INFiLED EZ2.6 MK2, AR3.9, ROE BP2, CB8 et demi-CB8 : taille et pixels', ['infiled-ez2-6-mk2', 'infiled-ar3-9', 'roe-bp2', 'roe-cb8', 'roe-cb8-demi'].map((id) => taille(dalle(id))),
+        [[500, 500, 192, 192], [500, 1000, 128, 256], [500, 500, 176, 176], [600, 1200, 72, 144], [600, 600, 72, 72]]);
+      const procs = baseProcesseurs(contexte);
+      const p = (id) => calculs.resoudreFiche(procs.processeurs.find((x) => x.id === id), procs.sources);
+      v.egal('MX40 Pro, MCTRL660, MCTRL4K, S8, SX40, M2, T1 : ports et pixels', ['coex-mx40-pro', 'novastar-mctrl660', 'novastar-mctrl4k', 'brompton-s8', 'brompton-sx40', 'brompton-m2', 'brompton-t1']
+        .map((id) => [p(id).ports, p(id).pixelsMax]), [[20, 9000000], [4, 2300000], [16, 8800000], [8, 4500000], [40, 9000000], [4, 2073600], [1, 500000]]);
+      v.egal('SX40 : 4094 px de large, 10 ports par XD, 64 px au moins par dimension ; mapping interpolé sur M2 et T1 seulement',
+        [p('brompton-sx40').largeurMaxPx, p('brompton-sx40').sortiesParDistributeur, p('brompton-sx40').pxMinParDimension, p('brompton-m2').mappingInterpole, p('brompton-t1').mappingInterpole, p('brompton-s8').mappingInterpole ?? false],
+        [4094, 10, 64, true, true, false]);
+      const publies = contexte.publies;
+      if (!publies) throw new Error(`fichiers publiés non lus${contexte.erreurPublies ? ` : ${contexte.erreurPublies}` : ''}`);
+      const lus = Object.entries(publies).filter(([, texte]) => typeof texte === 'string');
+      v.vrai('page de tests et cas des formes libres lus', typeof publies['tests/cas-formes.js'] === 'string');
+      v.egal('noms tirés des sources publiques (fichier : empreinte trouvée)', lus.flatMap(([chemin, texte]) => exactsDans(texte, EMPREINTES_SOURCES_PUBLIQUES).map((h) => `${chemin} : ${h}`)), []);
     },
   },
 ];

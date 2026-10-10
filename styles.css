@@ -340,6 +340,28 @@ body.montage-ouvert { overflow: hidden; }
 .montage-dessin .attenue { opacity: 0.18; }
 .montage-ligne-case { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
 .montage-recentrer { min-height: 64px; padding: 0 12px; }
+/* Écran « Forme de la zone » (9b4) : grille vue de face, une case par place, défilant dans son cadre. En mode « Glisser »,
+   la grille ne défile plus au doigt : un glissé peint les cases. */
+/* Choix gardé dans un champ caché (Data, 9b4) : une ligne par choix, le nombre de processeurs après le nom. */
+.choix-cache { border: 0; padding: 0; margin: 8px 0; display: grid; gap: 4px; }
+.choix-cache legend { padding: 0; margin-bottom: 4px; color: var(--texte-doux); font-size: 0.9rem; }
+.choix-cache .detail-choix { color: var(--texte-doux); }
+.forme .compte-forme { margin: 6px 0 0; font-size: 1.1rem; font-weight: 700; }
+.forme .mode-forme { margin-top: 8px; }
+.forme .decalage-forme:empty { display: none; }
+.forme .decalage-forme label { display: grid; gap: 4px; }
+.grille-forme-cadre { flex: 1; min-height: 0; margin: 8px 0 0; overflow: auto; border: 1px solid var(--bordure); border-radius: var(--rayon); }
+.grille-forme { display: grid; gap: 4px; padding: 8px; width: max-content; grid-auto-rows: var(--cible); touch-action: pan-x pan-y; user-select: none; -webkit-user-select: none; }
+.grille-forme[data-mode="glisser"] { touch-action: none; }
+.case-forme, .entete-colonne {
+  width: var(--cible); height: var(--cible); min-width: var(--cible); min-height: var(--cible); padding: 0; border-radius: 8px;
+  font: inherit; font-size: 0.7rem; line-height: 1.1; color: var(--texte); cursor: pointer;
+}
+.case-forme { background: var(--famille-fond); border: 2px solid var(--famille); }
+.case-forme[data-type="demi"] { border-width: 2px 2px 6px; }
+.case-forme[aria-pressed="false"] { background: transparent; border-style: dashed; border-color: var(--texte-doux); color: var(--texte-doux); }
+.entete-colonne { background: var(--surface); border: 1px solid var(--bordure); font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.entete-colonne .decalage-colonne { font-weight: 400; color: var(--texte-doux); }
 /* Encart du départ (port loin de son processeur) : en coin, du côté du départ, avec sa flèche ; un appui le montre. */
 .montage-encart {
   position: absolute; z-index: 1; gap: 6px; min-height: max(48px, var(--cible)); max-width: calc(100% - 12px);
@@ -1131,6 +1153,14 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 /* Mur en zones (étape 9a) : chaque zone à sa place réelle, en % du mur. */
 .mur-carres-zones { position: relative; width: 100%; max-width: 320px; margin: 12px 0 4px; aspect-ratio: var(--rapport); }
 .mur-carres-zones > .mur-carres { position: absolute; margin: 0; max-width: none; max-height: none; aspect-ratio: auto; }
+/* Zone de forme libre (9b) : chaque case à sa place ; une dalle absente en creux (bord seulement). */
+/* Options d'une zone (9b) : repliées sous un titre de 48 px au moins. */
+.options-zone { margin: 8px 0; border-top: 1px solid var(--bordure); }
+.options-zone > summary { display: flex; align-items: center; min-height: var(--cible); cursor: pointer; font-weight: 600; }
+.options-zone .compte-zone { align-self: center; color: var(--texte-doux); }
+.mur-carres-forme { display: block; }
+.mur-carres-forme > .mc { position: absolute; box-sizing: border-box; border: 0.5px solid var(--fond); }
+.mur-carres-forme > .mc.absente { background: transparent; border: 1px dashed var(--famille-bord); }
 
 /* Pastille « Pourquoi ? » : discrète, 32 px de haut à l'œil, zone de toucher de 48 px au moins (la pastille est dessinée
    par ::before derrière le texte) ; taille normale de bouton en grand affichage. */

@@ -2496,6 +2496,91 @@ export const NAVIGATEUR = [
       v.egal('vide entre B-C et B (x 610, y 1400) : gris hors mur', pixel(610, 1400), '141414');
     },
   },
+  {
+    id: 'N59',
+    titre: 'Écran « Forme de la zone » (étape 9b4) : grille vue de face, une case de 48 px au moins par dalle, défilant dans son cadre ; un appui retire ou remet une dalle ; en mode « Glisser », un glissé peint les cases traversées ; décalage d\'une colonne ; rangée de demi-dalles à part ; « Tout remettre » ; compte « n dalles sur m » ; Retour et Échap ferment',
+    etape: '9b',
+    async verifier(v) {
+      const forme = await moduleAppli(v, '../src/ecran-forme.js');
+      if (!forme) return;
+      const retirer = await chargerStylesLook();
+      let recu = null;
+      let ferme = false;
+      const zone = { nom: 'B', colonnes: 6, rangees: 3, rangeeDemi: true, positionDemi: 'bas' };
+      const ecran = forme.ouvrirForme({ zone, surChange: (z) => { recu = z; }, surFermer: () => { ferme = true; } });
+      try {
+        v.egal('écran plein ouvert, titre', [ecran.hidden, ecran.querySelector('h2')?.textContent], [false, 'Forme de B']);
+        const cases = () => [...ecran.querySelectorAll('.case-forme')];
+        v.egal('une case par place : 6 × 3 et 6 demi-dalles', [cases().length, ecran.querySelectorAll('.case-forme[data-type="demi"]').length], [24, 6]);
+        const taille = cases()[0].getBoundingClientRect();
+        v.vrai('cases de 48 px au moins', taille.width >= 47.5 && taille.height >= 47.5);
+        v.egal('la grille défile dans son cadre', getComputedStyle(ecran.querySelector('.grille-forme-cadre')).overflowX, 'auto');
+        const compte = () => ecran.querySelector('.compte-forme').textContent;
+        v.egal('compte de départ', compte(), '24 dalles sur 24');
+        const c2r1 = ecran.querySelector('.case-forme[data-colonne="2"][data-rangee="1"]');
+        c2r1.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }));
+        c2r1.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+        v.egal('appui : C2 R1 absente', [recu?.absentes, compte(), ecran.querySelector('.case-forme[data-colonne="2"][data-rangee="1"]').getAttribute('aria-pressed')], [[[2, 1]], '23 dalles sur 24', 'false']);
+        ecran.querySelector('input[name="modeForme"][value="glisser"]').click();
+        v.egal('mode « Glisser » : la grille ne défile plus au doigt', getComputedStyle(ecran.querySelector('.grille-forme')).touchAction, 'none');
+        const a = ecran.querySelector('.case-forme[data-colonne="4"][data-rangee="2"]');
+        a.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 2 }));
+        forme.peindreSur(ecran, ecran.querySelector('.case-forme[data-colonne="5"][data-rangee="2"]'));
+        a.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 2 }));
+        v.egal('glissé : C4 R2 et C5 R2 absentes', recu?.absentes, [[2, 1], [4, 2], [5, 2]]);
+        ecran.querySelector('.entete-colonne[data-colonne="3"]').click();
+        const decalage = ecran.querySelector('input[name="decalageColonne"]');
+        v.vrai('décalage de la colonne 3 proposé', Boolean(decalage) && /colonne 3/.test(decalage.closest('label')?.textContent ?? ''));
+        decalage.value = '250';
+        decalage.dispatchEvent(new Event('input', { bubbles: true }));
+        v.egal('décalage gardé', recu?.decalagesMm, [0, 0, 250]);
+        ecran.querySelector('[data-action="remettre"]').click();
+        v.egal('tout remettre', ['absentes' in recu, 'decalagesMm' in recu, compte()], [false, false, '24 dalles sur 24']);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        v.egal('Échap ferme', [ferme, ecran.isConnected], [true, false]);
+        const autre = forme.ouvrirForme({ zone, surChange: () => {}, surFermer: () => { ferme = 'retour'; } });
+        autre.querySelector('[data-action="fermer"]').click();
+        v.egal('Retour ferme', [ferme, autre.isConnected], ['retour', false]);
+      } finally {
+        ecran.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N60',
+    titre: 'Formes libres (étape 9b6) : Schéma, export PNG et mire d\'un mur avec une porte (dalles absentes) et d\'un mur mixte : dalles absentes en pointillés dans le Schéma, en noir dans l\'export, au gris « hors mur » dans la mire ; chaque dalle d\'un mur mixte à sa taille',
+    etape: '9b',
+    async verifier(v, contexte) {
+      const mire = await moduleAppli(v, '../src/mire.js');
+      if (!mire) return;
+      const porte = [5, 6].flatMap((c) => [2, 3, 4, 5].map((r) => [c, r]));
+      const m = calculs.murZones(DALLE_CAS_13, [{ nom: 'MUR', colonnes: 10, rangees: 5, absentes: porte }]);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), { frequenceHz: 60, bits: 8, departCablage: 'bas-gauche' });
+      const data = calculs.cablageData(m, DALLE_CAS_13, e, { depart: 'bas-gauche' });
+      const variante = data.variantes.find((x) => x.mode === data.conseil);
+      const vue = { vue: 'physique', canvasVue: 'mur', cablage: 'data' };
+      const geo = geometrieSchema(vue, m, DALLE_CAS_13, calculs.pixelMap(m, DALLE_CAS_13, e));
+      const { svg } = construireSvg({ geo, trajets: trajetsSchema(vue, variante, null, null), coin: 'bas-gauche', blocs: [], palette: PALETTE_EXPORT, largeurPx: 2000 });
+      v.egal('Schéma : 42 dalles, 8 dalles absentes en pointillés', [svg.querySelectorAll('[data-dalle]').length, svg.querySelectorAll('.dalle-absente').length], [42, 8]);
+      v.vrai('Schéma : pointillés', [...svg.querySelectorAll('.dalle-absente')].every((r) => r.getAttribute('stroke-dasharray')));
+      const pm = calculs.pixelMap(m, DALLE_CAS_13, e);
+      const canvas = pixelMapEnCanvas(pm.mur);
+      const ctx = canvas.getContext('2d');
+      const pixel = (c, x, y) => [...c.getContext('2d').getImageData(x, y, 1, 1).data].slice(0, 3).join(',');
+      v.egal('export : taille exacte, porte en noir, dalle allumée', [canvas.width, canvas.height, pixel(canvas, 864, 480), pixel(canvas, 96, 480) !== '0,0,0'], [1920, 960, '0,0,0', true]);
+      void ctx;
+      const mires = mire.preparerMires({ mur: m, dalle: DALLE_CAS_13, evaluation: e, variante, surfaceMax: 16777216 });
+      const plan = mires.mur.plan;
+      v.egal('mire : 42 dalles nommées', plan.dalles.length, 42);
+      const c = mire.dessinerMire(plan);
+      const hex = (x, y) => [...c.getContext('2d').getImageData(x, y, 1, 1).data].slice(0, 3).map((k) => k.toString(16).padStart(2, '0')).join('');
+      v.egal('mire : porte au gris hors mur', hex(864, 600), '141414');
+      const mixte = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 2, dalle: { id: 'f64', nom: 'Dalle 64 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 64, pxV: 64 } }], { ecarts: 'colles' });
+      const geoPx = geometrieSchema({ vue: 'pixels', canvasVue: 'mur', cablage: 'data' }, mixte, DALLE_CAS_13, calculs.pixelMap(mixte, DALLE_CAS_13, null));
+      v.egal('mur mixte, vue pixels : chaque dalle à sa taille', [geoPx.rects.get('A · C1 R1').w, geoPx.rects.get('B · C1 R1').w, geoPx.rects.get('B · C1 R1').x], [192, 64, 384]);
+    },
+  },
 ];
 
 // Contraste WCAG entre deux couleurs « #rrggbb ».

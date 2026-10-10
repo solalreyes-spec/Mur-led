@@ -14,7 +14,7 @@ import * as zones from '../src/zones.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
-  DALLE_CARTE_A10S, DALLE_CARTE_CA50E, DALLE_200, DALLE_120, DALLE_12,
+  DALLE_CARTE_A10S, DALLE_CARTE_CA50E, DALLE_200, DALLE_120, DALLE_12, DALLE_CAS_9_A, DALLE_CAS_9_B, DALLE_CAS_9_C,
   DALLE_100W_CHAINAGE, DALLE_APPEL, DALLE_SANS_PMAX, DALLE_MAX_METRES, DALLE_MAX_KILOS,
 } from './dalles-fictives.js';
 import { processeurDeBase, liaisonsDeBase, regieDeBase, dalleDeBase, bumperDeBase, baseProcesseurs } from './base.js';
@@ -4924,7 +4924,7 @@ export const REGLES = [
   },
   {
     id: 'R237',
-    titre: 'Zones (Z5) : découpage en rangées accepté quand toutes les zones ont les mêmes rangées et la même hauteur du bas ; refusé avec la raison sinon (étape 9b)',
+    titre: 'Zones (Z5, Z19) : découpage en rangées quand toutes les zones ont les mêmes rangées et la même hauteur du bas ; sinon, depuis l\'étape 9b, par une coupe horizontale qui ne traverse aucune dalle (avant la 9b : refus ; modifié avec l\'accord de l\'utilisateur du 10/10/2026)',
     etape: '9a',
     verifier(v, contexte) {
       const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
@@ -4937,8 +4937,9 @@ export const REGLES = [
       v.egal('rangées de départ des morceaux dans leur zone', e.groupes.map((g) => g.parties.map((p) => p.premiereRangee)), [[1, 1], [7, 7]]);
       const inegales = calculs.murZones(upad, [{ nom: 'A', colonnes: 2, rangees: 12 }, { nom: 'B', colonnes: 2, rangees: 10 }], { ecarts: 'main', ecartsPx: [84] });
       const r = calculs.evaluerProcesseur(inegales, upad, vx4s, NOVASTAR_60_8);
-      v.egal('hauteurs différentes : pas de processeur', r.nombre, null);
-      v.vrai('raison donnée, renvoi à l\'étape 9b', /zones de hauteurs différentes/.test(r.impossible ?? '') && /9b/.test(r.impossible ?? ''));
+      v.egal('hauteurs différentes : 2 VX4S en 2 rangées, coupés à Y 1152', [r.nombre, r.grille, r.groupes.map((g) => g.y)], [2, { colonnes: 1, rangees: 2 }, [[0, 1151], [1152, 2303]]]);
+      v.egal('morceaux et rangées de départ dans leur zone (B commence 2 dalles plus bas)', r.groupes.map((g) => g.parties.map((p) => `${p.nomAffiche} R${p.premiereRangee}`)),
+        [['A 1/2 R1', 'B 1/2 R1'], ['A 2/2 R7', 'B 2/2 R5']]);
     },
   },
   {
@@ -5206,6 +5207,563 @@ export const REGLES = [
       v.egal('canvas : dalles par processeur', pm.canvas.map((c) => c.dalles.length), [160, 160, 160]);
       v.egal('canvas 2 : B · C1 R1 à x 660, A-B · C1 R8 à x 3432, y 1344', [z(pm.canvas[1].dalles, 'B · C1 R1').x[0], z(pm.canvas[1].dalles, 'A-B · C1 R8').x[0], z(pm.canvas[1].dalles, 'A-B · C1 R8').y[0]], [660, 3432, 1344]);
       v.egal('canvas 2 : sa sortie dans la pixel map du mur', [pm.canvas[1].xMur, pm.canvas[1].bloc.largeurPx], [[3924, 7931], 4008]);
+    },
+  },
+  {
+    id: 'R250',
+    titre: 'Formes libres (9b1) : une zone sans dalle absente ni décalage donne exactement la zone de la 9a (mur, processeur, seuil)',
+    etape: '9b',
+    verifier(v, contexte) {
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const mctrl660 = processeurDeBase(contexte, 'novastar-mctrl660');
+      const zones9a = [{ nom: 'A', colonnes: 4, rangees: 8 }, { nom: 'B', colonnes: 4, rangees: 8 }];
+      const zones9b = zones9a.map((z) => ({ ...z, absentes: [], decalagesMm: [0, 0, 0, 0] }));
+      const a = calculs.murZones(upad, zones9a, { ecarts: 'main', ecartsPx: [84] });
+      const b = calculs.murZones(upad, zones9b, { ecarts: 'main', ecartsPx: [84] });
+      const champs = (m) => [m.dalles, m.pxLargeur, m.pxHauteur, m.pxTotal, m.pxCanvas, m.largeurMm, m.hauteurMm, m.zones.map((z) => [z.x, z.y, z.dalles, z.pxTotal])];
+      v.egal('mur identique', champs(b), champs(a));
+      const ea = calculs.evaluerProcesseur(a, upad, mctrl660, NOVASTAR_60_8);
+      const eb = calculs.evaluerProcesseur(b, upad, mctrl660, NOVASTAR_60_8);
+      const resume = (e) => [e.nombre, e.totaux.ports, e.global.colonnes.colonnesParPort, e.seuil.colonnesEnMoins, e.seuil.zonesEnMoins, e.controles.pixels.valeur];
+      v.egal('processeur, ports, colonnes par port, seuil, pixels', resume(eb), resume(ea));
+      const un = calculs.murZones(upad, [{ nom: 'A', colonnes: 4, rangees: 3, absentes: [] }]);
+      v.egal('une seule zone pleine : mode Dalles (Z3), noms « C1 R1 »', [un.pxTotal, calculs.dallesDuMur(un, upad)[0].id], [calculs.mur(upad, 4, 3).pxTotal, 'C1 R1']);
+    },
+  },
+  {
+    id: 'R251',
+    titre: 'Formes libres (9b1, Z13, Z16) : dalles absentes (rangée 1 en haut) ; pixel map inchangée, pixels utiles des dalles présentes, noms des dalles ; refus avec la raison',
+    etape: '9b',
+    verifier(v, contexte) {
+      const m = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 3, rangees: 2, absentes: [[2, 2]] }, { nom: 'B', colonnes: 2, rangees: 2 }], { ecarts: 'main', ecartsPx: [84] });
+      v.egal('dalles et pixels utiles', [m.dalles.total, m.zones[0].dalles, m.pxTotal], [9, 5, 9 * 36864]);
+      v.egal('pixel map avec le vide de la dalle absente', [m.pxLargeur, m.pxHauteur, m.pxCanvas], [3 * 192 + 84 + 2 * 192, 384, (5 * 192 + 84) * 384]);
+      const ids = calculs.dallesDuMur(m, DALLE_CAS_7).map((d) => d.id);
+      v.egal('dalles nommées, sans la dalle absente', [ids.length, ids.includes('A · C2 R1'), ids.includes('A · C2 R2'), ids.includes('A · C3 R2')], [9, true, false, true]);
+      const seule = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 3, rangees: 2, absentes: [[2, 2]] }]);
+      v.egal('une seule zone de forme libre : calcul des zones, noms sans la zone', [seule.dalles.total, calculs.dallesDuMur(seule, DALLE_CAS_7).map((d) => d.id)],
+        [5, ['C1 R1', 'C2 R1', 'C3 R1', 'C1 R2', 'C3 R2']]);
+      const essai = (zones) => messageErreur(() => calculs.murZones(DALLE_CAS_7, zones));
+      v.vrai('dalle absente hors de la grille', /A : la dalle C4 R1 est hors de la grille/.test(essai([{ nom: 'A', colonnes: 3, rangees: 2, absentes: [[4, 1]] }])));
+      v.vrai('zone sans aucune dalle', /A : toutes les dalles sont absentes/.test(essai([{ nom: 'A', colonnes: 1, rangees: 2, absentes: [[1, 1], [1, 2]] }])));
+      v.vrai('colonne vide au bord', /A : la colonne 3 n'a aucune dalle/.test(essai([{ nom: 'A', colonnes: 3, rangees: 1, absentes: [[3, 1]] }])));
+      v.egal('colonne vide à l\'intérieur : permise', essai([{ nom: 'A', colonnes: 3, rangees: 1, absentes: [[2, 1]] }]), '');
+      v.vrai('décalage négatif', /A : le décalage de la colonne 2/.test(essai([{ nom: 'A', colonnes: 3, rangees: 1, decalagesMm: [0, -10, 0] }])));
+    },
+  },
+  {
+    id: 'R252',
+    titre: 'Formes libres (9b1, Z21) : ports en colonnes entières de hauteurs différentes (le plus de colonnes qui tiennent) ; redondance en nombre pair ; colonne trouée plus haute qu\'un port en segments égaux de ses dalles présentes',
+    etape: '9b',
+    verifier(v, contexte) {
+      const porte = [5, 6].flatMap((c) => [2, 3, 4, 5].map((r) => [c, r]));
+      const m = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 10, rangees: 5, absentes: porte }]);
+      const mx40 = processeurDeBase(contexte, 'coex-mx40-pro');
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, mx40, NOVASTAR_60_8);
+      v.egal('colonnes par port variables (le plus grand nombre, et les groupes)', [e.global.colonnes.colonnesParPort, e.global.colonnes.variable, e.groupes[0].parties[0].ports.groupes],
+        [5, true, [[1, 3], [4, 8], [9, 10]]]);
+      const r = calculs.evaluerProcesseur(m, DALLE_CAS_7, mx40, { ...NOVASTAR_60_8, redondance: true });
+      v.egal('redondance : nombre pair de colonnes par port, 4 ports principaux, 8 en tout', [r.groupes[0].parties[0].ports.groupes, r.totaux.ports.redondance.colonnes],
+        [[[1, 2], [3, 6], [7, 8], [9, 10]], 8]);
+      const haute = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 1, rangees: 12, absentes: [[1, 5], [1, 6]] }]);
+      const s8 = calculs.evaluerProcesseur(haute, DALLE_CAS_7, processeurDeBase(contexte, 'brompton-s8'), { frequenceHz: 60, bits: 12 });
+      v.egal('S8 en 12 bits (9 par port) : 10 dalles présentes, 2 segments de 5', [s8.global.colonnes.segments, s8.totaux.ports.colonnes], [[5, 5], 2]);
+    },
+  },
+  {
+    id: 'R253',
+    titre: 'Formes libres (9b1, Z18, Z25) : pixels de l\'appareil comptés sur les dalles seulement, pour toutes les marques ; note de topologie libre des VX Pro (fiche V1.4.0) et note pour les marques sans règle publiée sur les vides ; seuil processeur avec des dalles absentes',
+    etape: '9b',
+    verifier(v, contexte) {
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const zones = [{ nom: 'A', colonnes: 4, rangees: 8 }, { nom: 'B', colonnes: 4, rangees: 8 }];
+      const m = calculs.murZones(upad, zones, { ecarts: 'main', ecartsPx: [200] });
+      const vx = calculs.evaluerProcesseur(m, upad, processeurDeBase(contexte, 'novastar-vx400-pro'), NOVASTAR_60_8);
+      v.egal('VX400 Pro : les dalles seulement (2 359 296 px, pas le rectangle de 1736 × 1536), un seul processeur',
+        [vx.controles.pixels.compte, vx.controles.pixels.valeur, vx.nombre], ['dalles', 64 * 36864, 1]);
+      v.vrai('VX400 Pro : note de topologie libre, avec sa fiche', vx.notes.some((n) => /topologie libre/.test(n) && /V1\.4\.0/.test(n)));
+      const plein = calculs.evaluerProcesseur(calculs.mur(upad, 8, 8), upad, processeurDeBase(contexte, 'novastar-vx400-pro'), NOVASTAR_60_8);
+      v.egal('VX400 Pro, mur plein sans vide : pas de note', plein.notes.some((n) => /topologie libre/.test(n)), false);
+      const mctrl4k = calculs.evaluerProcesseur(m, upad, processeurDeBase(contexte, 'novastar-mctrl4k'), NOVASTAR_60_8);
+      v.egal('MCTRL4K : les dalles seulement, sans note de topologie', [mctrl4k.controles.pixels.compte, mctrl4k.controles.pixels.valeur, mctrl4k.notes.some((n) => /topologie libre/.test(n))],
+        ['dalles', 64 * 36864, false]);
+      const coex = calculs.evaluerProcesseur(m, upad, processeurDeBase(contexte, 'coex-mx40-pro'), NOVASTAR_60_8);
+      v.egal('MX40 Pro : les dalles seulement, sans note', [coex.controles.pixels.compte, coex.notes.some((n) => /vides/.test(n))], ['dalles', false]);
+      // Dalle sans carte connue : la Upad IV a une carte Novastar, refusée par un Colorlight.
+      const fictif = calculs.murZones(DALLE_CAS_7, zones, { ecarts: 'main', ecartsPx: [200] });
+      const colorlight = calculs.evaluerProcesseur(fictif, DALLE_CAS_7, processeurDeBase(contexte, 'colorlight-s4'), NOVASTAR_60_8);
+      v.vrai('Colorlight : note « règle des vides non publiée »', colorlight.notes.some((n) => /règle des vides non publiée/.test(n)));
+
+      const mctrl660 = processeurDeBase(contexte, 'novastar-mctrl660');
+      const une = calculs.murZones(upad, [zones[0], { ...zones[1], absentes: [[1, 1]] }], { ecarts: 'main', ecartsPx: [84] });
+      const e1 = calculs.evaluerProcesseur(une, upad, mctrl660, NOVASTAR_60_8);
+      v.egal('63 dalles : 2 MCTRL660 ; une colonne de moins dans A ou dans B suffit', [e1.nombre, e1.seuil.colonnesEnMoins, e1.seuil.zonesEnMoins], [2, 1, ['A', 'B']]);
+      const deux = calculs.murZones(upad, [zones[0], { ...zones[1], absentes: [[1, 1], [2, 1]] }], { ecarts: 'main', ecartsPx: [84] });
+      v.egal('62 dalles (2 285 568 px) : un seul MCTRL660', calculs.evaluerProcesseur(deux, upad, mctrl660, NOVASTAR_60_8).nombre, 1);
+    },
+  },
+  {
+    id: 'R254',
+    titre: 'Formes libres (9b1, Z13) : décalage d\'une colonne (la zone grandit vers le haut) et rangée de demi-dalles par zone (sa propre fiche, numéro de rangée suivant) ; rectangle NovaLCT avec le décalage',
+    etape: '9b',
+    verifier(v, contexte) {
+      const zone = { nom: 'A', colonnes: 4, rangees: 3, rangeeDemi: true, positionDemi: 'bas', decalagesMm: [0, 600, 0, 0] };
+      const m = calculs.murZones(CB5, [zone], { demi: CB5_DEMI });
+      v.egal('dalles : 12 entières et 4 demi-dalles', m.dalles, { entieres: 12, demi: 4, total: 16 });
+      v.egal('hauteur : 3 × 1200 + 600 + 600 mm de décalage ; 3 × 208 + 104 + 104 px', [m.hauteurMm, m.pxHauteur], [4800, 832]);
+      const d = calculs.dallesDuMur(m, CB5);
+      const p = (id) => d.find((x) => x.id === id);
+      v.egal('C2 monte de 104 px ; la demi-dalle C1 R4, sa fiche et sa place', [p('C1 R1').px.y, p('C2 R1').px.y, p('C1 R4').type, p('C1 R4').fiche.id, p('C1 R4').px.y, p('C1 R4').px.hauteur],
+        [104, 0, 'demi', 'test-cb5-demi', 728, 104]);
+      const mctrl = calculs.evaluerProcesseur(m, CB5, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      v.egal('NovaLCT : un port, compté en rectangle de 4 × 104 × 832 px (décalage compris)', [mctrl.totaux.ports.colonnes, mctrl.groupes[0].chargeMax.px], [1, 4 * 104 * 832]);
+      const coex = calculs.evaluerProcesseur(m, CB5, processeurDeBase(contexte, 'coex-mx40-pro'), NOVASTAR_60_8);
+      v.egal('COEX : les dalles seulement (12 × 21 632 + 4 × 10 816 px)', coex.groupes[0].chargeMax.px, 12 * 21632 + 4 * 10816);
+      v.vrai('demi-dalles sans fiche : refus', /demi-dalle/.test(messageErreur(() => calculs.murZones(CB5, [zone]))));
+    },
+  },
+  {
+    id: 'R261',
+    titre: 'Formes libres (9b1, Z22) : une fenêtre (dalles absentes au milieu d\'une colonne) garde sa chaîne ; le saut est signalé avec sa hauteur',
+    etape: '9b',
+    verifier(v, contexte) {
+      const m = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 3, rangees: 5, absentes: [[2, 2], [2, 3]] }]);
+      v.egal('saut dans la colonne 2, entre R1 et R4', m.sauts, [{ zone: 'A', colonne: 2, entre: [1, 4], dalles: 2, mm: 1000 }]);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      v.vrai('alerte dans Data', e.alertes.some((a) => /Colonne C2 : saut de 1(,0)? m \(2 dalles absentes\) entre R1 et R4/.test(a)));
+      const deux = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 2, rangees: 3 }, { nom: 'B', colonnes: 2, rangees: 3, absentes: [[1, 2]] }], { ecarts: 'colles' });
+      v.egal('en zones, la zone est nommée', calculs.evaluerProcesseur(deux, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8)
+        .alertes.some((a) => /Colonne B · C1 : saut de 0,5 m \(1 dalle absente\) entre R1 et R3/.test(a)), true);
+    },
+  },
+  {
+    id: 'R255',
+    titre: 'Formes libres (9b2, Z14) : zone placée au-dessus, en dessous (alignée à gauche, au centre ou à droite, avec un décalage) ou librement ; positions en chaîne dans la pixel map ; refus des références inconnues, des boucles et des chevauchements sur le mur ; zones superposées à la main dans la pixel map : copie, avec une alerte',
+    etape: '9b',
+    verifier(v, contexte) {
+      const zone = (nom, colonnes, rangees, placement) => ({ nom, colonnes, rangees, ...(placement ? { placement } : {}) });
+      const dessous = calculs.murZones(DALLE_CAS_7, [zone('A', 4, 2), zone('B', 2, 1, { type: 'dessous', zone: 'A', alignement: 'droite', ecartMm: 500 })]);
+      v.egal('B sous A, calé à droite, 500 mm plus bas', [dessous.zones.map((z) => [z.x, z.y]), dessous.pxLargeur, dessous.pxHauteur, dessous.largeurMm, dessous.hauteurMm],
+        [[[0, 0], [384, 576]], 768, 768, 2000, 2000]);
+      const centre = calculs.murZones(DALLE_CAS_7, [zone('A', 4, 2), zone('B', 2, 1, { type: 'dessus', zone: 'A', alignement: 'centre', decalageMm: 250 })]);
+      v.egal('B sur A, centré puis décalé de 250 mm', centre.zones.map((z) => [z.x, z.y]), [[0, 192], [288, 0]]);
+      const libre = calculs.murZones(DALLE_CAS_7, [zone('A', 2, 1), zone('B', 1, 1, { type: 'libre', xMm: 2000, basMm: 1500 })]);
+      v.egal('B libre, 2 m à droite et 1,5 m plus haut', [libre.zones.map((z) => [z.x, z.y]), libre.pxLargeur, libre.pxHauteur], [[[0, 576], [768, 0]], 960, 768]);
+      const essai = (zones) => messageErreur(() => calculs.murZones(DALLE_CAS_7, zones));
+      v.vrai('référence inconnue', /B : la zone « Z » n'existe pas/.test(essai([zone('A', 1, 1), zone('B', 1, 1, { type: 'dessus', zone: 'Z' })])));
+      v.vrai('par rapport à elle-même', /B : une zone ne se place pas par rapport à elle-même/.test(essai([zone('A', 1, 1), zone('B', 1, 1, { type: 'dessus', zone: 'B' })])));
+      v.vrai('boucle', /placements en boucle/.test(essai([zone('A', 1, 1, { type: 'dessus', zone: 'B' }), zone('B', 1, 1, { type: 'dessus', zone: 'A' })])));
+      v.vrai('chevauchement sur le mur', /A et B se chevauchent sur le mur/.test(essai([zone('A', 2, 2), zone('B', 1, 1, { type: 'libre', xMm: 500, basMm: 0 })])));
+      v.vrai('écart négatif', /B : l'écart avec la zone de référence/.test(essai([zone('A', 1, 1), zone('B', 1, 1, { type: 'dessus', zone: 'A', ecartMm: -1 })])));
+      const copie = calculs.murZones(DALLE_CAS_7, [zone('A', 2, 1), zone('B', 2, 1, { type: 'dessous', zone: 'A' })], { ecarts: 'main', ecartsPx: [], yPx: [0, 0], xPx: [null, 0] });
+      v.egal('à la main, B posé sur A dans la pixel map : copie', [copie.zones.map((z) => [z.x, z.y]), copie.superposees], [[[0, 0], [0, 0]], [['A', 'B']]]);
+      const e = calculs.evaluerProcesseur(copie, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      v.vrai('alerte de copie dans Data', e.alertes.some((a) => /A et B superposées dans la pixel map : elles affichent la même image/.test(a)));
+    },
+  },
+  {
+    id: 'R256',
+    titre: 'Formes libres (9b2, Z19) : lignes de coupe, verticales et horizontales, qui ne traversent aucune dalle (une zone décalée d\'une demi-dalle empêche toute coupe verticale à travers elle)',
+    etape: '9b',
+    verifier(v, contexte) {
+      const alignees = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 4, rangees: 1 }, { nom: 'B', colonnes: 4, rangees: 1, placement: { type: 'dessous', zone: 'A' } }]);
+      v.egal('alignées : une coupe à chaque colonne, une entre les deux zones', calculs.lignesDeCoupe(alignees, DALLE_CAS_7), { x: [0, 192, 384, 576, 768], y: [0, 192, 384] });
+      const decalees = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 4, rangees: 1 }, { nom: 'B', colonnes: 4, rangees: 1, placement: { type: 'dessous', zone: 'A', decalageMm: 250 } }]);
+      v.egal('B décalée d\'une demi-dalle : aucune coupe verticale à travers les deux', calculs.lignesDeCoupe(decalees, DALLE_CAS_7), { x: [0, 864], y: [0, 192, 384] });
+    },
+  },
+  {
+    id: 'R257',
+    titre: 'Formes libres (9b2, Z20) : variantes « zones entières » (aucune zone coupée, sauf une zone trop grande, le moins de processeurs puis les groupes les plus égaux) et « un processeur par zone » ; variante retenue suivie par le calcul, sans seuil',
+    etape: '9b',
+    verifier(v, contexte) {
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const mctrl660 = processeurDeBase(contexte, 'novastar-mctrl660');
+      const zones = [{ nom: 'A', colonnes: 2, rangees: 4 }, { nom: 'B', colonnes: 6, rangees: 8 }, { nom: 'C', colonnes: 2, rangees: 4 }];
+      const m = calculs.murZones(upad, zones, { ecarts: 'main', ecartsPx: [84, 84] });
+      const e = calculs.evaluerProcesseur(m, upad, mctrl660, NOVASTAR_60_8);
+      const noms = (groupes) => groupes.map((g) => g.parties.map((p) => p.nomAffiche));
+      v.egal('conseil : 2 MCTRL660, B coupée', [e.nombre, noms(e.groupes)], [2, [['A', 'B 1/2'], ['B 2/2', 'C']]]);
+      v.egal('zones entières : A et B ensemble, C seule (B ne tient pas avec A et C)', [e.variantes.zonesEntieres.nombre, noms(e.variantes.zonesEntieres.groupes)], [2, [['A', 'B'], ['C']]]);
+      v.egal('un processeur par zone : 3', [e.variantes.unParZone.nombre, noms(e.variantes.unParZone.groupes)], [3, [['A'], ['B'], ['C']]]);
+      const retenue = calculs.evaluerProcesseur(m, upad, mctrl660, { ...NOVASTAR_60_8, decoupage: 'unParZone' });
+      v.egal('variante retenue : 3 processeurs, sans seuil', [retenue.nombre, noms(retenue.groupes), retenue.seuil.colonnesEnMoins], [3, [['A'], ['B'], ['C']], null]);
+      const grande = calculs.murZones(upad, [{ nom: 'A', colonnes: 2, rangees: 4 }, { nom: 'B', colonnes: 12, rangees: 8 }], { ecarts: 'main', ecartsPx: [84] });
+      const g = calculs.evaluerProcesseur(grande, upad, mctrl660, NOVASTAR_60_8);
+      v.egal('zone trop grande pour un processeur : coupée seule', noms(g.variantes.zonesEntieres.groupes), [['A'], ['B 1/2'], ['B 2/2']]);
+    },
+  },
+  {
+    id: 'R258',
+    titre: 'Mur mixte (9b3, Z15) : une dalle par zone ; pas de référence le plus fin du mur pour les écarts et les positions ; pixels de chaque zone lus sur sa propre fiche (1:1)',
+    etape: '9b',
+    verifier(v, contexte) {
+      const m = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 2, rangees: 1 }, { nom: 'B', colonnes: 2, rangees: 1, dalle: DALLE_CAS_9_B, ecartMm: 500 }]);
+      v.egal('mur mixte, fiche de B', [m.mixte, m.zones[1].dalle.id], [true, 'fictive-cas-9-b']);
+      v.egal('pas de référence : 500 ÷ 192 mm (le plus fin)', [m.pas.mm, m.pas.verticalMm], [500 / 192, 500 / 192]);
+      v.egal('écart de 500 mm = 192 px ; B sur sa fiche (2 × 64 px)', [m.zones.map((z) => [z.x, z.y, z.pxLargeur, z.pxHauteur]), m.pxLargeur, m.pxHauteur],
+        [[[0, 0, 384, 192], [576, 0, 128, 64]], 704, 192]);
+      v.egal('pixels utiles', m.pxTotal, 2 * 36864 + 2 * 4096);
+      const ids = calculs.dallesDuMur(m, DALLE_CAS_7);
+      v.egal('dalles du mur avec leur fiche', ids.map((d) => [d.id, d.fiche.id, d.px.largeur]), [['A · C1 R1', 'fictive-cas-7', 192], ['A · C2 R1', 'fictive-cas-7', 192], ['B · C1 R1', 'fictive-cas-9-b', 64], ['B · C2 R1', 'fictive-cas-9-b', 64]]);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'brompton-s8'), BROMPTON_60_10);
+      v.egal('pixels comptés par dalle, zone par zone', e.pixelsParDalle, [{ zone: 'A', px: 36864 }, { zone: 'B', px: 4096 }]);
+    },
+  },
+  {
+    id: 'R259',
+    titre: 'Mur mixte (9b3, Z17) : mapping interpolé sur Tessera M2 et T1 (chaque dalle compte sa taille ÷ le pitch le plus fin, dans le canvas et la charge des ports), 1:1 au choix ; SX40 et S8 toujours en 1:1 (cas 9 du cahier des charges dans un vrai mur)',
+    etape: '9b',
+    verifier(v, contexte) {
+      const m = calculs.murZones(DALLE_CAS_9_A, [{ nom: 'A', colonnes: 1, rangees: 1 }, { nom: 'B', colonnes: 1, rangees: 1, dalle: DALLE_CAS_9_B },
+        { nom: 'C', colonnes: 1, rangees: 1, dalle: DALLE_CAS_9_C }], { ecarts: 'colles' });
+      const px = (e) => e.pixelsParDalle.map((x) => x.px);
+      const m2 = calculs.evaluerProcesseur(m, DALLE_CAS_9_A, processeurDeBase(contexte, 'brompton-m2'), BROMPTON_60_10);
+      v.egal('M2 : interpolé, 10 000, 10 000 et 20 000 px ; canvas de 400 × 100 px', [m2.mapping, px(m2), m2.mur.pxLargeur, m2.mur.pxHauteur], ['interpole', [10000, 10000, 20000], 400, 100]);
+      const un = calculs.evaluerProcesseur(m, DALLE_CAS_9_A, processeurDeBase(contexte, 'brompton-m2'), { ...BROMPTON_60_10, mapping: '1:1' });
+      v.egal('M2 en 1:1 au choix : 10 000, 4096 et 2048 px ; canvas de 228 × 100 px', [un.mapping, px(un), un.mur.pxLargeur], ['1:1', [10000, 4096, 2048], 228]);
+      const t1 = calculs.evaluerProcesseur(m, DALLE_CAS_9_A, processeurDeBase(contexte, 'brompton-t1'), BROMPTON_60_10);
+      v.egal('T1 : interpolé', [t1.mapping, px(t1)], ['interpole', [10000, 10000, 20000]]);
+      const s8 = calculs.evaluerProcesseur(m, DALLE_CAS_9_A, processeurDeBase(contexte, 'brompton-s8'), BROMPTON_60_10);
+      v.egal('S8 : toujours en 1:1', [s8.mapping, px(s8)], ['1:1', [10000, 4096, 2048]]);
+      const sx40 = calculs.evaluerProcesseur(m, DALLE_CAS_9_A, processeurDeBase(contexte, 'brompton-sx40'), BROMPTON_60_10);
+      v.egal('SX40 : 1:1, la dalle C comptée 64 × 64 px (minimum du SX40)', [sx40.mapping, px(sx40)], ['1:1', [10000, 4096, 4096]]);
+    },
+  },
+  {
+    id: 'R260',
+    titre: 'Mur mixte (9b3, Z23) : la règle de marque des cartes vaut pour chaque dalle ; NovaLCT : un screen et un fichier de carte par dalle ; VMP : dalles de tailles différentes avec le même modèle de carte (mode hors ligne)',
+    etape: '9b',
+    verifier(v, contexte) {
+      const deux = (dalleB) => calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 2, dalle: dalleB }], { ecarts: 'colles' });
+      const s8 = calculs.evaluerProcesseur(deux(DALLE_CARTE_A10S), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-s8'), BROMPTON_60_10);
+      v.vrai('S8 avec une zone à carte Novastar : refus avec la raison', s8.nombre === null && /cartes de réception Brompton/.test(s8.impossible ?? '') && /Novastar/.test(s8.impossible ?? ''));
+      const mctrl = calculs.evaluerProcesseur(deux(DALLE_CAS_9_B), DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl4k'), NOVASTAR_60_8);
+      v.vrai('NovaLCT : un screen et un fichier de carte par dalle', mctrl.notes.some((n) => /un screen NovaLCT par dalle/.test(n) && /RCFG/.test(n)));
+      const a8s = { ...DALLE_CAS_9_B, id: 'fictive-cas-9-b-a8s', nom: 'Dalle B à carte A8s Pro', carteReceptionMarque: 'Novastar', carteReceptionModele: 'A8s Pro' };
+      const m = calculs.murZones(DALLE_CARTE_A10S, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 2, dalle: a8s }], { ecarts: 'colles' });
+      const coex = calculs.evaluerProcesseur(m, DALLE_CARTE_A10S, processeurDeBase(contexte, 'coex-mx40-pro'), NOVASTAR_60_8);
+      v.vrai('VMP : alerte, cartes de modèles différents', coex.alertes.some((a) => /même modèle de carte de réception/.test(a) && /hors ligne/.test(a) && /A10s/.test(a) && /A8s Pro/.test(a)));
+      const meme = calculs.evaluerProcesseur(calculs.murZones(DALLE_CARTE_A10S, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 2, dalle: { ...a8s, carteReceptionModele: 'A10s' } }], { ecarts: 'colles' }),
+        DALLE_CARTE_A10S, processeurDeBase(contexte, 'coex-mx40-pro'), NOVASTAR_60_8);
+      v.egal('VMP, même modèle de carte : pas d\'alerte', meme.alertes.some((a) => /même modèle de carte de réception/.test(a)), false);
+    },
+  },
+  {
+    id: 'R264',
+    titre: 'Formes libres (9b4, § 6.5) : textes copiés ; Mur : dalle de chaque zone d\'un mur mixte, « 42 dalles sur 50 » d\'une zone de forme libre, placement d\'une zone empilée ; Data : mapping, variante de découpage retenue, variantes ; un mur de la 9a garde ses lignes',
+    etape: '9b',
+    verifier(v, contexte) {
+      const ez = dalleDeBase(contexte, 'infiled-ez2-6-mk2');
+      const ar = dalleDeBase(contexte, 'infiled-ar3-9');
+      const porte = [5, 6].flatMap((c) => [2, 3, 4, 5].map((r) => [c, r]));
+      const m = calculs.murZones(ez, [{ nom: 'MUR', colonnes: 10, rangees: 5, absentes: porte }, { nom: 'BANDEAU', colonnes: 12, rangees: 1, dalle: ar, placement: { type: 'dessous', zone: 'MUR', alignement: 'centre', ecartMm: 500 } }]);
+      const mur = resumes.resumeMur({ dalle: ez, mur: m }).split('\n');
+      v.vrai('Mur : zone de forme libre, 42 dalles sur 50', mur.some((l) => l.startsWith('Zone MUR : ') && l.includes('42 dalles sur 50')));
+      v.vrai('Mur : dalle propre à une zone', mur.some((l) => l.startsWith('Zone BANDEAU : ') && l.includes(`dalle ${ar.nom}`)));
+      v.vrai('Mur : placement d\'une zone empilée', mur.some((l) => l.startsWith('Zone BANDEAU : ') && l.includes('sous MUR, centrée, 500 mm plus bas')));
+      v.vrai('Mur : zones de toutes positions, plus « de gauche à droite »', mur.includes('Zones : 2'));
+      const mx40 = processeurDeBase(contexte, 'coex-mx40-pro');
+      const e = calculs.evaluerProcesseur(m, ez, mx40, { ...NOVASTAR_60_8, decoupage: 'unParZone' });
+      const data = resumes.resumeData(e, {}).split('\n');
+      v.vrai('Data : variante retenue', data.includes('Découpage : un processeur par zone (variante retenue), 2 × MX40 Pro'));
+      v.vrai('Data : variantes', data.includes('Variantes : zones entières, 1 × MX40 Pro ; un processeur par zone, 2 × MX40 Pro'));
+      const bloc = data.find((l) => l.startsWith('MX40 Pro n° 2 : '));
+      v.vrai('Data : bloc d\'un découpage hors colonnes du mur, nommé par ses morceaux', /^MX40 Pro n° 2 : BANDEAU \(/.test(bloc ?? ''));
+      const m2 = calculs.evaluerProcesseur(calculs.murZones(DALLE_CAS_9_A, [{ nom: 'A', colonnes: 1, rangees: 1 }, { nom: 'C', colonnes: 1, rangees: 1, dalle: DALLE_CAS_9_C }], { ecarts: 'colles' }),
+        DALLE_CAS_9_A, processeurDeBase(contexte, 'brompton-m2'), BROMPTON_60_10);
+      v.vrai('Data : mapping interpolé et pixels comptés par zone', resumes.resumeData(m2, {}).split('\n').some((l) => /^Mapping : interpolé, pitch le plus fin 5 mm ; pixels comptés par dalle : A 10.000, C 20.000$/.test(l)));
+    },
+  },
+  {
+    id: 'R265',
+    titre: 'Formes libres (9b4) : liste des zones (src/zones.js, fonctions pures) : champs de la 9b gardés et relus ; une saisie de la 9a relue et rendue telle quelle ; dalle d\'une zone par son identifiant ; placement, renommage et retrait qui suivent les références ; forme au doigt (basculer, peindre, décaler, tout remettre, compte)',
+    etape: '9b',
+    verifier(v) {
+      const neuf = {
+        zones: [{ nom: 'A', colonnes: 3, rangees: 2, ecartMm: 0, basMm: 0, absentes: [[2, 2]], decalagesMm: [0, 250, 0], rangeeDemi: true, positionDemi: 'haut' },
+          { nom: 'B', colonnes: 2, rangees: 1, ecartMm: 0, basMm: 0, dalleId: 'roe-cb8', placement: { type: 'dessous', zone: 'A', alignement: 'centre' } }],
+        ecarts: 'main', ecartsPx: [], yPx: [0, 0], xPx: [null, 10],
+      };
+      const relu = zones.lireSaisieZones(zones.ecrireSaisieZones(neuf));
+      v.egal('champs de la 9b gardés et relus', relu, neuf);
+      const ancien = zones.lireSaisieZones(JSON.stringify({ zones: [{ nom: 'A', colonnes: 2, rangees: 2 }], ecarts: 'reel' }));
+      v.egal('saisie de la 9a : aucun champ de plus', ancien, { zones: [{ nom: 'A', colonnes: 2, rangees: 2, ecartMm: 0, basMm: 0 }], ecarts: 'reel', ecartsPx: [], yPx: null });
+      const cb8 = { id: 'roe-cb8', nom: 'CB8', largeurMm: 600, hauteurMm: 1200, pxH: 72, pxV: 144, demiDalle: 'roe-cb8-demi' };
+      const cb8demi = { id: 'roe-cb8-demi', nom: 'CB8 demi', largeurMm: 600, hauteurMm: 600, pxH: 72, pxV: 72 };
+      const fiches = new Map([[cb8.id, cb8], [cb8demi.id, cb8demi]]);
+      const [z, options] = zones.argumentsMurZones({ ...neuf, zones: [neuf.zones[0], { ...neuf.zones[1], rangeeDemi: true }] }, { fiches, demi: cb8demi });
+      v.egal('dalle d\'une zone par son identifiant, sa demi-dalle avec elle', [z[1].dalle, z[1].demi, 'dalleId' in z[1]], [cb8, cb8demi, false]);
+      v.egal('demi-dalle du mur et X à la main dans les options', [options.demi, options.xPx], [cb8demi, [null, 10]]);
+      const ancienArgs = zones.argumentsMurZones(ancien, { fiches, demi: cb8demi });
+      v.egal('arguments d\'une saisie de la 9a : inchangés', ancienArgs, [[{ nom: 'A', colonnes: 2, rangees: 2, ecartMm: 0, basMm: 0 }], { ecarts: 'reel', ecartsPx: [], yPx: null }]);
+      const renomme = zones.renommerZone(neuf, 0, 'MUR');
+      v.egal('renommer : la référence suit', [renomme.zones[0].nom, renomme.zones[1].placement.zone], ['MUR', 'MUR']);
+      const retire = zones.retirerZone(neuf, 0);
+      v.egal('retirer la référence : la zone repasse « à droite »', 'placement' in retire.zones[0], false);
+      v.egal('ajouter : copie sans placement', 'placement' in zones.ajouterZone(neuf).zones[2], false);
+      const place = zones.placerZone(neuf, 1, { type: 'droite' });
+      v.egal('placer « à droite » : plus de placement', 'placement' in place.zones[1], false);
+      const bascule = zones.basculerDalle(neuf, 0, 1, 1);
+      v.egal('basculer : C1 R1 absente, triée', bascule.zones[0].absentes, [[1, 1], [2, 2]]);
+      v.egal('basculer encore : remise', zones.basculerDalle(bascule, 0, 1, 1).zones[0].absentes, [[2, 2]]);
+      v.egal('peindre : toutes absentes, sans doublon', zones.peindreDalles(neuf, 0, [[2, 2], [3, 1]], true).zones[0].absentes, [[2, 2], [3, 1]]);
+      v.egal('peindre : remettre', zones.peindreDalles(neuf, 0, [[2, 2]], false).zones[0].absentes, []);
+      v.egal('décaler la colonne 3', zones.decalerColonne(neuf, 0, 3, 500).zones[0].decalagesMm, [0, 250, 500]);
+      const remise = zones.remettreForme(neuf, 0).zones[0];
+      v.egal('tout remettre : ni absentes ni décalages', ['absentes' in remise, 'decalagesMm' in remise], [false, false]);
+      v.egal('compte : 9 places (3 × 2 et la rangée de demi-dalles), 8 dalles', zones.compteForme(neuf.zones[0]), { dalles: 8, places: 9 });
+      v.egal('choisir une dalle, puis revenir à celle du mur', ['dalleId' in zones.choisirDalle(neuf, 0, 'x').zones[0], 'dalleId' in zones.choisirDalle(neuf, 1, null).zones[1]], [true, false]);
+    },
+  },
+  {
+    id: 'R262',
+    titre: 'Formes libres (9b5, Z26, Z27) : Élec et Poids ; chaque dalle à sa P max et à son poids (mur mixte) ; lignes en colonnes entières de hauteurs réelles (forme libre) ; colonnes pesées une à une, bumpers sur leurs colonnes ; zone « accrochée sous » une autre : son poids sur les colonnes du dessus, alerte si les dalles diffèrent',
+    etape: '9b',
+    verifier(v) {
+      const elec = { tensionV: 220, marge: 0.8, departA: 16, arrivee: { type: 'mono', intensiteA: 32 } };
+      const mixte = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 1, dalle: CB5 }], { ecarts: 'colles' });
+      const e = calculs.electricite(mixte, DALLE_CAS_13, elec);
+      v.egal('mur mixte : une ligne par zone, chacune à la P max de sa dalle', [e.zones.map((z) => [z.nom, z.lignes, z.puissanceW]), e.puissanceTotaleW], [[['A', 1, 1040], ['B', 1, 960]], 2000]);
+      const porte = [5, 6].flatMap((c) => [2, 3, 4, 5].map((r) => [c, r]));
+      const forme = calculs.murZones(DALLE_CAS_13, [{ nom: 'MUR', colonnes: 10, rangees: 5, absentes: porte }]);
+      const f = calculs.electricite(forme, DALLE_CAS_13, elec);
+      v.egal('forme libre : 2 lignes de 21 dalles (colonnes 1 à 5, puis 6 à 10), 3 pour le mur plein',
+        [f.lignes.colonnes.nombre, f.lignes.colonnes.lignes.map((l) => l.dalles), f.puissanceTotaleW, calculs.electricite(calculs.mur(DALLE_CAS_13, 10, 5), DALLE_CAS_13, elec).lignes.colonnes.nombre],
+        [2, [21, 21], 5460, 3]);
+      const p = calculs.poids(forme, DALLE_CAS_13, { mode: 'accroche', bumper: { poidsKg: 10, colonnes: 2 } });
+      v.egal('forme libre : colonnes pesées une à une', p.colonnes.map((c) => c.kg), [37.5, 37.5, 37.5, 37.5, 7.5, 7.5, 37.5, 37.5, 37.5, 37.5]);
+      v.egal('forme libre : bumpers sur leurs colonnes', p.bumpers.map((b) => b.kg), [85, 85, 25, 85, 85]);
+      v.egal('mur mixte : chaque dalle à son poids', calculs.poids(mixte, DALLE_CAS_13, { mode: 'stack' }).dallesKg, 87.2);
+      const sous = (dalle, accrocheeSous) => calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 2 },
+        { nom: 'B', colonnes: 2, rangees: 1, ...(dalle ? { dalle } : {}), placement: { type: 'dessous', zone: 'A', accrocheeSous } }]);
+      const libre = calculs.poids(sous(null, false), DALLE_CAS_13, { mode: 'accroche' });
+      v.egal('bandeau sur sa propre structure : chaque zone ses points', [libre.zones[0].points.points.map((x) => x.kg), libre.zones[1].points.points.map((x) => x.kg)], [[15, 15, 15, 15], [7.5, 7.5]]);
+      const accroche = calculs.poids(sous(null, true), DALLE_CAS_13, { mode: 'accroche' });
+      v.egal('accrochée sous A : poids sur les colonnes de A, B sans point', [accroche.zones[0].points.points.map((x) => x.kg), accroche.zones[1].points], [[22.5, 22.5, 15, 15], null]);
+      v.egal('accrochée sous A : dalles par colonne de A comptées ensemble', accroche.zones[0].colonnes.map((c) => c.dalles), [3, 3, 2, 2]);
+      const differente = calculs.poids(sous(CB5, true), DALLE_CAS_13, { mode: 'accroche' });
+      v.egal('dalle différente accrochée sous A : sur les colonnes au-dessus de ses colonnes', differente.zones[0].points.points.map((x) => x.kg), [28.6, 28.6, 15, 15]);
+      v.vrai('alerte : dalles différentes accrochées l\'une sous l\'autre', differente.alertes.some((a) => /dalles différentes accrochées l.une sous l.autre/.test(a)));
+    },
+  },
+  {
+    id: 'R266',
+    titre: 'Formes libres (9b6) : Schéma de câblage ; data et élec des formes libres, des zones empilées et des murs mixtes : mêmes ports et lignes que Data et Élec, chaque dalle présente une seule fois, aucune dalle absente ; charge de chaque port à la dalle de sa zone (interpolée sur M2) ; canvas de chaque processeur d\'un découpage par zones',
+    etape: '9b',
+    verifier(v, contexte) {
+      const porte = [5, 6].flatMap((c) => [2, 3, 4, 5].map((r) => [c, r]));
+      const f1 = calculs.murZones(DALLE_CAS_7, [{ nom: 'MUR', colonnes: 10, rangees: 5, absentes: porte }]);
+      const e1 = calculs.evaluerProcesseur(f1, DALLE_CAS_7, processeurDeBase(contexte, 'coex-mx40-pro'), { ...NOVASTAR_60_8, departCablage: 'bas-gauche' });
+      const d1 = calculs.cablageData(f1, DALLE_CAS_7, e1, { depart: 'bas-gauche' });
+      const conseil = (d) => d.variantes.find((x) => x.mode === d.conseil);
+      const ports1 = conseil(d1).processeurs.flatMap((p) => p.ports);
+      const ids1 = ports1.flatMap((p) => p.dalles);
+      v.egal('porte : 3 ports de 15, 17 et 10 dalles, comme Data', ports1.map((p) => p.dalles.length), [15, 17, 10]);
+      v.egal('porte : chaque dalle présente une seule fois, aucune absente', [ids1.length, new Set(ids1).size, ids1.includes('C5 R2')], [42, 42, false]);
+      v.vrai('porte : le port 2 passe par le haut de la porte', ['C5 R1', 'C6 R1'].every((id) => ports1[1].dalles.includes(id)));
+      v.vrai('porte : toutes les variantes sans dalle absente', d1.variantes.every((x) => x.processeurs.flatMap((p) => p.ports).flatMap((p) => p.dalles).every((id) => !porte.some(([c, r]) => id === `C${c} R${r}`))));
+      const mixte = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 2, dalle: DALLE_CAS_9_B }], { ecarts: 'colles' });
+      const e2 = calculs.evaluerProcesseur(mixte, DALLE_CAS_7, processeurDeBase(contexte, 'brompton-s8'), BROMPTON_60_10);
+      v.egal('mur mixte : un port par zone, chacun à la charge de sa dalle', conseil(calculs.cablageData(mixte, DALLE_CAS_7, e2, { depart: 'haut-gauche' })).processeurs.flatMap((p) => p.ports).map((p) => p.px), [4 * 36864, 4 * 4096]);
+      const cas9 = calculs.murZones(DALLE_CAS_9_A, [{ nom: 'A', colonnes: 1, rangees: 1 }, { nom: 'B', colonnes: 1, rangees: 1, dalle: DALLE_CAS_9_B }, { nom: 'C', colonnes: 1, rangees: 1, dalle: DALLE_CAS_9_C }], { ecarts: 'colles' });
+      const e3 = calculs.evaluerProcesseur(cas9, DALLE_CAS_9_A, processeurDeBase(contexte, 'brompton-m2'), BROMPTON_60_10);
+      v.egal('M2 interpolé : ports à 10 000, 10 000 et 20 000 px', conseil(calculs.cablageData(cas9, DALLE_CAS_9_A, e3, { depart: 'haut-gauche' })).processeurs.flatMap((p) => p.ports).map((p) => p.px), [10000, 10000, 20000]);
+      const empile = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 4, rangees: 1 }, { nom: 'B', colonnes: 4, rangees: 1, placement: { type: 'dessous', zone: 'A' } }]);
+      const e4 = calculs.evaluerProcesseur(empile, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      v.egal('zones empilées : un port par zone', conseil(calculs.cablageData(empile, DALLE_CAS_7, e4, { depart: 'haut-gauche' })).processeurs.flatMap((p) => p.ports).map((p) => p.dalles),
+        [['A · C1 R1', 'A · C2 R1', 'A · C3 R1', 'A · C4 R1'], ['B · C1 R1', 'B · C2 R1', 'B · C3 R1', 'B · C4 R1']]);
+      const e5 = calculs.evaluerProcesseur(empile, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl660'), { ...NOVASTAR_60_8, decoupage: 'unParZone' });
+      const pm = calculs.pixelMap(empile, DALLE_CAS_7, e5);
+      v.egal('un processeur par zone : canvas de chaque processeur avec ses dalles', pm.canvas.map((c) => c.dalles.map((d) => d.id)),
+        [['A · C1 R1', 'A · C2 R1', 'A · C3 R1', 'A · C4 R1'], ['B · C1 R1', 'B · C2 R1', 'B · C3 R1', 'B · C4 R1']]);
+      const elec = { tensionV: 220, marge: 0.8, departA: 16, arrivee: { type: 'mono', intensiteA: 32 } };
+      const f13 = calculs.murZones(DALLE_CAS_13, [{ nom: 'MUR', colonnes: 10, rangees: 5, absentes: porte }]);
+      const ce = calculs.cablageElec(f13, DALLE_CAS_13, calculs.electricite(f13, DALLE_CAS_13, elec), { depart: 'bas-gauche' });
+      const lignes = ce.variantes.find((x) => x.mode === ce.conseil).lignesDetail;
+      v.egal('élec, porte : 2 lignes de 21 dalles, comme Élec', lignes.map((l) => l.dalles.length), [21, 21]);
+      v.vrai('élec : aucune dalle absente, dans aucune variante', ce.variantes.every((x) => x.lignesDetail.flatMap((l) => l.dalles).length === 42));
+      const em = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 1, dalle: CB5 }], { ecarts: 'colles' });
+      const cem = calculs.cablageElec(em, DALLE_CAS_13, calculs.electricite(em, DALLE_CAS_13, elec));
+      v.egal('élec, mur mixte : chaque ligne à la P max de sa dalle', cem.variantes.find((x) => x.mode === cem.conseil).lignesDetail.map((l) => l.puissanceW), [520, 960]);
+    },
+  },
+  {
+    id: 'R271',
+    titre: 'Mur mixte (9b5) : textes copiés ; Élec : la P max de la dalle de chaque zone ; Poids : le poids de chaque dalle ; Mur : le pas de référence au lieu du pitch d\'une seule dalle',
+    etape: '9b',
+    verifier(v) {
+      const m = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 1, dalle: CB5 }], { ecarts: 'colles' });
+      const e = resumes.resumeElec(calculs.electricite(m, DALLE_CAS_13, { tensionV: 220, marge: 0.8, departA: 16, arrivee: { type: 'mono', intensiteA: 32 } }), { dalle: DALLE_CAS_13, mur: m }).split('\n');
+      v.vrai('Élec : deux types de dalles', e.includes('Dalles : 6, de 2 types'));
+      v.vrai('Élec : P max de chaque zone', e.some((l) => /^P max retenue par dalle \(zone A, Dalle du cas 13\) : 130 W/.test(l)) && e.some((l) => /^P max retenue par dalle \(zone B, CB5 MKII \(copie de test\)\) : 480 W/.test(l)));
+      const p = resumes.resumePoids(calculs.poids(m, DALLE_CAS_13, { mode: 'stack' }), { dalle: DALLE_CAS_13, mur: m }).split('\n');
+      v.vrai('Poids : poids de chaque dalle', p.includes('Poids d\'une dalle Dalle du cas 13 : 7,5 kg') && p.includes('Poids d\'une dalle CB5 MKII (copie de test) : 13,6 kg'));
+      const mur = resumes.resumeMur({ dalle: DALLE_CAS_13, mur: m }).split('\n');
+      v.vrai('Mur : pas de référence', mur.includes('Pas de référence : 2,604 mm (le plus fin des dalles du mur)') && !mur.some((l) => l.startsWith('Pitch : ')));
+    },
+  },
+  {
+    id: 'R272',
+    titre: 'Une seule zone rectangulaire avec sa propre dalle (relecture du 10/10/2026, B1) : Schéma data et élec sans erreur, chaque dalle nommée « C1 R1 » et câblée à sa charge',
+    etape: '9b',
+    verifier(v, contexte) {
+      const m = calculs.murZones(DALLE_CAS_7, [{ nom: 'MUR', colonnes: 2, rangees: 2, dalle: DALLE_CAS_9_B }]);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      let ids = null;
+      try {
+        const d = calculs.cablageData(m, DALLE_CAS_7, e, { depart: 'haut-gauche' });
+        ids = d.variantes.find((x) => x.mode === d.conseil).processeurs.flatMap((p) => p.ports).flatMap((p) => p.dalles).sort();
+      } catch (erreur) {
+        ids = `${erreur.constructor.name} : ${erreur.message}`;
+      }
+      v.egal('data : les 4 dalles câblées, nommées sans la zone', ids, ['C1 R1', 'C1 R2', 'C2 R1', 'C2 R2']);
+      const elec = { tensionV: 220, marge: 0.8, departA: 16, arrivee: { type: 'mono', intensiteA: 32 } };
+      const me = calculs.murZones(DALLE_CAS_13, [{ nom: 'MUR', colonnes: 2, rangees: 1, dalle: CB5 }]);
+      const ce = calculs.cablageElec(me, DALLE_CAS_13, calculs.electricite(me, DALLE_CAS_13, elec));
+      v.egal('élec : chaque variante câble les 2 dalles CB5, 960 W', ce.variantes.map((x) => [x.lignesDetail.flatMap((l) => l.dalles).length, x.lignesDetail.reduce((t, l) => t + l.puissanceW, 0)]),
+        ce.variantes.map(() => [2, 960]));
+    },
+  },
+  {
+    id: 'R273',
+    titre: 'Mur mixte, Schéma élec (relecture du 10/10/2026, B2) : le chaînage du constructeur de chaque dalle ne bride que les lignes de sa zone, en rangées et au plus juste',
+    etape: '9b',
+    verifier(v) {
+      const elec = { tensionV: 220, marge: 0.8, departA: 16, arrivee: { type: 'mono', intensiteA: 32 } };
+      const tailles = (m) => {
+        const ce = calculs.cablageElec(m, DALLE_CAS_13, calculs.electricite(m, DALLE_CAS_13, elec), { depart: 'haut-gauche' });
+        return ['rangees', 'auPlusJuste'].map((mode) => ce.variantes.find((x) => x.mode === mode).lignesDetail.map((l) => l.dalles.length));
+      };
+      const bChaine = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 5 }, { nom: 'B', colonnes: 4, rangees: 5, dalle: DALLE_100W_CHAINAGE }], { ecarts: 'colles' });
+      v.egal('B à chaînage 7 : ses lignes de 4 dalles (rangées) et de 7, 7, 6 (au plus juste) ; A en une ligne de 20', tailles(bChaine), [[20, 4, 4, 4, 4, 4], [20, 7, 7, 6]]);
+      const aChaine = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 5, dalle: DALLE_100W_CHAINAGE }, { nom: 'B', colonnes: 4, rangees: 5 }], { ecarts: 'colles' });
+      v.egal('A à chaînage 7 : B n\'est pas bridée', tailles(aChaine), [[4, 4, 4, 4, 4, 20], [7, 7, 6, 20]]);
+    },
+  },
+  {
+    id: 'R274',
+    titre: 'Mur mixte en mapping interpolé (relecture du 10/10/2026, B3) : pixel map du mur en pixels interpolés, canvas de chaque Tessera M2 avec toutes ses dalles dans son bloc',
+    etape: '9b',
+    verifier(v, contexte) {
+      const m = calculs.murZones(DALLE_CAS_9_A, [{ nom: 'A', colonnes: 20, rangees: 10 }, { nom: 'B', colonnes: 20, rangees: 10, dalle: DALLE_CAS_9_B }], { ecarts: 'colles' });
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_9_A, processeurDeBase(contexte, 'brompton-m2'), BROMPTON_60_10);
+      const pm = calculs.pixelMap(m, DALLE_CAS_9_A, e);
+      v.egal('mur : 4000 × 1000 px interpolés (B à 100 px par dalle)', [pm.mur.largeurPx, pm.mur.hauteurPx], [4000, 1000]);
+      v.vrai('plusieurs M2', e.nombre > 1);
+      v.egal('chaque canvas : toutes ses dalles dans son bloc', pm.canvas.map((c) => c.dalles.filter((d) => d.x[0] < 0 || d.y[0] < 0 || d.x[1] >= c.bloc.largeurPx || d.y[1] >= c.bloc.hauteurPx).length),
+        pm.canvas.map(() => 0));
+      const ids = pm.canvas.flatMap((c) => c.dalles.map((d) => d.id));
+      v.egal('les 400 dalles, chacune dans un seul canvas', [ids.length, new Set(ids).size], [400, 400]);
+    },
+  },
+  {
+    id: 'R275',
+    titre: 'Mur mixte, Élec (relecture du 10/10/2026, V1) : texte copié avec les dalles par ligne de chaque zone (chaînage compris), et la P max des demi-dalles d\'une zone à dalle propre',
+    etape: '9b',
+    verifier(v) {
+      const elec = { tensionV: 220, marge: 0.8, departA: 16, arrivee: { type: 'mono', intensiteA: 32 } };
+      const m = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 1, dalle: CB5, demi: CB5_DEMI, rangeeDemi: true },
+        { nom: 'C', colonnes: 2, rangees: 2, dalle: DALLE_100W_CHAINAGE }], { ecarts: 'colles' });
+      const t = resumes.resumeElec(calculs.electricite(m, DALLE_CAS_13, elec), { dalle: DALLE_CAS_13, mur: m }).split('\n');
+      v.vrai('dalles par ligne de chaque zone', t.includes('Dalles par ligne (zone A, Dalle du cas 13) : 21') && t.includes('Dalles par ligne (zone B, CB5 MKII (copie de test)) : 5')
+        && t.includes('Dalles par ligne (zone C, Dalle 100 W, chaînage 7) : 7, limité par le chaînage du constructeur'));
+      v.vrai('plus de ligne « Dalles par ligne » commune', !t.some((l) => l.startsWith('Dalles par ligne : ')));
+      v.vrai('P max des demi-dalles de B', t.some((l) => /^P max retenue par demi-dalle \(zone B, CB5 MKII demi-dalle \(copie de test\)\) : 250 W/.test(l)));
+    },
+  },
+  {
+    id: 'R276',
+    titre: 'Poids, zone accrochée sous une autre (relecture du 10/10/2026, V2) : ni alerte de bumper, de point ou de maximum à elle ; le pont n\'est compté que pour les zones qui pendent à un pont',
+    etape: '9b',
+    verifier(v) {
+      const m = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 2 },
+        { nom: 'B', colonnes: 2, rangees: 1, placement: { type: 'dessous', zone: 'A', accrocheeSous: true } }]);
+      const r = calculs.poids(m, DALLE_CAS_13, { mode: 'accroche', bumper: { poidsKg: 10, colonnes: 2, cmuKg: 20 } });
+      v.vrai('aucune alerte propre à B', !r.alertes.some((a) => /^Zones? (.*, )?B[ ,:]/.test(a)));
+      v.vrai('A garde ses alertes (bumper, maximum)', r.alertes.some((a) => /^Zone A : CMU du bumper/.test(a)) && r.alertes.some((a) => /^Zone A : Fiche sans maximum en accroche/.test(a)));
+      v.egal('B sans manque à elle', r.zones[1].manques, []);
+      const pont = calculs.poids(m, DALLE_CAS_13, { mode: 'accroche', accroche: { type: 'pont', points: 2, poidsPontKg: 50 } });
+      v.vrai('pont : une seule zone pend à un pont, pas d\'alerte de partage', !pont.alertes.some((a) => /^Pont : chaque zone pend/.test(a)));
+      const trois = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 2 },
+        { nom: 'B', colonnes: 2, rangees: 1, placement: { type: 'dessous', zone: 'A', accrocheeSous: true } }, { nom: 'C', colonnes: 2, rangees: 2, placement: { type: 'libre', xMm: 5000, basMm: 0 } }]);
+      const p3 = calculs.poids(trois, DALLE_CAS_13, { mode: 'accroche', accroche: { type: 'pont', points: 2, poidsPontKg: 50 } });
+      v.vrai('pont : comptés pour les 2 zones qui pendent', p3.alertes.some((a) => /comptés pour chacune des 2 zones/.test(a)));
+    },
+  },
+  {
+    id: 'R277',
+    titre: 'Mur mixte, sources (relecture du 10/10/2026) : poids et carte de réception de chaque dalle avec leur source ; poids des demi-dalles d\'une zone à dalle propre',
+    etape: '9b',
+    verifier(v, contexte) {
+      const roe = dalleDeBase(contexte, 'roe-bp2-v2');
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const m = calculs.murZones(roe, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 2, dalle: upad }], { ecarts: 'colles' });
+      const p = resumes.resumePoids(calculs.poids(m, roe, { mode: 'stack' }), { dalle: roe, mur: m }).split('\n');
+      v.vrai('poids de chaque dalle avec sa source', [roe, upad].every((f) => p.some((l) => l.startsWith(`Poids d'une dalle ${f.nom} : `) && / \(.+\)$/.test(l))));
+      const cartes = resumes.texteCartesMixte(m);
+      v.vrai('carte de réception de la dalle B avec sa source', /Novastar A10s \([^)]+\)/.test(cartes));
+      const mb = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 1, dalle: CB5, demi: CB5_DEMI, rangeeDemi: true }], { ecarts: 'colles' });
+      const pb = resumes.resumePoids(calculs.poids(mb, DALLE_CAS_13, { mode: 'stack' }), { dalle: DALLE_CAS_13, mur: mb }).split('\n');
+      v.vrai('poids des demi-dalles de B', pb.includes('Poids d\'une demi-dalle CB5 MKII demi-dalle (copie de test) : 7,2 kg'));
+    },
+  },
+  {
+    id: 'R278',
+    titre: 'Forme libre, départ à droite (relecture du 10/10/2026, choix de l\'utilisateur) : ports et lignes groupés depuis le côté du départ, le port ou la ligne incomplète au bout, comme un rectangle de la 9a',
+    etape: '9b',
+    verifier(v, contexte) {
+      const porte = [5, 6].flatMap((c) => [2, 3, 4, 5].map((r) => [c, r]));
+      const f = calculs.murZones(DALLE_CAS_7, [{ nom: 'MUR', colonnes: 10, rangees: 5, absentes: porte }]);
+      const e = calculs.evaluerProcesseur(f, DALLE_CAS_7, processeurDeBase(contexte, 'coex-mx40-pro'), { ...NOVASTAR_60_8, departCablage: 'bas-droite' });
+      const d = calculs.cablageData(f, DALLE_CAS_7, e, { depart: 'bas-droite' });
+      const ports = d.variantes.find((x) => x.mode === d.conseil).processeurs.flatMap((p) => p.ports);
+      v.egal('data : ports de 15, 17 et 10 dalles depuis la droite', ports.map((p) => p.dalles.length), [15, 17, 10]);
+      v.vrai('data : le port 1 part de C10 R5', ports[0].dalles[0] === 'C10 R5');
+      const elec = { tensionV: 220, marge: 0.8, departA: 16, arrivee: { type: 'mono', intensiteA: 32 } };
+      const g = calculs.murZones(DALLE_CAS_13, [{ nom: 'MUR', colonnes: 7, rangees: 5, absentes: [[1, 1]] }]);
+      const ce = calculs.cablageElec(g, DALLE_CAS_13, calculs.electricite(g, DALLE_CAS_13, elec), { depart: 'bas-droite' });
+      const lignes = ce.variantes.find((x) => x.mode === 'colonnes').lignesDetail;
+      v.egal('élec : lignes de 20 (C7 à C4) puis 14 dalles', lignes.map((l) => l.dalles.length), [20, 14]);
+      v.vrai('élec : la ligne 1 part de C7 R5', lignes[0].dalles[0] === 'C7 R5');
+      const gauche = calculs.cablageElec(g, DALLE_CAS_13, calculs.electricite(g, DALLE_CAS_13, elec), { depart: 'bas-gauche' });
+      v.egal('élec, départ à gauche : inchangé (19 puis 15)', gauche.variantes.find((x) => x.mode === 'colonnes').lignesDetail.map((l) => l.dalles.length), [19, 15]);
+    },
+  },
+  {
+    id: 'R279',
+    titre: 'Forme libre trop haute pour un processeur (relecture du 10/10/2026, B4, Z19) : coupée en rangées par des coupes horizontales qui ne traversent aucune dalle, comme le rectangle plein',
+    etape: '9b',
+    verifier(v, contexte) {
+      for (const [id, reglages] of [['novastar-mctrl660', NOVASTAR_60_8], ['brompton-s8', BROMPTON_60_10]]) {
+        const proc = processeurDeBase(contexte, id);
+        const plein = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 4, 30), DALLE_CAS_7, proc, reglages);
+        const f = calculs.murZones(DALLE_CAS_7, [{ nom: 'MUR', colonnes: 4, rangees: 30, absentes: [[1, 1]] }]);
+        const e = calculs.evaluerProcesseur(f, DALLE_CAS_7, proc, reglages);
+        v.egal(`${proc.modele} : autant de processeurs que le rectangle plein, sans refus`, [e.nombre, e.impossible ?? null], [plein.nombre, null]);
+        const pm = calculs.pixelMap(f, DALLE_CAS_7, e);
+        const ids = pm.canvas.flatMap((c) => c.dalles.map((x) => x.id));
+        v.egal(`${proc.modele} : les 119 dalles, chacune dans un seul canvas, dans son bloc`,
+          [ids.length, new Set(ids).size, pm.canvas.every((c) => c.dalles.every((x) => x.y[0] >= 0 && x.y[1] < c.bloc.hauteurPx))], [119, 119, true]);
+        const d = calculs.cablageData(f, DALLE_CAS_7, e, { depart: 'haut-gauche' });
+        const cables = d.variantes.find((x) => x.mode === d.conseil).processeurs.flatMap((p) => p.ports).flatMap((p) => p.dalles);
+        v.egal(`${proc.modele} : Schéma, chaque dalle câblée une fois`, [cables.length, new Set(cables).size], [119, 119]);
+      }
+    },
+  },
+  {
+    id: 'R280',
+    titre: 'Mur en zones de la 9a découpé en rangées (relecture du 10/10/2026) : canvas de chaque processeur avec ses dalles, chacune une seule fois',
+    etape: '9b',
+    verifier(v, contexte) {
+      const m = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 2, rangees: 30 }, { nom: 'B', colonnes: 2, rangees: 30 }], { ecarts: 'colles' });
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      v.egal('2 MCTRL660 en rangées', [e.nombre, e.grille], [2, { colonnes: 1, rangees: 2 }]);
+      const pm = calculs.pixelMap(m, DALLE_CAS_7, e);
+      v.egal('60 dalles par canvas', pm.canvas.map((c) => c.dalles.length), [60, 60]);
+      v.vrai('haut dans le canvas 1, bas dans le canvas 2', pm.canvas[0].dalles.some((d) => d.id === 'A · C1 R1') && pm.canvas[1].dalles.some((d) => d.id === 'B · C2 R30'));
+      const ids = pm.canvas.flatMap((c) => c.dalles.map((d) => d.id));
+      v.egal('chaque dalle une seule fois', new Set(ids).size, 120);
     },
   },
 ];

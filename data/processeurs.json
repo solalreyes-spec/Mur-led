@@ -3859,6 +3859,11 @@
       "gamme": "VX Pro",
       "famille": "novastar",
       "logiciel": "NovaLCT",
+      "topologieLibre": {
+        "valeur": true,
+        "source": "novastar-vx400-pro-v1-4-0",
+        "note": "« Free topology: Calculate the Ethernet port load capacity based on the actual size of the loaded cabinets. *Specific receiving cards are required. » ; « Non-free topology: [...] based on the maximum circumscribed rectangle of the configured screen. » (p. 3)"
+      },
       "debitUtileBps": {
         "valeur": 936000000,
         "source": "novastar-vx400-pro-v1-4-0"
@@ -3983,6 +3988,11 @@
       "gamme": "VX Pro",
       "famille": "novastar",
       "logiciel": "NovaLCT",
+      "topologieLibre": {
+        "valeur": true,
+        "source": "novastar-vx600-pro-v1-4-0",
+        "note": "« Free topology: Calculate the Ethernet port load capacity based on the actual size of the loaded cabinets. *Specific receiving cards are required. » ; « Non-free topology: [...] based on the maximum circumscribed rectangle of the configured screen. » (p. 3)"
+      },
       "debitUtileBps": {
         "valeur": 936000000,
         "source": "novastar-vx600-pro-v1-4-0"
@@ -4107,6 +4117,11 @@
       "gamme": "VX Pro",
       "famille": "novastar",
       "logiciel": "NovaLCT",
+      "topologieLibre": {
+        "valeur": true,
+        "source": "novastar-vx1000-pro-v1-4-0",
+        "note": "« Free topology: Calculate the Ethernet port load capacity based on the actual size of the loaded cabinets. *Specific receiving cards are required. » ; « Non-free topology: [...] based on the maximum circumscribed rectangle of the configured screen. » (p. 3)"
+      },
       "debitUtileBps": {
         "valeur": 936000000,
         "source": "novastar-vx1000-pro-v1-4-0"
@@ -4231,6 +4246,11 @@
       "gamme": "VX Pro",
       "famille": "novastar",
       "logiciel": "NovaLCT",
+      "topologieLibre": {
+        "valeur": true,
+        "source": "novastar-vx2000-pro-v1-4-0",
+        "note": "« Free topology: Calculate the Ethernet port load capacity based on the actual size of the loaded cabinets. *Specific receiving cards are required. » ; « Non-free topology: [...] based on the maximum circumscribed rectangle of the configured screen. » (p. 3)"
+      },
       "debitUtileBps": {
         "valeur": 936000000,
         "source": "novastar-vx2000-pro-v1-4-0"

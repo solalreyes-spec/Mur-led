@@ -12,7 +12,7 @@ import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
 import {
   resumeData, consommationProcesseur, resumeAvantDePartir, texteCapaciteAppareil, texteLatence, texteAlimentation, texteWatts, texteLogicielReglage,
-  texteAlternativeSX40, texteReglageZones,
+  texteAlternativeSX40, texteReglageZones, texteCartesMixte,
 } from './resumes.js';
 import {
   configsDuMur, logicielDuProcesseur, texteLogicielParc, avantDePartir, arbreProcesseurs, MARQUES_FAMILLE, LOGICIELS,
@@ -92,6 +92,9 @@ function lireFormulaire() {
     cartesPro: d.has('cartesPro'),
     modeOptique: d.has('modeOptique'),
     carteSortie: d.get('carteSortie') || 'auto',
+    // Formes libres (9b) : variante de découpage retenue, mapping des Tessera M2 et T1 (champs cachés, gardés).
+    decoupage: d.get('decoupage') || null,
+    mapping: d.get('mapping') || null,
     distributeur: d.get('distributeur') || null,
     switchMegapixel: d.get('switchMegapixel') || null,
     lienMegapixel: d.has('lien25G') ? '2.5G' : '1G',
@@ -376,10 +379,13 @@ function tableDecoupage(r) {
     : `${p.colonnes} (${p.auPlusJusteSerpentin} au plus juste)`);
   const lignes = r.groupes.map((g, i) => el('tr', {},
     el('th', { scope: 'row' }, `n° ${i + 1}`),
-    el('td', {}, `${g.premiereColonne} à ${g.derniereColonne}`,
-      el('span', { class: 'source-ligne' }, pluriel(g.colonnes, 'colonne', 'colonnes')),
-      g.parties ? el('span', { class: 'source-ligne' }, g.parties.map((p) => p.nomAffiche).join(', ')) : null,
-      r.grille.rangees > 1 ? el('span', { class: 'source-ligne' }, `rangées ${g.premiereRangee} à ${g.derniereRangee}`) : null,
+    // Bloc d'un découpage par lignes de coupe ou d'une variante (9b2) : nommé par ses morceaux de zones.
+    g.premiereColonne === null || g.premiereColonne === undefined
+      ? el('td', {}, g.parties.map((p) => p.nomAffiche).join(', '), el('span', { class: 'source-ligne' }, `x ${g.x[0]} à ${g.x[1]}, y ${g.y[0]} à ${g.y[1]}`))
+      : el('td', {}, `${g.premiereColonne} à ${g.derniereColonne}`,
+        el('span', { class: 'source-ligne' }, pluriel(g.colonnes, 'colonne', 'colonnes')),
+        g.parties ? el('span', { class: 'source-ligne' }, g.parties.map((p) => p.nomAffiche).join(', ')) : null,
+        r.grille?.rangees > 1 ? el('span', { class: 'source-ligne' }, `rangées ${g.premiereRangee} à ${g.derniereRangee}`) : null,
       g.format ? el('span', { class: 'source-ligne' }, `canvas ${g.format}`) : null),
     el('td', {}, nombre(g.dalles), el('span', { class: 'source-ligne' }, millions(g.px))),
     el('td', {}, ports(g.ports), el('span', { class: 'source-ligne' }, texteCharge(g.chargeMax))),
@@ -387,8 +393,9 @@ function tableDecoupage(r) {
   const t = r.totaux;
   const total = el('tr', { class: 'total' },
     el('th', { scope: 'row' }, 'Total'),
-    el('td', {}, pluriel(r.groupes.filter((g) => g.premiereRangee === 1).reduce((s, g) => s + g.colonnes, 0), 'colonne', 'colonnes'),
-      r.grille.rangees > 1
+    el('td', {}, r.groupes.some((g) => g.premiereColonne === null || g.premiereColonne === undefined) ? ''
+      : pluriel(r.groupes.filter((g) => g.premiereRangee === 1).reduce((s, g) => s + g.colonnes, 0), 'colonne', 'colonnes'),
+      r.grille?.rangees > 1
         ? el('span', { class: 'source-ligne' }, pluriel(r.groupes.filter((g) => g.premiereColonne === 1).reduce((s, g) => s + g.rangees, 0), 'rangée', 'rangées'))
         : null),
     el('td', {}, nombre(r.groupes.reduce((s, g) => s + g.dalles, 0))),
@@ -401,6 +408,39 @@ function tableDecoupage(r) {
         el('th', {}, red ? 'Ports (redondance)' : 'Ports'),
         distributeur ? el('th', {}, distributeur) : null)),
       el('tbody', {}, lignes, total)));
+}
+
+// Formes libres (9b) : variantes de découpage (jamais conseillées d'office) à retenir, et mapping des Tessera M2 et T1
+// dans un mur mixte. Les choix vont dans les champs cachés `decoupage` et `mapping` du formulaire (gardés).
+const NOMS_DECOUPAGE = { '': 'Conseil', zonesEntieres: 'Zones entières', unParZone: 'Un processeur par zone' };
+// Choix gardé dans un champ caché : une ligne par choix, le détail (nombre de processeurs) après le nom.
+function choixCache(nom, valeur, options, legende) {
+  return el('fieldset', { class: 'choix-cache', 'data-choix-cache': nom },
+    el('legend', {}, legende),
+    options.map(([v, libelle, detail]) => el('label', { class: 'case' },
+      el('input', { type: 'radio', name: `choix-${nom}`, value: v, form: 'choix-hors-formulaire', checked: v === valeur ? '' : null }),
+      el('span', {}, libelle, detail ? el('span', { class: 'detail-choix' }, ` · ${detail}`) : null))));
+}
+function sectionDecoupageZones(r) {
+  if (!r.variantes && !r.mapping) return null;
+  const proc = r.processeur;
+  const actuel = r.decoupage ?? '';
+  // Nombre de processeurs de chaque choix : le conseil est celui du calcul sans variante retenue.
+  const texteNombre = (mode) => {
+    if (mode === actuel) return `${r.nombre} × ${proc.modele}`;
+    if (!mode) return r.nombreConseil ? `${r.nombreConseil} × ${proc.modele}` : null;
+    const n = r.variantes[mode].nombre;
+    return n === null ? 'impossible' : `${n} × ${proc.modele}`;
+  };
+  return el('section', { class: 'bloc-resultats' },
+    el('h3', {}, 'Découpage et mapping'),
+    r.variantes ? choixCache('decoupage', actuel, ['', 'zonesEntieres', 'unParZone'].map((mode) => [mode, NOMS_DECOUPAGE[mode], texteNombre(mode)]),
+      'Découpage entre processeurs') : null,
+    r.variantes ? el('p', { class: 'source' }, 'Conseil : le moins de processeurs. « Zones entières » : aucune zone coupée, sauf une zone trop grande '
+      + 'pour un processeur. « Un processeur par zone » : aucun processeur ne porte deux zones. Les variantes ne sont jamais conseillées d\'office.') : null,
+    r.mapping && proc.mappingInterpole ? choixCache('mapping', r.mapping === 'interpole' ? '' : '1:1', [['', 'Interpolé'], ['1:1', '1:1']], 'Mapping (Tessera M2 et T1)') : null,
+    r.mapping ? el('p', { class: 'source' }, `Mapping ${r.mapping === 'interpole' ? 'interpolé' : '1:1'} : pixels comptés par dalle, `
+      + `${r.pixelsParDalle.map((x) => `${x.zone} ${nombre(x.px)}`).join(', ')}.`) : null);
 }
 
 // Mur en zones (étape 9a) : pour chaque processeur, son bloc, sa sortie dans la pixel map du mur et ses morceaux de
@@ -451,7 +491,7 @@ function sectionProcesseur(r, conseil) {
       el('p', { class: 'sous-titre' }, r.unSeulSuffit
         ? `Un seul ${proc.nom} suffit.`
         : `Limité par : ${r.limites.map((l) => LIBELLES_CONTROLE[l].toLowerCase()).join(', ')}. `
-          + (r.grille.rangees > 1
+          + (r.grille?.rangees > 1
             ? `Mur découpé en grille : ${pluriel(r.grille.colonnes, 'bloc', 'blocs')} de colonnes × ${pluriel(r.grille.rangees, 'bloc', 'blocs')} de rangées.`
             : 'Mur découpé en colonnes entières.')),
       r.seuil.colonnesEnMoins
@@ -461,7 +501,7 @@ function sectionProcesseur(r, conseil) {
         : null),
     tableControles(r),
     el('p', { class: 'source' }, 'Ports comptés en colonnes entières. Le nombre de processeurs est le plus grand des contrôles.'),
-    el('h4', {}, r.grille.rangees > 1 ? 'Découpage en grille' : 'Découpage en colonnes entières'),
+    el('h4', {}, r.grille?.rangees > 1 ? 'Découpage en grille' : 'Découpage en colonnes entières'),
     tableDecoupage(r),
     r.groupes[0]?.parties ? el('p', { class: 'source' }, 'Colonnes comptées de 1 à la dernière, à travers les zones, de gauche à droite.') : null,
     el('p', { class: 'source' }, globalTexte),
@@ -641,6 +681,8 @@ function calculer(e) {
   const reglages = {
     frequenceHz: e.frequenceHz, bits: e.bits, ull: e.ull, cartesPro: e.cartesPro, redondance: e.redondance, modeOptique: e.modeOptique,
     carteSortie: e.carteSortie,
+    decoupage: e.decoupage,
+    mapping: e.mapping,
     distributeur: e.distributeur,
     switchMegapixel: e.switchMegapixel,
     lienMegapixel: e.lienMegapixel,
@@ -716,12 +758,13 @@ function calculer(e) {
 
   const carte = [dalle.carteReceptionMarque, dalle.carteReceptionModele].filter(Boolean).join(' ');
   const sourceCarte = dalle.sources?.carteReceptionModele ?? dalle.sources?.carteReceptionMarque;
-  const enZones = (mur.zones?.length ?? 0) > 1;
+  const enZones = (mur.zones?.length ?? 0) > 1 || Boolean(mur.zones?.[0]?.forme) || Boolean(mur.mixte);
   const recap = el('p', { class: 'recap-mur' },
     (enZones ? `Mur : ${pluriel(mur.zones.length, 'zone', 'zones')}, ${pluriel(mur.dalles.total, 'dalle', 'dalles')} `
+      + (mur.mixte ? `de ${new Set(mur.zones.map((z) => z.dalle.id)).size} types, dont ` : '')
       : `Mur : ${mur.colonnes} × ${mur.lignes}${mur.rangeeDemi ? ' + rangée de demi-dalles' : ''} = ${pluriel(mur.dalles.total, 'dalle', 'dalles')} `)
     + `${dalle.nom}, ${nombre(mur.pxLargeur)} × ${nombre(mur.pxHauteur)} px (${millions(mur.pxTotal)}). `
-    + (carte ? `Carte de réception : ${carte}${sourceCarte ? ` (${sourceCarte.sources.map(sourceCourte).join(', ')})` : ''}. ` : ''),
+    + (mur.mixte ? texteCartesMixte(mur) : (carte ? `Carte de réception : ${carte}${sourceCarte ? ` (${sourceCarte.sources.map(sourceCourte).join(', ')})` : ''}. ` : '')),
     el('a', { href: '#mur' }, 'Modifier le mur'));
 
   const configs = configsData(choisie);
@@ -758,6 +801,7 @@ function calculer(e) {
     choisie.global ? sectionPorts(e, dalle, choisie) : null,
     sectionCouleurs(ports),
     sectionProcesseur(choisie, conseil),
+    sectionDecoupageZones(choisie),
     sectionZones(choisie),
     sectionConfigs(configs),
     sectionAutres(e, evaluations, choisie),
@@ -791,6 +835,13 @@ export function initialiserData(base, rappel = () => {}) {
   };
   formulaire.addEventListener('input', siPasParc);
   formulaire.addEventListener('change', siPasParc);
+  // Choix de découpage et de mapping (9b) dans les résultats : gardés dans les champs cachés du formulaire.
+  zone.addEventListener('change', (evenement) => {
+    const choix = evenement.target.closest('[data-choix-cache]');
+    if (!choix || !formulaire.elements[choix.dataset.choixCache]) return;
+    formulaire.elements[choix.dataset.choixCache].value = evenement.target.value;
+    formulaire.dispatchEvent(new Event('change', { bubbles: true }));
+  });
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());
   initialiserChoixProcesseur();
   actualiserData(base, true);

@@ -102,7 +102,22 @@ export function trajetsSchema(vue, vd, ve, canvasNumero = null) {
 // Géométrie de la vue : rectangles des dalles (mm ou px) et taille du cadre.
 // `vue.vue` : 'physique' ou 'pixels' ; `vue.canvasVue` : 'mur' ou 'p2' (canvas du processeur n° 2).
 export function geometrieSchema(vue, mur, dalle, pm) {
-  return avecZones(geometrieSansZones(vue, mur, dalle, pm));
+  return avecAbsentes(avecZones(geometrieSansZones(vue, mur, dalle, pm)), vue, mur, dalle);
+}
+
+// Formes libres (9b6) : place de chaque dalle absente, dessinée en pointillés (vue physique et vue pixels du mur).
+function avecAbsentes(geo, vue, mur, dalle) {
+  if (!mur.zones?.some((z) => z.forme) || geo.canvas) return geo;
+  const basMin = Math.min(...mur.zones.map((z) => z.basMm));
+  const hautMax = basMin + mur.hauteurMm;
+  const absentes = mur.zones.filter((z) => z.forme).flatMap((z) => {
+    const f = z.dalle ?? dalle;
+    const yMm = hautMax - z.basMm - z.hauteurMm;
+    return z.forme.colonnes.flatMap((col, j) => col.cases.filter((x) => !x.presente).map((x) => (vue.vue === 'physique'
+      ? { x: z.xMm + j * f.largeurMm, y: yMm + x.yMm, w: f.largeurMm, h: x.hMm }
+      : { x: z.x + j * f.pxH, y: z.y + x.y, w: f.pxH, h: x.h })));
+  });
+  return absentes.length ? { ...geo, absentes } : geo;
 }
 
 // Mur en zones (étape 9a) : rectangle de chaque zone (ou morceau de zone) dans la vue, d'après ses dalles.
@@ -341,6 +356,12 @@ export function construireSvg({
       geo.unite === 'px' ? coordonnees(r) : null);
   });
 
+  // Formes libres (9b6) : chaque dalle absente en pointillés, sans fond.
+  const absentes = (geo.absentes ?? []).map((r) => svg('rect', {
+    class: 'dalle-absente', x: r.x, y: r.y, width: r.w, height: r.h, fill: 'none',
+    style: `stroke: ${palette.bord}`, 'stroke-width': cote * 0.02, 'stroke-dasharray': `${cote * 0.06} ${cote * 0.05}`,
+  }));
+
   // Mur en zones : nom de chaque zone hors du mur, du côté opposé au départ, au-delà du nom des blocs ; réduit pour
   // tenir dans la largeur de sa zone.
   const nomsZones = (geo.zones ?? []).map((z) => {
@@ -533,6 +554,6 @@ export function construireSvg({
   // Cadre du mur ; en zones, seulement en vue pixels (le cadre de la pixel map, vides compris).
   geo.zones && geo.unite !== 'px' ? null
     : svg('rect', { x: 0, y: 0, width: largeur, height: hauteur, style: `fill: none; stroke: ${palette.texteDoux}`, 'stroke-width': cote * 0.02 }),
-  tuiles, contours, nomsZones, dessinRepere, lignes);
+  absentes, tuiles, contours, nomsZones, dessinRepere, lignes);
   return { svg: racine, complet };
 }

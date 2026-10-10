@@ -54,3 +54,6 @@ export const DALLE_SANS_PMAX = { id: 'fictive-sans-pmax', nom: 'Dalle sans P max
 // Dalles fictives de l'étape 5 : maximum en accroche exprimé en mètres ou en kilos, avec conditions.
 export const DALLE_MAX_METRES = { ...DALLE_CAS_13, id: 'fictive-max-m', nom: 'Dalle à maximum en mètres', maxAccroche: 5, maxAccrocheUnite: 'm', maxAccrocheConditions: 'matériel du constructeur, usage intérieur' };
 export const DALLE_MAX_KILOS = { ...DALLE_CAS_13, id: 'fictive-max-kg', nom: 'Dalle à maximum en kilos', maxAccroche: 60, maxAccrocheUnite: 'kg' };
+
+// Dalle fictive de la slide « pixel maps, output 1 » de la formation (étape 9b, cas F3) : 1 m × 0,5 m, 128 × 64 px.
+export const DALLE_1000X500 = { id: 'fictive-1000x500', nom: 'Dalle 1 m × 0,5 m, 128 × 64 px (cas F3)', fictive: true, largeurMm: 1000, hauteurMm: 500, pxH: 128, pxV: 64 };
