@@ -4,7 +4,7 @@
 // (trajetsSchema, geometrieSchema, libellePortRang…). Le plan est pur ; le dessin passe par un canvas ; le fichier est
 // un PNG RVB 8 bits sans transparence. La limite de surface du canvas se mesure sur l'appareil, jamais en dur.
 
-import { pixelMap } from './calculs.js';
+import { pixelMap, pixelMapPliee } from './calculs.js';
 import { trajetsSchema, geometrieSchema, libellePortRang, lignesNomDalle, lignesPremierPixel } from './dessin-schema.js';
 import { nomFichierMire } from './contenu.js';
 import { nombreCourt } from './format.js';
@@ -204,10 +204,11 @@ const mpx = (n) => `${nombreCourt(n / 1e6, 1)} M px`;
 // Mires d'un mur câblé : mire du mur entier (ou dans le cadre de la source) et, quand le mur est réparti sur plusieurs
 // processeurs, une mire par zone, coordonnées relatives à la zone. Chacune : possible ou non (limite du canvas, mur
 // hors du cadre) avec son message, son plan et son nom de fichier.
-export function preparerMires({ mur, dalle, evaluation = null, variante = null, projet = '', date = '', version = null, cadre = null, surfaceMax = null }) {
+export function preparerMires({ mur, dalle, evaluation = null, variante = null, projet = '', date = '', version = null, cadre = null, surfaceMax = null, pliage = null }) {
   const limite = surfaceMax ?? surfaceCanvasMax();
-  const pm = pixelMap(mur, dalle, evaluation);
-  const plusieurs = pm.canvas.length > 1;
+  // Sortie pliée (9b7) : la mire de chaque processeur plié à la taille de la sortie, tranches à leur place.
+  const pm = pixelMapPliee(pixelMap(mur, dalle, evaluation), mur, pliage);
+  const plusieurs = pm.canvas.length > 1 || pm.canvas.some((c) => c.plie);
   const nomProjet = projet?.trim() || null;
   const lignesBloc = (l, h) => [nomProjet, `${l} × ${h} px`, date || null, version ? `Mur LED ${version}` : null].filter(Boolean);
 

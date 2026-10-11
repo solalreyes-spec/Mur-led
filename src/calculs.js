@@ -3549,7 +3549,7 @@ export function controleEntree(proc, source, liaisons) {
 
 // Contrôle de la source envoyée à chaque processeur : entrée, blocs qui tiennent dans l'image, alertes.
 // `data` : { famille, bitsReseau, frequenceHz } du calcul data.
-export function controleSource(source, evaluation, liaisons, data) {
+export function controleSource(source, evaluation, liaisons, data, { pliage = null } = {}) {
   const { largeurPx, hauteurPx, frequenceHz, bits } = source;
   if (![largeurPx, hauteurPx, frequenceHz].every((x) => Number.isFinite(x) && x > 0)) {
     throw new ErreurSaisie('Indique une résolution et une fréquence de source supérieures à zéro.');
@@ -3579,6 +3579,11 @@ export function controleSource(source, evaluation, liaisons, data) {
     xSource: [0, g.largeurPx - 1],
     ySource: [0, g.hauteurPx - 1],
     tient: g.largeurPx <= largeurPx && g.hauteurPx <= hauteurPx,
+    // Sortie pliée (9b7) : le bloc arrive plié dans le format de la sortie.
+    ...(pliage?.blocs[i] && !pliage.blocs[i].tel ? {
+      plie: pliage.blocs[i],
+      tient: pliage.blocs[i].ok && pliage.format.largeurPx <= largeurPx && pliage.format.hauteurPx <= hauteurPx,
+    } : {}),
     // Mur en zones : chaque morceau de zone dans la source (le bloc en haut à gauche), position à régler dans le processeur.
     ...(g.parties ? {
       parties: g.parties.map((p) => ({
@@ -3588,7 +3593,9 @@ export function controleSource(source, evaluation, liaisons, data) {
       })),
     } : {}),
   }));
-  const tropGrands = blocs.filter((b) => !b.tient);
+  // Bloc plié (9b7) : contrôlé par son pliage, plus bas.
+  const tropGrands = blocs.filter((b) => !b.tient && !b.plie);
+  for (const b of blocs.filter((x) => x.plie && !x.plie.ok)) refus.push(`Processeur n° ${b.numero} : ${b.plie.raison}`);
   if (tropGrands.length > 0) {
     refus.push(`${tropGrands.length === 1 ? 'Le bloc' : 'Les blocs'} ${tropGrands.map((b) => `n° ${b.numero} (${b.largeurPx} × ${b.hauteurPx} px)`).join(', ')} `
       + `ne ${tropGrands.length === 1 ? 'tient' : 'tiennent'} pas dans une source de ${largeurPx} × ${hauteurPx} px.`);
@@ -3596,6 +3603,11 @@ export function controleSource(source, evaluation, liaisons, data) {
   for (const b of blocs.filter((x) => x.canvas?.lowLatency)) {
     alertes.push(`Bloc n° ${b.numero} : le format ${b.canvas.format.replace(' (Low Latency Mode)', '')} force le Low Latency Mode`
       + `${proc.latence ? ` (latence : ${proc.latence})` : ''}.`);
+  }
+
+  for (const b of blocs.filter((x) => x.plie?.ok && !x.tient)) {
+    refus.push(`Processeur n° ${b.numero} : la sortie pliée fait ${pliage.format.largeurPx} × ${pliage.format.hauteurPx} px, `
+      + `plus que la source de ${largeurPx} × ${hauteurPx} px.`);
   }
 
   if (!RESOLUTIONS_STANDARD.some(([l, h]) => l === largeurPx && h === hauteurPx)) {
@@ -3646,11 +3658,14 @@ export function meilleureEntree(proc, liaisons) {
 // Source conseillée par défaut : le plus petit format standard qui contient le plus grand bloc de processeur,
 // à la fréquence du calcul data, sur la meilleure entrée du processeur. Sans format standard assez grand :
 // la taille du bloc.
-export function sourceConseillee(evaluation, liaisons, frequenceHz) {
+export function sourceConseillee(evaluation, liaisons, frequenceHz, { pliage = null } = {}) {
   const blocs = evaluation.groupes ?? [];
   if (blocs.length === 0) return null;
-  const largeur = Math.max(...blocs.map((g) => g.largeurPx));
-  const hauteur = Math.max(...blocs.map((g) => g.hauteurPx));
+  // Sortie pliée (9b7, S6) : un bloc plié prend la taille du format de la sortie.
+  const plies = pliage?.ok ? pliage.blocs : [];
+  const taille = (g, i) => (plies[i] && !plies[i].tel ? [pliage.format.largeurPx, pliage.format.hauteurPx] : [g.largeurPx, g.hauteurPx]);
+  const largeur = Math.max(...blocs.map((g, i) => taille(g, i)[0]));
+  const hauteur = Math.max(...blocs.map((g, i) => taille(g, i)[1]));
   const standard = RESOLUTIONS_STANDARD.find(([l, h]) => largeur <= l && hauteur <= h);
   const liaison = meilleureEntree(evaluation.processeur, liaisons)?.id ?? null;
   const passe = (l, h) => liaison !== null && controleEntree(evaluation.processeur, { largeurPx: l, hauteurPx: h, frequenceHz, liaison }, liaisons).ok;
@@ -3663,10 +3678,163 @@ export function sourceConseillee(evaluation, liaisons, frequenceHz) {
     frequenceHz,
     liaison,
     standard: Boolean(retenu),
-    // 'standard' : format standard ; 'entree' : le standard ne passe pas l'entrée ; 'taille' : aucun standard assez grand.
-    raison: retenu ? 'standard' : (standard ? 'entree' : 'taille'),
+    // 'standard' : format standard ; 'pliage' : format de la sortie pliée ; 'entree' : le standard ne passe pas l'entrée ;
+    // 'taille' : aucun standard assez grand.
+    raison: retenu ? (plies.some((b) => !b.tel) ? 'pliage' : 'standard') : (standard ? 'entree' : 'taille'),
     formatStandard: standard ?? null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Sortie du serveur pliée (étape 9b7)
+// ---------------------------------------------------------------------------
+
+// Morceaux d'un bloc de processeur, dans la pixel map du mur (celle que compte le processeur) : zone, colonnes (dans la
+// zone, ou dans le mur d'une seule pièce), abscisse de chaque bord de colonne, place et taille réelle.
+function morceauxDuBloc(m, dalle, g) {
+  if (g.parties) {
+    return g.parties.map((p) => {
+      const z = m.zones[p.zone];
+      const f = ficheZone(m, z, dalle);
+      return {
+        zone: z.nom, nomAffiche: p.nomAffiche, enZone: true, premiere: p.premiereColonne, colonnes: p.colonnes, x: p.x, y: p.y,
+        largeurColonnePx: f.pxH, hauteurPx: p.hauteurPx, largeurColonneMm: f.largeurMm,
+        hauteurMm: p.sous?.forme ? p.sous.hauteurMm : p.rangees * f.hauteurMm,
+      };
+    });
+  }
+  const types = m.rangees.slice(g.premiereRangee - 1, g.derniereRangee);
+  return [{
+    zone: 'Mur', nomAffiche: 'Mur', enZone: false, premiere: g.premiereColonne, colonnes: g.colonnes, x: g.x[0], y: g.y[0],
+    largeurColonnePx: dalle.pxH, hauteurPx: g.hauteurPx, largeurColonneMm: dalle.largeurMm,
+    hauteurMm: types.reduce((t, type) => t + (type === 'demi' ? m.demi.hauteurMm : dalle.hauteurMm), 0),
+  }];
+}
+
+// Colonnes [première, dernière] de chaque port du câblage conseillé d'un processeur (colonnes entières de Data et du
+// Schéma), par zone (« Mur » pour un mur d'une seule pièce).
+function colonnesDesPorts(m, dalle, evaluation, numero, depart) {
+  const mm = evaluation.mur ?? m;
+  const tuiles = new Map(dallesDuMur(mm, mm.dallePrincipale ?? dalle).map((d) => [d.id, d]));
+  let ports = [];
+  try {
+    const c = cablageData(m, dalle, evaluation, { depart });
+    ports = c.variantes.find((x) => x.mode === c.conseil)?.processeurs[numero - 1]?.ports ?? [];
+  } catch (erreur) {
+    if (!(erreur instanceof ErreurSaisie)) throw erreur;
+  }
+  return ports.map((p) => {
+    const t = p.dalles.map((id) => tuiles.get(id)).filter(Boolean);
+    const cols = t.map((d) => d.colonneZone ?? d.colonne);
+    return { zone: t[0]?.zone ?? 'Mur', debut: Math.min(...cols), fin: Math.max(...cols) };
+  }).filter((p) => Number.isFinite(p.debut));
+}
+
+// Plier le bloc d'un processeur dans une sortie standard (S2 à S4) : chaque morceau de zone coupé en tranches de
+// colonnes entières, la coupe entre deux ports du câblage conseillé, une tranche au plus large comme la sortie, le
+// moins de tranches ; tranches dans l'ordre des morceaux (gauche à droite, puis haut en bas), posées en étagères sans
+// espace. `format` : [largeur, hauteur]. Refus avec la raison (une tranche impossible, ou trop haut).
+export function plierBloc(m, dalle, evaluation, numero, format, { depart = 'haut-gauche', suggerer = true } = {}) {
+  const [W, H] = format;
+  const mm = evaluation.mur ?? m;
+  const dm = mm.dallePrincipale ?? dalle;
+  const g = evaluation.groupes[numero - 1];
+  const ports = colonnesDesPorts(m, dalle, evaluation, numero, depart);
+  const morceaux = morceauxDuBloc(mm, dm, g).sort((a, b) => a.x - b.x || a.y - b.y);
+  const base = { numero, format: { largeurPx: W, hauteurPx: H }, tranches: [], hauteurPx: 0, ok: false, raison: null };
+  const tranches = [];
+  for (const p of morceaux) {
+    const fin = p.premiere + p.colonnes - 1;
+    // Coupe permise après la colonne c : aucun port de ce morceau n'a de colonnes des deux côtés.
+    const coupe = (c) => c === fin || !ports.some((x) => x.zone === p.zone && x.debut <= c && c < x.fin);
+    let debut = p.premiere;
+    while (debut <= fin) {
+      let retenue = null;
+      for (let c = debut; c <= fin && (c - debut + 1) * p.largeurColonnePx <= W; c += 1) if (coupe(c)) retenue = c;
+      if (retenue === null) {
+        let c = debut;
+        while (!coupe(c)) c += 1;
+        return { ...base, raison: `Pliage impossible dans ${W} × ${H} : un port de ${p.nomAffiche} fait ${(c - debut + 1) * p.largeurColonnePx} px de large, `
+          + `plus large que la sortie (colonnes ${debut} à ${c}).` };
+      }
+      const offset = (debut - p.premiere) * p.largeurColonnePx;
+      tranches.push({
+        zone: p.zone, nomMorceau: p.nomAffiche, colonnes: [debut, retenue],
+        contenu: { x: p.x + offset, y: p.y, largeurPx: (retenue - debut + 1) * p.largeurColonnePx, hauteurPx: p.hauteurPx },
+        largeurM: ((retenue - debut + 1) * p.largeurColonneMm) / 1000, hauteurM: p.hauteurMm / 1000,
+      });
+      debut = retenue + 1;
+    }
+  }
+  // Noms (S4) : la zone et « k/n » sur toutes ses tranches ; une tranche seule garde le nom du morceau.
+  const parZone = new Map();
+  for (const t of tranches) parZone.set(t.zone, (parZone.get(t.zone) ?? 0) + 1);
+  const rang = new Map();
+  for (const t of tranches) {
+    const n = parZone.get(t.zone);
+    rang.set(t.zone, (rang.get(t.zone) ?? 0) + 1);
+    t.nom = n > 1 ? `${t.zone} ${rang.get(t.zone)}/${n}` : t.nomMorceau;
+    delete t.nomMorceau;
+  }
+  // Étagères (S3) : de gauche à droite tant que la tranche tient dans la largeur, sinon une étagère plus bas.
+  let x = 0;
+  let y = 0;
+  let hauteurEtagere = 0;
+  for (const t of tranches) {
+    if (x > 0 && x + t.contenu.largeurPx > W) {
+      y += hauteurEtagere;
+      x = 0;
+      hauteurEtagere = 0;
+    }
+    t.sortie = { x, y };
+    x += t.contenu.largeurPx;
+    hauteurEtagere = Math.max(hauteurEtagere, t.contenu.hauteurPx);
+  }
+  const hauteurPx = y + hauteurEtagere;
+  const resultat = { ...base, tranches, hauteurPx };
+  if (hauteurPx > H) {
+    // Trop haut : « essaie 4096 × 2160 » seulement si le pliage y réussit, sinon deux sorties.
+    const autre = suggerer && RESOLUTIONS_STANDARD.find(([l, h]) => (l > W || h > H)
+      && plierBloc(m, dalle, evaluation, numero, [l, h], { depart, suggerer: false }).ok);
+    return { ...resultat, raison: `Pliage impossible dans ${W} × ${H} : ${hauteurPx} px de haut ; `
+      + `${autre ? `essaie ${autre[0]} × ${autre[1]}` : 'il faut deux sorties ou un autre découpage'}.` };
+  }
+  return { ...resultat, ok: true };
+}
+
+// Pliage de la sortie du serveur pour tout le mur (S1, S5) : le même format pour chaque processeur (une même source
+// pour tous) ; un bloc qui y tient tel quel n'est pas plié. Réglage du processeur et rappel pour le serveur média.
+export function pliageSortie(m, dalle, evaluation, format, { depart = 'haut-gauche' } = {}) {
+  const [W, H] = format;
+  const proc = evaluation.processeur;
+  const blocs = (evaluation.groupes ?? []).map((g, i) => {
+    if (g.largeurPx <= W && g.hauteurPx <= H) return { numero: i + 1, tel: true, ok: true, tranches: [], raison: null };
+    return { ...plierBloc(m, dalle, evaluation, i + 1, format, { depart }), tel: false };
+  });
+  let reglage;
+  if (proc.logiciel === 'NovaLCT') reglage = 'NovaLCT : un screen par tranche, son Coordinate (x, y) à sa place dans la sortie.';
+  else if (proc.famille === 'brompton') reglage = 'Tessera : un groupe par tranche dans le canvas, à sa place dans la sortie.';
+  else reglage = `${proc.logiciel ?? 'Logiciel du processeur'} : chaque tranche à sa place dans la sortie ; nom du réglage à vérifier dans son manuel.`;
+  return {
+    format: { largeurPx: W, hauteurPx: H },
+    ok: blocs.every((b) => b.ok),
+    plie: blocs.some((b) => !b.tel),
+    blocs,
+    refus: blocs.filter((b) => !b.ok).map((b) => `Processeur n° ${b.numero} : ${b.raison}`),
+    reglage,
+    rappelServeur: 'Le serveur média prend chaque tranche dans le contenu et la pose à sa place dans la sortie '
+      + '(disguise : feed rectangles ; Resolume : Advanced Output).',
+  };
+}
+
+// Pliage proposé (S1) : seulement quand un bloc ne tient dans aucun format standard et que le pliage réussit ; le plus
+// petit format standard où il réussit, sinon null.
+export function pliagePropose(m, dalle, evaluation, options = {}) {
+  const blocs = evaluation?.groupes ?? [];
+  if (!blocs.length) return null;
+  const tient = (g) => RESOLUTIONS_STANDARD.some(([l, h]) => g.largeurPx <= l && g.hauteurPx <= h);
+  if (blocs.every(tient)) return null;
+  return RESOLUTIONS_STANDARD.find((f) => pliageSortie(m, dalle, evaluation, f, options).ok) ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -5112,6 +5280,46 @@ export function pixelMap(m, dalle, evaluation = null) {
     },
     canvas,
   };
+}
+
+// Sortie pliée (9b7, S7) : la pixel map de chaque processeur plié, à la taille du format de la sortie, chaque dalle
+// déplacée avec sa tranche (de sa place dans le contenu à sa place dans la sortie), une étiquette par tranche comme
+// la slide de la formation. Les processeurs non pliés restent tels quels. `m` : le mur (noms des zones).
+export function pixelMapPliee(pm, m, pliage) {
+  if (!pliage?.plie) return pm;
+  const nomZone = (d) => (d.zone !== undefined ? m.zones[d.zone].nom : 'Mur');
+  const indexZone = (nom) => (m.zones ? m.zones.findIndex((z) => z.nom === nom) : 0);
+  const canvas = pm.canvas.map((c, i) => {
+    const b = pliage.blocs[i];
+    if (!b || b.tel || !b.ok) return c;
+    const { largeurPx, hauteurPx } = pliage.format;
+    const dalles = c.dalles.map((d) => {
+      const xMur = d.x[0] + c.xMur[0];
+      const yMur = d.y[0] + c.yMur[0];
+      const colonne = d.colonneZone ?? d.colonne;
+      const t = b.tranches.find((x) => x.zone === nomZone(d) && colonne >= x.colonnes[0] && colonne <= x.colonnes[1]
+        && yMur >= x.contenu.y && yMur < x.contenu.y + x.contenu.hauteurPx);
+      if (!t) return null;
+      const dx = t.sortie.x - t.contenu.x;
+      const dy = t.sortie.y - t.contenu.y;
+      return { ...d, tranche: t.nom, x: [xMur + dx, xMur + dx + d.x[1] - d.x[0]], y: [yMur + dy, yMur + dy + d.y[1] - d.y[0]] };
+    }).filter(Boolean);
+    return {
+      ...c,
+      plie: true,
+      bloc: { largeurPx, hauteurPx },
+      canvas: null,
+      largeurPx,
+      hauteurPx,
+      source: { x: [0, largeurPx - 1], y: [0, hauteurPx - 1] },
+      dalles,
+      zones: b.tranches.map((t) => ({
+        nom: t.nom, index: Math.max(0, indexZone(t.zone)), x: t.sortie.x, y: t.sortie.y,
+        largeurPx: t.contenu.largeurPx, hauteurPx: t.contenu.hauteurPx, largeurM: t.largeurM, hauteurM: t.hauteurM,
+      })),
+    };
+  });
+  return { ...pm, canvas };
 }
 
 // Positions [colonne, rangée] d'un bloc en serpentin depuis un coin : vertical (colonne après colonne)

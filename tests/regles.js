@@ -5604,6 +5604,113 @@ export const REGLES = [
     },
   },
   {
+    id: 'R267',
+    titre: 'Sortie pliée (9b7, S2) : chaque morceau de zone coupé en tranches de colonnes entières, la coupe entre deux ports du câblage conseillé, une tranche au plus large comme la sortie, le moins de tranches (cas F8 bis et F8)',
+    etape: '9b',
+    verifier(v, contexte) {
+      const mctrl4k = processeurDeBase(contexte, 'novastar-mctrl4k');
+      const empiles = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 40, rangees: 1 }, { nom: 'B', colonnes: 40, rangees: 1, placement: { type: 'dessous', zone: 'A' } }]);
+      const e = calculs.evaluerProcesseur(empiles, DALLE_CAS_7, mctrl4k, NOVASTAR_60_8);
+      v.egal('F8 bis : un MCTRL4K, bloc de 7680 × 384 px', [e.nombre, e.groupes[0].largeurPx, e.groupes[0].hauteurPx], [1, 7680, 384]);
+      const p = calculs.plierBloc(empiles, DALLE_CAS_7, e, 1, [3840, 2160], { depart: 'haut-gauche' });
+      v.egal('F8 bis : 6 tranches de 17, 17 et 6 colonnes par bandeau', p.tranches.map((t) => [t.zone, t.colonnes]),
+        [['A', [1, 17]], ['A', [18, 34]], ['A', [35, 40]], ['B', [1, 17]], ['B', [18, 34]], ['B', [35, 40]]]);
+      v.egal('F8 bis : place de chaque tranche dans le contenu', p.tranches.map((t) => [t.contenu.x, t.contenu.y, t.contenu.largeurPx, t.contenu.hauteurPx]),
+        [[0, 0, 3264, 192], [3264, 0, 3264, 192], [6528, 0, 1152, 192], [0, 192, 3264, 192], [3264, 192, 3264, 192], [6528, 192, 1152, 192]]);
+      const droite = calculs.plierBloc(empiles, DALLE_CAS_7, e, 1, [3840, 2160], { depart: 'haut-droite' });
+      v.egal('départ à droite : les ports partent de la droite, les coupes suivent (6, 17 et 17 colonnes)', droite.tranches.filter((t) => t.zone === 'A').map((t) => t.colonnes),
+        [[1, 6], [7, 23], [24, 40]]);
+      const couloir = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 40, rangees: 1 }, { nom: 'B', colonnes: 40, rangees: 1 }], { ecarts: 'colles' });
+      const e8 = calculs.evaluerProcesseur(couloir, DALLE_CAS_7, mctrl4k, NOVASTAR_60_8);
+      v.egal('F8 : deux MCTRL4K, un bandeau chacun', [e8.nombre, e8.groupes.map((g) => g.largeurPx)], [2, [7680, 7680]]);
+      v.egal('F8 : chaque processeur, tranches de 3264, 3264 et 1152 px', [1, 2].map((n) => calculs.plierBloc(couloir, DALLE_CAS_7, e8, n, [3840, 2160]).tranches.map((t) => t.contenu.largeurPx)),
+        [[3264, 3264, 1152], [3264, 3264, 1152]]);
+      const large = calculs.murZones(DALLE_CAS_9_A, [{ nom: 'MUR', colonnes: 40, rangees: 1, absentes: [[20, 1]] }]);
+      const el = calculs.evaluerProcesseur(large, DALLE_CAS_9_A, mctrl4k, NOVASTAR_60_8);
+      const refus = calculs.plierBloc(large, DALLE_CAS_9_A, el, 1, [1920, 1080]);
+      v.vrai('un port plus large que la sortie : refus avec la raison', !refus.ok && /port .*plus large que la sortie/.test(refus.raison ?? ''));
+    },
+  },
+  {
+    id: 'R268',
+    titre: 'Sortie pliée (9b7, S3) : tranches rangées en étagères, sans espace, de gauche à droite tant qu\'elles tiennent ; refus si la hauteur dépasse, avec « essaie 4096 × 2160 » seulement si le pliage y réussit (cas F9 : le TOP de la slide)',
+    etape: '9b',
+    verifier(v, contexte) {
+      const mctrl4k = processeurDeBase(contexte, 'novastar-mctrl4k');
+      const empiles = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 40, rangees: 1 }, { nom: 'B', colonnes: 40, rangees: 1, placement: { type: 'dessous', zone: 'A' } }]);
+      const p = calculs.plierBloc(empiles, DALLE_CAS_7, calculs.evaluerProcesseur(empiles, DALLE_CAS_7, mctrl4k, NOVASTAR_60_8), 1, [3840, 2160]);
+      v.egal('F8 bis : 6 étagères à y 0 à 960, toutes à x 0', [p.ok, p.tranches.map((t) => [t.sortie.x, t.sortie.y]), p.hauteurPx],
+        [true, [[0, 0], [0, 192], [0, 384], [0, 576], [0, 768], [0, 960]], 1152]);
+      const cote = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 21, rangees: 1 }, { nom: 'B', colonnes: 30, rangees: 2, placement: { type: 'dessous', zone: 'A' } }]);
+      const pc = calculs.plierBloc(cote, DALLE_CAS_7, calculs.evaluerProcesseur(cote, DALLE_CAS_7, mctrl4k, NOVASTAR_60_8), 1, [3840, 2160]);
+      v.egal('A 2/2 et B 1/2 côte à côte sans espace ; étagère à la hauteur de sa tranche la plus haute', [pc.tranches.map((t) => [t.nom, t.sortie.x, t.sortie.y]), pc.hauteurPx],
+        [[['A 1/2', 0, 0], ['A 2/2', 0, 192], ['B 1/2', 768, 192], ['B 2/2', 0, 576]], 960]);
+      const top = { id: 'fictive-top', nom: 'Dalle 128 × 64 px (TOP de la slide)', fictive: true, largeurMm: 500, hauteurMm: 250, pxH: 128, pxV: 64 };
+      const mur = calculs.mur(top, 34, 20);
+      const e9 = calculs.evaluerProcesseur(mur, top, processeurDeBase(contexte, 'coex-mx40-pro'), NOVASTAR_60_8);
+      v.egal('F9 : un MX40 Pro, bloc de 4352 × 1280 px', [e9.nombre, e9.groupes[0].largeurPx, e9.groupes[0].hauteurPx], [1, 4352, 1280]);
+      const r3840 = calculs.plierBloc(mur, top, e9, 1, [3840, 2160]);
+      const r4096 = calculs.plierBloc(mur, top, e9, 1, [4096, 2160]);
+      v.egal('F9 : refus dans 3840 × 2160 et 4096 × 2160', [r3840.ok, r4096.ok], [false, false]);
+      v.vrai('F9 : la raison, sans proposer 4096 × 2160', /^Pliage impossible dans 3840 × 2160 : 2560 px de haut/.test(r3840.raison) && !/essaie 4096/.test(r3840.raison) && /deux sorties/.test(r3840.raison), r3840.raison);
+      const haut = calculs.mur(DALLE_CAS_7, 21, 6);
+      const eh = calculs.evaluerProcesseur(haut, DALLE_CAS_7, mctrl4k, NOVASTAR_60_8);
+      const h3840 = calculs.plierBloc(haut, DALLE_CAS_7, eh, 1, [3840, 2160]);
+      v.vrai('trop haut dans 3840 × 2160 mais pas dans 4096 × 2160 : « essaie 4096 × 2160 »', !h3840.ok && /essaie 4096 × 2160/.test(h3840.raison) && calculs.plierBloc(haut, DALLE_CAS_7, eh, 1, [4096, 2160]).ok, h3840.raison);
+    },
+  },
+  {
+    id: 'R269',
+    titre: 'Sortie pliée (9b7, S4, S5) : noms « A 1/3 » comme la slide, plan de sortie (place dans le contenu et dans la sortie), réglage du processeur selon son logiciel, rappel pour le serveur média ; texte copié de Canvas',
+    etape: '9b',
+    verifier(v, contexte) {
+      const empiles = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 40, rangees: 1 }, { nom: 'B', colonnes: 40, rangees: 1, placement: { type: 'dessous', zone: 'A' } }]);
+      const e = calculs.evaluerProcesseur(empiles, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl4k'), NOVASTAR_60_8);
+      const s = calculs.pliageSortie(empiles, DALLE_CAS_7, e, [3840, 2160]);
+      v.egal('noms des tranches', s.blocs[0].tranches.map((t) => t.nom), ['A 1/3', 'A 2/3', 'A 3/3', 'B 1/3', 'B 2/3', 'B 3/3']);
+      v.egal('taille réelle de chaque tranche (m)', s.blocs[0].tranches.slice(0, 3).map((t) => [t.largeurM, t.hauteurM]), [[8.5, 0.5], [8.5, 0.5], [3, 0.5]]);
+      v.vrai('NovaLCT : un screen par tranche, à ses coordonnées', /un screen par tranche/.test(s.reglage) && /Coordinate/.test(s.reglage));
+      v.vrai('rappel pour le serveur média (disguise, Resolume)', /feed rectangles/.test(s.rappelServeur) && /Advanced Output/.test(s.rappelServeur));
+      const s8 = calculs.evaluerProcesseur(calculs.mur(DALLE_CAS_7, 30, 2), DALLE_CAS_7, processeurDeBase(contexte, 'brompton-s8'), BROMPTON_60_10);
+      v.vrai('Tessera : un groupe par tranche dans le canvas', /un groupe par tranche/.test(calculs.pliageSortie(calculs.mur(DALLE_CAS_7, 30, 2), DALLE_CAS_7, s8, [1920, 1080]).reglage));
+      const liaisons = liaisonsDeBase(contexte);
+      const source = { ...calculs.sourceConseillee(e, liaisons, 60, { pliage: s }), bits: 8, plage: 'Full', espace: 'RGB' };
+      const r = calculs.controleSource(source, e, liaisons, { famille: 'novastar', bitsReseau: 8, frequenceHz: 60 }, { pliage: s });
+      const texte = resumes.resumeCanvas(r, { evaluation: e, source, pliage: s }).split('\n');
+      v.vrai('texte copié : sortie pliée et chaque tranche', texte.includes('Sortie du serveur : pliée dans 3840 × 2160')
+        && texte.includes('Processeur n° 1, tranche A 1/3 : contenu x 0, y 0, 3264 × 192 px ; sortie x 0, y 0') && texte.includes('Processeur n° 1, tranche B 3/3 : contenu x 6528, y 192, 1152 × 192 px ; sortie x 0, y 960'), texte.join(' | '));
+    },
+  },
+  {
+    id: 'R270',
+    titre: 'Sortie pliée (9b7, S1, S6) : proposée seulement quand le bloc ne tient dans aucun format standard et que le pliage réussit ; pliée, la source devient le format standard (plus d\'alerte EDID), contrôlée sur la liaison et l\'entrée ; sans pliage, rien ne change',
+    etape: '9b',
+    verifier(v, contexte) {
+      const mctrl4k = processeurDeBase(contexte, 'novastar-mctrl4k');
+      const liaisons = liaisonsDeBase(contexte);
+      const empiles = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 40, rangees: 1 }, { nom: 'B', colonnes: 40, rangees: 1, placement: { type: 'dessous', zone: 'A' } }]);
+      const e = calculs.evaluerProcesseur(empiles, DALLE_CAS_7, mctrl4k, NOVASTAR_60_8);
+      v.egal('F8 bis : pliage proposé dans 3840 × 2160', calculs.pliagePropose(empiles, DALLE_CAS_7, e), [3840, 2160]);
+      const petit = calculs.mur(DALLE_CAS_7, 10, 5);
+      v.egal('bloc qui tient dans un format standard : rien de proposé', calculs.pliagePropose(petit, DALLE_CAS_7, calculs.evaluerProcesseur(petit, DALLE_CAS_7, mctrl4k, NOVASTAR_60_8)), null);
+      const top = { id: 'fictive-top', nom: 'Dalle 128 × 64 px (TOP de la slide)', fictive: true, largeurMm: 500, hauteurMm: 250, pxH: 128, pxV: 64 };
+      const mur9 = calculs.mur(top, 34, 20);
+      v.egal('F9 : pliage impossible, rien de proposé', calculs.pliagePropose(mur9, top, calculs.evaluerProcesseur(mur9, top, processeurDeBase(contexte, 'coex-mx40-pro'), NOVASTAR_60_8)), null);
+      const data = { famille: 'novastar', bitsReseau: 8, frequenceHz: 60 };
+      const sans = calculs.sourceConseillee(e, liaisons, 60);
+      v.egal('sans pliage : la taille du bloc, comme avant', [sans.largeurPx, sans.hauteurPx, sans.raison], [7680, 384, 'taille']);
+      const rSans = calculs.controleSource({ ...sans, bits: 8, plage: 'Full', espace: 'RGB' }, e, liaisons, data);
+      v.vrai('sans pliage : alerte EDID', rSans.alertes.some((a) => /non standard/.test(a)));
+      const s = calculs.pliageSortie(empiles, DALLE_CAS_7, e, [3840, 2160]);
+      const avec = calculs.sourceConseillee(e, liaisons, 60, { pliage: s });
+      v.egal('pliée : source 3840 × 2160 standard', [avec.largeurPx, avec.hauteurPx, avec.standard, avec.raison], [3840, 2160, true, 'pliage']);
+      const r = calculs.controleSource({ ...avec, bits: 8, plage: 'Full', espace: 'RGB' }, e, liaisons, data, { pliage: s });
+      v.vrai('pliée : la source passe, plus d\'alerte EDID, le bloc tient plié', r.ok && !r.alertes.some((a) => /non standard/.test(a)) && r.blocs[0].tient && r.blocs[0].plie?.tranches.length === 6, [...r.refus, ...r.alertes].join(' | '));
+      const rPetite = calculs.controleSource({ largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60, liaison: avec.liaison, bits: 8, plage: 'Full', espace: 'RGB' }, e, liaisons, data, { pliage: s });
+      v.vrai('pliée dans 3840 × 2160, source de 1920 × 1080 : refus', !rPetite.ok);
+    },
+  },
+  {
     id: 'R272',
     titre: 'Une seule zone rectangulaire avec sa propre dalle (relecture du 10/10/2026, B1) : Schéma data et élec sans erreur, chaque dalle nommée « C1 R1 » et câblée à sa charge',
     etape: '9b',

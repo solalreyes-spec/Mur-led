@@ -3,11 +3,14 @@
 
 import {
   controleSource, controleRegie, controleChaine, sourceConseillee, champsManquantsRegie, maillonDepuisFiche, ErreurSaisie,
+  pliageSortie, pliagePropose, pixelMap, pixelMapPliee, cablageData,
 } from './calculs.js';
 import { nombre, nombreCourt, lireNombre, sourceCourte } from './format.js';
 import { el, remplacer, listeNumerotee } from './dom.js';
 import { barreCharge } from './look.js';
 import { resumeCanvas } from './resumes.js';
+import { pixelMapEnCanvas, canvasEnPng, modeEnregistrement, enregistrer, telecharger } from './export.js';
+import { preparerMires, dessinerMire, pngRvb } from './mire.js';
 
 const formulaire = document.getElementById('form-source');
 const zone = document.getElementById('resultats-canvas');
@@ -16,6 +19,8 @@ let liaisons = [];
 let regies = [];
 let appareils = { serveurs: [], convertisseurs: [] };
 let etatData = null;
+// Sortie du serveur pliée (9b7) : le Schéma et la mire suivent le format choisi ici.
+let surSortie = () => {};
 // Tant que l'utilisateur n'a pas touché au format de la source, elle suit la source conseillée.
 let sourceModifiee = false;
 const CHAMPS_SOURCE = ['largeurPx', 'hauteurPx', 'frequenceHz', 'liaison'];
@@ -71,12 +76,20 @@ function lireFormulaire() {
     latenceSource: lireLatence(d.get('latenceSource')),
     sourceAppareil: lireSourceAppareil(d),
     convertisseurs: lireConvertisseurs(d),
+    sortie: d.get('sortie') ? String(d.get('sortie')).split('x').map(Number) : null,
   };
 }
 
+// Sortie du serveur pliée (9b7) : le pliage choisi dans « Sortie du serveur », sinon rien.
+function pliageChoisi(format) {
+  const { choisie, mur, dalle, depart } = etatData ?? {};
+  if (!format || !choisie?.groupes?.length || !mur || !dalle) return null;
+  return pliageSortie(mur, dalle, choisie, format, { depart: depart ?? 'haut-gauche' });
+}
+
 // Remplit le formulaire avec la source conseillée, sauf si l'utilisateur l'a modifiée.
-function appliquerConseil(choisie, reglages) {
-  const conseil = choisie?.groupes?.length ? sourceConseillee(choisie, liaisons, reglages.frequenceHz) : null;
+function appliquerConseil(choisie, reglages, pliage = null) {
+  const conseil = choisie?.groupes?.length ? sourceConseillee(choisie, liaisons, reglages.frequenceHz, { pliage }) : null;
   const texte = document.getElementById('texte-source');
   document.getElementById('bouton-conseil').hidden = !sourceModifiee || !conseil;
   if (!conseil) {
@@ -96,6 +109,7 @@ function appliquerConseil(choisie, reglages) {
   if (conseil.liaison) e.liaison.value = conseil.liaison;
   const raisons = {
     standard: 'C\'est le plus petit format standard qui contient le plus grand bloc, sur la meilleure entrée du processeur.',
+    pliage: 'C\'est le format de la sortie pliée, sur la meilleure entrée du processeur.',
     entree: `Le ${conseil.formatStandard?.join(' × ')} ne passe pas l'entrée du processeur : la source prend la taille du bloc, en résolution personnalisée.`,
     taille: 'Aucun format standard ne contient le plus grand bloc : la source prend sa taille.',
   };
@@ -143,7 +157,8 @@ function tableBlocs(r, proc) {
     el('td', {}, b.canvas ? `${b.canvas.largeurPx} × ${b.canvas.hauteurPx}` : '—',
       b.canvas?.format ? el('span', { class: 'source-ligne' }, b.canvas.format) : null),
     el('td', {}, `x ${intervalle(b.x)}`, el('span', { class: 'source-ligne' }, `y ${intervalle(b.y)}`)),
-    el('td', {}, `x ${intervalle(b.xSource)}`, el('span', { class: 'source-ligne' }, `y ${intervalle(b.ySource)}`)),
+    // Sortie pliée (9b7) : le bloc arrive en tranches, détaillées dans « Sortie pliée ».
+    b.plie ? el('td', {}, 'en tranches', el('span', { class: 'source-ligne' }, 'sortie pliée')) : el('td', {}, `x ${intervalle(b.xSource)}`, el('span', { class: 'source-ligne' }, `y ${intervalle(b.ySource)}`)),
     el('td', { class: b.tient ? 'ok' : 'ko' }, b.tient ? '✓' : '✗')));
   return el('section', { class: 'bloc-resultats' },
     el('h3', {}, `Canvas à régler, par ${proc.modele}`),
@@ -154,12 +169,12 @@ function tableBlocs(r, proc) {
           el('th', {}, 'Dans le mur'), el('th', {}, 'Dans sa source'), el('th', {}, ''))),
         el('tbody', {}, lignes))),
     el('p', { class: 'source' }, 'Les coordonnées commencent à 0 : un canvas de 1920 px va de 0 à 1919.'),
-    r.blocs[0]?.parties ? tableMorceaux(r, proc) : null);
+    r.blocs.some((b) => b.parties && !b.plie) ? tableMorceaux(r, proc) : null);
 }
 
 // Mur en zones (étape 9a) : chaque morceau de zone dans la source de son processeur, à régler dans le logiciel.
 function tableMorceaux(r, proc) {
-  const lignes = r.blocs.flatMap((b) => b.parties.map((p, i) => el('tr', {},
+  const lignes = r.blocs.filter((b) => !b.plie).flatMap((b) => b.parties.map((p, i) => el('tr', {},
     el('th', { scope: 'row' }, i === 0 ? `n° ${b.numero}` : ''),
     el('td', {}, p.nom),
     el('td', {}, `x ${intervalle(p.x)}`, el('span', { class: 'source-ligne' }, `y ${intervalle(p.y)}`)))));
@@ -250,7 +265,9 @@ export function definirSourceModifiee(modifiee) {
 function mettreAJour() {
   dernier = null;
   if (!etatData) return;
-  appliquerConseil(etatData.choisie, etatData.reglages);
+  surSortie(lireFormulaire().sortie);
+  const pliage = pliageChoisi(lireFormulaire().sortie);
+  appliquerConseil(etatData.choisie, etatData.reglages, pliage);
   const e = lireFormulaire();
   const regieChoisie = regies.find((x) => x.id === e.regie) ?? null;
   document.getElementById('bloc-multiviewer').hidden = !e.regie;
@@ -285,7 +302,7 @@ function mettreAJour() {
       },
       liaison: saisie.liaison, longueurM: saisie.longueurM, convertisseurs: saisie.convertisseurs,
     }, { evaluation: choisie, liaisons, frequenceCalculHz: reglages.frequenceHz, regie });
-    r = controleSource({ ...saisie, liaison: chaine.liaisonProcesseur }, choisie, liaisons, { famille, bitsReseau: reglages.bits, frequenceHz: reglages.frequenceHz });
+    r = controleSource({ ...saisie, liaison: chaine.liaisonProcesseur }, choisie, liaisons, { famille, bitsReseau: reglages.bits, frequenceHz: reglages.frequenceHz }, { pliage });
   } catch (erreur) {
     if (!(erreur instanceof ErreurSaisie)) throw erreur;
     remplacer(zone, alerte(erreur.message, 'alerte-erreur'));
@@ -293,7 +310,7 @@ function mettreAJour() {
   }
   const source = { ...saisie, liaison: chaine.liaisonProcesseur };
   const rRegie = regie ? controleRegie(regie, choisie, saisie, liaisons, { multiviewer: e.multiviewer, programSeul: e.programSeul, couchesParSortie: e.couchesParSortie }) : null;
-  dernier = { r, evaluation: choisie, source, regie, rRegie, chaine };
+  dernier = { r, evaluation: choisie, source, regie, rRegie, chaine, pliage };
 
   const recap = el('p', { class: 'recap-mur' },
     `Processeur : ${choisie.nombre} × ${proc.nom}, ${nombreCourt(reglages.frequenceHz)} Hz, ${reglages.bits} bits réseau. `,
@@ -311,7 +328,107 @@ function mettreAJour() {
     sectionLiaison(source, r, proc),
     sectionChaine(chaine, source),
     sectionRegie(rRegie, regie, saisie),
+    propositionPliage(saisie.sortie),
+    sectionPliage(pliage, proc),
     tableBlocs(r, proc));
+}
+
+// Pliage proposé (9b7, S1) : seulement quand un bloc ne tient dans aucun format standard et que le pliage réussit.
+function propositionPliage(sortie) {
+  if (sortie) return null;
+  const { choisie, mur, dalle, depart } = etatData;
+  const format = mur && dalle ? pliagePropose(mur, dalle, choisie, { depart: depart ?? 'haut-gauche' }) : null;
+  if (!format) return null;
+  const bouton = el('button', { type: 'button', class: 'bouton bouton-petit' }, `Plier dans ${format[0]} × ${format[1]}`);
+  bouton.addEventListener('click', () => {
+    formulaire.elements.sortie.value = format.join('x');
+    formulaire.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  return el('div', { class: 'alerte alerte-info' },
+    `Aucun format standard ne contient le bloc : plier la sortie du serveur dans ${format[0]} × ${format[1]} ? `
+    + 'Ses morceaux de zones sont coupés en tranches entre deux ports et posés les uns sous les autres, comme sur la slide de la formation. ',
+    bouton);
+}
+
+// Sortie pliée (9b7, S5, S7) : chaque tranche, sa place dans le contenu et dans la sortie ; réglage du processeur, rappel
+// pour le serveur média ; PNG et mire de la sortie de chaque processeur plié.
+function sectionPliage(pliage, proc) {
+  if (!pliage) return null;
+  const { format } = pliage;
+  const plies = pliage.blocs.filter((b) => !b.tel);
+  if (!plies.length) {
+    return el('section', { class: 'bloc-resultats' }, el('h3', {}, `Sortie pliée dans ${format.largeurPx} × ${format.hauteurPx}`),
+      alerte('Chaque bloc tient tel quel dans ce format : rien à plier.', 'alerte-info'));
+  }
+  return el('section', { class: 'bloc-resultats' },
+    el('h3', {}, `Sortie pliée dans ${format.largeurPx} × ${format.hauteurPx}`),
+    plies.flatMap((b) => [
+      el('h4', {}, `${proc.modele} n° ${b.numero}`),
+      b.ok ? null : alerte(b.raison, 'alerte-erreur'),
+      b.tranches.length ? el('div', { class: 'tableau-defilant' },
+        el('table', { class: 'table-donnees' },
+          el('thead', {}, el('tr', {}, el('th', {}, 'Tranche'), el('th', {}, 'Dans le contenu'), el('th', {}, 'Dans la sortie'), el('th', {}, 'Taille'))),
+          el('tbody', {}, b.tranches.map((t) => el('tr', {},
+            el('th', { scope: 'row' }, t.nom),
+            el('td', {}, `x ${t.contenu.x}, y ${t.contenu.y}`, el('span', { class: 'source-ligne' }, `${t.contenu.largeurPx} × ${t.contenu.hauteurPx} px`)),
+            el('td', {}, `x ${t.sortie.x}, y ${t.sortie.y}`),
+            el('td', {}, `${nombreCourt(t.largeurM, 2)} × ${nombreCourt(t.hauteurM, 2)} m`)))))) : null,
+      b.ok ? exportsPliage(b.numero) : null,
+    ]),
+    el('p', { class: 'note' }, pliage.reglage),
+    el('p', { class: 'note' }, pliage.rappelServeur),
+    el('p', { class: 'source' }, 'Les ports, les charges et le câblage ne changent pas : le pliage ne touche que la vidéo.'));
+}
+
+// Fichier préparé au premier appui ; le partage d'iOS ne s'ouvre que sur un appui direct, d'où un second bouton.
+async function produire(etat, nom, fabriquer) {
+  etat.textContent = `Préparation de ${nom}…`;
+  let blob;
+  try {
+    blob = await fabriquer();
+  } catch (erreur) {
+    etat.textContent = `Export impossible : ${erreur.message}`;
+    return;
+  }
+  const taille = `${nom} (${nombreCourt(blob.size / 1e6, 1)} Mo)`;
+  if (modeEnregistrement(navigator, [new File([blob], nom, { type: 'image/png' })]) !== 'partage') {
+    telecharger(blob, nom);
+    etat.textContent = `Image téléchargée : ${taille}.`;
+    return;
+  }
+  const partager = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Enregistrer ou partager');
+  partager.addEventListener('click', async () => {
+    const resultat = await enregistrer(blob, nom);
+    etat.textContent = { partage: `Image partagée : ${taille}.`, annule: 'Partage annulé.', telechargement: `Image téléchargée : ${taille}.` }[resultat];
+  });
+  remplacer(etat, `${taille} prête. `, partager);
+}
+
+function exportsPliage(numero) {
+  const etat = el('p', { class: 'note', role: 'status' });
+  const contexte = () => {
+    const { choisie, mur, dalle, depart } = etatData;
+    return { choisie, mur, dalle, depart: depart ?? 'haut-gauche', pliage: dernier?.pliage };
+  };
+  const png = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-export': 'png' }, 'PNG de la sortie');
+  png.addEventListener('click', () => {
+    const { choisie, mur, dalle, pliage } = contexte();
+    const c = pixelMapPliee(pixelMap(mur, dalle, choisie), mur, pliage).canvas[numero - 1];
+    produire(etat, `mur-led-sortie-pliee-processeur-${numero}-${c.bloc.largeurPx}x${c.bloc.hauteurPx}.png`, () => canvasEnPng(pixelMapEnCanvas(c)));
+  });
+  const mire = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-export': 'mire' }, 'Mire de la sortie');
+  mire.addEventListener('click', () => {
+    const { choisie, mur, dalle, depart, pliage } = contexte();
+    const data = cablageData(mur, dalle, choisie, { depart });
+    const variante = data.variantes.find((x) => x.mode === data.conseil) ?? null;
+    const p = preparerMires({ mur, dalle, evaluation: choisie, variante, pliage }).processeurs.find((x) => x.numero === numero);
+    if (!p?.possible) {
+      etat.textContent = p?.message ?? 'Mire impossible.';
+      return;
+    }
+    produire(etat, p.nom, () => pngRvb(dessinerMire(p.plan)));
+  });
+  return el('div', {}, el('p', { class: 'actions' }, png, ' ', mire), etat);
 }
 
 function remplirRegies(erreurRegies = null) {
@@ -337,7 +454,8 @@ export function actualiserRegies(nouvelles, sourcesRegies = {}) {
 }
 
 // `base` : { liaisons, regies, sourcesRegies } déjà résolues.
-export function initialiserCanvas(base) {
+export function initialiserCanvas(base, { surSortieModifiee = () => {} } = {}) {
+  surSortie = surSortieModifiee;
   liaisons = base.liaisons;
   regies = base.regies ?? [];
   regieSources = Object.fromEntries(Object.entries(base.sourcesRegies ?? {}).map(([id, s]) => [id, sourceCourte(s)]));

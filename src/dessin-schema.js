@@ -120,8 +120,10 @@ function avecAbsentes(geo, vue, mur, dalle) {
   return absentes.length ? { ...geo, absentes } : geo;
 }
 
-// Mur en zones (étape 9a) : rectangle de chaque zone (ou morceau de zone) dans la vue, d'après ses dalles.
+// Mur en zones (étape 9a) : rectangle de chaque zone (ou morceau de zone) dans la vue, d'après ses dalles. Sortie pliée
+// (9b7) : aucun nom, les tranches collées ne laissent pas de place hors d'elles (liste des tranches dans l'onglet).
 function avecZones(geo) {
+  if ([...geo.rects.values()].some((r) => r.tranche)) return geo;
   const parZone = new Map();
   for (const r of geo.rects.values()) {
     if (!r.d?.zone) continue;
@@ -155,7 +157,8 @@ function geometrieSansZones(vue, mur, dalle, pm) {
       canvas,
       largeur: canvas.canvas?.largeurPx ?? canvas.bloc.largeurPx,
       hauteur: canvas.canvas?.hauteurPx ?? canvas.bloc.hauteurPx,
-      rects: new Map(canvas.dalles.map((z) => [z.id, { x: z.x[0], y: z.y[0], w: z.x[1] - z.x[0] + 1, h: z.y[1] - z.y[0] + 1, d: parId.get(z.id) }])),
+      // Sortie pliée (9b7) : chaque dalle avec le nom de sa tranche, pour nommer les tranches au lieu des zones.
+      rects: new Map(canvas.dalles.map((z) => [z.id, { x: z.x[0], y: z.y[0], w: z.x[1] - z.x[0] + 1, h: z.y[1] - z.y[0] + 1, d: parId.get(z.id), ...(z.tranche ? { tranche: z.tranche } : {}) }])),
     };
   }
   return {

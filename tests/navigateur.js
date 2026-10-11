@@ -5,7 +5,7 @@ import * as calculs from '../src/calculs.js';
 import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, enregistrer, TEINTES } from '../src/export.js';
 import { geometrieSchema, trajetsSchema, construireSvg, repereSchema, PALETTE_EXPORT, PALETTE_ECRAN } from '../src/dessin-schema.js';
 import { processeurDeBase, baseProcesseurs, dalleDeBase, liaisonsDeBase, regieDeBase } from './base.js';
-import { DALLE_CAS_13 } from './dalles-fictives.js';
+import { DALLE_CAS_13, DALLE_CAS_7 } from './dalles-fictives.js';
 import { versionCache, empreinteDeclaree, empreinteCache, listeCache } from './fichiers.js';
 import { VERSIONS_CACHE } from './versions-cache.js';
 import { creerStockage } from '../src/stockage.js';
@@ -2579,6 +2579,37 @@ export const NAVIGATEUR = [
       const mixte = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 2, dalle: { id: 'f64', nom: 'Dalle 64 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 64, pxV: 64 } }], { ecarts: 'colles' });
       const geoPx = geometrieSchema({ vue: 'pixels', canvasVue: 'mur', cablage: 'data' }, mixte, DALLE_CAS_13, calculs.pixelMap(mixte, DALLE_CAS_13, null));
       v.egal('mur mixte, vue pixels : chaque dalle à sa taille', [geoPx.rects.get('A · C1 R1').w, geoPx.rects.get('B · C1 R1').w, geoPx.rects.get('B · C1 R1').x], [192, 64, 384]);
+    },
+  },
+  {
+    id: 'N61',
+    titre: 'Sortie pliée (étape 9b7, S7) : export PNG et mire de la sortie pliée, à la taille du format (3840 × 2160), tranches à leur place dans la sortie, étiquettes de la slide (nom, « x, y // largeur × hauteur », taille en m), noir hors des tranches ; cas F8 bis',
+    etape: '9b',
+    async verifier(v, contexte) {
+      const mire = await moduleAppli(v, '../src/mire.js');
+      if (!mire) return;
+      const m = calculs.murZones(DALLE_CAS_7, [{ nom: 'A', colonnes: 40, rangees: 1 }, { nom: 'B', colonnes: 40, rangees: 1, placement: { type: 'dessous', zone: 'A' } }]);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl4k'), { frequenceHz: 60, bits: 8 });
+      const pliage = calculs.pliageSortie(m, DALLE_CAS_7, e, [3840, 2160]);
+      const pm = calculs.pixelMapPliee(calculs.pixelMap(m, DALLE_CAS_7, e), m, pliage);
+      const c = pm.canvas[0];
+      v.egal('canvas plié : 3840 × 2160, les 80 dalles', [c.bloc.largeurPx, c.bloc.hauteurPx, c.dalles.length], [3840, 2160, 80]);
+      const place = (id) => { const d = c.dalles.find((x) => x.id === id); return d ? [d.x, d.y] : null; };
+      v.egal('dalles à leur place dans la sortie', [place('A · C1 R1'), place('A · C18 R1'), place('B · C40 R1')],
+        [[[0, 191], [0, 191]], [[0, 191], [192, 383]], [[960, 1151], [960, 1151]]]);
+      v.egal('étiquettes des tranches', calculs.motifPixelMap(c).etiquettes.slice(0, 3).map((x) => x.lignes),
+        [['A 1/3', '0, 0 // 3264 × 192', '8,5 × 0,5 m'], ['A 2/3', '0, 192 // 3264 × 192', '8,5 × 0,5 m'], ['A 3/3', '0, 384 // 1152 × 192', '3 × 0,5 m']]);
+      const canvas = pixelMapEnCanvas(c);
+      v.egal('PNG à la taille de la sortie', [canvas.width, canvas.height], [3840, 2160]);
+      const ctx = canvas.getContext('2d');
+      const pixel = (x, y) => [...ctx.getImageData(x, y, 1, 1).data].slice(0, 3).join(',');
+      v.vrai('dans une tranche : pas noir ; à droite de A 1/3 et sous la dernière étagère : noir',
+        pixel(100, 150) !== '0,0,0' && pixel(3500, 100) === '0,0,0' && pixel(100, 1300) === '0,0,0', `${pixel(100, 150)} ; ${pixel(3500, 100)} ; ${pixel(100, 1300)}`);
+      const data = calculs.cablageData(m, DALLE_CAS_7, e, { depart: 'haut-gauche' });
+      const variante = data.variantes.find((x) => x.mode === data.conseil);
+      const mires = mire.preparerMires({ mur: m, dalle: DALLE_CAS_7, evaluation: e, variante, pliage, surfaceMax: 16777216 });
+      const p = mires.processeurs[0];
+      v.egal('mire du processeur : à la taille de la sortie pliée', [mires.processeurs.length, p?.largeur, p?.hauteur, Boolean(p?.plan)], [1, 3840, 2160, true]);
     },
   },
 ];

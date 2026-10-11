@@ -303,7 +303,7 @@ export function consommationProcesseur(proc) {
 }
 
 // `r` : contrôle de la source ; `evaluation` : processeur retenu ; `rRegie` : contrôle de la régie choisie.
-export function resumeCanvas(r, { evaluation, source, regie = null, rRegie = null, chaine = null }) {
+export function resumeCanvas(r, { evaluation, source, regie = null, rRegie = null, chaine = null, pliage = null }) {
   const proc = evaluation.processeur;
   const c = r.entree?.controle;
   const texteLiaison = (x) => (x.frequencePixelMaxMHz
@@ -328,6 +328,18 @@ export function resumeCanvas(r, { evaluation, source, regie = null, rRegie = nul
     lignes.push(`Processeur n° ${b.numero}, dans le mur : x ${b.x[0]} à ${b.x[1]}, y ${b.y[0]} à ${b.y[1]}`);
     lignes.push(`Processeur n° ${b.numero}, dans sa source : x ${b.xSource[0]} à ${b.xSource[1]}, y ${b.ySource[0]} à ${b.ySource[1]}`);
     for (const p of b.parties ?? []) lignes.push(`Processeur n° ${b.numero}, ${p.nom} dans sa source : x ${p.x[0]} à ${p.x[1]}, y ${p.y[0]} à ${p.y[1]}`);
+  }
+  // Sortie pliée (9b7) : chaque tranche, sa place dans le contenu et dans la sortie, le réglage et le rappel serveur.
+  if (pliage?.plie) {
+    lignes.push(`Sortie du serveur : pliée dans ${pliage.format.largeurPx} × ${pliage.format.hauteurPx}`);
+    for (const b of pliage.blocs.filter((x) => !x.tel)) {
+      if (!b.ok) lignes.push(`Processeur n° ${b.numero} : ${b.raison}`);
+      for (const t of b.tranches) {
+        lignes.push(`Processeur n° ${b.numero}, tranche ${t.nom} : contenu x ${t.contenu.x}, y ${t.contenu.y}, ${t.contenu.largeurPx} × ${t.contenu.hauteurPx} px ; `
+          + `sortie x ${t.sortie.x}, y ${t.sortie.y}`);
+      }
+    }
+    lignes.push(`Réglage : ${pliage.reglage}`, `Serveur : ${pliage.rappelServeur}`);
   }
   if (regie && rRegie) {
     if (rRegie.aCompleter?.length) {

@@ -2,7 +2,7 @@
 // Tout est calculé par calculs.js (dallesDuMur, pixelMap, cablageData, cablageElec) : ici, seulement le dessin.
 
 import {
-  dallesDuMur, pixelMap, cablageData, cablageElec, tuilesImage, coinDepart, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie,
+  dallesDuMur, pixelMap, cablageData, cablageElec, tuilesImage, coinDepart, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie, pliageSortie, pixelMapPliee,
 } from './calculs.js';
 import { resumeCablage } from './resumes.js';
 import { nombre, nombreCourt, lireNombre } from './format.js';
@@ -428,7 +428,7 @@ function exporterSchema() {
 export function cablageRetenu() {
   if (!etatData?.mur || !dernier?.data) return null;
   const variante = dernier.data.variantes.find((x) => x.mode === dernier.modeData) ?? null;
-  return variante ? { mur: etatData.mur, dalle: etatData.dalle, evaluation: etatData.choisie ?? null, variante } : null;
+  return variante ? { mur: etatData.mur, dalle: etatData.dalle, evaluation: etatData.choisie ?? null, variante, pliage: dernier.pliage ?? null } : null;
 }
 
 export function resumeOngletSchema() {
@@ -455,15 +455,22 @@ function mettreAJour() {
   const ve = varianteChoisie(elec, e.varianteElec);
   dernier = { data, modeData: vd?.mode ?? null, elec, modeElec: ve?.mode ?? null };
 
-  const pm = pixelMap(mur, dalle, etatData?.mur === mur ? etatData.choisie : null);
+  const evaluation = etatData?.mur === mur ? etatData.choisie : null;
+  const pliage = formatSortie && evaluation?.groupes?.length ? pliageSortie(mur, dalle, evaluation, formatSortie, { depart: e.departData }) : null;
+  dernier.pliage = pliage;
+  const pm = pixelMapPliee(pixelMap(mur, dalle, evaluation), mur, pliage);
   // Choix du canvas dans la vue pixels : tout le mur, ou le canvas d'un processeur.
   const blocCanvas = document.getElementById('bloc-canvas-vue');
   blocCanvas.hidden = e.vue !== 'pixels' || pm.canvas.length === 0;
   const select = formulaire.elements.canvasVue;
   const options = ['mur', ...pm.canvas.map((c) => `p${c.numero}`)];
-  if ([...select.options].map((o) => o.value).join() !== options.join()) {
-    remplacer(select, el('option', { value: 'mur' }, 'Tout le mur'),
-      pm.canvas.map((c) => el('option', { value: `p${c.numero}` }, `Processeur n° ${c.numero} : ${c.canvas?.largeurPx ?? c.bloc.largeurPx} × ${c.canvas?.hauteurPx ?? c.bloc.hauteurPx} px`)));
+  // Libellés compris : la taille change avec la sortie pliée (9b7).
+  const libelles = ['Tout le mur', ...pm.canvas.map((c) => `Processeur n° ${c.numero} : ${c.canvas?.largeurPx ?? c.bloc.largeurPx} × ${c.canvas?.hauteurPx ?? c.bloc.hauteurPx} px`
+    + `${c.plie ? ', sortie pliée' : ''}`)];
+  if ([...select.options].map((o) => o.textContent).join('|') !== libelles.join('|')) {
+    const avant = select.value;
+    remplacer(select, options.map((v, i) => el('option', { value: v }, libelles[i])));
+    if (options.includes(avant)) select.value = avant;
   }
   if (!options.includes(e.canvasVue)) select.value = 'mur';
   const vueCanvas = e.vue === 'pixels' && select.value !== 'mur' ? Number(select.value.slice(1)) : null;
@@ -481,6 +488,12 @@ function mettreAJour() {
   afficherExports({ pm, e, geo, trajets, coin, blocs, repere, data, vd, elec, ve });
 
   const alertes = [...erreurs.map((x) => alerte(x, 'alerte-erreur'))];
+  if (pm.canvas.some((c) => c.plie)) {
+    alertes.push(alerte(`Entrée du processeur : sortie pliée dans ${pliage.format.largeurPx} × ${pliage.format.hauteurPx} (onglet Canvas). `
+      + 'La vue pixels d\'un processeur, son export et sa mire montrent les tranches à leur place dans la sortie ; la vue physique et le câblage ne changent pas. '
+      + pliage.blocs.filter((b) => !b.tel && b.ok).map((b) => `Processeur n° ${b.numero} : ${b.tranches.map((t) => `${t.nom} en x ${t.sortie.x}, y ${t.sortie.y}`).join(' ; ')}.`).join(' '),
+    'alerte-info'));
+  }
   // Ligne de rappel au-dessus du dessin ; cartes des variantes sous la légende (le dessin d'abord, audit terrain).
   let entete = null;
   let variantes = null;
@@ -848,6 +861,16 @@ export function murModifiePourSchema(etat) {
 
 export function dataModifieePourSchema(etat) {
   etatData = etat;
+  mettreAJour();
+}
+
+// Sortie du serveur pliée (9b7) : format choisi dans Canvas ([largeur, hauteur]) ou null ; la vue pixels d'un processeur,
+// son export et sa mire suivent le pliage.
+let formatSortie = null;
+export function sortieModifieePourSchema(format) {
+  const nouveau = format ? format.join('x') : '';
+  if (nouveau === (formatSortie ? formatSortie.join('x') : '')) return;
+  formatSortie = format;
   mettreAJour();
 }
 

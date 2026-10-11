@@ -823,6 +823,7 @@ function mettreAJour() {
     choisie,
     dalle: etatMur?.dalle ?? null,
     mur: etatMur?.mur ?? null,
+    depart: departData,
   });
 }
 

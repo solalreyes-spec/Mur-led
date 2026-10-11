@@ -10,7 +10,7 @@ import { initialiserCanvas, actualiserRegies, donneesModifiees } from './ecran-c
 import { initialiserElec, murModifiePourElec, definirDepartElec } from './ecran-elec.js';
 import {
   initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema,
-  cablageRetenu,
+  cablageRetenu, sortieModifieePourSchema,
 } from './ecran-schema.js';
 import { initialiserPoids, actualiserBumpers, murModifiePourPoids } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
@@ -302,7 +302,8 @@ initialiserSchema({
   },
 });
 if (connectique) {
-  initialiserCanvas({ ...connectique, regies: courant.regies, sourcesRegies: courant.sourcesRegies, erreurRegies, appareils });
+  initialiserCanvas({ ...connectique, regies: courant.regies, sourcesRegies: courant.sourcesRegies, erreurRegies, appareils },
+    { surSortieModifiee: sortieModifieePourSchema });
 }
 if (depart.processeurs) {
   initialiserData(pourData(), (etat) => {
