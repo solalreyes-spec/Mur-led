@@ -79,6 +79,51 @@ export function murCarresZones(m) {
   return el('div', { class: 'mur-carres-zones', 'aria-hidden': 'true', style: `--rapport: ${m.largeurMm} / ${m.hauteurMm}` }, ...grilles);
 }
 
+// Vue de dessus du mur (9c2) : chaque zone vue d'en haut, public en bas, aux proportions de la boîte réelle ; une
+// colonne debout est un trait (son bord bas), une dalle couchée ou inclinée (plafond) un quadrilatère en hachures.
+// `forme` : formeReelle(m, dalle) ; null pour un mur à plat (rien de plus que le mur en petits carrés).
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const svgEl = (nom, attributs = {}, enfants = []) => {
+  const e = document.createElementNS(SVG_NS, nom);
+  for (const [k, v] of Object.entries(attributs)) if (v !== null && v !== undefined) e.setAttribute(k, String(v));
+  for (const enfant of enfants) if (enfant) e.append(enfant);
+  return e;
+};
+const metresCourts = (mm) => String(Math.round(mm / 10) / 100).replace('.', ',');
+export function vueDessus(forme) {
+  if (!forme || !forme.zones.some((z) => z.courbure || z.pose !== 'prolongement')) return null;
+  const b = forme.boiteMm;
+  const largeur = Math.max(b.largeur, 1);
+  const profondeur = Math.max(b.profondeur, largeur * 0.02);
+  const point = (c) => `${c[0]},${c[2]}`;
+  const vues = new Set();
+  const traits = [];
+  const couchees = [];
+  for (const d of forme.dalles) {
+    if (Math.abs(d.tangageDeg) > 1) {
+      couchees.push(svgEl('polygon', { class: 'dalle-plafond', points: d.coinsMm.map(point).join(' '), fill: 'url(#hachures-dessus)', stroke: 'currentColor', 'stroke-width': 1, 'vector-effect': 'non-scaling-stroke' }));
+      continue;
+    }
+    const cle = `${d.zone}|${d.colonne}`;
+    if (vues.has(cle)) continue;
+    vues.add(cle);
+    const [a, c] = [d.coinsMm[0], d.coinsMm[1]];
+    traits.push(svgEl('line', { class: 'colonne-dessus', x1: a[0], y1: a[2], x2: c[0], y2: c[2], stroke: 'currentColor', 'stroke-width': 3, 'stroke-linecap': 'round', 'vector-effect': 'non-scaling-stroke' }));
+  }
+  const pas = Math.max(largeur, profondeur) / 60;
+  const dessin = svgEl('svg', {
+    viewBox: `${b.min[0]} ${b.min[2]} ${largeur} ${profondeur}`, preserveAspectRatio: 'xMidYMid meet', overflow: 'visible', role: 'img',
+    'aria-label': 'Vue de dessus du mur', style: `aspect-ratio: ${largeur} / ${profondeur}`,
+  }, [
+    svgEl('defs', {}, [svgEl('pattern', { id: 'hachures-dessus', patternUnits: 'userSpaceOnUse', width: pas, height: pas, patternTransform: 'rotate(45)' },
+      [svgEl('line', { x1: 0, y1: 0, x2: 0, y2: pas, stroke: 'currentColor', 'stroke-width': pas / 4 })])]),
+    ...couchees, ...traits,
+  ]);
+  return el('figure', { class: 'vue-dessus' },
+    dessin,
+    el('figcaption', { class: 'legende-dessus' }, `Vue de dessus, public en bas : ${metresCourts(b.largeur)} × ${metresCourts(b.profondeur)} m (largeur × profondeur)`));
+}
+
 // Icônes de trait (24 × 24, trait de 2 px, couleur du texte qui les porte).
 const TRACES = {
   mur: '<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14M15 5v14M3 12h18"/>',

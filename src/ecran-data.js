@@ -300,10 +300,19 @@ function sectionPorts(e, dalle, r) {
         ? tuile('Capacité de l\'appareil', `${nombre(entierInferieur(r.capaciteAppareil.valeur))} px`, texteCapaciteAppareil(r.capaciteAppareil),
           r.capaciteAppareil.limite === 'ports' ? 'les ports limitent avant le total de la fiche' : 'le total de la fiche limite avant les ports')
         : null,
-      tuile('Pixels par dalle', `${nombre(r.pxParDalle)} px`, compte, demi),
-      tuile('Dalles par port', nombre(r.dallesParPort),
-        `partie entière de ${nombre(entierInferieur(r.capacite))} / ${nombre(r.pxParDalle)}`,
-        r.plafondBoucle ? `plafonné à ${proc.maxDallesParBoucleRedondance} par boucle en redondance` : null),
+      // Dalles tournées hors axe (9c4) : comptées deux fois ; un mur tout tourné montre ces valeurs, sinon en détail.
+      ...(() => {
+        const tournees = r.pixelsHorsAxe ?? [];
+        const seule = r.toutHorsAxe && tournees.length === 1 ? tournees[0] : null;
+        const detail = tournees.length && !seule ? `zones tournées hors axe : ${tournees.map((x) => `${x.zone} ${nombre(x.px)} px, ${nombre(x.parPort)} par port`).join(' ; ')}` : null;
+        const px = seule ? seule.px : r.pxParDalle;
+        return [
+          tuile('Pixels par dalle', `${nombre(px)} px`, seule ? `dalle tournée hors axe, comptée deux fois (${nombre(px / 2)} × 2)` : compte, demi, detail),
+          tuile('Dalles par port', nombre(seule ? seule.parPort : r.dallesParPort),
+            `partie entière de ${nombre(entierInferieur(r.capacite))} / ${nombre(px)}`,
+            r.plafondBoucle ? `plafonné à ${proc.maxDallesParBoucleRedondance} par boucle en redondance` : null),
+        ];
+      })(),
       tuile('Ports en colonnes entières', nombre(g.colonnes.ports), colonnes, redondance(g.redondance.colonnes),
         texteCharge(g.chargeMax.colonnes), 'retenus, comme le schéma'),
       tuile('Minimum théorique', nombre(g.serpentin.ports), `au plus juste, serpentin depuis ${LIBELLES_COIN[g.serpentin.depart]}`,

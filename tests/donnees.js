@@ -2189,4 +2189,40 @@ export const DONNEES = [
       v.egal('noms tirés des sources publiques (fichier : empreinte trouvée)', lus.flatMap(([chemin, texte]) => exactsDans(texte, EMPREINTES_SOURCES_PUBLIQUES).map((h) => `${chemin} : ${h}`)), []);
     },
   },
+  {
+    id: 'D65',
+    titre: 'Angles et courbure (9c1, Z28) : chaque courbure de la base se lit (concave et convexe en degrés, aucun texte illisible) et a sa source ; valeurs des cas G : BP2 concave 10°, BO2 concave et convexe 10°, CB8 concave 15° et convexe 10°, EZ2.6 sans courbure et 75,5 mm de profondeur (base tierce)',
+    etape: '9c1',
+    verifier(v, contexte) {
+      const base = lireBase(contexte);
+      const fiches = [...base.dalles, ...(base.informations ?? [])].filter((x) => x.courbure).map((x) => calculs.resoudreFiche(x, base.sources));
+      v.vrai('au moins 50 courbures dans la base', fiches.length >= 50);
+      const illisibles = fiches.filter((f) => {
+        const l = calculs.limitesCourbure(f);
+        return !l || !(l.concaveDeg >= 0) || !(l.convexeDeg >= 0) || l.concaveDeg + l.convexeDeg === 0;
+      }).map((f) => `${f.id} : ${f.courbure}`);
+      v.egal('courbures illisibles', illisibles, []);
+      v.egal('courbures sans source', fiches.filter((f) => !calculs.limitesCourbure(f).source?.court).map((f) => f.id), []);
+      const dalle = (id) => calculs.resoudreFiche(base.dalles.find((x) => x.id === id), base.sources);
+      const lim = (id) => {
+        const l = calculs.limitesCourbure(dalle(id));
+        return l && [l.concaveDeg, l.convexeDeg];
+      };
+      v.egal('BP2, BO2, CB8, EZ2.6 : [concave, convexe]', ['roe-bp2', 'roe-bo2', 'roe-cb8', 'infiled-ez2-6-mk2'].map(lim), [[10, 0], [10, 10], [15, 10], null]);
+      const ez = dalle('infiled-ez2-6-mk2');
+      v.egal('EZ2.6 : profondeur et confiance de sa source', [ez.profondeurMm, ez.sources.profondeurMm.source.confiance], [75.5, 'base tierce']);
+    },
+  },
+  {
+    id: 'D66',
+    titre: 'Dalles tournées hors axe (9c4) : rotation libre des Tessera M2 et T1 seulement (`rotationHorsAxe`, source : manuel Tessera V3.5 § 7.14.5) ; aucun autre processeur ne l\'a',
+    etape: '9c4',
+    verifier(v, contexte) {
+      const procs = baseProcesseurs(contexte);
+      const avec = procs.processeurs.filter((p) => p.rotationHorsAxe).map((p) => p.id).sort();
+      v.egal('processeurs à rotation libre', avec, ['brompton-m2', 'brompton-t1']);
+      const s = calculs.resoudreFiche(procs.processeurs.find((p) => p.id === 'brompton-t1'), procs.sources).sources.rotationHorsAxe.source;
+      v.egal('source', [s.court, s.confiance], ['Manuel Tessera v3.5 §7.14.5', 'constructeur']);
+    },
+  },
 ];

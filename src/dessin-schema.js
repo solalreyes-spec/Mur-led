@@ -2,7 +2,7 @@
 // data ou élec en serpentin, blocs de processeurs. Sert à l'écran (couleurs du thème, mode rouge compris) et à
 // l'export en image (couleurs d'impression sur fond blanc). Aucun calcul ici.
 
-import { dallesDuMur, MODELES_DISTRIBUTEUR } from './calculs.js';
+import { dallesDuMur, MODELES_DISTRIBUTEUR, formeReelle, aFormeReelle, coinsTournes } from './calculs.js';
 import { nombre, nombreCourt } from './format.js';
 import { svg } from './dom.js';
 import { couleurPort, stylesLignes } from './couleurs.js';
@@ -48,7 +48,14 @@ export const rangDansTrajet = (trajet, id) => trajet.dalles.indexOf(id) + 1;
 export const libellePortRang = (trajet, id) => `${trajet.numero} · ${rangDansTrajet(trajet, id)}`;
 // Mur en zones : « B · C3 R2 » s'écrit « C3 R2 » sur la dalle, le nom de la zone est au-dessus de la zone.
 export const lignesNomDalle = (id) => (id.includes(' · ') ? id.split(' · ')[1] : id).split(' ');
-export const lignesPremierPixel = (r) => [`x ${r.x}`, `y ${r.y}`];
+// Dalle tournée hors axe (9c4) : son premier pixel est son coin haut gauche tourné, arrondi au pixel.
+export const lignesPremierPixel = (r) => {
+  if (!r.rotation) return [`x ${r.x}`, `y ${r.y}`];
+  const [x, y] = coinsTournes(r.x + r.w / 2, r.y + r.h / 2, r.w, r.h, r.rotation)[3];
+  return [`x ${Math.round(x)}`, `y ${Math.round(y)}`];
+};
+// Rotation SVG d'une dalle tournée (sens inverse des aiguilles d'une montre vu de face : angle négatif en SVG).
+export const transformDalle = (r) => (r.rotation ? `rotate(${-r.rotation} ${r.x + r.w / 2} ${r.y + r.h / 2})` : null);
 
 // Trajets à dessiner : un par port (data) ou par ligne (élec), avec son rang (fond alterné), son sens et ses dalles.
 // `vue.cablage` : 'data', 'elec' ou 'aucun' ; `canvasNumero` limite la data aux ports de ce processeur.
@@ -102,7 +109,35 @@ export function trajetsSchema(vue, vd, ve, canvasNumero = null) {
 // Géométrie de la vue : rectangles des dalles (mm ou px) et taille du cadre.
 // `vue.vue` : 'physique' ou 'pixels' ; `vue.canvasVue` : 'mur' ou 'p2' (canvas du processeur n° 2).
 export function geometrieSchema(vue, mur, dalle, pm) {
-  return avecAbsentes(avecZones(geometrieSansZones(vue, mur, dalle, pm)), vue, mur, dalle);
+  return avecFormeReelle(avecAbsentes(avecZones(geometrieSansZones(vue, mur, dalle, pm)), vue, mur, dalle), vue, mur, dalle);
+}
+
+// Forme réelle (9c2) : la vue physique reste développée ; chaque pli est marqué sur le bord commun des deux zones
+// (« 90° concave »), chaque zone courbe porte sa courbure (« MUR : concave 2,5° par jonction »).
+function avecFormeReelle(geo, vue, mur, dalle) {
+  if (vue.vue !== 'physique' || geo.canvas || !mur.zones || !aFormeReelle(mur)) return geo;
+  const f = formeReelle(mur, dalle);
+  const basMin = Math.min(...mur.zones.map((z) => z.basMm));
+  const hautMax = basMin + mur.hauteurMm;
+  const cadre = (z) => ({ x0: z.xMm, x1: z.xMm + z.largeurMm, y0: hautMax - z.basMm - z.hauteurMm, y1: hautMax - z.basMm });
+  const zone = (nom) => cadre(mur.zones.find((z) => z.nom === nom));
+  const deg = (x) => `${nombreCourt(x, 2)}°`;
+  const plis = f.plis.map((p) => {
+    const r = zone(p.zones[0]);
+    const d = zone(p.zones[1]);
+    const texte = `${deg(p.angleDeg)} ${p.sens}`;
+    if (p.bord === 'droit') {
+      const haut = Math.max(r.y0, d.y0) < Math.min(r.y1, d.y1) ? [Math.max(r.y0, d.y0), Math.min(r.y1, d.y1)] : [d.y0, d.y1];
+      return { x1: r.x1, y1: haut[0], x2: r.x1, y2: haut[1], vertical: true, texte };
+    }
+    const y = p.bord === 'haut' ? r.y0 : r.y1;
+    return { x1: Math.max(r.x0, d.x0), y1: y, x2: Math.min(r.x1, d.x1), y2: y, vertical: false, texte };
+  });
+  const courbures = f.zones.filter((z) => z.courbure).map((z) => {
+    const c = zone(z.nom);
+    return { x: c.x0, y: c.y0, w: c.x1 - c.x0, h: c.y1 - c.y0, texte: `${z.nom} : ${z.courbure.sens} ${deg(z.courbure.angleDeg)} par jonction` };
+  });
+  return plis.length || courbures.length ? { ...geo, plis, courbures } : geo;
 }
 
 // Formes libres (9b6) : place de chaque dalle absente, dessinée en pointillés (vue physique et vue pixels du mur).
@@ -145,7 +180,7 @@ function geometrieSansZones(vue, mur, dalle, pm) {
       unite: 'mm',
       largeur: mur.largeurMm,
       hauteur: mur.hauteurMm,
-      rects: new Map(dalles.map((d) => [d.id, { x: d.mm.x, y: d.mm.y, w: d.mm.largeur, h: d.mm.hauteur, d }])),
+      rects: new Map(dalles.map((d) => [d.id, { x: d.mm.x, y: d.mm.y, w: d.mm.largeur, h: d.mm.hauteur, d, ...(d.rotation ? { rotation: d.rotation } : {}) }])),
     };
   }
   const numero = vue.canvasVue?.startsWith('p') ? Number(vue.canvasVue.slice(1)) : null;
@@ -158,14 +193,16 @@ function geometrieSansZones(vue, mur, dalle, pm) {
       largeur: canvas.canvas?.largeurPx ?? canvas.bloc.largeurPx,
       hauteur: canvas.canvas?.hauteurPx ?? canvas.bloc.hauteurPx,
       // Sortie pliée (9b7) : chaque dalle avec le nom de sa tranche, pour nommer les tranches au lieu des zones.
-      rects: new Map(canvas.dalles.map((z) => [z.id, { x: z.x[0], y: z.y[0], w: z.x[1] - z.x[0] + 1, h: z.y[1] - z.y[0] + 1, d: parId.get(z.id), ...(z.tranche ? { tranche: z.tranche } : {}) }])),
+      rects: new Map(canvas.dalles.map((z) => [z.id, {
+        x: z.x[0], y: z.y[0], w: z.x[1] - z.x[0] + 1, h: z.y[1] - z.y[0] + 1, d: parId.get(z.id), ...(z.tranche ? { tranche: z.tranche } : {}), ...(z.rotation ? { rotation: z.rotation } : {}),
+      }])),
     };
   }
   return {
     unite: 'px',
     largeur: mur.pxLargeur,
     hauteur: mur.pxHauteur,
-    rects: new Map(dalles.map((d) => [d.id, { x: d.px.x, y: d.px.y, w: d.px.largeur, h: d.px.hauteur, d }])),
+    rects: new Map(dalles.map((d) => [d.id, { x: d.px.x, y: d.px.y, w: d.px.largeur, h: d.px.hauteur, d, ...(d.rotation ? { rotation: d.rotation } : {}) }])),
   };
 }
 
@@ -349,7 +386,7 @@ export function construireSvg({
   const tuiles = [...rects.entries()].map(([id, r]) => {
     const choisie = id === dalleChoisie;
     const tailleNom = cote * (grandPhysique ? 0.177 : 0.16);
-    return svg('g', { 'data-dalle': id },
+    return svg('g', { 'data-dalle': id, transform: transformDalle(r) },
       svg('rect', {
         class: `dalle${r.d?.type === 'demi' ? ' demi' : ''}${choisie ? ' choisie' : ''}`, x: r.x, y: r.y, width: r.w, height: r.h,
         style: `fill: ${fondDalle(id, r)}; stroke: ${choisie ? palette.accent : palette.bord}`,
@@ -374,6 +411,28 @@ export function construireSvg({
       class: 'nom-zone', x: z.x + z.w / 2, y, 'font-size': taille, 'text-anchor': 'middle', 'font-weight': 700, style: `fill: ${palette.texte}`,
     }, z.nom);
   });
+
+  // Forme réelle (9c2) : plis en trait mixte sur le bord commun, angle et courbure écrits hors du mur, du côté opposé
+  // au départ, au-delà des noms des zones.
+  const versHaut = !coin.startsWith('haut');
+  const plis = (geo.plis ?? []).map((p) => svg('g', {},
+    svg('line', {
+      class: 'pli', x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2, style: `stroke: ${palette.contour}`, 'stroke-width': trait * 0.8,
+      'stroke-dasharray': `${trait * 3} ${trait * 1.2} ${trait * 0.4} ${trait * 1.2}`,
+    }),
+    p.vertical
+      ? svg('text', {
+        class: 'etiquette-pli', x: p.x1, y: versHaut ? Math.min(p.y1, p.y2) - police * 5.6 : Math.max(p.y1, p.y2) + police * 6.2,
+        'font-size': police * 0.9, 'text-anchor': 'middle', style: `fill: ${palette.texte}`,
+      }, p.texte)
+      : svg('text', {
+        class: 'etiquette-pli', x: coin.endsWith('gauche') ? p.x2 + police * 0.6 : p.x1 - police * 0.6, y: p.y1 + police * 0.35,
+        'font-size': police * 0.9, 'text-anchor': coin.endsWith('gauche') ? 'start' : 'end', style: `fill: ${palette.texte}`,
+      }, p.texte)));
+  const courbures = (geo.courbures ?? []).map((c) => svg('text', {
+    class: 'etiquette-courbure', x: c.x + c.w / 2, y: versHaut ? c.y - police * 4.3 : c.y + c.h + police * 4.8,
+    'font-size': Math.min(police * 0.9, (c.w * 0.95) / (0.55 * c.texte.length)), 'text-anchor': 'middle', style: `fill: ${palette.texte}`,
+  }, c.texte));
 
   // Nom du bloc du côté opposé au départ des câbles, pour ne pas croiser leurs numéros.
   const contours = blocs.map((b) => svg('g', {},
@@ -557,6 +616,6 @@ export function construireSvg({
   // Cadre du mur ; en zones, seulement en vue pixels (le cadre de la pixel map, vides compris).
   geo.zones && geo.unite !== 'px' ? null
     : svg('rect', { x: 0, y: 0, width: largeur, height: hauteur, style: `fill: none; stroke: ${palette.texteDoux}`, 'stroke-width': cote * 0.02 }),
-  absentes, tuiles, contours, nomsZones, dessinRepere, lignes);
+  absentes, tuiles, plis, contours, nomsZones, courbures, dessinRepere, lignes);
   return { svg: racine, complet };
 }

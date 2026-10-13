@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { CAS } from './cas.js';
 import { CAS_REELS } from './cas-reels.js';
 import { CAS_FORMES } from './cas-formes.js';
+import { CAS_ANGLES } from './cas-angles.js';
 import { REGLES } from './regles.js';
 import { DONNEES } from './donnees.js';
 import { BANC } from './banc.js';
@@ -70,7 +71,7 @@ const contexte = {
   }),
 };
 
-for (const cas of [...BANC, ...DONNEES, ...REGLES, ...CAS, ...CAS_REELS, ...CAS_FORMES]) {
+for (const cas of [...BANC, ...DONNEES, ...REGLES, ...CAS, ...CAS_REELS, ...CAS_FORMES, ...CAS_ANGLES]) {
   const nom = `${'attendu' in cas ? 'Cas ' : ''}${cas.id} : ${cas.titre}`;
   if (typeof cas.verifier !== 'function') {
     test.todo(`${nom} (étape ${cas.etape})`);

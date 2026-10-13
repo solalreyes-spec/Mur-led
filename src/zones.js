@@ -5,7 +5,7 @@
 
 import { el } from './dom.js';
 import { lireNombre } from './format.js';
-import { ZONES_MAX, NOM_ZONE_MAX } from './calculs.js';
+import { ZONES_MAX, NOM_ZONE_MAX, grandeursCourbure } from './calculs.js';
 import { ouvrirForme } from './ecran-forme.js';
 
 const HORS_FORMULAIRE = 'editeur-zones-hors-formulaire';
@@ -15,6 +15,8 @@ const LIBELLES_MODES = { reel: 'Comme l\'écart réel', main: 'À la main', coll
 const zoneDefaut = (n) => ({ nom: `Zone ${n}`, colonnes: 4, rangees: 3, ecartMm: 0, basMm: 0 });
 // Champs d'une zone ajoutés par la 9b : placement, forme (dalles absentes, décalages, demi-dalles), dalle propre.
 const CHAMPS_9B = ['placement', 'absentes', 'decalagesMm', 'rangeeDemi', 'positionDemi', 'dalleId'];
+// Champs ajoutés par la 9c : forme réelle (courbure de la zone, pose pliée ou libre).
+const CHAMPS_9C = ['courbure', 'pose', 'roulisDeg'];
 
 export function saisieParDefaut() {
   return { zones: [zoneDefaut(1), zoneDefaut(2)], ecarts: 'reel', ecartsPx: [], yPx: null };
@@ -29,7 +31,7 @@ export function lireSaisieZones(texte) {
       zones: s.zones.map((z) => ({
         nom: z.nom ?? '', colonnes: z.colonnes, rangees: z.rangees, ecartMm: z.ecartMm ?? 0, basMm: z.basMm ?? 0,
         // Formes libres et mur mixte (9b) : seulement s'ils ont été saisis, pour rendre une saisie de la 9a telle quelle.
-        ...Object.fromEntries(Object.keys(z).filter((c) => CHAMPS_9B.includes(c) && z[c] !== undefined && z[c] !== null).map((c) => [c, z[c]])),
+        ...Object.fromEntries(Object.keys(z).filter((c) => [...CHAMPS_9B, ...CHAMPS_9C].includes(c) && z[c] !== undefined && z[c] !== null).map((c) => [c, z[c]])),
       })),
       ecarts: MODES.includes(s.ecarts) ? s.ecarts : 'reel',
       ecartsPx: Array.isArray(s.ecartsPx) ? s.ecartsPx : [],
@@ -53,7 +55,7 @@ export function ajouterZone(saisie) {
   const noms = new Set(saisie.zones.map((z) => z.nom));
   let n = saisie.zones.length + 1;
   while (noms.has(`Zone ${n}`)) n += 1;
-  const { placement, ...copie } = derniere;
+  const { placement, pose, ...copie } = derniere;
   const suivante = { ...copie, nom: `Zone ${n}` };
   const main = saisie.ecarts === 'main';
   return {
@@ -73,7 +75,7 @@ export function retirerZone(saisie, i) {
   return {
     ...saisie,
     // Une zone placée par rapport à la zone retirée repasse « à droite de la zone d'avant ».
-    zones: saisie.zones.filter((_, j) => j !== i).map((z) => (z.placement?.zone === nom ? sansCle(z, 'placement') : z)),
+    zones: sansPosePremiere(saisie.zones.filter((_, j) => j !== i).map((z) => (z.placement?.zone === nom ? sansCle(z, 'placement') : z))),
     ecartsPx,
     yPx: saisie.yPx ? saisie.yPx.filter((_, j) => j !== i) : null,
     ...(saisie.xPx ? { xPx: saisie.xPx.filter((_, j) => j !== i) } : {}),
@@ -81,6 +83,8 @@ export function retirerZone(saisie, i) {
 }
 
 const sansCle = (objet, ...cles) => Object.fromEntries(Object.entries(objet).filter(([k]) => !cles.includes(k)));
+// La première zone porte le repère du mur (9c) : ni pli ni pose libre pour elle.
+const sansPosePremiere = (zones) => zones.map((z, i) => (i === 0 && !z.placement && z.pose ? sansCle(z, 'pose') : z));
 const avecZone = (saisie, i, f) => ({ ...saisie, zones: saisie.zones.map((z, j) => (j === i ? f(z) : z)) });
 
 // Renomme la zone i ; les zones placées par rapport à elle suivent.
@@ -98,6 +102,20 @@ export function renommerZone(saisie, i, nom) {
 // Placement de la zone i (9b2) : « droite » efface le placement (la zone d'avant, comme en 9a).
 export function placerZone(saisie, i, placement) {
   return avecZone(saisie, i, (z) => (!placement || placement.type === 'droite' ? sansCle(z, 'placement') : { ...z, placement }));
+}
+
+// Courbure de la zone i (9c) : { sens, angleDeg } ; null : à plat.
+export function courberZone(saisie, i, courbure) {
+  return avecZone(saisie, i, (z) => (courbure ? { ...z, courbure } : sansCle(z, 'courbure')));
+}
+// Pose réelle de la zone i (9c) : pliée sur son bord ou libre ; null : dans le prolongement.
+export function poserZone(saisie, i, pose) {
+  return avecZone(saisie, i, (z) => (pose && pose.type !== 'prolongement' ? { ...z, pose } : sansCle(z, 'pose')));
+}
+
+// Rotation de la zone i dans son plan (9c4), en degrés ; 0 : pas de rotation.
+export function tournerZone(saisie, i, deg) {
+  return avecZone(saisie, i, (z) => (deg ? { ...z, roulisDeg: deg } : sansCle(z, 'roulisDeg')));
 }
 
 // Dalle propre à la zone i (9b3), par son identifiant ; null : la dalle du mur.
@@ -148,7 +166,7 @@ export function deplacerAGauche(saisie, i) {
     [copie[i - 1], copie[i]] = [copie[i], copie[i - 1]];
     return copie;
   };
-  return { ...saisie, zones: echanger(saisie.zones), yPx: saisie.yPx ? echanger(saisie.yPx) : null };
+  return { ...saisie, zones: sansPosePremiere(echanger(saisie.zones)), yPx: saisie.yPx ? echanger(saisie.yPx) : null };
 }
 
 // Passe les écarts à la main en reprenant les valeurs que l'appli vient de calculer (`mur`, résultat de murZones).
@@ -252,6 +270,47 @@ function optionsZone(etat, z, i, { dalles, demiDisponible }) {
       el('span', { class: 'compte-zone' }, `${presentes} ${presentes > 1 ? 'dalles' : 'dalle'} sur ${places}`)));
 }
 
+const SENS_COURBURE = [{ valeur: 'plat', libelle: 'À plat' }, { valeur: 'concave', libelle: 'Concave' }, { valeur: 'convexe', libelle: 'Convexe' }];
+const SENS_PLI = [{ valeur: 'concave', libelle: 'Concave (vers le public)' }, { valeur: 'convexe', libelle: 'Convexe' }];
+const TYPES_POSE = [
+  { valeur: 'prolongement', libelle: 'Dans le prolongement' },
+  { valeur: 'pliee', libelle: 'Pliée sur son bord' },
+  { valeur: 'libre', libelle: 'Libre dans la salle' },
+];
+const metres = (mm) => `${String(Math.round(mm / 10) / 100).replace('.', ',')} m`;
+const degres = (x) => `${String(Math.round(x * 100) / 100).replace('.', ',')}°`;
+
+// Forme réelle d'une zone (9c) : courbure, puis pose (pas pour la première zone, qui porte le repère du mur).
+// `largeurColonne(z)` : largeur d'une colonne de la zone (mm), pour le rayon, la corde et la profondeur en direct.
+function formeReelleZone(z, i, { largeurColonne }) {
+  const c = z.courbure;
+  const p = z.pose ?? { type: 'prolongement' };
+  const w = largeurColonne(z);
+  const g = c && w > 0 && Number.isFinite(c.angleDeg) && c.angleDeg > 0 ? grandeursCourbure(z.colonnes, w, c) : null;
+  return el('details', { class: 'options-zone forme-reelle', open: c || z.pose || z.roulisDeg ? '' : null },
+    el('summary', {}, 'Forme réelle'),
+    el('div', { class: 'paire' },
+      reglage('Courbure', 'courbureSens', c?.sens ?? 'plat', SENS_COURBURE),
+      c ? reglage('Angle par jonction (°)', 'courbureAngle', texteNombre(c.angleDeg)) : null),
+    g ? el('p', { class: 'note grandeurs-courbure' }, `Rayon ${metres(g.rayonMm)}, corde ${metres(g.cordeMm)}, profondeur ${metres(g.profondeurMm)}, `
+      + `${degres(g.angleTotalDeg)} au total`) : null,
+    i === 0 ? null : reglage('Pose réelle', 'poseType', p.type, TYPES_POSE),
+    p.type === 'pliee' ? el('div', { class: 'paire' },
+      reglage('Pli', 'poseSens', p.sens ?? 'concave', SENS_PLI),
+      reglage('Angle du pli (°)', 'poseAngle', texteNombre(p.angleDeg ?? 90))) : null,
+    p.type === 'libre' ? el('div', { class: 'paire' },
+      reglage('X du bord gauche (mm)', 'poseX', texteNombre(p.xMm ?? 0)),
+      reglage('Hauteur du bas (mm)', 'poseBas', texteNombre(p.basMm ?? 0))) : null,
+    p.type === 'libre' ? el('div', { class: 'paire' },
+      reglage('Z, vers le public (mm)', 'poseZ', texteNombre(p.zMm ?? 0)),
+      reglage('Lacet (°)', 'poseLacet', texteNombre(p.lacetDeg ?? 0))) : null,
+    p.type === 'libre' ? reglage('Tangage (°)', 'poseTangage', texteNombre(p.tangageDeg ?? 0)) : null,
+    reglage('Rotation dans son plan (°)', 'roulis', texteNombre(z.roulisDeg ?? 0)),
+    el('p', { class: 'note' }, 'Concave : les bords viennent vers le public. Lacet positif : la face tourne vers la droite ; '
+      + 'tangage positif : elle penche vers le bas (90° pour un plafond). La pixel map ne change pas. Rotation dans son plan hors axe '
+      + '(ni 0 ni un quart de tour) : Tessera M2 et T1 seulement, chaque dalle comptée deux fois.'));
+}
+
 // Lit les réglages de la 9b d'une carte : placement, dalle, demi-dalles, X à la main.
 function lireReglages(saisie, i, carte) {
   const v = (nom) => carte.querySelector(`[data-reglage="${nom}"]`);
@@ -286,10 +345,27 @@ function lireReglages(saisie, i, carte) {
     xPx[i] = nombre('xPx');
     suivante = { ...suivante, xPx };
   }
+  // Forme réelle (9c) : courbure, puis pose.
+  if (v('courbureSens')) {
+    const sens = v('courbureSens').value;
+    const avant = saisie.zones[i].courbure;
+    suivante = courberZone(suivante, i, sens === 'plat' ? null : { sens, angleDeg: nombre('courbureAngle', avant?.angleDeg ?? 2.5) });
+  }
+  if (v('roulis')) suivante = tournerZone(suivante, i, nombre('roulis'));
+  if (v('poseType')) {
+    const t = v('poseType').value;
+    const avant = saisie.zones[i].pose ?? {};
+    const pose = t === 'pliee' ? { type: t, sens: v('poseSens')?.value ?? avant.sens ?? 'concave', angleDeg: nombre('poseAngle', avant.angleDeg ?? 90) }
+      : t === 'libre' ? {
+        type: t, xMm: nombre('poseX', avant.xMm ?? 0), basMm: nombre('poseBas', avant.basMm ?? 0), zMm: nombre('poseZ', avant.zMm ?? 0),
+        lacetDeg: nombre('poseLacet', avant.lacetDeg ?? 0), tangageDeg: nombre('poseTangage', avant.tangageDeg ?? 0),
+      } : null;
+    suivante = poserZone(suivante, i, pose);
+  }
   return suivante;
 }
 
-export function monterEditeurZones({ saisie, mur = null, surChange = () => {}, dalles = [], demiDisponible = () => false }) {
+export function monterEditeurZones({ saisie, mur = null, surChange = () => {}, dalles = [], demiDisponible = () => false, largeurColonne = () => null }) {
   let etat = saisie;
   const racine = el('div', { class: 'editeur-zones' });
 
@@ -309,6 +385,7 @@ export function monterEditeurZones({ saisie, mur = null, surChange = () => {}, d
         i > 0 && !z.placement ? champ('Écart dans la pixel map (px)', 'ecartPx', texteNombre(etat.ecartsPx[i - 1])) : null,
         champ('Y dans la pixel map (px)', 'yPx', texteNombre(etat.yPx?.[i]))) : null,
       optionsZone(etat, z, i, { dalles, demiDisponible }),
+      formeReelleZone(z, i, { largeurColonne }),
       el('div', { class: 'actions-zone' },
         el('button', { type: 'button', form: HORS_FORMULAIRE, class: 'bouton bouton-petit', 'data-action': 'gauche', disabled: i === 0 ? '' : null }, 'Déplacer à gauche'),
         el('button', { type: 'button', form: HORS_FORMULAIRE, class: 'bouton bouton-petit', 'data-action': 'retirer', disabled: etat.zones.length <= 1 ? '' : null }, 'Retirer'))));

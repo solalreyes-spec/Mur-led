@@ -1,10 +1,10 @@
 // Onglet Mur (dimensionnement). Aucune règle de calcul ici : tout passe par calculs.js,
 // et chaque résultat affiche la valeur utilisée et sa source.
 
-import { dimensionner, densite, pitchCalculeMm, dalleTournee, murZones, ErreurSaisie } from './calculs.js';
+import { dimensionner, densite, pitchCalculeMm, dalleTournee, murZones, ErreurSaisie, formeReelle, aFormeReelle } from './calculs.js';
 import { nombre, nombreCourt, signe, sourceCourte, dateCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
-import { murCarres, murCarresZones } from './look.js';
+import { murCarres, murCarresZones, vueDessus } from './look.js';
 import { lireSaisieZones, ecrireSaisieZones, argumentsMurZones, monterEditeurZones } from './zones.js';
 import { resumeMur } from './resumes.js';
 import { optionsInformations, configsDuMur, arbreDalles } from './fiches.js';
@@ -431,6 +431,24 @@ function texteZonePlacee(p) {
   return `${p.type === 'dessus' ? 'sur' : 'sous'} ${p.zone}`;
 }
 
+// Forme réelle d'une zone (9c2), en quelques mots : courbure, pli ou pose libre.
+function texteFormeZone(f, i, saisie) {
+  const z = f.zones[i];
+  const deg = (x) => `${nombreCourt(x, 2)}°`;
+  const m = (mm) => `${nombreCourt(mm / 1000, 2)} m`;
+  const morceaux = [];
+  if (z.courbure) {
+    morceaux.push(`${z.courbure.sens} ${deg(z.courbure.angleDeg)} par jonction, rayon ${m(z.courbure.rayonMm)}, corde ${m(z.courbure.cordeMm)}, `
+      + `profondeur ${m(z.courbure.profondeurMm)}, ${deg(z.courbure.angleTotalDeg)} au total`);
+  }
+  const pli = f.plis.find((p) => p.zones[1] === z.nom);
+  if (pli) morceaux.push(`pliée à ${deg(pli.angleDeg)} ${pli.sens} sur le bord ${pli.bord} de ${pli.zones[0]}`);
+  const p = saisie?.pose;
+  if (saisie?.roulisDeg && saisie.roulisDeg % 90 !== 0) morceaux.push(`tournée de ${deg(saisie.roulisDeg)} dans son plan, hors axe (Tessera M2 et T1 seulement)`);
+  if (p?.type === 'libre') morceaux.push(`posée libre, X ${m(p.xMm)}, bas ${m(p.basMm)}, Z ${m(p.zMm)}, lacet ${deg(p.lacetDeg)}, tangage ${deg(p.tangageDeg)}`);
+  return morceaux.length ? morceaux.join(' ; ') : null;
+}
+
 // Mur en plusieurs zones (étape 9a) : chiffres clés, mur en petits carrés à sa place réelle, tuiles et tableau des zones.
 function afficherResultatsZones(dalle, r, groupes = []) {
   dernier = r.erreurs.length > 0 ? null : { dalle, mur: r.mur };
@@ -447,6 +465,8 @@ function afficherResultatsZones(dalle, r, groupes = []) {
   const ecartsPx = m.ecarts.reduce((s, e) => s + e.px, 0);
   const ecartsMm = m.ecarts.reduce((s, e) => s + e.mm, 0);
   const mode = { reel: 'comme l\'écart réel', main: 'saisis à la main', colles: 'zones collées' }[m.modeEcarts];
+  // Forme réelle (9c2) : boîte, développé, vue de dessus, alertes et notes ; rien pour un mur à plat.
+  const forme = aFormeReelle(m) ? formeReelle(m, dalle) : null;
   const principal = el('div', { class: 'carte resultat-principal' },
     el('ul', { class: 'puces-info' },
       el('li', { class: 'puce-info' }, dalle.nom),
@@ -456,9 +476,13 @@ function afficherResultatsZones(dalle, r, groupes = []) {
       el('span', { class: 'chiffre-groupe' }, el('span', {}, ' = '), el('strong', { class: 'chiffre-second' }, nombre(m.dalles.total)), el('span', {}, ' dalles'))),
     el('p', { class: 'sous-titre' }, placees ? 'zones placées sur le mur, vues de face' : 'zones de gauche à droite vu de face'),
     m.mixte ? el('p', { class: 'sous-titre' }, `${pluriel(new Set(m.zones.map((z) => z.dalle.id)).size, 'dalle différente', 'dalles différentes')}`) : null,
-    murCarresZones(m));
+    murCarresZones(m),
+    vueDessus(forme));
+  const alertesForme = forme ? [...forme.alertes.map((a) => el('div', { class: 'alerte' }, a)), ...forme.notes.map((n) => el('div', { class: 'alerte alerte-info' }, n))] : [];
   const tuiles = el('dl', { class: 'tuiles' },
-    tuile('Taille réelle', texteTaille(m), `écarts compris : ${pluriel(m.ecarts.length, 'écart', 'écarts')}, ${nombreCourt(ecartsMm / 1000, 2)} m en tout`),
+    forme ? tuile('Forme réelle', `${nombreCourt(forme.boiteMm.largeur / 1000, 2)} × ${nombreCourt(forme.boiteMm.hauteur / 1000, 2)} × ${nombreCourt(forme.boiteMm.profondeur / 1000, 2)} m`,
+      'boîte réelle : largeur × hauteur × profondeur', `développé ${nombreCourt(forme.developpeMm / 1000, 2)} m`) : null,
+    tuile(forme ? 'Taille développée' : 'Taille réelle', texteTaille(m), `${forme ? 'à plat, ' : ''}écarts compris : ${pluriel(m.ecarts.length, 'écart', 'écarts')}, ${nombreCourt(ecartsMm / 1000, 2)} m en tout`),
     tuile('Pixel map', texteResolution(m), `vides compris : ${nombre(ecartsPx)} px en largeur, ${mode}`, 'pixel 0, 0 en haut à gauche'),
     tuile('Pixels utiles', `${nombre(m.pxTotal)} px`, 'les dalles seulement : les vides ne chargent aucun port'),
     tuile('Surface des dalles', `${nombre(m.surfaceM2, 2)} m²`),
@@ -472,7 +496,8 @@ function afficherResultatsZones(dalle, r, groupes = []) {
     el('th', { scope: 'row' }, z.nom,
       ecartDe.has(z.nom) && i > 0 ? el('span', { class: 'source-ligne' }, `écart ${nombreCourt(ecartDe.get(z.nom).mm)} mm, ${nombre(ecartDe.get(z.nom).px)} px`) : null,
       texteZonePlacee(saisies[i]?.placement) ? el('span', { class: 'source-ligne' }, texteZonePlacee(saisies[i].placement)) : null,
-      m.mixte && z.dalle.id !== dalle.id ? el('span', { class: 'source-ligne' }, z.dalle.nom) : null),
+      m.mixte && z.dalle.id !== dalle.id ? el('span', { class: 'source-ligne' }, z.dalle.nom) : null,
+      forme && texteFormeZone(forme, i, saisies[i]) ? el('span', { class: 'source-ligne' }, texteFormeZone(forme, i, saisies[i])) : null),
     el('td', {}, `${z.colonnes} × ${z.lignes}`, el('span', { class: 'source-ligne' },
       z.forme ? `${nombre(z.dalles)} dalles sur ${nombre(z.colonnes * z.forme.types.length)}` : pluriel(z.dalles, 'dalle', 'dalles'))),
     el('td', {}, `${nombreCourt(z.largeurMm / 1000, 2)} × ${nombreCourt(z.hauteurMm / 1000, 2)} m`,
@@ -487,13 +512,15 @@ function afficherResultatsZones(dalle, r, groupes = []) {
         el('tbody', {}, lignes))),
     el('p', { class: 'source' }, 'Position : coin haut gauche de la zone dans la pixel map du mur, en pixels, de 0 à largeur − 1.'));
   const source = el('p', { class: 'source' }, `Dimensions et pixels : ${sourcesDimensions(dalle)}.`);
-  remplacer(zoneResultats, principal, tuiles, tableau, source, sectionLots(groupes));
+  remplacer(zoneResultats, principal, ...alertesForme, tuiles, tableau, source, sectionLots(groupes));
 }
 
 // Éditeur des zones : monté au premier calcul en mode Zones, remonté quand la liste gardée change hors de l'éditeur
 // (saisies remises, réglages par défaut), jamais pendant la frappe.
 let editeurZones = null;
 let dernierMurZones = null;
+// Largeur d'une colonne de zone (mm), pour le rayon, la corde et la profondeur en direct dans l'éditeur (9c2).
+let largeurColonne = () => null;
 let cleEditeur = null;
 function preparerEditeurZones(saisie, { dalles = [], demiDisponible = () => false, cle = '' } = {}) {
   const texte = ecrireSaisieZones(saisie);
@@ -505,6 +532,7 @@ function preparerEditeurZones(saisie, { dalles = [], demiDisponible = () => fals
     surChange: (s) => { formulaire.elements.zones.value = ecrireSaisieZones(s); },
     dalles,
     demiDisponible,
+    largeurColonne: (z) => largeurColonne(z),
   });
   remplacer(document.getElementById('editeur-zones'), editeurZones);
 }
@@ -571,6 +599,7 @@ function mettreAJour(fiches, surChangement) {
     const dalles = [...fiches.values()].filter((f) => f.statut !== 'information' && !f.information && !f.gabarit && f.largeurMm && f.pxH && !f.demiDe)
       .map((f) => ({ id: f.id, nom: f.nom, marque: f.marque ?? 'Autres' }))
       .sort((a, b) => a.marque.localeCompare(b.marque) || a.nom.localeCompare(b.nom));
+    largeurColonne = (z) => (z.dalleId ? fiches.get(z.dalleId) : dalle)?.largeurMm ?? null;
     preparerEditeurZones(saisie, { dalles, demiDisponible: (id) => Boolean(e.demi && demiDe(id)), cle: `${e.demi}` });
     let resultat;
     try {

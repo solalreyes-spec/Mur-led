@@ -3,6 +3,7 @@
 
 import {
   dallesDuMur, pixelMap, cablageData, cablageElec, tuilesImage, coinDepart, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie, pliageSortie, pixelMapPliee,
+  positionsDalles, texteCSV, texteOBJ,
 } from './calculs.js';
 import { resumeCablage } from './resumes.js';
 import { nombre, nombreCourt, lireNombre } from './format.js';
@@ -11,7 +12,7 @@ import { barreCharge } from './look.js';
 import {
   trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT, tiretsMotif, cadrageGuide as calculerCadrageGuide,
 } from './dessin-schema.js';
-import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, telecharger, enregistrer, modeEnregistrement } from './export.js';
+import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, telecharger, enregistrer, modeEnregistrement, fichierTexte } from './export.js';
 import { etapesData, etapesElec, rapprocherMontage, texteEtatMontage } from './montage.js';
 import { lire, ecrire } from './stockage.js';
 
@@ -350,7 +351,8 @@ function optionsPixelMap() {
 
 // Prépare l'image, puis l'enregistre : feuille de partage si l'appareil sait partager des fichiers (iPhone),
 // téléchargement sinon. Le partage part d'un second appui : Safari ne l'ouvre que sur un appui direct.
-async function produire(nom, fabriquer) {
+// `genre` : image PNG (par défaut) ou fichier texte (CSV, OBJ, 9c3).
+async function produire(nom, fabriquer, { type = 'image/png', mot = 'Image' } = {}) {
   const etat = etatExport();
   etat.textContent = `Préparation de ${nom}…`;
   let blob;
@@ -360,23 +362,25 @@ async function produire(nom, fabriquer) {
     etat.textContent = `Export impossible : ${erreur.message}`;
     return;
   }
-  const taille = `${nom} (${nombreCourt(blob.size / 1e6, 1)} Mo)`;
-  if (modeEnregistrement(navigator, [new File([blob], nom, { type: 'image/png' })]) !== 'partage') {
+  const taille = `${nom} (${blob.size < 1e5 ? `${nombreCourt(blob.size / 1e3, 1)} ko` : `${nombreCourt(blob.size / 1e6, 1)} Mo`})`;
+  const feminin = mot === 'Image';
+  if (modeEnregistrement(navigator, [new File([blob], nom, { type })]) !== 'partage') {
     telecharger(blob, nom);
-    etat.textContent = `Image téléchargée : ${taille}.`;
+    etat.textContent = `${mot} téléchargé${feminin ? 'e' : ''} : ${taille}.`;
     return;
   }
   const partager = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Enregistrer ou partager');
   partager.addEventListener('click', async () => {
     const resultat = await enregistrer(blob, nom);
-    etat.textContent = { partage: `Image partagée : ${taille}.`, annule: 'Partage annulé : appuie de nouveau sur l\'export pour recommencer.', telechargement: `Image téléchargée : ${taille}.` }[resultat];
+    const e = feminin ? 'e' : '';
+    etat.textContent = { partage: `${mot} partagé${e} : ${taille}.`, annule: 'Partage annulé : appuie de nouveau sur l\'export pour recommencer.', telechargement: `${mot} téléchargé${e} : ${taille}.` }[resultat];
   });
   const secours = el('button', { type: 'button', class: 'bouton bouton-petit bouton-discret' }, 'Télécharger');
   secours.addEventListener('click', () => {
     telecharger(blob, nom);
-    etat.textContent = `Image téléchargée : ${taille}.`;
+    etat.textContent = `${mot} téléchargé${feminin ? 'e' : ''} : ${taille}.`;
   });
-  remplacer(etat, el('span', {}, `Image prête : ${taille}. `), el('span', { class: 'actions' }, partager, secours));
+  remplacer(etat, el('span', {}, `${mot} prêt${feminin ? 'e' : ''} : ${taille}. `), el('span', { class: 'actions' }, partager, secours));
 }
 
 function boutonExport(texte, nom, fabriquer) {
@@ -399,12 +403,33 @@ function elementZone(libelle, zone, prefixe) {
         () => canvasEnPng(pixelMapEnCanvas(zone, optionsPixelMap(), t))))));
 }
 
+// Liste des positions par dalle (9c3) : CSV et modèle 3D OBJ, câblage data retenu, pixels du contenu.
+function elementPositions({ mur, dalle, evaluation, vd, pliage }) {
+  const d = new Date();
+  const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const positions = () => positionsDalles(mur, dalle, { evaluation, variante: vd, pliage });
+  const bouton = (texte, nom, type, fabriquer) => {
+    const b = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-export': type.split('/')[1] }, texte);
+    b.addEventListener('click', () => produire(nom, async () => fichierTexte(fabriquer(positions()), nom, type), { type, mot: 'Fichier' }));
+    return b;
+  };
+  return el('li', { class: 'export-positions' },
+    el('span', {}, `Positions des dalles, pour le serveur média ou la 3D : ${nombre(mur.dalles.total)} dalles`),
+    el('span', { class: 'actions' },
+      bouton('Positions (CSV)', `mur-led-positions-${jour}.csv`, 'text/csv', texteCSV),
+      bouton('Modèle 3D (OBJ)', `mur-led-modele-3d-${jour}.obj`, 'model/obj', texteOBJ)),
+    el('span', { class: 'note' }, 'Repère : X vers la droite, Y vers le haut, Z vers le public, en mm (OBJ en mètres) ; origine au coin bas gauche de la '
+      + 'première zone. Lacet : la face tourne vers la droite ; tangage : elle penche vers le bas ; roulis : dans son plan. Pixels : la pixel map '
+      + `du mur${pliage?.plie ? ' (sortie pliée : place des tranches dans Canvas)' : ''} ; processeur et port : le câblage data retenu.`));
+}
+
 function afficherExports(contexte) {
   contexteExport = contexte;
   const { pm } = contexte;
   remplacer(document.getElementById('liste-exports'),
     elementZone('Tout le mur', pm.mur, 'mur'),
-    pm.canvas.map((c) => elementZone(`Processeur n° ${c.numero}`, c, `processeur-${c.numero}`)));
+    pm.canvas.map((c) => elementZone(`Processeur n° ${c.numero}`, c, `processeur-${c.numero}`)),
+    elementPositions(contexte));
 }
 
 function exporterSchema() {
@@ -485,7 +510,7 @@ function mettreAJour() {
     evaluation: etatData?.choisie ?? null,
     distanceM: e.cablage === 'elec' ? e.distanceArmoireM : e.distanceRegieM,
   });
-  afficherExports({ pm, e, geo, trajets, coin, blocs, repere, data, vd, elec, ve });
+  afficherExports({ pm, e, geo, trajets, coin, blocs, repere, data, vd, elec, ve, mur, dalle, evaluation, pliage });
 
   const alertes = [...erreurs.map((x) => alerte(x, 'alerte-erreur'))];
   if (pm.canvas.some((c) => c.plie)) {

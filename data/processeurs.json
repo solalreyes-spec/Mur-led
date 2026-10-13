@@ -125,6 +125,12 @@
       "date": "2024-06",
       "confiance": "constructeur"
     },
+    "tessera-manuel-v3-5-s7-14-5": {
+      "titre": "Manuel Tessera v3.5, §7.14.5 (p. 101 et 102) et §13.1.4 (p. 226) : rotation libre des M2 et T1, chaque dalle tournée hors axe comptée deux fois ; SX40, S8 et S4 par quarts de tour seulement",
+      "court": "Manuel Tessera v3.5 §7.14.5",
+      "date": "2024-06",
+      "confiance": "constructeur"
+    },
     "novastar-logiciels": {
       "titre": "Logiciel de réglage : NovaLCT pour les MCTRL, VX et NovaPro ; VMP pour les COEX (choix de conception du projet)",
       "court": "Choix de conception du projet",
@@ -2118,6 +2124,11 @@
         "valeur": true,
         "source": "tessera-manuel-v3-5-s6-5-1"
       },
+      "rotationHorsAxe": {
+        "valeur": true,
+        "source": "tessera-manuel-v3-5-s7-14-5",
+        "note": "« free rotation, allowing rotation to any degree at a cost of doubling the bandwidth » (§7.14.5)"
+      },
       "dallesMax": {
         "valeur": 500,
         "source": "cahier-des-charges-brompton"
@@ -2373,6 +2384,11 @@
       "mappingInterpole": {
         "valeur": true,
         "source": "tessera-manuel-v3-5-s6-5-1"
+      },
+      "rotationHorsAxe": {
+        "valeur": true,
+        "source": "tessera-manuel-v3-5-s7-14-5",
+        "note": "« free rotation, allowing rotation to any degree at a cost of doubling the bandwidth » (§7.14.5)"
       },
       "dallesMax": {
         "valeur": 2000,

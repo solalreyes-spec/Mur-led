@@ -36,14 +36,28 @@ export function pixelMapEnCanvas(zone, options = {}, tuile = null) {
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, t.largeurPx, t.hauteurPx);
   ctx.translate(-t.x, -t.y);
+  // Dalle tournée hors axe (9c4) : un quadrilatère, ses quatre coins.
+  const quadrilatere = (coins) => {
+    ctx.beginPath();
+    coins.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+  };
   for (const f of motif.fonds) {
     ctx.fillStyle = f.zone !== undefined ? TEINTES_ZONES[f.zone % TEINTES_ZONES.length][f.ton] : TEINTES[f.teinte];
-    ctx.fillRect(f.x, f.y, f.largeur, f.hauteur);
+    if (f.coins) {
+      quadrilatere(f.coins);
+      ctx.fill();
+    } else ctx.fillRect(f.x, f.y, f.largeur, f.hauteur);
   }
   // Traits d'un pixel posés sur les pixels (décalage d'un demi-pixel), bords de dalles compris.
   ctx.lineWidth = 1;
   ctx.strokeStyle = MIRE;
-  for (const c of motif.contours) ctx.strokeRect(c.x + 0.5, c.y + 0.5, c.largeur - 1, c.hauteur - 1);
+  for (const c of motif.contours) {
+    if (c.coins) {
+      quadrilatere(c.coins);
+      ctx.stroke();
+    } else ctx.strokeRect(c.x + 0.5, c.y + 0.5, c.largeur - 1, c.hauteur - 1);
+  }
   for (const tr of motif.traits) {
     ctx.strokeStyle = tr.global ? MIRE_BLOC : MIRE;
     ctx.lineWidth = tr.global ? 2 : 1;
@@ -206,6 +220,11 @@ export async function enregistrer(blob, nom, { nav = globalThis.navigator, telec
   }
   secours(blob, nom);
   return 'telechargement';
+}
+
+// Fichier texte UTF-8 (liste des positions par dalle en CSV, modèle 3D en OBJ, 9c3), prêt à partager ou télécharger.
+export function fichierTexte(contenu, nom, type) {
+  return new File([new TextEncoder().encode(contenu)], nom, { type });
 }
 
 // Téléchargement classique : sur ordinateur, dans le dossier Téléchargements.

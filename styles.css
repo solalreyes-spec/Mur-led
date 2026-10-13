@@ -1239,3 +1239,8 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .carte-variante .barre-charge { margin: 4px 0 0; }
 #ecran-depannage { margin-top: 16px; }
 .en-reponse.chiffres .en-marque { font-family: var(--police); }
+
+/* Forme réelle (9c2) : vue de dessus du mur, dans la couleur de la famille, aux proportions de la boîte réelle. */
+.vue-dessus { margin: 12px 0 4px; max-width: 320px; color: var(--famille); }
+.vue-dessus svg { display: block; width: 100%; height: auto; max-height: 220px; padding: 4px; box-sizing: border-box; }
+.vue-dessus .legende-dessus { margin-top: 4px; font-size: 12px; color: var(--texte-doux); }

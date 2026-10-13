@@ -57,3 +57,6 @@ export const DALLE_MAX_KILOS = { ...DALLE_CAS_13, id: 'fictive-max-kg', nom: 'Da
 
 // Dalle fictive de la slide « pixel maps, output 1 » de la formation (étape 9b, cas F3) : 1 m × 0,5 m, 128 × 64 px.
 export const DALLE_1000X500 = { id: 'fictive-1000x500', nom: 'Dalle 1 m × 0,5 m, 128 × 64 px (cas F3)', fictive: true, largeurMm: 1000, hauteurMm: 500, pxH: 128, pxV: 64 };
+
+// Dalle fictive de l'étape 9c (cas G7) : maximum en accroche de 3,0 m, pour la zone accrochée sous un vide.
+export const DALLE_MAX_3M = { id: 'fictive-max-3m', nom: 'Dalle 500 mm, 9 kg, accroche 3 m au plus (cas G7)', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192, poidsKg: 9, maxAccroche: 3, maxAccrocheUnite: 'm' };

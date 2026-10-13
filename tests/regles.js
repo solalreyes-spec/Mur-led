@@ -15,7 +15,7 @@ import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
   DALLE_CARTE_A10S, DALLE_CARTE_CA50E, DALLE_200, DALLE_120, DALLE_12, DALLE_CAS_9_A, DALLE_CAS_9_B, DALLE_CAS_9_C,
-  DALLE_100W_CHAINAGE, DALLE_APPEL, DALLE_SANS_PMAX, DALLE_MAX_METRES, DALLE_MAX_KILOS,
+  DALLE_100W_CHAINAGE, DALLE_APPEL, DALLE_SANS_PMAX, DALLE_MAX_METRES, DALLE_MAX_KILOS, DALLE_MAX_3M,
 } from './dalles-fictives.js';
 import { processeurDeBase, liaisonsDeBase, regieDeBase, dalleDeBase, bumperDeBase, baseProcesseurs } from './base.js';
 
@@ -5871,6 +5871,343 @@ export const REGLES = [
       v.vrai('haut dans le canvas 1, bas dans le canvas 2', pm.canvas[0].dalles.some((d) => d.id === 'A · C1 R1') && pm.canvas[1].dalles.some((d) => d.id === 'B · C2 R30'));
       const ids = pm.canvas.flatMap((c) => c.dalles.map((d) => d.id));
       v.egal('chaque dalle une seule fois', new Set(ids).size, 120);
+    },
+  },
+  {
+    id: 'R281',
+    titre: 'Angles et courbure (9c1, A1, Z29) : courbure d\'une zone (rayon, corde, profondeur, angle total, centre et lacet de chaque colonne, concave et convexe, nombre de colonnes pair) ; mur à plat : forme réelle dans le plan du mur, sans angle ; refus des angles hors bornes, d\'une zone qui se recouvre et de la courbure verticale',
+    etape: '9c1',
+    verifier(v, contexte) {
+      const bo2 = dalleDeBase(contexte, 'roe-bo2');
+      const zone = { nom: 'MUR', colonnes: 20, rangees: 2 };
+      const f = (courbure) => calculs.formeReelle(calculs.murZones(bo2, [{ ...zone, courbure }]), bo2);
+      const r1 = (x) => Math.round(x * 10) / 10 + 0;
+      const concave = f({ sens: 'concave', angleDeg: 5 });
+      const c = concave.zones[0].courbure;
+      v.egal('20 colonnes, concave 5° : rayon, corde, profondeur, angle total', [r1(c.rayonMm), r1(c.cordeMm), r1(c.profondeurMm), c.angleTotalDeg], [5731.4, 8781, 2047.3, 95]);
+      v.egal('concave : colonne 1 tournée de 47,5° vers la droite, milieu en arrière (profondeur de la boîte)',
+        [concave.dalles.find((d) => d.id === 'C1 R2').lacetDeg, concave.dalles.every((d) => d.centreMm[2] <= 1e-9), r1(concave.boiteMm.profondeur)], [47.5, true, 2047.3]);
+      const convexe = f({ sens: 'convexe', angleDeg: 5 });
+      v.egal('convexe : colonne 1 tournée de 47,5° vers la gauche, milieu vers le public', [convexe.dalles.find((d) => d.id === 'C1 R2').lacetDeg, convexe.dalles.every((d) => d.centreMm[2] >= -1e-9)], [-47.5, true]);
+      const ez = dalleDeBase(contexte, 'infiled-ez2-6-mk2');
+      const porte = [5, 6].flatMap((col) => [2, 3, 4, 5].map((r) => [col, r]));
+      const plat = calculs.formeReelle(calculs.murZones(ez, [{ nom: 'MUR', colonnes: 10, rangees: 5, absentes: porte }]), ez);
+      const c1r1 = plat.dalles.find((d) => d.id === 'C1 R1');
+      v.egal('mur à plat (porte du cas F1) : 42 dalles dans le plan du mur, sans angle', [plat.dalles.length, plat.dalles.every((d) => d.centreMm[2] === 0 && d.lacetDeg === 0 && d.tangageDeg === 0)], [42, true]);
+      v.egal('mur à plat : centre de C1 R1, boîte = taille réelle', [c1r1.centreMm, [plat.boiteMm.largeur, plat.boiteMm.hauteur, plat.boiteMm.profondeur], plat.plis, plat.alertes], [[250, 2250, 0], [5000, 2500, 0], [], []]);
+      const erreur = (courbure, colonnes = 20) => messageErreur(() => calculs.murZones(bo2, [{ ...zone, colonnes, courbure }]));
+      v.vrai('refus : angle de 0° ou de plus de 45°', /entre 0,1 et 45°/.test(erreur({ sens: 'concave', angleDeg: 0 })) && /entre 0,1 et 45°/.test(erreur({ sens: 'concave', angleDeg: 50 })));
+      v.vrai('refus : sens inconnu', /concave ou convexe/.test(erreur({ sens: 'oblique', angleDeg: 5 })));
+      v.vrai('refus : 37 colonnes à 10°, la zone se recouvre', /se recouvre/.test(erreur({ sens: 'concave', angleDeg: 10 }, 37)));
+      v.vrai('refus : courbure verticale', /courbure verticale/.test(erreur({ sens: 'concave', angleDeg: 5, axe: 'vertical' })));
+    },
+  },
+  {
+    id: 'R282',
+    titre: 'Limites de courbure d\'une fiche (9c1, Z28, A4) : lecture des textes de la base (« concave 10° », « concave 15° à convexe 10° », « ±5° », « −5° à +10° » lu convexe 5°, concave 10°) ; refus au-delà, avec la source ; source de loueurs signalée ; fiche sans courbure : alerte seulement',
+    etape: '9c1',
+    verifier(v, contexte) {
+      const lim = (texte) => {
+        const l = calculs.limitesCourbure({ nom: 'Dalle', courbure: texte, sources: {} });
+        return l && [l.concaveDeg, l.convexeDeg];
+      };
+      v.egal('textes lus : [concave, convexe]', ['concave 10°', 'concave 15° à convexe 10°', '±5°', '−5° à +10°', 'concave 5°', 'concave 5° à convexe 3°'].map(lim),
+        [[10, 0], [15, 10], [5, 5], [10, 5], [5, 0], [5, 3]]);
+      v.egal('fiche sans courbure : rien', calculs.limitesCourbure({ nom: 'Dalle', sources: {} }), null);
+      const cb8 = dalleDeBase(contexte, 'roe-cb8');
+      v.egal('CB8 de la base : concave 15°, convexe 10°, page produit ROE Carbon', [calculs.limitesCourbure(cb8).concaveDeg, calculs.limitesCourbure(cb8).convexeDeg, calculs.limitesCourbure(cb8).source.court], [15, 10, 'Page produit ROE Carbon']);
+      const zone = (dalle, sens, angleDeg) => () => calculs.murZones(dalle, [{ nom: 'MUR', colonnes: 6, rangees: 2, courbure: { sens, angleDeg } }]);
+      v.egal('CB8 : convexe 10° permis, convexe 12,5° refusé', [messageErreur(zone(cb8, 'convexe', 10)), /convexe 10° au plus/.test(messageErreur(zone(cb8, 'convexe', 12.5)))], ['', true]);
+      v.vrai('refus : source citée', /Page produit ROE Carbon/.test(messageErreur(zone(cb8, 'concave', 16))));
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      v.vrai('Upad IV 2.6 : valeur de loueurs et d\'une base tierce, signalée dans le refus', /loueurs et base tierce/.test(messageErreur(zone(upad, 'concave', 12))));
+      v.egal('Upad IV 2.6 : convexe 5° permis', messageErreur(zone(upad, 'convexe', 5)), '');
+    },
+  },
+  {
+    id: 'R283',
+    titre: 'Plis entre zones (9c1, A2, Z32 à Z34) : zone pliée sous une autre (tangage négatif) ; pli à droite d\'une zone courbe, dans le sens de sa dernière colonne ; alerte au-delà des verrous, pas en deçà ; caissons au pli convexe selon la convexité de la fiche ; note de couleur entre deux dalles différentes',
+    etape: '9c1',
+    verifier(v, contexte) {
+      const r1 = (x) => Math.round(x * 10) / 10 + 0;
+      const centre = (f, id) => {
+        const d = f.dalles.find((x) => x.id === id);
+        return [...d.centreMm.map(r1), r1(d.lacetDeg), r1(d.tangageDeg)];
+      };
+      const sous = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 2 },
+        { nom: 'B', colonnes: 4, rangees: 1, placement: { type: 'dessous', zone: 'A' }, pose: { type: 'pliee', sens: 'concave', angleDeg: 30 } }]);
+      const fs = calculs.formeReelle(sous, DALLE_CAS_13);
+      v.egal('B sous A, pliée à 30° concave : face vers le haut (tangage −30°)', centre(fs, 'B · C1 R1'), [250, -216.5, 125, 0, -30]);
+      v.egal('pli sur le bord bas de A', fs.plis.map((p) => [p.zones, p.bord]), [[['A', 'B'], 'bas']]);
+      const bp2 = dalleDeBase(contexte, 'roe-bp2');
+      const chaine = calculs.murZones(bp2, [{ nom: 'A', colonnes: 4, rangees: 1, courbure: { sens: 'concave', angleDeg: 5 } },
+        { nom: 'B', colonnes: 2, rangees: 1, pose: { type: 'pliee', sens: 'concave', angleDeg: 5 } }], { ecarts: 'colles' });
+      v.egal('pli à droite d\'une zone courbe : dans le sens de sa dernière colonne (−7,5°), plus le pli', centre(calculs.formeReelle(chaine, bp2), 'B · C1 R1'), [2234.6, 250, 54.1, -12.5, 0]);
+      const pli = (dalle, sens, angleDeg, dalleB = null) => calculs.formeReelle(calculs.murZones(dalle, [{ nom: 'A', colonnes: 2, rangees: 2 },
+        { nom: 'B', colonnes: 2, rangees: 2, ...(dalleB ? { dalle: dalleB } : {}), pose: { type: 'pliee', sens, angleDeg } }], { ecarts: 'colles' }), dalle);
+      const verrous = (f) => f.alertes.some((a) => /A et B/.test(a) && /au-delà des verrous/.test(a));
+      const caissons = (f) => f.alertes.some((a) => /A et B/.test(a) && /se touchent à l.arrière/.test(a));
+      v.egal('BP2 : pli concave de 5° sur les verrous, de 15° au-delà', [verrous(pli(bp2, 'concave', 5)), verrous(pli(bp2, 'concave', 15))], [false, true]);
+      const bo2 = dalleDeBase(contexte, 'roe-bo2');
+      v.egal('pli convexe de 5° : caissons pour la BP2 (concave seulement), pas pour la BO2 (convexe 10°)', [caissons(pli(bp2, 'convexe', 5)), caissons(pli(bo2, 'convexe', 5))], [true, false]);
+      v.vrai('BP2 : profondeur et source citées', pli(bp2, 'convexe', 5).alertes.some((a) => /se touchent à l.arrière/.test(a) && /90 mm/.test(a)));
+      v.vrai('pli concave de 15° au-delà des verrous : pièces d\'angle de la gamme citées', pli(bp2, 'concave', 15).alertes.some((a) => /pièces d.angle/.test(a) && /manuel ROE V1\.8/.test(a)));
+      v.vrai('dalles différentes au pli : note de couleur', pli(bp2, 'concave', 5, bo2).notes.some((n) => /A et B/.test(n) && /couleur/.test(n)));
+      v.egal('même dalle au pli : pas de note de couleur', pli(bp2, 'concave', 5).notes.filter((n) => /couleur/.test(n)), []);
+    },
+  },
+  {
+    id: 'R284',
+    titre: 'Pose libre et refus (9c1, A2, § 4.1) : première zone sans pli ni pose libre ; pli seulement sur un bord commun ; zone pliée au-dessus d\'une zone courbe refusée ; zone au-dessus d\'une zone courbe : même courbure, même largeur de colonne, alignée sur une colonne, elle suit la courbe ; zone courbe au-dessus d\'une zone à plat refusée ; bornes du lacet et du tangage',
+    etape: '9c1',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2');
+      const A = { nom: 'A', colonnes: 4, rangees: 2 };
+      const courbe = { sens: 'concave', angleDeg: 5 };
+      const erreur = (zones) => messageErreur(() => calculs.murZones(bp2, zones));
+      v.vrai('première zone : pas de pli', /première zone/.test(erreur([{ ...A, pose: { type: 'pliee', sens: 'concave', angleDeg: 90 } }])));
+      v.vrai('première zone : pas de pose libre', /première zone/.test(erreur([{ ...A, pose: { type: 'libre', xMm: 0, basMm: 0, zMm: 0, lacetDeg: 0, tangageDeg: 0 } }])));
+      v.vrai('zone placée librement dans la vue à plat : pas de bord commun', /bord commun/.test(erreur([A, { nom: 'B', colonnes: 2, rangees: 1, placement: { type: 'libre', xMm: 5000, basMm: 0 }, pose: { type: 'pliee', sens: 'concave', angleDeg: 90 } }])));
+      v.vrai('angle de pli entre 0,1 et 179,9°', /entre 0,1 et 179,9°/.test(erreur([A, { nom: 'B', colonnes: 2, rangees: 1, pose: { type: 'pliee', sens: 'concave', angleDeg: 180 } }])));
+      v.vrai('pli au-dessus d\'une zone courbe refusé', /bord.*pas droit|courbe/.test(erreur([{ ...A, courbure: courbe }, { nom: 'B', colonnes: 2, rangees: 1, placement: { type: 'dessus', zone: 'A' }, pose: { type: 'pliee', sens: 'concave', angleDeg: 90 } }])));
+      v.vrai('zone à plat au-dessus d\'une zone courbe refusée', /même courbure/.test(erreur([{ ...A, courbure: courbe }, { nom: 'B', colonnes: 2, rangees: 1, placement: { type: 'dessus', zone: 'A' } }])));
+      v.vrai('zone courbe au-dessus d\'une zone courbe, décalée d\'une demi-colonne, refusée', /colonne/.test(erreur([{ ...A, courbure: courbe }, { nom: 'B', colonnes: 2, rangees: 1, courbure: courbe, placement: { type: 'dessus', zone: 'A', decalageMm: 250 } }])));
+      v.vrai('zone courbe au-dessus d\'une zone à plat refusée', /même courbure/.test(erreur([A, { nom: 'B', colonnes: 2, rangees: 1, courbure: courbe, placement: { type: 'dessus', zone: 'A' } }])));
+      const suit = calculs.murZones(bp2, [{ ...A, courbure: courbe }, { nom: 'B', colonnes: 2, rangees: 1, courbure: courbe, placement: { type: 'dessus', zone: 'A', decalageMm: 500 } }]);
+      const f = calculs.formeReelle(suit, bp2);
+      const r1 = (x) => Math.round(x * 10) / 10 + 0;
+      const d = (id) => f.dalles.find((x) => x.id === id);
+      v.egal('B au-dessus de A, décalée d\'une colonne : B · C1 suit A · C2 (centre x et z, lacet), une rangée plus haut',
+        [d('B · C1 R1').centreMm.map(r1), r1(d('B · C1 R1').lacetDeg)], [[r1(d('A · C2 R1').centreMm[0]), r1(d('A · C2 R1').centreMm[1] + 500), r1(d('A · C2 R1').centreMm[2])], 2.5]);
+      v.egal('A · C2 : centre et lacet attendus', [d('A · C2 R1').centreMm.map(r1), r1(d('A · C2 R1').lacetDeg)], [[745.5, 750, -76.2], 2.5]);
+      const libre = (lacetDeg, tangageDeg) => erreur([A, { nom: 'B', colonnes: 2, rangees: 1, pose: { type: 'libre', xMm: 0, basMm: 0, zMm: 3000, lacetDeg, tangageDeg } }]);
+      v.egal('pose libre : lacet de −180 à 180°, tangage de −90 à 90°', [libre(180, 0), /lacet/.test(libre(190, 0)), /tangage/.test(libre(0, 95))], ['', true, true]);
+      v.vrai('type de pose inconnu refusé', /pose/.test(erreur([A, { nom: 'B', colonnes: 2, rangees: 1, pose: { type: 'volante' } }])));
+    },
+  },
+  {
+    id: 'R285',
+    titre: 'Poids d\'une forme réelle (9c1, Z39 à Z41) : zone courbe sur un pont, répartition renvoyée au rigger ; mur à plat inchangé ; zone accrochée sous une colonne remontée (décalage) : sous un vide ; écart vertical compté seulement pour une zone accrochée',
+    etape: '9c1',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2');
+      const pont = { mode: 'accroche', accroche: { type: 'pont', points: 3, porteesEgales: true, poidsPontKg: 0 } };
+      const courbe = calculs.poids(calculs.murZones(bp2, [{ nom: 'MUR', colonnes: 8, rangees: 4, courbure: { sens: 'concave', angleDeg: 5 } }]), bp2, pont);
+      v.egal('zone courbe sur un pont : pas de parts de pont, renvoi au rigger', [courbe.points.points, courbe.points.renvoiRigger], [null, true]);
+      v.vrai('alerte : un pont droit ne suit pas la courbe', courbe.alertes.some((a) => /courbe/.test(a) && /rigger/.test(a)));
+      const plat = calculs.poids(calculs.murZones(bp2, [{ nom: 'MUR', colonnes: 8, rangees: 4 }]), bp2, pont);
+      v.egal('mur à plat : 3 points du pont, comme avant', [plat.points.points.length, plat.points.renvoiRigger], [3, false]);
+      const remontee = calculs.murZones(DALLE_MAX_3M, [{ nom: 'A', colonnes: 3, rangees: 2, decalagesMm: [0, 0, 500] },
+        { nom: 'B', colonnes: 3, rangees: 1, placement: { type: 'dessous', zone: 'A', accrocheeSous: true } }]);
+      const p = calculs.poids(remontee, DALLE_MAX_3M, { mode: 'accroche' });
+      v.vrai('colonne remontée de 500 mm : B · C3 sous un vide', p.alertes.some((a) => /B · C3 accrochée sous un vide/.test(a) && /remontée/.test(a)));
+      v.egal('colonnes 1 et 2 : pas sous un vide', p.alertes.filter((a) => /sous un vide/.test(a)).length, 1);
+      const libre = calculs.murZones(DALLE_MAX_3M, [{ nom: 'A', colonnes: 4, rangees: 4 }, { nom: 'B', colonnes: 4, rangees: 1, placement: { type: 'dessous', zone: 'A', ecartMm: 600 } }]);
+      v.egal('B sur sa structure : écart non compté (2,0 m pour A)', calculs.poids(libre, DALLE_MAX_3M, { mode: 'accroche' }).zones[0].maximum.valeur, 2);
+    },
+  },
+  {
+    id: 'R286',
+    titre: 'Forme réelle et Data (9c1, Z30, Z35) : rappel de la correction des joints selon le logiciel (Tessera, NovaLCT, autres) pour une zone courbe ou pliée ; rien pour un mur à plat ni pour une pose libre ; pixel map et charge des ports inchangées',
+    etape: '9c1',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2');
+      const ez = dalleDeBase(contexte, 'infiled-ez2-6-mk2');
+      const joints = (e) => e.notes.filter((n) => /joints/.test(n));
+      const courbe = calculs.murZones(bp2, [{ nom: 'MUR', colonnes: 8, rangees: 4, courbure: { sens: 'concave', angleDeg: 5 } }]);
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      v.vrai('Tessera : Seams Adjustment dans OSCA, manuel § 12.1.9', joints(calculs.evaluerProcesseur(courbe, bp2, s8, BROMPTON_60_10)).some((n) => /OSCA/.test(n) && /12\.1\.9/.test(n)));
+      const coin = calculs.murZones(ez, [{ nom: 'A', colonnes: 4, rangees: 2 }, { nom: 'B', colonnes: 4, rangees: 2, pose: { type: 'pliee', sens: 'concave', angleDeg: 90 } }], { ecarts: 'colles' });
+      const mctrl = processeurDeBase(contexte, 'novastar-mctrl4k');
+      v.vrai('NovaLCT : Adjust Dark or Bright Lines, guide § 6.4', joints(calculs.evaluerProcesseur(coin, ez, mctrl, NOVASTAR_60_8)).some((n) => /Adjust Dark or Bright Lines/.test(n) && /6\.4/.test(n)));
+      v.vrai('VMP : à chercher dans le logiciel du processeur', joints(calculs.evaluerProcesseur(coin, ez, processeurDeBase(contexte, 'coex-mx40-pro'), NOVASTAR_60_8)).some((n) => /logiciel du processeur/.test(n)));
+      const plat = calculs.murZones(ez, [{ nom: 'A', colonnes: 4, rangees: 2 }, { nom: 'B', colonnes: 4, rangees: 2 }], { ecarts: 'colles' });
+      v.egal('mur à plat : pas de rappel des joints', joints(calculs.evaluerProcesseur(plat, ez, mctrl, NOVASTAR_60_8)), []);
+      const libre = calculs.murZones(ez, [{ nom: 'A', colonnes: 4, rangees: 2 }, { nom: 'B', colonnes: 4, rangees: 2, pose: { type: 'libre', xMm: 0, basMm: 0, zMm: 3000, lacetDeg: 180, tangageDeg: 0 } }], { ecarts: 'colles' });
+      v.egal('pose libre (aucun joint commun) : pas de rappel', joints(calculs.evaluerProcesseur(libre, ez, mctrl, NOVASTAR_60_8)), []);
+      const ports = (m) => calculs.evaluerProcesseur(m, ez, mctrl, NOVASTAR_60_8).groupes.map((g) => g.chargeMax.px);
+      v.egal('coin : pixel map et charge des ports du mur à plat', [coin.pxLargeur, coin.pxHauteur, ports(coin)], [plat.pxLargeur, plat.pxHauteur, ports(plat)]);
+    },
+  },
+  {
+    id: 'R289',
+    titre: 'Forme réelle, saisie et textes (9c2, § 4.1 et § 6) : courbure et pose gardées et relues dans la liste des zones, une saisie de la 9b rendue telle quelle ; une zone ajoutée ne reprend pas la pose ; la première zone perd sa pose (retirer, déplacer) ; texte copié du Mur : boîte réelle, développé, courbure, pli, pose libre, alertes ; rien de plus pour un mur à plat',
+    etape: '9c2',
+    verifier(v, contexte) {
+      const courbure = { sens: 'concave', angleDeg: 2.5 };
+      const pose = { type: 'pliee', sens: 'concave', angleDeg: 90 };
+      const texte = JSON.stringify({ zones: [{ nom: 'A', colonnes: 4, rangees: 2, courbure }, { nom: 'B', colonnes: 2, rangees: 1, pose, inconnu: 1 }], ecarts: 'reel' });
+      const lue = zones.lireSaisieZones(texte);
+      v.egal('courbure et pose relues, champ inconnu oublié', [lue.zones[0].courbure, lue.zones[1].pose, 'inconnu' in lue.zones[1]], [courbure, pose, false]);
+      const ancienne = { zones: [{ nom: 'A', colonnes: 4, rangees: 2, ecartMm: 0, basMm: 0 }, { nom: 'B', colonnes: 2, rangees: 1, ecartMm: 0, basMm: 0, placement: { type: 'dessous', zone: 'A' } }], ecarts: 'reel', ecartsPx: [], yPx: null };
+      v.egal('saisie de la 9b : arguments de murZones inchangés', zones.argumentsMurZones(zones.lireSaisieZones(JSON.stringify(ancienne)))[0], ancienne.zones);
+      v.egal('courber et poser une zone, puis revenir à plat', [
+        zones.courberZone(lue, 1, courbure).zones[1].courbure, 'courbure' in zones.courberZone(lue, 0, null).zones[0],
+        zones.poserZone(lue, 0, pose).zones[0].pose, 'pose' in zones.poserZone(lue, 1, null).zones[1]], [courbure, false, pose, false]);
+      const ajoutee = zones.ajouterZone(lue);
+      v.egal('zone ajoutée : courbure gardée, pose non reprise', [ajoutee.zones[2].courbure ?? null, 'pose' in ajoutee.zones[2]], [null, false]);
+      v.egal('retirer la première zone : la nouvelle première perd sa pose', 'pose' in zones.retirerZone(lue, 0).zones[0], false);
+      v.egal('déplacer à gauche : la nouvelle première perd sa pose', ['pose' in zones.deplacerAGauche(lue, 1).zones[0], zones.deplacerAGauche(lue, 1).zones[0].nom], [false, 'B']);
+
+      const bp2 = dalleDeBase(contexte, 'roe-bp2');
+      const g1 = calculs.murZones(bp2, [{ nom: 'MUR', colonnes: 37, rangees: 9, courbure }]);
+      const t1 = resumes.resumeMur({ dalle: bp2, mur: g1 }).split('\n');
+      v.vrai('mur courbe : boîte réelle et développé', t1.includes('Forme réelle : boîte 16,56 × 4,5 × 3,53 m (largeur × hauteur × profondeur), développé 18,5 m'));
+      v.vrai('mur courbe : courbure de la zone', t1.includes('Courbure de MUR : concave 2,5° par jonction, rayon 11,46 m, corde 16,56 m, profondeur 3,53 m, 90° au total'));
+      const cb8 = dalleDeBase(contexte, 'roe-cb8');
+      const g2 = calculs.murZones(bp2, [{ nom: 'MUR', colonnes: 37, rangees: 9 }, { nom: 'PLAFOND', colonnes: 17, rangees: 3, dalle: cb8, placement: { type: 'dessus', zone: 'MUR', alignement: 'droite' }, pose }]);
+      const t2 = resumes.resumeMur({ dalle: bp2, mur: g2 }).split('\n');
+      v.vrai('pli', t2.includes('Pli : PLAFOND plié à 90° concave sur le bord haut de MUR'));
+      v.vrai('alerte du pli', t2.some((l) => /^Alerte : MUR et PLAFOND : pli de 90° concave, au-delà des verrous/.test(l)));
+      const ez = dalleDeBase(contexte, 'infiled-ez2-6-mk2');
+      const g3 = calculs.murZones(ez, [{ nom: 'A', colonnes: 40, rangees: 1 }, { nom: 'B', colonnes: 40, rangees: 1, placement: { type: 'dessous', zone: 'A' }, pose: { type: 'libre', xMm: 20000, basMm: 0, zMm: 3000, lacetDeg: 180, tangageDeg: 0 } }]);
+      v.vrai('pose libre', resumes.resumeMur({ dalle: ez, mur: g3 }).split('\n').includes('Pose libre de B : X 20 m, bas 0 m, Z 3 m, lacet 180°, tangage 0°'));
+      const plat = resumes.resumeMur({ dalle: ez, mur: calculs.murZones(ez, [{ nom: 'A', colonnes: 4, rangees: 1 }, { nom: 'B', colonnes: 4, rangees: 1 }]) });
+      v.egal('mur à plat : aucune ligne de forme réelle', plat.split('\n').filter((l) => /^(Forme réelle|Courbure|Pli|Pose libre)/.test(l)), []);
+    },
+  },
+  {
+    id: 'R287',
+    titre: 'Liste des positions par dalle, CSV (9c3, Z42, A7) : en-tête ASCII, virgule, point décimal, une ligne par dalle présente (demi-dalles comprises, dalles absentes non), dans l\'ordre des zones, colonnes et rangées ; pixels de la pixel map du mur, processeur et port du câblage retenu, centre en mm et angles (cas G1 et F1)',
+    etape: '9c3',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2');
+      const g1 = calculs.murZones(bp2, [{ nom: 'MUR', colonnes: 37, rangees: 9, courbure: { sens: 'concave', angleDeg: 2.5 } }]);
+      const e = calculs.evaluerProcesseur(g1, bp2, processeurDeBase(contexte, 'brompton-sx40'), { ...BROMPTON_60_10, departCablage: 'bas-gauche' });
+      const data = calculs.cablageData(g1, bp2, e, { depart: 'bas-gauche' });
+      const variante = data.variantes.find((x) => x.mode === data.conseil);
+      const p = calculs.positionsDalles(g1, bp2, { evaluation: e, variante });
+      const lignes = calculs.texteCSV(p).split('\n');
+      v.egal('en-tête', lignes[0], 'dalle,zone,colonne,rangee,fiche,largeur_mm,hauteur_mm,px_x,px_y,px_largeur,px_hauteur,processeur,port,x_mm,y_mm,z_mm,lacet_deg,tangage_deg,roulis_deg');
+      v.egal('333 lignes et l\'en-tête, sans ligne vide', [lignes.length, lignes.every(Boolean)], [334, true]);
+      v.vrai('en-tête en ASCII', /^[\x20-\x7e]+$/.test(lignes[0]));
+      v.egal('ligne de C1 R9 (bas gauche) : pixels, processeur 1, port 1, centre, lacet', lignes.find((l) => l.startsWith('C1 R9,')),
+        'C1 R9,MUR,1,9,roe-bp2,500,500,0,1408,176,176,1,1,176.8,250,-176.8,45,0,0');
+      v.egal('ordre : colonne 1 de haut en bas, puis colonne 2', lignes.slice(1, 3).concat(lignes[10]).map((l) => l.split(',')[0]), ['C1 R1', 'C1 R2', 'C2 R1']);
+      const ez = dalleDeBase(contexte, 'infiled-ez2-6-mk2');
+      const porte = [5, 6].flatMap((c) => [2, 3, 4, 5].map((r) => [c, r]));
+      const f1 = calculs.murZones(ez, [{ nom: 'MUR', colonnes: 10, rangees: 5, absentes: porte }]);
+      const sans = calculs.texteCSV(calculs.positionsDalles(f1, ez)).split('\n');
+      v.egal('F1 : 42 lignes, porte absente, sans processeur', [sans.length - 1, sans.some((l) => l.startsWith('C5 R3,')), sans.find((l) => l.startsWith('C5 R1,'))],
+        [42, false, 'C5 R1,MUR,5,1,infiled-ez2-6-mk2,500,500,768,0,192,192,,,2250,2250,0,0,0,0']);
+      const cb8 = dalleDeBase(contexte, 'roe-cb8');
+      const demi = dalleDeBase(contexte, 'roe-cb8-demi');
+      const avecDemi = calculs.murZones(cb8, [{ nom: 'A', colonnes: 2, rangees: 1, rangeeDemi: true, positionDemi: 'bas' }, { nom: 'B, côté', colonnes: 1, rangees: 1 }], { demi, ecarts: 'colles' });
+      const t = calculs.texteCSV(calculs.positionsDalles(avecDemi, cb8)).split('\n');
+      v.egal('demi-dalle à sa fiche et sa hauteur ; nom de zone avec une virgule entre guillemets', [t.find((l) => l.startsWith('A · C1 R2,')), t.find((l) => l.startsWith('"B, côté · C1 R1"'))?.split(',').slice(0, 3)],
+        ['A · C1 R2,A,1,2,roe-cb8-demi,600,600,0,144,72,72,,,300,300,0,0,0,0', ['"B', ' côté · C1 R1"', '"B']]);
+    },
+  },
+  {
+    id: 'R288',
+    titre: 'Modèle 3D OBJ (9c3, Z43, A7) : en mètres, commentaires du repère en tête, un objet par zone, une face carrée par dalle présente (4 sommets, 4 UV, sens inverse des aiguilles d\'une montre vu du public), UV = place dans la pixel map de 0 à 1 (v = 1 en haut) ; cas F1 et G1',
+    etape: '9c3',
+    verifier(v, contexte) {
+      const ez = dalleDeBase(contexte, 'infiled-ez2-6-mk2');
+      const porte = [5, 6].flatMap((c) => [2, 3, 4, 5].map((r) => [c, r]));
+      const f1 = calculs.murZones(ez, [{ nom: 'MUR', colonnes: 10, rangees: 5, absentes: porte }]);
+      const obj = calculs.texteOBJ(calculs.positionsDalles(f1, ez)).split('\n');
+      const compte = (prefixe) => obj.filter((l) => l.startsWith(prefixe)).length;
+      v.egal('F1 : 168 sommets, 168 UV, 42 faces, 1 objet', [compte('v '), compte('vt '), compte('f '), compte('o ')], [168, 168, 42, 1]);
+      v.vrai('commentaires : mètres et repère', obj.slice(0, 6).some((l) => /^# .*metres/.test(l)) && obj.slice(0, 6).some((l) => /^# .*X vers la droite, Y vers le haut, Z vers le public/.test(l)));
+      const premiere = obj.findIndex((l) => l.startsWith('v '));
+      v.egal('C1 R1 : sommets bas gauche, bas droit, haut droit, haut gauche (m)', obj.slice(premiere, premiere + 4), ['v 0 2 0', 'v 0.5 2 0', 'v 0.5 2.5 0', 'v 0 2.5 0']);
+      const uv = obj.findIndex((l) => l.startsWith('vt '));
+      v.egal('C1 R1 : UV de (0 ; 0,8) à (0,1 ; 1)', obj.slice(uv, uv + 4), ['vt 0 0.8', 'vt 0.1 0.8', 'vt 0.1 1', 'vt 0 1']);
+      v.egal('première face', obj.find((l) => l.startsWith('f ')), 'f 1/1 2/2 3/3 4/4');
+      const bp2 = dalleDeBase(contexte, 'roe-bp2');
+      const g1 = calculs.murZones(bp2, [{ nom: 'MUR', colonnes: 37, rangees: 9, courbure: { sens: 'concave', angleDeg: 2.5 } }]);
+      const o1 = calculs.texteOBJ(calculs.positionsDalles(g1, bp2)).split('\n');
+      v.egal('G1 : 333 faces', o1.filter((l) => l.startsWith('f ')).length, 333);
+      const sommets = o1.filter((l) => l.startsWith('v ')).map((l) => l.split(' ').slice(1).map(Number));
+      v.vrai('G1 : coin bas gauche de C1 R9 en (0, 0, 0)', sommets.some((s) => s.every((x) => Math.abs(x) < 1e-9)));
+      v.vrai('G1 : profondeur de 3,53 m dans le modèle', Math.abs(Math.min(...sommets.map((s) => s[2])) + 3.5326) < 1e-3);
+      const deux = calculs.murZones(ez, [{ nom: 'A gauche', colonnes: 2, rangees: 1 }, { nom: 'B', colonnes: 2, rangees: 1, pose: { type: 'pliee', sens: 'concave', angleDeg: 90 } }], { ecarts: 'colles' });
+      v.egal('un objet par zone, espaces remplacés', calculs.texteOBJ(calculs.positionsDalles(deux, ez)).split('\n').filter((l) => l.startsWith('o ')), ['o A_gauche', 'o B']);
+    },
+  },
+  {
+    id: 'R263',
+    titre: 'Dalles tournées hors axe (9c4, Z24, Z36 à Z38, F6) : roulis de 0 à 359°, quart de tour et zone courbe refusés, pli sur une zone tournée refusé ; roulis 0 = zone à plat ; chaque dalle tournée autour du coin haut gauche de la zone, puis la zone recalée sur son rectangle englobant (pixels et mm) ; dalles de la pixel map avec leur angle et leur centre ; forme réelle et liste des positions avec le roulis ; mur de deux zones : seule la zone tournée compte double ; M2 et T1 : rappel des quarts de tour sans coût et de la légende de la figure 7.56, non retenue',
+    etape: '9c4',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2');
+      const erreur = (z) => messageErreur(() => calculs.murZones(bp2, z));
+      const Z = { nom: 'Z', colonnes: 2, rangees: 2 };
+      v.vrai('roulis de 90° : quart de tour refusé', /quart de tour/.test(erreur([{ ...Z, roulisDeg: 90 }])));
+      v.vrai('roulis hors de 0 à 359° refusé', /entre 0 et 359/.test(erreur([{ ...Z, roulisDeg: 400 }])));
+      v.vrai('zone courbe tournée refusée', /courbe/.test(erreur([{ ...Z, roulisDeg: 30, courbure: { sens: 'concave', angleDeg: 5 } }])));
+      v.vrai('pli sur le bord d\'une zone tournée refusé', /tournée/.test(erreur([{ ...Z, roulisDeg: 30 }, { nom: 'B', colonnes: 2, rangees: 2, pose: { type: 'pliee', sens: 'concave', angleDeg: 90 } }])));
+      const plat = calculs.murZones(bp2, [Z]);
+      const zero = calculs.murZones(bp2, [{ ...Z, roulisDeg: 0 }]);
+      v.egal('roulis 0 : la zone à plat', [zero.pxLargeur, zero.pxHauteur, zero.pxTotal, zero.largeurMm], [plat.pxLargeur, plat.pxHauteur, plat.pxTotal, plat.largeurMm]);
+      const m = calculs.murZones(bp2, [{ ...Z, roulisDeg: 30 }]);
+      // 352 × 352 px tourné de 30° : 352 (cos 30 + sin 30) = 480,8 → 481 px ; 1000 mm → 1366,0 mm.
+      v.egal('rectangle englobant (px, mm)', [m.pxLargeur, m.pxHauteur, Math.round(m.largeurMm * 10) / 10], [481, 481, 1366]);
+      const pm = calculs.pixelMap(m, bp2);
+      const c1 = pm.mur.dalles.find((d) => d.id === 'C1 R1');
+      v.egal('C1 R1 dans la pixel map : angle 30°, centre', [c1.rotation, Math.round(((c1.x[0] + c1.x[1] + 1) / 2) * 10) / 10, Math.round(((c1.y[0] + c1.y[1] + 1) / 2) * 10) / 10], [30, 120.2, 208.2]);
+      const f = calculs.formeReelle(m, bp2);
+      v.egal('forme réelle : roulis 30° de chaque dalle, boîte', [f.dalles.every((d) => Math.abs(d.roulisDeg - 30) < 1e-9), Math.round(f.boiteMm.largeur * 10) / 10, Math.round(f.boiteMm.profondeur * 10) / 10], [true, 1366, 0]);
+      const deux = calculs.murZones(bp2, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 2, roulisDeg: 30 }], { ecarts: 'colles' });
+      const t1 = processeurDeBase(contexte, 'brompton-t1');
+      const e = calculs.evaluerProcesseur(deux, bp2, t1, NOVASTAR_60_8);
+      v.egal('deux zones : A simple, B double (4 × 30 976 + 4 × 61 952)', e.controles.pixels.valeur, 4 * 30976 + 4 * 61952);
+      const m2 = calculs.evaluerProcesseur(m, bp2, processeurDeBase(contexte, 'brompton-m2'), NOVASTAR_60_8);
+      v.vrai('M2 : quarts de tour sans coût, légende de la figure 7.56 non retenue', m2.notes.some((n) => /quarts de tour/.test(n) && /7\.56/.test(n) && /non retenue/.test(n)));
+      const lue = zones.lireSaisieZones(JSON.stringify({ zones: [{ nom: 'Z', colonnes: 2, rangees: 2, roulisDeg: 30 }], ecarts: 'reel' }));
+      v.egal('liste des zones : roulis gardé et relu ; tourner à 0 l\'efface', [lue.zones[0].roulisDeg, 'roulisDeg' in zones.tournerZone(lue, 0, 0).zones[0], zones.tournerZone(lue, 0, 12).zones[0].roulisDeg], [30, false, 12]);
+      v.vrai('texte copié du Mur : rotation hors axe', resumes.resumeMur({ dalle: bp2, mur: m }).split('\n').includes('Rotation de Z : 30° dans son plan, hors axe (Tessera M2 et T1 seulement, chaque dalle comptée deux fois)'));
+    },
+  },
+  {
+    id: 'R290',
+    titre: 'Relecture de la 9c (13/10/2026) : zone tournée hors axe, pixels de chaque bloc comptés deux fois et bloc à la taille de son rectangle englobant ; zone posée « à droite de » une zone pliée sans bord commun : à sa place de la vue à plat ; trois zones courbes empilées ; zone courbe pliée sur un bord refusée ; dalle tournée plus grande qu\'un port : refus du seul processeur ; pixels par dalle tournée dans Data',
+    etape: '9c',
+    verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2');
+      const t1 = processeurDeBase(contexte, 'brompton-t1');
+      const m2 = processeurDeBase(contexte, 'brompton-m2');
+      const D128 = { ...bp2, id: 'fictive-128', nom: 'Dalle 128 px', pxH: 128, pxV: 128 };
+      const grand = calculs.murZones(D128, [{ nom: 'Z', colonnes: 4, rangees: 8, roulisDeg: 30 }]);
+      const e = calculs.evaluerProcesseur(grand, D128, t1, NOVASTAR_60_8);
+      // 32 dalles de 16 384 px, comptées 32 768 : 1 048 576 px, soit 3 T1 au moins ; bandes de 12, 12 et 8 dalles.
+      v.egal('4 × 8 dalles de 128 px à 30° sur T1 en 8 bits : 3 T1, chacun sous ses 500 000 px comptés (dalles comptées deux fois)',
+        [e.nombre, e.groupes.map((g) => g.px), e.groupes.every((g) => g.px <= 500000)], [3, [393216, 393216, 262144], true]);
+      const g6 = calculs.murZones(bp2, [{ nom: 'BIAIS', colonnes: 4, rangees: 2, roulisDeg: 45 }]);
+      const e6 = calculs.evaluerProcesseur(g6, bp2, t1, NOVASTAR_60_8);
+      const pm = calculs.pixelMap(g6, bp2, e6);
+      v.egal('G6 : bloc du T1 de 747 × 747 px, comme la pixel map', [e6.groupes[0].largeurPx, e6.groupes[0].hauteurPx, pm.canvas[0].bloc.largeurPx, pm.canvas[0].bloc.hauteurPx], [747, 747, 747, 747]);
+      v.vrai('G6 : dalles du canvas dans le bloc', pm.canvas[0].dalles.every((d) => d.x[0] >= -1e-6 && d.y[0] >= -1e-6 && d.x[1] < 747 && d.y[1] < 747));
+      const six = calculs.murZones(bp2, [{ nom: 'BIAIS', colonnes: 6, rangees: 3, roulisDeg: 45 }]);
+      const e2 = calculs.evaluerProcesseur(six, bp2, m2, NOVASTAR_60_8);
+      v.egal('6 × 3 BP2 à 45° sur M2 : 1 M2, bloc de 1121 × 1121 px (le rectangle englobant), canvas 1600 × 1200 (Low Latency)',
+        [e2.nombre, e2.groupes[0].largeurPx, e2.groupes[0].hauteurPx, e2.groupes[0].canvas?.largeurPx, e2.groupes[0].canvas?.hauteurPx], [1, 1121, 1121, 1600, 1200]);
+      v.egal('Data : pixels comptés par dalle tournée et dalles par port', [e6.pixelsHorsAxe, e6.toutHorsAxe], [[{ zone: 'BIAIS', px: 61952, parPort: 8 }], true]);
+      const D520 = { ...bp2, id: 'fictive-520', nom: 'Dalle 520 px', pxH: 520, pxV: 520 };
+      let refus = '';
+      try {
+        refus = calculs.evaluerProcesseur(calculs.murZones(D520, [{ nom: 'Z', colonnes: 2, rangees: 1, roulisDeg: 20 }]), D520, m2, NOVASTAR_60_8).impossible ?? '';
+      } catch (erreur) {
+        refus = `exception : ${erreur.message}`;
+      }
+      v.vrai('dalle tournée de 540 800 px comptés : le M2 refusé, sans erreur pour tout Data', /540.800 px dépasse la capacité d.un port/.test(refus));
+
+      const A = { nom: 'A', colonnes: 4, rangees: 2 };
+      const P = { nom: 'P', colonnes: 2, rangees: 2, placement: { type: 'dessus', zone: 'A', alignement: 'droite' }, pose: { type: 'pliee', sens: 'concave', angleDeg: 90 } };
+      const Q = { nom: 'Q', colonnes: 2, rangees: 2 };
+      const fq = calculs.formeReelle(calculs.murZones(bp2, [A, P, Q], { ecarts: 'colles' }), bp2);
+      const q = fq.dalles.find((d) => d.id === 'Q · C1 R2');
+      v.egal('Q à droite du plafond plié, sans bord commun : debout, à sa place de la vue à plat', [q.centreMm.map((x) => Math.round(x * 10) / 10), q.tangageDeg], [[2250, 250, 0], 0]);
+      v.vrai('note : place réelle d\'une zone sans bord commun', fq.notes.some((n) => /Q/.test(n) && /bord commun/.test(n)));
+      const courbe = { sens: 'concave', angleDeg: 5 };
+      const trois = calculs.formeReelle(calculs.murZones(bp2, [{ nom: 'A', colonnes: 10, rangees: 2, courbure: courbe },
+        { nom: 'B', colonnes: 6, rangees: 2, courbure: courbe, placement: { type: 'dessus', zone: 'A', decalageMm: 1000 } },
+        { nom: 'C', colonnes: 6, rangees: 2, courbure: courbe, placement: { type: 'dessus', zone: 'B' } }]), bp2);
+      const c = (id) => trois.dalles.find((d) => d.id === id).centreMm.map((x) => Math.round(x * 10) / 10);
+      v.egal('trois zones courbes empilées : C · C1 au-dessus de B · C1', c('C · C1 R2'), [c('B · C1 R2')[0], c('B · C1 R2')[1] + 1000, c('B · C1 R2')[2]]);
+      v.vrai('zone courbe pliée sur le bord haut d\'une zone à plat : refus', /pas droit|courbe/.test(messageErreur(() => calculs.murZones(bp2, [{ nom: 'A', colonnes: 10, rangees: 2 },
+        { nom: 'B', colonnes: 10, rangees: 2, courbure: courbe, placement: { type: 'dessus', zone: 'A' }, pose: { type: 'pliee', sens: 'concave', angleDeg: 90 } }]))));
     },
   },
 ];

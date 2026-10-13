@@ -2,7 +2,7 @@
 // sans tirets de liste ni tirets longs (le texte part chez des chefs de projet). Fonctions pures :
 // elles mettent en forme les résultats de calculs.js, sans rien recalculer.
 
-import { pitchCalculeMm, entierInferieur, LIBELLES_COIN } from './calculs.js';
+import { pitchCalculeMm, entierInferieur, LIBELLES_COIN, formeReelle, aFormeReelle } from './calculs.js';
 import { nombre, nombreCourt, sourceCourte, mentionType } from './format.js';
 import { portsEnCouleurs, stylesLignes } from './couleurs.js';
 
@@ -50,6 +50,30 @@ function textePlacement(p) {
   return `${p.type === 'dessus' ? 'sur' : 'sous'} ${p.zone}, ${ALIGNEMENTS_TEXTE[p.alignement ?? 'gauche']}${ecart}${decalage}`;
 }
 
+// Forme réelle (9c) : boîte et développé, courbure de chaque zone, plis, poses libres, alertes. Rien pour un mur à plat.
+const BORDS_PLI = { droit: 'droit', haut: 'haut', bas: 'bas' };
+function lignesFormeReelle(dalle, m) {
+  if (!aFormeReelle(m)) return [];
+  const f = formeReelle(m, dalle);
+  const mm = (x) => `${nombreCourt(x / 1000, 2)} m`;
+  const deg = (x) => `${nombreCourt(x, 2)}°`;
+  const b = f.boiteMm;
+  const saisies = m.saisie?.zones ?? [];
+  return [
+    `Forme réelle : boîte ${nombreCourt(b.largeur / 1000, 2)} × ${nombreCourt(b.hauteur / 1000, 2)} × ${nombreCourt(b.profondeur / 1000, 2)} m `
+      + `(largeur × hauteur × profondeur), développé ${mm(f.developpeMm)}`,
+    ...f.zones.filter((z) => z.courbure).map((z) => `Courbure de ${z.nom} : ${z.courbure.sens} ${deg(z.courbure.angleDeg)} par jonction, `
+      + `rayon ${mm(z.courbure.rayonMm)}, corde ${mm(z.courbure.cordeMm)}, profondeur ${mm(z.courbure.profondeurMm)}, ${deg(z.courbure.angleTotalDeg)} au total`),
+    ...f.plis.map((p) => `Pli : ${p.zones[1]} plié à ${deg(p.angleDeg)} ${p.sens} sur le bord ${BORDS_PLI[p.bord]} de ${p.zones[0]}`),
+    ...saisies.map((z, i) => (z.roulisDeg && z.roulisDeg % 90 !== 0
+      ? `Rotation de ${f.zones[i].nom} : ${deg(z.roulisDeg)} dans son plan, hors axe (Tessera M2 et T1 seulement, chaque dalle comptée deux fois)` : null)),
+    ...saisies.map((z, i) => (z.pose?.type === 'libre'
+      ? `Pose libre de ${f.zones[i].nom} : X ${mm(z.pose.xMm)}, bas ${mm(z.pose.basMm)}, Z ${mm(z.pose.zMm)}, lacet ${deg(z.pose.lacetDeg)}, tangage ${deg(z.pose.tangageDeg)}`
+      : null)),
+    ...alertes(f.alertes),
+  ];
+}
+
 function resumeMurZones(dalle, m) {
   const sources = sourcesDimensions(dalle);
   const saisies = m.saisie?.zones ?? [];
@@ -78,6 +102,7 @@ function resumeMurZones(dalle, m) {
   lignes.push(
     `Dalles : ${nombre(m.dalles.total)}`,
     `Taille réelle : ${nombre(m.largeurMm / 1000, 2)} × ${nombre(m.hauteurMm / 1000, 2)} m, écarts compris`,
+    ...lignesFormeReelle(dalle, m),
     `Pixel map : ${nombre(m.pxLargeur)} × ${nombre(m.pxHauteur)} px, vides compris`,
     `Pixels utiles : ${nombre(m.pxTotal)} px`,
     `Surface des dalles : ${nombre(m.surfaceM2, 2)} m²`,
@@ -114,6 +139,7 @@ export function resumeMur({ dalle, mur: m }) {
     m.rangeeDemi ? `Demi-dalles : ${m.dalles.demi} ${m.demi.nom}, rangée ${m.positionDemi === 'haut' ? 'en haut' : 'en bas'}` : null,
     m.rangeeDemi ? `Total : ${m.dalles.total} éléments` : null,
     `Taille : ${nombre(m.largeurMm / 1000, 2)} × ${nombre(m.hauteurMm / 1000, 2)} m`,
+    ...lignesFormeReelle(dalle, m),
     `Résolution : ${nombre(m.pxLargeur)} × ${nombre(m.pxHauteur)} px`,
     `Pixels : ${nombre(m.pxTotal)} px`,
     `Surface : ${nombre(m.surfaceM2, 2)} m²`,
@@ -209,6 +235,7 @@ export function resumeData(r, {
     r.capaciteAppareil ? `Capacité de l'appareil : ${texteCapaciteAppareil(r.capaciteAppareil)}` : null,
     `Pixels par dalle : ${nombre(r.pxParDalle)} px`,
     `Dalles par port : ${nombre(r.dallesParPort)}`,
+    ...(r.pixelsHorsAxe ?? []).map((x) => `Dalles tournées hors axe de ${x.zone} : ${nombre(x.px)} px comptés par dalle (deux fois), ${nombre(x.parPort)} par port`),
   ];
   const alertesPorts = [];
   if (g) {

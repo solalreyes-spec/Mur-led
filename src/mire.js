@@ -179,8 +179,9 @@ export function planMire({ geo, trajets, largeur, hauteur, lignesBloc, cadre = n
     const [x, y] = [r.x + decalage.x, r.y + decalage.y];
     // Mur en zones : la mire n'a pas de nom de zone au-dessus des zones, la dalle garde donc le nom de sa zone.
     const nom = id.includes(' · ') ? id : lignesNomDalle(id).join(' ');
-    const lignes = [t ? libellePortRang(t, id) : '', nom, lignesPremierPixel({ x, y }).join(' ')];
-    return { id, x, y, w: r.w, h: r.h, bord, fond: assombrir(bord), textes: textesDalle(lignes, x, y, r.w, r.h) };
+    const lignes = [t ? libellePortRang(t, id) : '', nom, lignesPremierPixel({ x, y, w: r.w, h: r.h, rotation: r.rotation }).join(' ')];
+    // Dalle tournée hors axe (9c4) : dessinée tournée autour de son centre, ses textes avec elle.
+    return { id, x, y, w: r.w, h: r.h, bord, fond: assombrir(bord), textes: textesDalle(lignes, x, y, r.w, r.h), ...(r.rotation ? { rotation: r.rotation } : {}) };
   });
   const { bloc, damier, zone: zoneBloc } = blocCentral(lignesBloc, mur, dalles);
   return {
@@ -284,11 +285,26 @@ export function dessinerMire(plan) {
 
   // Dalles : fond du port assombri, bord de 1 px à l'intérieur de la dalle, couleur du port.
   ctx.lineWidth = 1;
+  // Dalle tournée hors axe (9c4) : le dessin tourne autour de son centre (sens inverse des aiguilles d'une montre).
+  const tourner = (d, dessin) => {
+    if (!d.rotation) {
+      dessin();
+      return;
+    }
+    ctx.save();
+    ctx.translate(d.x + d.w / 2, d.y + d.h / 2);
+    ctx.rotate((-d.rotation * Math.PI) / 180);
+    ctx.translate(-(d.x + d.w / 2), -(d.y + d.h / 2));
+    dessin();
+    ctx.restore();
+  };
   for (const d of plan.dalles) {
-    ctx.fillStyle = d.fond;
-    ctx.fillRect(d.x, d.y, d.w, d.h);
-    ctx.strokeStyle = d.bord;
-    ctx.strokeRect(d.x + 0.5, d.y + 0.5, d.w - 1, d.h - 1);
+    tourner(d, () => {
+      ctx.fillStyle = d.fond;
+      ctx.fillRect(d.x, d.y, d.w, d.h);
+      ctx.strokeStyle = d.bord;
+      ctx.strokeRect(d.x + 0.5, d.y + 0.5, d.w - 1, d.h - 1);
+    });
   }
 
   // Éléments communs : diagonales et cercle de 2 px, cadre de 1 px, bloc central, damier 1:1.
@@ -326,7 +342,7 @@ export function dessinerMire(plan) {
   // Texte : blanc, gras, sans empattement.
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  for (const d of plan.dalles) for (const t of d.textes) texteAjuste(ctx, t);
+  for (const d of plan.dalles) tourner(d, () => { for (const t of d.textes) texteAjuste(ctx, t); });
   b.lignes.forEach((ligne, i) => texteAjuste(ctx, {
     texte: ligne, taille: b.taille, contour: b.contour, x: b.x + b.w / 2, y: b.y + b.h / 2 + (i - (b.lignes.length - 1) / 2) * b.taille * 1.25,
     largeurMax: b.w - b.taille,

@@ -4,6 +4,7 @@
 import { CAS } from './cas.js';
 import { CAS_REELS } from './cas-reels.js';
 import { CAS_FORMES } from './cas-formes.js';
+import { CAS_ANGLES } from './cas-angles.js';
 import { REGLES } from './regles.js';
 import { DONNEES } from './donnees.js';
 import { BANC } from './banc.js';
@@ -160,6 +161,7 @@ const contexte = await chargerContexte();
 const cas = afficher(CAS, document.getElementById('liste-cas'), contexte);
 const reels = afficher(CAS_REELS, document.getElementById('liste-cas-reels'), contexte);
 const formes = afficher(CAS_FORMES, document.getElementById('liste-cas-formes'), contexte);
+const angles = afficher(CAS_ANGLES, document.getElementById('liste-cas-angles'), contexte);
 const regles = afficher(REGLES, document.getElementById('liste-regles'), contexte);
 const donnees = afficher(DONNEES, document.getElementById('liste-donnees'), contexte);
 const banc = afficher(BANC, document.getElementById('liste-banc'), contexte);
@@ -175,7 +177,7 @@ const nav = {
   reussis: resultatsNav.filter((r) => r.statut === 'reussi').length,
   problemes: resultatsNav.filter((r) => r.statut === 'echec' || r.statut === 'erreur').length,
 };
-const problemes = cas.problemes + reels.problemes + formes.problemes + regles.problemes + donnees.problemes + banc.problemes + nav.problemes;
+const problemes = cas.problemes + reels.problemes + formes.problemes + angles.problemes + regles.problemes + donnees.problemes + banc.problemes + nav.problemes;
 const sur = (bilanSection) => `${bilanSection.reussis} sur ${bilanSection.total}`;
 
 const bilan = document.getElementById('bilan');
@@ -185,7 +187,7 @@ bilan.replaceChildren(
   problemes ? `✗ ${pluriel(problemes, 'test en échec', 'tests en échec')}` : '✓ Aucun test en échec',
   el('small', {},
     `Cas tests : ${pluriel(cas.reussis, 'réussi', 'réussis')} · ${cas.problemes} en échec · ${cas.aVenir} à venir. `
-    + `Cas réels : ${sur(reels)}. Formes libres : ${sur(formes)}. Règles : ${sur(regles)}. Données : ${sur(donnees)}. Navigateur : ${sur(nav)}. Banc de test : ${sur(banc)}. `
+    + `Cas réels : ${sur(reels)}. Formes libres : ${sur(formes)}. Angles et courbure : ${sur(angles)}${angles.aVenir ? ` (${angles.aVenir} à venir)` : ''}. Règles : ${sur(regles)}. Données : ${sur(donnees)}. Navigateur : ${sur(nav)}. Banc de test : ${sur(banc)}. `
     + `Lancé à ${new Date().toLocaleTimeString('fr-FR')}.`),
 );
 document.title = `${problemes ? '✗' : '✓'} Tests — Mur LED`;

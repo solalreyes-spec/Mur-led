@@ -2612,6 +2612,154 @@ export const NAVIGATEUR = [
       v.egal('mire du processeur : à la taille de la sortie pliée', [mires.processeurs.length, p?.largeur, p?.hauteur, Boolean(p?.plan)], [1, 3840, 2160, true]);
     },
   },
+  {
+    id: 'N62',
+    titre: 'Forme réelle à l\'écran (étape 9c2) : bloc « Forme réelle » de chaque carte de zone (replié sans réglage de la 9c, courbure avec rayon, corde et profondeur, pli ou pose libre), réglages hors du formulaire ; vue de dessus du mur courbe (cas G1) et du plafond (cas G2) aux proportions, rien pour un mur à plat ; Schéma : trait mixte et angle sur chaque pli, courbure de la zone écrite',
+    etape: '9c2',
+    async verifier(v, contexte) {
+      const zones = await moduleAppli(v, '../src/zones.js');
+      const look = await moduleAppli(v, '../src/look.js');
+      if (!zones || !look) return;
+      const retirer = await chargerStylesLook();
+      const formulaire = el('form', { 'data-famille': 'image', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(formulaire);
+      let recu = null;
+      try {
+        const saisie = { ...zones.lireSaisieZones(''), zones: [{ nom: 'A', colonnes: 4, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 2 }] };
+        let ed = zones.monterEditeurZones({ saisie, surChange: (s) => { recu = s; }, largeurColonne: () => 500 });
+        formulaire.replaceChildren(ed);
+        const bloc = (i) => ed.querySelectorAll('.carte-zone')[i].querySelector('details.forme-reelle');
+        v.egal('un bloc « Forme réelle » par zone, replié', [ed.querySelectorAll('details.forme-reelle').length, bloc(0).open, bloc(0).querySelector('summary').textContent], [2, false, 'Forme réelle']);
+        v.egal('première zone : pas de pose réelle', [Boolean(bloc(0).querySelector('[data-reglage="poseType"]')), Boolean(bloc(1).querySelector('[data-reglage="poseType"]'))], [false, true]);
+        v.egal('aucun réglage dans le formulaire', formulaire.elements.length, 0);
+        const sens = bloc(0).querySelector('[data-reglage="courbureSens"]');
+        sens.value = 'concave';
+        sens.dispatchEvent(new Event('change', { bubbles: true }));
+        const angle = bloc(0).querySelector('[data-reglage="courbureAngle"]');
+        v.vrai('courbure : angle proposé', Boolean(angle));
+        angle.value = '2,5';
+        angle.dispatchEvent(new Event('change', { bubbles: true }));
+        v.egal('courbure gardée', recu?.zones[0].courbure, { sens: 'concave', angleDeg: 2.5 });
+        v.egal('rayon, corde, profondeur en direct', bloc(0).querySelector('.grandeurs-courbure')?.textContent,
+          'Rayon 11,46 m, corde 2 m, profondeur 0,04 m, 7,5° au total');
+        v.vrai('bloc ouvert une fois réglé', bloc(0).open);
+        const type = bloc(1).querySelector('[data-reglage="poseType"]');
+        type.value = 'pliee';
+        type.dispatchEvent(new Event('change', { bubbles: true }));
+        v.egal('pli proposé : sens et angle', [Boolean(bloc(1).querySelector('[data-reglage="poseSens"]')), Boolean(bloc(1).querySelector('[data-reglage="poseAngle"]'))], [true, true]);
+        const pli = bloc(1).querySelector('[data-reglage="poseAngle"]');
+        pli.value = '90';
+        pli.dispatchEvent(new Event('change', { bubbles: true }));
+        v.egal('pli gardé (concave par défaut)', recu?.zones[1].pose, { type: 'pliee', sens: 'concave', angleDeg: 90 });
+        const libre = bloc(1).querySelector('[data-reglage="poseType"]');
+        libre.value = 'libre';
+        libre.dispatchEvent(new Event('change', { bubbles: true }));
+        v.egal('pose libre : X, bas, Z, lacet, tangage', ['poseX', 'poseBas', 'poseZ', 'poseLacet', 'poseTangage'].map((n) => Boolean(bloc(1).querySelector(`[data-reglage="${n}"]`))), [true, true, true, true, true]);
+        v.egal('pose libre gardée', recu?.zones[1].pose, { type: 'libre', xMm: 0, basMm: 0, zMm: 0, lacetDeg: 0, tangageDeg: 0 });
+        const cibles = [...ed.querySelectorAll('details.forme-reelle select, details.forme-reelle input')].map((x) => x.getBoundingClientRect().height);
+        v.vrai('réglages de 48 px au moins', cibles.every((h) => h >= 47.5));
+        v.vrai('rien ne dépasse 375 px', ed.scrollWidth <= 375);
+
+        const bp2 = dalleDeBase(contexte, 'roe-bp2');
+        const g1 = calculs.murZones(bp2, [{ nom: 'MUR', colonnes: 37, rangees: 9, courbure: { sens: 'concave', angleDeg: 2.5 } }]);
+        const vue1 = look.vueDessus(calculs.formeReelle(g1, bp2));
+        formulaire.replaceChildren(vue1);
+        const svg1 = vue1?.querySelector('svg');
+        v.vrai('vue de dessus du mur courbe : un trait par colonne', Boolean(svg1) && svg1.querySelectorAll('.colonne-dessus').length === 37);
+        const vb = svg1.getAttribute('viewBox').split(' ').map(Number);
+        v.egal('aux proportions de la boîte (largeur ÷ profondeur)', Math.round((vb[2] / vb[3]) * 100) / 100, Math.round((16556.7 / 3532.6) * 100) / 100);
+        v.egal('légende', vue1.querySelector('.legende-dessus')?.textContent, 'Vue de dessus, public en bas : 16,56 × 3,53 m (largeur × profondeur)');
+        const cb8 = dalleDeBase(contexte, 'roe-cb8');
+        const g2 = calculs.murZones(bp2, [{ nom: 'MUR', colonnes: 37, rangees: 9 }, { nom: 'PLAFOND', colonnes: 17, rangees: 3, dalle: cb8, placement: { type: 'dessus', zone: 'MUR', alignement: 'droite' }, pose: { type: 'pliee', sens: 'concave', angleDeg: 90 } }]);
+        const vue2 = look.vueDessus(calculs.formeReelle(g2, bp2));
+        v.egal('plafond : dalles en hachures, mur en traits', [vue2.querySelectorAll('.dalle-plafond').length, vue2.querySelectorAll('.colonne-dessus').length], [51, 37]);
+        const ez = dalleDeBase(contexte, 'infiled-ez2-6-mk2');
+        v.egal('mur à plat : pas de vue de dessus', look.vueDessus(calculs.formeReelle(calculs.murZones(ez, [{ nom: 'A', colonnes: 4, rangees: 2 }, { nom: 'B', colonnes: 4, rangees: 2 }]), ez)), null);
+
+        const vue = { vue: 'physique', canvasVue: 'mur', cablage: 'data' };
+        const geo = geometrieSchema(vue, g2, bp2, null);
+        const { svg } = construireSvg({ geo, trajets: [], coin: 'bas-gauche', blocs: [], palette: PALETTE_EXPORT, largeurPx: 2000 });
+        v.egal('Schéma : un trait de pli, sur le haut du mur, de x 8 300 à 18 500 mm', [...svg.querySelectorAll('.pli')].map((l) => ['x1', 'y1', 'x2', 'y2'].map((a) => Number(l.getAttribute(a)))), [[8300, 3600, 18500, 3600]]);
+        v.vrai('Schéma : trait mixte', [...svg.querySelectorAll('.pli')].every((l) => (l.getAttribute('stroke-dasharray') ?? '').split(' ').length === 4));
+        v.egal('Schéma : angle du pli écrit', [...svg.querySelectorAll('.etiquette-pli')].map((t) => t.textContent), ['90° concave']);
+        const geo1 = geometrieSchema(vue, g1, bp2, null);
+        const s1 = construireSvg({ geo: geo1, trajets: [], coin: 'bas-gauche', blocs: [], palette: PALETTE_EXPORT, largeurPx: 2000 }).svg;
+        v.egal('Schéma : courbure de la zone écrite', [...s1.querySelectorAll('.etiquette-courbure')].map((t) => t.textContent), ['MUR : concave 2,5° par jonction']);
+      } finally {
+        formulaire.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N63',
+    titre: 'Liste des positions par dalle, fichiers (étape 9c3) : CSV et OBJ du cas G2 en fichiers UTF-8 (types text/csv et model/obj, contenu relu à l\'octet près, accents compris) ; feuille de partage quand l\'appareil sait partager le fichier, téléchargement sinon',
+    etape: '9c3',
+    async verifier(v, contexte) {
+      const exp = await moduleAppli(v, '../src/export.js');
+      if (!exp) return;
+      const bp2 = dalleDeBase(contexte, 'roe-bp2');
+      const cb8 = dalleDeBase(contexte, 'roe-cb8');
+      const g2 = calculs.murZones(bp2, [{ nom: 'MUR', colonnes: 37, rangees: 9 }, { nom: 'PLAFOND', colonnes: 17, rangees: 3, dalle: cb8, placement: { type: 'dessus', zone: 'MUR', alignement: 'droite' }, pose: { type: 'pliee', sens: 'concave', angleDeg: 90 } }]);
+      const p = calculs.positionsDalles(g2, bp2);
+      const csv = exp.fichierTexte(calculs.texteCSV(p), 'mur-led-positions.csv', 'text/csv');
+      const obj = exp.fichierTexte(calculs.texteOBJ(p), 'mur-led-modele-3d.obj', 'model/obj');
+      v.egal('types et noms', [csv.type.split(';')[0], csv.name, obj.type.split(';')[0], obj.name], ['text/csv', 'mur-led-positions.csv', 'model/obj', 'mur-led-modele-3d.obj']);
+      const texteCsv = await csv.text();
+      v.egal('CSV relu tel quel : 384 lignes et l\'en-tête', [texteCsv === calculs.texteCSV(p), texteCsv.split('\n').length], [true, 385]);
+      v.vrai('accents en UTF-8 (« · » des noms de dalles)', (await csv.arrayBuffer()).byteLength > texteCsv.length && /MUR · C1 R1/.test(texteCsv));
+      const texteObj = await obj.text();
+      v.egal('OBJ : 384 faces, deux objets', [texteObj.split('\n').filter((l) => l.startsWith('f ')).length, texteObj.split('\n').filter((l) => l.startsWith('o ')).length], [384, 2]);
+      const accepte = { share: () => Promise.resolve(), canShare: () => true };
+      const refuse = { share: () => Promise.resolve(), canShare: () => false };
+      v.egal('partage si l\'appareil le sait, téléchargement sinon', [exp.modeEnregistrement(accepte, [csv]), exp.modeEnregistrement(refuse, [obj])], ['partage', 'telechargement']);
+    },
+  },
+  {
+    id: 'N64',
+    titre: 'Dalles tournées hors axe (étape 9c4) : export PNG de la pixel map (dalles tournées, noir hors des dalles dans le rectangle englobant), mire (gris « hors mur » au coin du rectangle) et Schéma (dalle dessinée tournée, vue physique et vue pixels) ; cas G6',
+    etape: '9c4',
+    async verifier(v, contexte) {
+      const mire = await moduleAppli(v, '../src/mire.js');
+      if (!mire) return;
+      const bp2 = dalleDeBase(contexte, 'roe-bp2');
+      const m = calculs.murZones(bp2, [{ nom: 'BIAIS', colonnes: 4, rangees: 2, roulisDeg: 45 }]);
+      const e = calculs.evaluerProcesseur(m, bp2, processeurDeBase(contexte, 'brompton-t1'), { frequenceHz: 60, bits: 8, departCablage: 'bas-gauche' });
+      const pm = calculs.pixelMap(m, bp2, e);
+      const canvas = pixelMapEnCanvas(pm.mur);
+      const px = (c, x, y) => [...c.getContext('2d').getImageData(x, y, 1, 1).data].slice(0, 3).join(',');
+      // Centre de C1 R1 : coin haut gauche (0 ; 497,8), tourné de 45° : centre en (124,4 ; 497,8).
+      v.egal('PNG : 747 × 747 px', [canvas.width, canvas.height], [747, 747]);
+      v.vrai('PNG : centre de C1 R1 allumé', px(canvas, 124, 497) !== '0,0,0');
+      v.egal('PNG : coin haut gauche du rectangle englobant, hors des dalles, noir', [px(canvas, 3, 3), px(canvas, 743, 743)], ['0,0,0', '0,0,0']);
+      const data = calculs.cablageData(m, bp2, e, { depart: 'bas-gauche' });
+      const variante = data.variantes.find((x) => x.mode === data.conseil);
+      const mires = mire.preparerMires({ mur: m, dalle: bp2, evaluation: e, variante, surfaceMax: 16777216 });
+      const c = mire.dessinerMire(mires.mur.plan);
+      const hex = (x, y) => [...c.getContext('2d').getImageData(x, y, 1, 1).data].slice(0, 3).map((k) => k.toString(16).padStart(2, '0')).join('');
+      v.egal('mire : coin du rectangle englobant (hors des dalles et des diagonales) au gris hors mur, centre de C1 R1 pas gris', [hex(5, 60), hex(124, 497) !== '141414'], ['141414', true]);
+      for (const vue of ['physique', 'pixels']) {
+        const geo = geometrieSchema({ vue, canvasVue: 'mur', cablage: 'data' }, m, bp2, pm);
+        const { svg } = construireSvg({ geo, trajets: trajetsSchema({ cablage: 'data' }, variante, null, null), coin: 'bas-gauche', blocs: [], palette: PALETTE_EXPORT, largeurPx: 1000 });
+        const g = svg.querySelector('[data-dalle="C1 R1"]');
+        v.vrai(`Schéma, vue ${vue} : dalle tournée de 45° (sens inverse des aiguilles d'une montre vu de face)`, /rotate\(-45 /.test(g?.getAttribute('transform') ?? ''));
+      }
+      const zones = await moduleAppli(v, '../src/zones.js');
+      if (!zones) return;
+      let recu = null;
+      const ed = zones.monterEditeurZones({ saisie: { ...zones.lireSaisieZones(''), zones: [{ nom: 'A', colonnes: 4, rangees: 2 }] }, surChange: (x) => { recu = x; }, largeurColonne: () => 500 });
+      document.body.append(ed);
+      try {
+        const champ = ed.querySelector('details.forme-reelle [data-reglage="roulis"]');
+        v.vrai('éditeur : rotation dans son plan proposée', Boolean(champ));
+        champ.value = '45';
+        champ.dispatchEvent(new Event('change', { bubbles: true }));
+        v.egal('éditeur : rotation gardée', recu?.zones[0].roulisDeg, 45);
+      } finally {
+        ed.remove();
+      }
+    },
+  },
 ];
 
 // Contraste WCAG entre deux couleurs « #rrggbb ».

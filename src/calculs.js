@@ -360,6 +360,8 @@ export function murZones(dalleMur, zones, { ecarts = 'reel', ecartsPx = [], yPx 
   const demi = virtuelle(demiMur);
   const ficheDe = (z) => virtuelle(z.dalle ?? dalleMur);
   const demiDe = (z) => virtuelle(z.dalle ? z.demi ?? null : demiMur);
+  // Rotation dans le plan d'une zone (9c4) : vérifiée avant la géométrie (rectangle englobant).
+  verifierRoulis(zones, noms);
   // Pas de référence (Z15) : le plus fin des pas réels du mur, en largeur et en hauteur ; une seule dalle : son pas (9a).
   const fiches = [dalle, ...zones.flatMap((z) => [ficheDe(z), demiDe(z)])].filter(Boolean);
   const pas = mixte
@@ -391,8 +393,21 @@ export function murZones(dalleMur, zones, { ecarts = 'reel', ecartsPx = [], yPx 
       ...(f ? { forme: f } : {}),
       ...(mixte ? { dalle: ficheDe(z), demi: demiDe(z) } : {}),
     };
-    xMm += m.largeurMm;
-    x += m.pxLargeur;
+    // Zone tournée hors axe (9c4, Z36, Z38) : elle occupe le rectangle qui englobe sa forme tournée, en px et en mm ;
+    // sa dalle porte la marque `horsAxe` (charge comptée deux fois, Z37).
+    if (horsAxe(z)) {
+      d.roulis = rotationZone(z.roulisDeg, d);
+      d.pxLargeur = d.roulis.pxLargeur;
+      d.pxHauteur = d.roulis.pxHauteur;
+      d.largeurMm = d.roulis.largeurMm;
+      d.hauteurMm = d.roulis.hauteurMm;
+      const fiche = ficheDe(z);
+      const demiFiche = demiDe(z);
+      d.dalle = { ...fiche, horsAxe: true };
+      d.demi = demiFiche ? { ...demiFiche, horsAxe: true } : null;
+    }
+    xMm += d.largeurMm;
+    x += d.pxLargeur;
     colonne += z.colonnes;
     return d;
   });
@@ -401,7 +416,10 @@ export function murZones(dalleMur, zones, { ecarts = 'reel', ecartsPx = [], yPx 
     options: { ecarts, ecartsPx: [...ecartsPx], yPx: yPx ? [...yPx] : null, ...(xPx ? { xPx: [...xPx] } : {}), ...(demiMur ? { demi: demiMur } : {}) },
   };
   const avecForme = formes.some(Boolean);
-  if (zones.length === 1 && !avecForme && !placees && !mixte) {
+  const ficheReelle = (z) => z.dalle ?? dalleMur;
+  const tournees = zones.some(horsAxe);
+  if (zones.length === 1 && !avecForme && !placees && !mixte && !tournees) {
+    verifierFormeReelle(zones, description, ficheReelle);
     return { ...murs[0], zones: description, ecarts: [], pas, modeEcarts: ecarts, pxCanvas: murs[0].pxTotal, saisie, sauts: [], superposees: [] };
   }
 
@@ -419,6 +437,8 @@ export function murZones(dalleMur, zones, { ecarts = 'reel', ecartsPx = [], yPx 
       d.y = ecarts === 'main' && yPx ? yPx[i] : arrondiPx((hautMax - d.basMm - d.hauteurMm) / pas.verticalMm);
     });
   }
+  // Forme réelle (9c) : courbure, plis et poses vérifiés sur la vue développée.
+  verifierFormeReelle(zones, description, ficheReelle);
   const pxLargeur = x;
   const pxHauteur = Math.max(...description.map((d) => d.y + d.pxHauteur));
   const entieres = description.reduce((s, d) => s + (d.forme ? d.forme.dalles.entieres : d.dalles), 0);
@@ -451,6 +471,8 @@ export function murZones(dalleMur, zones, { ecarts = 'reel', ecartsPx = [], yPx 
     saisie,
     sauts: description.flatMap((d) => (d.forme ? sautsForme(d.nom, d.forme) : [])),
     ...(mixte ? { mixte: true, mapping: pasInterpole ? 'interpole' : '1:1', dallePrincipale: dalle, ...(pasInterpole ? { pasInterpole } : {}) } : {}),
+    // Dalles tournées hors axe (9c4) : Tessera M2 et T1 seulement, chaque dalle comptée deux fois.
+    ...(tournees ? { horsAxe: true } : {}),
     // Zones qui se recouvrent dans la pixel map (posées à la main) : elles affichent la même image.
     superposees: zonesSuperposees(description),
   };
@@ -678,8 +700,492 @@ function sautsForme(nom, forme) {
   return sauts;
 }
 
+// ---------------------------------------------------------------------------
+// Forme réelle (étape 9c) : courbure d'une zone, pli sur le bord d'une autre
+// zone, pose libre dans la salle. La pixel map, les ports et les lignes ne changent pas (vue développée de la 9b).
+// Repère : X vers la droite, Y vers le haut, Z vers le public, en mm ; origine au coin bas gauche de la face de la
+// première zone, X le long de sa corde. Lacet autour de Y (positif : la face tourne vers la droite), tangage autour de X
+// (positif : la face penche vers le bas), roulis autour de Z ; orientation = lacet · tangage · roulis.
+// ---------------------------------------------------------------------------
+
+const SENS_COURBURE = ['concave', 'convexe'];
+
+// Rotation d'une zone dans son plan (9c4) : hors axe quand l'angle n'est pas un multiple de 90°.
+const horsAxe = (z) => Number.isFinite(z.roulisDeg) && z.roulisDeg % 90 !== 0;
+function verifierRoulis(zones, noms) {
+  zones.forEach((z, i) => {
+    if (z.roulisDeg === undefined || z.roulisDeg === null) return;
+    const nom = noms[i];
+    if (!Number.isFinite(z.roulisDeg) || z.roulisDeg < 0 || z.roulisDeg >= 360) throw new ErreurSaisie(`${nom} : la rotation dans son plan est entre 0 et 359°.`);
+    if (z.roulisDeg % 90 === 0 && z.roulisDeg !== 0) {
+      throw new ErreurSaisie(`${nom} : quart de tour : échange colonnes et rangées, ou tourne la dalle si sa fiche le permet (rotation hors axe seulement ici).`);
+    }
+    if (horsAxe(z) && z.courbure) throw new ErreurSaisie(`${nom} : zone courbe : pas de rotation dans son plan.`);
+  });
+}
+// Zone tournée de `deg` (sens inverse des aiguilles d'une montre vu du public) autour de son coin haut gauche, puis recalée
+// sur son rectangle englobant : taille de ce rectangle (px arrondis au-dessus, mm) et décalage du coin haut gauche de la
+// zone non tournée dans ce rectangle. Coordonnées vers le bas (pixels, vue développée en mm).
+function rotationZone(deg, d) {
+  const c = Math.cos(rad(deg));
+  const s = Math.sin(rad(deg));
+  const cadre = (l, h) => {
+    const coins = [[0, 0], [l, 0], [0, h], [l, h]].map(([x, y]) => [x * c + y * s, -x * s + y * c]);
+    const min = [0, 1].map((k) => Math.min(...coins.map((p) => p[k])));
+    const max = [0, 1].map((k) => Math.max(...coins.map((p) => p[k])));
+    return { largeur: max[0] - min[0], hauteur: max[1] - min[1], decalage: [-min[0], -min[1]] };
+  };
+  const px = cadre(d.pxLargeur, d.pxHauteur);
+  const mm = cadre(d.largeurMm, d.hauteurMm);
+  return {
+    deg, brut: { pxLargeur: d.pxLargeur, pxHauteur: d.pxHauteur, largeurMm: d.largeurMm, hauteurMm: d.hauteurMm },
+    pxLargeur: Math.ceil(px.largeur - 1e-6), pxHauteur: Math.ceil(px.hauteur - 1e-6), largeurMm: mm.largeur, hauteurMm: mm.hauteur,
+    decalagePx: px.decalage, decalageMm: mm.decalage,
+  };
+}
+// Point (x, y vers le bas) d'une zone non tournée, à sa place dans le rectangle englobant de la zone tournée.
+const tournerDansZone = (r, x, y, enMm) => {
+  const c = Math.cos(rad(r.deg));
+  const s = Math.sin(rad(r.deg));
+  const [dx, dy] = enMm ? r.decalageMm : r.decalagePx;
+  return [x * c + y * s + dx, -x * s + y * c + dy];
+};
+const TYPES_POSE = ['prolongement', 'pliee', 'libre'];
+const COURBURE_MAX_DEG = 45;
+const rad = (deg) => (deg * Math.PI) / 180;
+const deg = (r) => (r * 180) / Math.PI + 0;
+const nombreFini = (x) => typeof x === 'number' && Number.isFinite(x);
+
+// Limites de courbure d'une fiche (Z28), lues dans son texte : « concave 10° », « concave 15° à convexe 10° », « ±5° »,
+// « −5° à +10° » (convexe 5°, concave 10° : « + » concave chez Absen et Unilumin). null sans courbure ; concave ou
+// convexe à null si le texte ne se lit pas.
+export function limitesCourbure(fiche) {
+  const texte = fiche?.courbure;
+  if (typeof texte !== 'string' || !texte.trim()) return null;
+  const t = texte.replace(/−/g, '-').replace(/,/g, '.');
+  const nombre = (re) => {
+    const m = re.exec(t);
+    return m ? Number(m[1]) : null;
+  };
+  let concaveDeg = nombre(/concave\s*(\d+(?:\.\d+)?)\s*°/i);
+  let convexeDeg = nombre(/convexe\s*(\d+(?:\.\d+)?)\s*°/i);
+  const pm = nombre(/±\s*(\d+(?:\.\d+)?)\s*°/);
+  if (pm !== null) {
+    concaveDeg = pm;
+    convexeDeg = pm;
+  } else if (concaveDeg === null && convexeDeg === null) {
+    const negatif = nombre(/-\s*(\d+(?:\.\d+)?)\s*°/);
+    const positif = nombre(/\+\s*(\d+(?:\.\d+)?)\s*°/);
+    if (negatif !== null || positif !== null) {
+      convexeDeg = negatif ?? 0;
+      concaveDeg = positif ?? 0;
+    }
+  } else {
+    concaveDeg ??= 0;
+    convexeDeg ??= 0;
+  }
+  return { concaveDeg, convexeDeg, texte, source: fiche.sources?.courbure?.source ?? null };
+}
+
+// Source d'une valeur de fiche, avec sa confiance quand elle n'est pas « constructeur ».
+function texteSourceValeur(source) {
+  if (!source?.court) return 'fiche';
+  return /^constructeur$/.test(source.confiance ?? 'constructeur') ? source.court : `${source.court}, ${source.confiance}`;
+}
+
+// Matrices 3 × 3 (lignes).
+const matrice = (a) => a;
+const IDENTITE = matrice([[1, 0, 0], [0, 1, 0], [0, 0, 1]]);
+const rotY = (d) => {
+  const c = Math.cos(rad(d));
+  const s = Math.sin(rad(d));
+  return [[c, 0, s], [0, 1, 0], [-s, 0, c]];
+};
+const rotX = (d) => {
+  const c = Math.cos(rad(d));
+  const s = Math.sin(rad(d));
+  return [[1, 0, 0], [0, c, -s], [0, s, c]];
+};
+const rotZ = (d) => {
+  const c = Math.cos(rad(d));
+  const s = Math.sin(rad(d));
+  return [[c, -s, 0], [s, c, 0], [0, 0, 1]];
+};
+const produit = (a, b) => a.map((ligne) => [0, 1, 2].map((j) => ligne[0] * b[0][j] + ligne[1] * b[1][j] + ligne[2] * b[2][j]));
+const appliquer = (m, v) => m.map((ligne) => ligne[0] * v[0] + ligne[1] * v[1] + ligne[2] * v[2]);
+const ajouter = (a, b) => a.map((x, i) => x + b[i]);
+// Lacet, tangage, roulis d'une orientation (ordre Y, X, Z) ; tangage de ±90° : roulis à 0.
+function angles(m) {
+  const sx = Math.max(-1, Math.min(1, -m[1][2]));
+  const tangage = deg(Math.asin(sx));
+  if (Math.abs(Math.abs(sx) - 1) < 1e-9) return { lacet: deg(Math.atan2(-m[2][0], m[0][0])), tangage, roulis: 0 };
+  return { lacet: deg(Math.atan2(m[0][2], m[2][2])), tangage, roulis: deg(Math.atan2(m[1][0], m[1][1])) };
+}
+const propre = (x) => (Math.abs(x) < 1e-9 ? 0 : x);
+
+// Colonnes d'une zone courbe de n colonnes de largeur w (facettes planes, A1) : début de chaque colonne (a le long de la
+// corde, c vers le public) et son lacet dans le repère de la zone ; posée symétrique, la corde le long de a. `debut` et
+// `nombre` : colonnes d'une zone qui suit la courbe d'une autre (même polygone, décalé d'un nombre entier de colonnes).
+function colonnesCourbe(n, w, phi, s, debut = 0, nombre = n) {
+  const beta = (k) => s * ((n - 1) / 2 - k) * phi;
+  const pas = (k) => [w * Math.cos(rad(beta(k))), -w * Math.sin(rad(beta(k)))];
+  const point = (k) => {
+    let a = 0;
+    let c = 0;
+    for (let i = 0; i < k; i += 1) [a, c] = [a + pas(i)[0], c + pas(i)[1]];
+    for (let i = -1; i >= k; i -= 1) [a, c] = [a - pas(i)[0], c - pas(i)[1]];
+    return [a, c];
+  };
+  return Array.from({ length: nombre }, (_, j) => ({ debut: point(debut + j), beta: beta(debut + j) + 0 }));
+}
+
+// Grandeurs d'une zone courbe (modèle de disguise) : rayon aux arêtes, corde, profondeur de la corde au point le plus
+// loin, angle entre la première et la dernière colonne.
+export function grandeursCourbure(n, w, courbure) {
+  const phi = courbure.angleDeg;
+  const rayonMm = w / (2 * Math.sin(rad(phi) / 2));
+  return {
+    sens: courbure.sens,
+    angleDeg: phi,
+    rayonMm,
+    cordeMm: 2 * rayonMm * Math.sin((n * rad(phi)) / 2),
+    profondeurMm: n % 2 === 0 ? rayonMm * (1 - Math.cos((n * rad(phi)) / 2)) : rayonMm * (Math.cos(rad(phi) / 2) - Math.cos((n * rad(phi)) / 2)),
+    angleTotalDeg: (n - 1) * phi,
+  };
+}
+
+const typePlacementZone = (z) => z.placement?.type ?? 'droite';
+const typePose = (z) => z.pose?.type ?? 'prolongement';
+// Zone de référence de chaque zone (index), ou null : zone d'avant pour « à droite de », zone nommée au-dessus ou en
+// dessous, rien pour une zone libre.
+function referencesZones(zones, noms) {
+  return zones.map((z, i) => {
+    const t = typePlacementZone(z);
+    if (t === 'droite') return i > 0 ? i - 1 : null;
+    if (t === 'libre') return null;
+    const r = noms.indexOf(z.placement?.zone);
+    return r >= 0 ? r : null;
+  });
+}
+const memeCourbure = (a, b) => Boolean(a && b) && a.sens === b.sens && Math.abs(a.angleDeg - b.angleDeg) < EPS;
+const texteAngle = (x) => `${nombreCourt(x, 2)}°`;
+
+// Saisie de la forme réelle (§ 4.1) : refus avec la raison. `description` : zones placées dans la vue développée (mm).
+function verifierFormeReelle(zones, description, ficheReelle) {
+  if (!zones.some((z) => z.courbure || z.pose || z.roulisDeg)) return;
+  const noms = description.map((d) => d.nom);
+  const reference = referencesZones(zones, noms);
+  const racine = reference.findIndex((r) => r === null);
+  zones.forEach((z, i) => {
+    const nom = noms[i];
+    const fiche = ficheReelle(z);
+    const c = z.courbure;
+    if (c) {
+      if (c.axe && c.axe !== 'horizontal') throw new ErreurSaisie(`${nom} : courbure verticale : pas encore prévue (colonnes courbes seulement).`);
+      if (!SENS_COURBURE.includes(c.sens)) throw new ErreurSaisie(`${nom} : courbure concave ou convexe.`);
+      if (!nombreFini(c.angleDeg) || c.angleDeg < 0.1 - EPS || c.angleDeg > COURBURE_MAX_DEG + EPS) {
+        throw new ErreurSaisie(`${nom} : l'angle de courbure par jonction est entre 0,1 et ${COURBURE_MAX_DEG}°.`);
+      }
+      const lim = limitesCourbure(fiche);
+      if (lim) {
+        const max = c.sens === 'concave' ? lim.concaveDeg : lim.convexeDeg;
+        const autre = c.sens === 'concave' ? 'convexe' : 'concave';
+        if (max !== null && c.angleDeg > max + EPS) {
+          throw new ErreurSaisie(max > 0
+            ? `${nom} : ${fiche.nom} : ${c.sens} ${texteAngle(max)} au plus (${texteSourceValeur(lim.source)}).`
+            : `${nom} : ${fiche.nom} : ${autre} seulement (${texteSourceValeur(lim.source)}).`);
+        }
+      }
+      if (z.colonnes * c.angleDeg > 360 + EPS) {
+        throw new ErreurSaisie(`${nom} : ${z.colonnes} colonnes à ${texteAngle(c.angleDeg)} font plus d'un tour : la zone se recouvre.`);
+      }
+    }
+    const p = z.pose;
+    const t = typePose(z);
+    if (!TYPES_POSE.includes(t)) throw new ErreurSaisie(`${nom} : pose réelle inconnue (dans le prolongement, pliée ou libre).`);
+    if (i === racine && t !== 'prolongement') throw new ErreurSaisie(`${nom} : la première zone porte le repère du mur : ni pli ni pose libre pour elle.`);
+    if (t === 'libre') {
+      if (![p.xMm, p.basMm, p.zMm].every(nombreFini)) throw new ErreurSaisie(`${nom} : X, hauteur du bas et Z sont des nombres de millimètres.`);
+      if (!nombreFini(p.lacetDeg) || p.lacetDeg < -180 - EPS || p.lacetDeg > 180 + EPS) throw new ErreurSaisie(`${nom} : le lacet est entre −180 et 180°.`);
+      if (!nombreFini(p.tangageDeg) || p.tangageDeg < -90 - EPS || p.tangageDeg > 90 + EPS) throw new ErreurSaisie(`${nom} : le tangage est entre −90 et 90°.`);
+      return;
+    }
+    const r = reference[i];
+    const tp = typePlacementZone(z);
+    if (t === 'pliee') {
+      if (r === null) throw new ErreurSaisie(`${nom} : pas de bord commun avec une autre zone (zone placée librement) : choisis une pose libre.`);
+      if (horsAxe(zones[r])) throw new ErreurSaisie(`${nom} : pli impossible sur le bord de ${noms[r]}, zone tournée hors axe : choisis une pose libre.`);
+      if (!SENS_COURBURE.includes(p.sens)) throw new ErreurSaisie(`${nom} : pli concave ou convexe.`);
+      if (!nombreFini(p.angleDeg) || p.angleDeg < 0.1 - EPS || p.angleDeg > 179.9 + EPS) throw new ErreurSaisie(`${nom} : l'angle du pli est entre 0,1 et 179,9°.`);
+    }
+    // Pli « à droite de » : il faut un bord commun (les hauteurs des deux zones se recouvrent).
+    if (t === 'pliee' && r !== null && tp === 'droite') {
+      const a = description[i];
+      const b = description[r];
+      if (!(Math.min(a.basMm + a.hauteurMm, b.basMm + b.hauteurMm) - Math.max(a.basMm, b.basMm) > EPS)) {
+        throw new ErreurSaisie(`${nom} : pas de bord commun avec ${noms[r]} (leurs hauteurs ne se recouvrent pas) : choisis une pose libre.`);
+      }
+    }
+    if (r === null || tp === 'droite') return;
+    // Zone courbe pliée sur un bord haut ou bas : son bord bas ou haut n'est pas droit (relecture du 13/10/2026).
+    if (t === 'pliee' && z.courbure) throw new ErreurSaisie(`${nom} : zone courbe : pli sur le bord haut ou bas impossible, son bord n'est pas droit.`);
+    // Au-dessus ou en dessous d'une autre zone : bord droit, ou même courbure alignée sur ses colonnes.
+    const zr = zones[r];
+    if (zr.courbure) {
+      if (t === 'pliee') throw new ErreurSaisie(`${nom} : pli impossible sur le bord de ${noms[r]}, zone courbe : son bord n'est pas droit.`);
+      if (!memeCourbure(z.courbure, zr.courbure)) {
+        throw new ErreurSaisie(`${nom} : au-dessus ou en dessous de ${noms[r]}, zone courbe, une zone suit sa courbe : même courbure (${zr.courbure.sens} ${texteAngle(zr.courbure.angleDeg)}).`);
+      }
+      const w = ficheReelle(zr).largeurMm;
+      const decalage = description[i].xMm - description[r].xMm;
+      if (Math.abs(ficheReelle(z).largeurMm - w) > EPS || Math.abs(decalage / w - Math.round(decalage / w)) > 1e-6) {
+        throw new ErreurSaisie(`${nom} : pour suivre la courbe de ${noms[r]}, mêmes largeurs de colonne et zone alignée sur une colonne de ${noms[r]}.`);
+      }
+    } else if (z.courbure && t === 'prolongement') {
+      throw new ErreurSaisie(`${nom} : zone courbe au-dessus ou en dessous de ${noms[r]}, à plat : la zone de référence doit avoir la même courbure.`);
+    }
+  });
+}
+
+// Forme réelle chargée ? (un réglage de la 9c dans une zone)
+export const aFormeReelle = (m) => (m.saisie?.zones ?? []).some((z) => z.courbure || z.pose || z.roulisDeg);
+
+// Cases d'une zone, de haut en bas : colonne, rangée, type, haut (mm depuis le haut de la zone), hauteur, présence.
+function casesZoneReelle(m, d, fiche, demi) {
+  if (d.forme) return d.forme.colonnes.flatMap((c) => c.cases.map((x) => ({ colonne: c.colonne, rangee: x.rangee, type: x.type, yMm: x.yMm, hMm: x.hMm, presente: x.presente })));
+  const types = m.zones ? Array(d.lignes).fill('entiere') : m.rangees;
+  const hauteur = (t) => (t === 'demi' ? demi.hauteurMm : fiche.hauteurMm);
+  const cases = [];
+  for (let c = 1; c <= d.colonnes; c += 1) {
+    let y = 0;
+    types.forEach((t, r) => {
+      cases.push({ colonne: c, rangee: r + 1, type: t, yMm: y, hMm: hauteur(t), presente: true });
+      y += hauteur(t);
+    });
+  }
+  return cases;
+}
+
+// Forme réelle du mur (Z29, Z31 à Z34) : chaque dalle présente avec le centre de sa face (mm) et ses angles, les quatre
+// coins de sa face, la boîte réelle, le développé, la courbure de chaque zone, les plis ; alertes et notes.
+export function formeReelle(m, dalle) {
+  const zonesM = m.zones ?? [{ nom: 'MUR', colonnes: m.colonnes, lignes: m.lignes, xMm: 0, basMm: 0, largeurMm: m.largeurMm, hauteurMm: m.hauteurMm }];
+  const saisies = m.saisie?.zones ?? zonesM.map(() => ({}));
+  const noms = zonesM.map((z) => z.nom);
+  const prefixe = zonesM.length > 1;
+  const fiches = zonesM.map((z) => (m.zones ? ficheZone(m, z, dalle) : dalle));
+  const demis = zonesM.map((z) => (m.zones ? demiZone(m, z) : m.demi));
+  // Fiche réelle (pas de pixels interpolés) : pour la courbure et la profondeur, les champs viennent de la même fiche.
+  const reference = referencesZones(saisies.map((s, i) => ({ ...s, nom: noms[i] })), noms);
+  const racine = Math.max(0, reference.findIndex((r) => r === null));
+  const alertes = [];
+  const notes = [];
+  const plis = [];
+  const reperes = new Array(zonesM.length).fill(null);
+  const colonnes = new Array(zonesM.length).fill(null);
+  const sansBordCommun = [];
+
+  // Zone qui suit la courbe de sa zone de référence (au-dessus ou en dessous, même courbure) ; pile jusqu'à sa base.
+  const suitCourbe = (i) => {
+    const s = saisies[i] ?? {};
+    const r = reference[i];
+    return r !== null && Boolean(s.courbure) && typePlacementZone(s) !== 'droite' && typePose(s) === 'prolongement' && Boolean(saisies[r]?.courbure);
+  };
+  const pileCourbe = (i) => {
+    if (!suitCourbe(i)) return { racine: i, k0: 0 };
+    const r = reference[i];
+    const bas = pileCourbe(r);
+    return { racine: bas.racine, k0: bas.k0 + Math.round((zonesM[i].xMm - zonesM[r].xMm) / fiches[i].largeurMm) };
+  };
+  // Colonnes de chaque zone dans son repère : courbe propre, courbe de la zone de référence, ou à plat.
+  const colonnesDe = (i) => {
+    if (colonnes[i]) return colonnes[i];
+    const d = zonesM[i];
+    const s = saisies[i] ?? {};
+    const w = fiches[i].largeurMm;
+    const r = reference[i];
+    if (suitCourbe(i)) {
+      // Zones courbes empilées : le polygone de la zone la plus basse de la pile, décalé des colonnes cumulées.
+      const { racine: z0, k0 } = pileCourbe(i);
+      colonnes[i] = colonnesCourbe(zonesM[z0].colonnes, w, s.courbure.angleDeg, s.courbure.sens === 'concave' ? 1 : -1, k0, d.colonnes);
+    } else if (s.courbure) {
+      colonnes[i] = colonnesCourbe(d.colonnes, w, s.courbure.angleDeg, s.courbure.sens === 'concave' ? 1 : -1);
+    } else {
+      colonnes[i] = colonnesCourbe(d.colonnes, w, 0, 1);
+    }
+    return colonnes[i];
+  };
+
+  // Repère de chaque zone : origine (coin bas gauche de sa face, au début de sa première colonne) et orientation.
+  const repere = (i, chemin = []) => {
+    if (reperes[i]) return reperes[i];
+    if (chemin.includes(i)) throw new ErreurSaisie('Placements en boucle.');
+    const d = zonesM[i];
+    const s = saisies[i] ?? {};
+    const p = s.pose ?? {};
+    const r = reference[i];
+    let resultat;
+    if (typePose(s) === 'libre') {
+      resultat = { o: [p.xMm, p.basMm, p.zMm], m: produit(rotY(p.lacetDeg), rotX(p.tangageDeg)) };
+    } else if (r === null) {
+      if (i === racine) resultat = { o: [0, 0, 0], m: IDENTITE };
+      else {
+        const z0 = zonesM[racine];
+        const r0 = repere(racine, [...chemin, i]);
+        resultat = { o: ajouter(r0.o, appliquer(r0.m, [d.xMm - z0.xMm, d.basMm - z0.basMm, 0])), m: r0.m };
+        sansBordCommun.push(d.nom);
+      }
+    } else {
+      const zr = zonesM[r];
+      const rr = repere(r, [...chemin, i]);
+      const pliee = typePose(s) === 'pliee';
+      const signe = p.sens === 'concave' ? 1 : -1;
+      const tp = typePlacementZone(s);
+      const bordCommun = Math.min(d.basMm + d.hauteurMm, zr.basMm + zr.hauteurMm) - Math.max(d.basMm, zr.basMm) > EPS;
+      if (tp === 'droite' && !bordCommun && !pliee && i !== racine) {
+        // Pas de bord commun avec la zone d'avant (hauteurs disjointes) : sa place de la vue à plat, par rapport à la
+        // première zone (relecture du 13/10/2026).
+        const z0 = zonesM[racine];
+        const r0 = repere(racine, [...chemin, i]);
+        resultat = { o: ajouter(r0.o, appliquer(r0.m, [d.xMm - z0.xMm, d.basMm - z0.basMm, 0])), m: r0.m };
+        sansBordCommun.push(d.nom);
+      } else if (tp === 'droite') {
+        // Bord droit de la zone de référence : bout de sa dernière colonne, à la hauteur du bas de la zone.
+        // Zone tournée hors axe (9c4) : le bord droit de son rectangle englobant.
+        const derniere = zr.roulis ? { debut: [zr.largeurMm, 0], beta: 0 } : colonnesDe(r).at(-1);
+        const wr = zr.roulis ? 0 : fiches[r].largeurMm;
+        const bout = [derniere.debut[0] + wr * Math.cos(rad(derniere.beta)), derniere.debut[1] - wr * Math.sin(rad(derniere.beta))];
+        const sortie = derniere.beta + (pliee ? -signe * p.angleDeg : 0);
+        const charniere = ajouter(rr.o, appliquer(rr.m, [bout[0], d.basMm - zr.basMm, bout[1]]));
+        const direction = produit(rr.m, rotY(sortie));
+        const o = ajouter(charniere, appliquer(direction, [s.ecartMm ?? 0, 0, 0]));
+        resultat = { o, m: produit(direction, rotY(-colonnesDe(i)[0].beta)) };
+        if (pliee) plis.push({ zones: [noms[r], noms[i]], bord: 'droit', sens: p.sens, angleDeg: p.angleDeg });
+      } else if (saisies[r]?.courbure && !pliee) {
+        // Zone qui suit la courbe de sa référence : même repère, décalée en hauteur.
+        resultat = { o: ajouter(rr.o, appliquer(rr.m, [0, d.basMm - zr.basMm, 0])), m: rr.m };
+      } else {
+        const dessus = tp === 'dessus';
+        const ecart = s.placement?.ecartMm ?? 0;
+        const tangage = pliee ? (dessus ? signe : -signe) * p.angleDeg : 0;
+        const mz = produit(rr.m, rotX(tangage));
+        const charniere = ajouter(rr.o, appliquer(rr.m, [d.xMm - zr.xMm, dessus ? zr.hauteurMm : 0, 0]));
+        const o = dessus ? ajouter(charniere, appliquer(mz, [0, ecart, 0])) : ajouter(charniere, appliquer(mz, [0, -(ecart + d.hauteurMm), 0]));
+        resultat = { o, m: mz };
+        if (pliee) plis.push({ zones: [noms[r], noms[i]], bord: dessus ? 'haut' : 'bas', sens: p.sens, angleDeg: p.angleDeg });
+      }
+    }
+    reperes[i] = resultat;
+    return resultat;
+  };
+
+  const dalles = [];
+  const coins = [];
+  const zones = zonesM.map((d, i) => {
+    const s = saisies[i] ?? {};
+    const rep = repere(i);
+    const cols = colonnesDe(i);
+    const w = fiches[i].largeurMm;
+    // Zone tournée hors axe (9c4) : la zone non tournée (sa hauteur brute), tournée autour de son coin haut gauche, puis
+    // recalée dans son rectangle englobant (repère de la zone : u vers la droite, v vers le haut).
+    const r = d.roulis;
+    const hauteurZone = r ? r.brut.hauteurMm : d.hauteurMm;
+    const plan = (u, v) => {
+      if (!r) return [u, v];
+      const [x, y] = tournerDansZone(r, u, hauteurZone - v, true);
+      return [x, d.hauteurMm - y];
+    };
+    for (const x of casesZoneReelle(m, d, fiches[i], demis[i])) {
+      if (!x.presente) continue;
+      const col = cols[x.colonne - 1];
+      const v0 = hauteurZone - x.yMm - x.hMm;
+      const local = (u, v) => {
+        if (r) {
+          const [U, V] = plan(col.debut[0] + u, v);
+          return [U, V, 0];
+        }
+        return [col.debut[0] + u * Math.cos(rad(col.beta)), v, col.debut[1] - u * Math.sin(rad(col.beta))];
+      };
+      const monde = (u, v) => ajouter(rep.o, appliquer(rep.m, local(u, v))).map(propre);
+      const a = angles(produit(rep.m, produit(rotY(col.beta), rotZ(r ? r.deg : 0))));
+      const faces = [monde(0, v0), monde(w, v0), monde(w, v0 + x.hMm), monde(0, v0 + x.hMm)];
+      coins.push(...faces);
+      dalles.push({
+        id: `${prefixe ? `${d.nom} · ` : ''}C${x.colonne} R${x.rangee}`, zone: d.nom, colonne: x.colonne, rangee: x.rangee, type: x.type,
+        fiche: x.type === 'demi' ? demis[i] : fiches[i], largeurMm: w, hauteurMm: x.hMm,
+        centreMm: monde(w / 2, v0 + x.hMm / 2), lacetDeg: propre(a.lacet), tangageDeg: propre(a.tangage), roulisDeg: propre(a.roulis), coinsMm: faces,
+      });
+    }
+    const a = angles(rep.m);
+    const courbure = s.courbure ? grandeursCourbure(d.colonnes, w, s.courbure) : null;
+    if (s.courbure) {
+      const lim = limitesCourbure(fiches[i]);
+      if (!lim) alertes.push(`${d.nom} : courbure non donnée par la fiche ${fiches[i].nom} : vérifie les verrous avec le loueur.`);
+      notes.push(`${d.nom} : verrous réglables par crans selon la dalle : vérifie que ${texteAngle(s.courbure.angleDeg)} existe sur les verrous (Formation, transcription 3).`);
+    }
+    return { nom: d.nom, courbure, lacetDeg: propre(a.lacet), tangageDeg: propre(a.tangage), pose: typePose(s) };
+  });
+
+  // Plis (Z32 à Z34) : verrous des deux dalles, caissons au pli convexe, couleur de deux dalles différentes.
+  for (const pli of plis) {
+    const [ir, id] = pli.zones.map((n) => noms.indexOf(n));
+    const deux = [fiches[ir], fiches[id]].filter((f, k, t) => t.findIndex((g) => g.id === f.id) === k);
+    const tete = `${pli.zones[0]} et ${pli.zones[1]} : pli de ${texteAngle(pli.angleDeg)} ${pli.sens}`;
+    const inconnues = deux.filter((f) => !limitesCourbure(f));
+    const depassees = deux.filter((f) => {
+      const lim = limitesCourbure(f);
+      const max = lim && (pli.sens === 'concave' ? lim.concaveDeg : lim.convexeDeg);
+      return lim && max !== null && pli.angleDeg > max + EPS;
+    });
+    if (inconnues.length) {
+      alertes.push(`${tete} ; courbure non donnée par la fiche ${inconnues.map((f) => f.nom).join(' ni ')} : à faire tenir par une structure ou une pièce d'angle, vérifie avec le loueur.`);
+    }
+    if (depassees.length) {
+      const limites = depassees.map((f) => {
+        const lim = limitesCourbure(f);
+        const max = pli.sens === 'concave' ? lim.concaveDeg : lim.convexeDeg;
+        return `${f.nom} : ${max > 0 ? `${pli.sens} ${texteAngle(max)} au plus` : `${pli.sens === 'concave' ? 'convexe' : 'concave'} seulement`}, ${texteSourceValeur(lim.source)}`;
+      });
+      alertes.push(`${tete}, au-delà des verrous (${limites.join(' ; ')}) : structure propre, ou pièces d'angle de la gamme `
+        + '(manuel ROE V1.8, § 9 : dalles d\'angle à 90° des BO2, BO3, BP3).');
+    }
+    if (pli.sens === 'convexe' && (inconnues.length || deux.some((f) => {
+      const lim = limitesCourbure(f);
+      return lim && pli.angleDeg > (lim.convexeDeg ?? 0) + EPS;
+    }))) {
+      const profondes = deux.filter((f) => f.profondeurMm > 0).sort((a, b) => b.profondeurMm - a.profondeurMm);
+      const p = profondes[0];
+      const profondeur = p ? `${nombreCourt(p.profondeurMm, 1)} mm de profondeur, ${texteSourceValeur(p.sources?.profondeurMm?.source)}` : 'profondeur non donnée par la fiche';
+      alertes.push(`${pli.zones[0]} et ${pli.zones[1]} : angle convexe de ${texteAngle(pli.angleDeg)}, les caissons (${profondeur}) se touchent à l'arrière : `
+        + 'dalle d\'angle, jour au coin ou structure, à voir avec le constructeur.');
+    }
+    if (fiches[ir].id !== fiches[id].id) {
+      notes.push(`${pli.zones[0]} et ${pli.zones[1]} : dalles différentes au pli : écarts de couleur possibles au coin, réglage ou sortie à part (Formation, transcription 2).`);
+    }
+  }
+
+  // Zone sans bord commun (placée librement dans la vue à plat, ou à droite d'une zone sans hauteur commune) dans un mur
+  // courbe ou plié : sa place réelle suit la vue à plat (relecture du 13/10/2026).
+  if (saisies.some((z) => z.courbure || z.pose?.type === 'pliee')) {
+    for (const nom of sansBordCommun) {
+      notes.push(`${nom} : pas de bord commun avec une autre zone : sa place réelle suit la vue à plat, depuis la première zone ; règle-la en pose libre si besoin.`);
+    }
+  }
+  const min = [0, 1, 2].map((k) => Math.min(...coins.map((c) => c[k])));
+  const max = [0, 1, 2].map((k) => Math.max(...coins.map((c) => c[k])));
+  return {
+    dalles,
+    zones,
+    plis,
+    boiteMm: { largeur: max[0] - min[0], hauteur: max[1] - min[1], profondeur: max[2] - min[2], min, max },
+    developpeMm: m.largeurMm,
+    alertes,
+    notes,
+  };
+}
+
 // Calcul en zones : plusieurs zones, ou une seule zone de forme libre (une zone rectangulaire seule est le mode Dalles).
-const plusieursZones = (m) => (m.zones?.length ?? 0) > 1 || Boolean(m.zones?.[0]?.forme) || Boolean(m.mixte);
+const plusieursZones = (m) => (m.zones?.length ?? 0) > 1 || Boolean(m.zones?.[0]?.forme) || Boolean(m.mixte) || Boolean(m.horsAxe);
 // Dalle et demi-dalle d'une zone : les siennes dans un mur mixte (9b3), sinon celles du mur.
 const ficheZone = (m, z, dalle) => z.dalle ?? dalle;
 const demiZone = (m, z) => (z.dalle ? z.demi ?? null : m.demi);
@@ -1335,7 +1841,8 @@ export function verifierCarte(dalle, proc) {
 // Pixels comptés pour une dalle : le SX40 compte au moins 64 px par dimension.
 export function pixelsComptes(dalle, processeur = null) {
   const minimum = processeur?.pxMinParDimension ?? 0;
-  return Math.max(dalle.pxH, minimum) * Math.max(dalle.pxV, minimum);
+  // Dalle tournée hors axe (9c4) : comptée deux fois (manuel Tessera § 13.1.4).
+  return Math.max(dalle.pxH, minimum) * Math.max(dalle.pxV, minimum) * (dalle.horsAxe ? 2 : 1);
 }
 
 // Mapping interpolé (Tessera M2 et T1, manuel §6.5.1) : chaque dalle compte sa taille physique divisée
@@ -2114,9 +2621,25 @@ function morceauZone(m, dalleMur, z, a, b, r0 = 1, nr = z.lignes, bande = null) 
     const lignes = sous.forme.colonnes.flatMap((c) => c.cases.filter((x) => x.presente).map((x) => x.rangee));
     rangees = bande && lignes.length ? [Math.min(...lignes), Math.max(...lignes) - Math.min(...lignes) + 1] : [1, z.forme.types.length];
   }
+  const x = z.x + (a - 1) * dalle.pxH;
+  const y = z.forme ? z.y + sous.forme.haut : z.y + (r0 - 1) * dalle.pxV;
+  // Zone tournée hors axe (9c4) : le morceau occupe le rectangle qui englobe ses dalles tournées, et ses pixels comptent
+  // deux fois pour l'appareil (relecture du 13/10/2026).
+  if (z.roulis) {
+    const coins = [[x, y], [x + sous.pxLargeur, y], [x, y + sous.pxHauteur], [x + sous.pxLargeur, y + sous.pxHauteur]]
+      .map(([cx, cy]) => tournerDansZone(z.roulis, cx - z.x, cy - z.y, false));
+    const min = [0, 1].map((k) => Math.min(...coins.map((c) => c[k])));
+    const max = [0, 1].map((k) => Math.max(...coins.map((c) => c[k])));
+    const x0 = z.x + Math.max(0, Math.floor(min[0] + 1e-6));
+    const y0 = z.y + Math.max(0, Math.floor(min[1] + 1e-6));
+    return {
+      zone: z.index, nom: z.nom, premiereColonne: a, colonnes: b - a + 1, premiereRangee: rangees[0], rangees: rangees[1],
+      x: x0, y: y0, sous, cadre: { largeurPx: Math.min(z.x + z.pxLargeur, z.x + Math.ceil(max[0] - 1e-6)) - x0, hauteurPx: Math.min(z.y + z.pxHauteur, z.y + Math.ceil(max[1] - 1e-6)) - y0 },
+      pxCompte: 2 * sous.pxTotal,
+    };
+  }
   return {
-    zone: z.index, nom: z.nom, premiereColonne: a, colonnes: b - a + 1, premiereRangee: rangees[0], rangees: rangees[1],
-    x: z.x + (a - 1) * dalle.pxH, y: z.forme ? z.y + sous.forme.haut : z.y + (r0 - 1) * dalle.pxV, sous,
+    zone: z.index, nom: z.nom, premiereColonne: a, colonnes: b - a + 1, premiereRangee: rangees[0], rangees: rangees[1], x, y, sous,
   };
 }
 
@@ -2127,12 +2650,15 @@ function blocMorceaux(m, dalle, proc, contexte, morceaux, { colonnes = null, pre
   const fin = premiereColonne === null ? null : premiereColonne + colonnes - 1;
   const c = cablageZones(morceaux.map((p) => p.sous), contexte.parPort, contexte.charge, { pair: contexte.pair, chargeDe: contexte.chargeDe });
   const x0 = Math.min(...morceaux.map((p) => p.x));
-  const x1 = Math.max(...morceaux.map((p) => p.x + p.sous.pxLargeur - 1));
+  // Morceau d'une zone tournée (9c4) : son rectangle englobant et ses pixels comptés deux fois.
+  const largeurDe = (p) => p.cadre?.largeurPx ?? p.sous.pxLargeur;
+  const hauteurDe = (p) => p.cadre?.hauteurPx ?? p.sous.pxHauteur;
+  const x1 = Math.max(...morceaux.map((p) => p.x + largeurDe(p) - 1));
   const y0 = Math.min(...morceaux.map((p) => p.y));
-  const y1 = Math.max(...morceaux.map((p) => p.y + p.sous.pxHauteur - 1));
+  const y1 = Math.max(...morceaux.map((p) => p.y + hauteurDe(p) - 1));
   const largeurPx = x1 - x0 + 1;
   const hauteurPx = y1 - y0 + 1;
-  const px = morceaux.reduce((s, p) => s + p.sous.pxTotal, 0);
+  const px = morceaux.reduce((s, p) => s + (p.pxCompte ?? p.sous.pxTotal), 0);
   const dalles = morceaux.reduce((s, p) => s + p.sous.dalles.total, 0);
   const ports = portsFaceALimite(c, proc, contexte);
   const canvas = canvasProcesseur(proc, largeurPx, hauteurPx);
@@ -2170,10 +2696,10 @@ function blocMorceaux(m, dalle, proc, contexte, morceaux, { colonnes = null, pre
       x: p.x,
       y: p.y,
       dansEntree: { x: p.x - x0, y: p.y - y0 },
-      largeurPx: p.sous.pxLargeur,
-      hauteurPx: p.sous.pxHauteur,
+      largeurPx: largeurDe(p),
+      hauteurPx: hauteurDe(p),
       dalles: p.sous.dalles.total,
-      px: p.sous.pxTotal,
+      px: p.pxCompte ?? p.sous.pxTotal,
       ports: { colonnes: n, premier: numero, dernier: numero + n - 1, auPlusJuste: cp.auPlusJuste, redondance: cp.redondance, groupes },
     };
     // Le morceau lui-même, pour le serpentin de Data ; hors du JSON de l'évaluation.
@@ -2829,6 +3355,16 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   };
   // SP60 Pro (sous-pixel) : fiche d'information, calcul hors appli.
   if (proc.calculHorsAppli) return { ...vide, impossible: `${proc.nom} : ${proc.calculHorsAppli}.` };
+  // Dalles tournées hors axe (9c4, Z37, F6) : Tessera M2 et T1 seulement ; refus ailleurs, avec la raison.
+  if (m.horsAxe && !proc.rotationHorsAxe) {
+    return {
+      ...vide,
+      impossible: proc.famille === 'brompton'
+        ? `${proc.nom} : rotation hors axe : Tessera M2 et T1 seulement (manuel Tessera § 7.14.5) ; le ${proc.nom} ne tourne les dalles que par quarts de tour.`
+        : `${proc.nom} : rotation hors axe non documentée pour ce processeur ; seuls les Tessera M2 et T1 la font (manuel Tessera § 7.14.5).`,
+    };
+  }
+
   // KU20 : 8 bits par défaut, 10 bits seulement avec un programme personnalisé ; MCTRL300 : pas d'entrée 10 bits ;
   // Colorlight : capacité 12 bits non publiée.
   const refusBits = refusBitsReseau(proc, bits);
@@ -2861,6 +3397,8 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
       dalle = m.dallePrincipale;
     }
   }
+  // Pixels de l'appareil : chaque dalle hors axe compte deux fois (9c4, manuel Tessera § 13.1.4, p. 226).
+  if (m.horsAxe) m = { ...m, pxTotal: m.zones.reduce((t, z) => t + z.pxTotal * (z.roulis ? 2 : 1), 0) };
   const fichesMur = m.mixte ? [...new Map(m.zones.flatMap((z) => [z.dalle, z.demi]).filter(Boolean).map((f) => [f.id, f])).values()] : [dalle, m.demi].filter(Boolean);
   const fichesPrincipales = m.mixte ? [...new Map(m.zones.map((z) => [z.dalle.id, z.dalle])).values()] : [dalle];
   const cartes = fichesPrincipales.map((f) => verifierCarte(f, proc));
@@ -2968,7 +3506,9 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     plafondBoucle: Number.isFinite(plafond) && parPort === plafond,
   };
   // Mur mixte : chaque dalle doit tenir dans un port.
-  const tropGrande = fichesMur.map((f) => pixelsComptes(f, proc)).find((px) => dallesParPort(capacite, px) < 1);
+  // Dalles des zones tournées hors axe (9c4) comprises : comptées deux fois (relecture du 13/10/2026).
+  const fichesTournees = m.horsAxe ? m.zones.filter((z) => z.roulis).flatMap((z) => [z.dalle, z.demi]).filter(Boolean) : [];
+  const tropGrande = [...fichesMur, ...fichesTournees].map((f) => pixelsComptes(f, proc)).find((px) => dallesParPort(capacite, px) < 1);
   if (parPort < 1 || tropGrande) {
     return {
       ...base,
@@ -2989,8 +3529,8 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     // NovaLCT : une zone de forme libre charge chaque port du rectangle qui englobe ses dalles (Z21).
     charge: { capacite, pxParDalle, pxParDemi, plafond, ...chargeGeometrie(proc, dalle, m), ...(proc.logiciel === 'NovaLCT' ? { rectangle: true } : {}) },
   };
-  // Mur mixte (9b3) : la charge d'un port selon la dalle de sa zone.
-  if (m.mixte) {
+  // Mur mixte (9b3) : la charge d'un port selon la dalle de sa zone ; zone tournée hors axe (9c4) : sa dalle compte double.
+  if (m.mixte || m.horsAxe) {
     contexte.chargeDe = (fiche, demiFiche) => {
       const px = pixelsComptes(fiche, proc);
       const pxDemi = demiFiche ? pixelsComptes(demiFiche, proc) : px;
@@ -3174,6 +3714,21 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     notes.push(`Mapping interpolé du ${proc.nom} (manuel Tessera §6.5.1) : chaque dalle compte sa taille ÷ le pitch le plus fin du mur `
       + `(${nombreCourt(m.pasInterpole, 3)} mm), dans le canvas comme dans la charge des ports. Mapping 1:1 au choix (case « Pixel Pitch », manuel §8.1.1).`);
   }
+  // Dalles tournées hors axe (9c4) : comptées deux fois ; quarts de tour sans coût, légende de la figure 7.56 non retenue (F6).
+  if (m.horsAxe) {
+    const n = m.zones.filter((z) => z.roulis).reduce((t, z) => t + z.dalles, 0);
+    notes.push(`${n} ${n > 1 ? 'dalles hors axe comptées' : 'dalle hors axe comptée'} deux fois, dans la charge des ports et les pixels de l'appareil `
+      + '(manuel Tessera V3.5, § 7.14.5 et § 13.1.4, p. 226).');
+    notes.push('Rotation par quarts de tour sans coût (manuel Tessera, § 7.14.5 et § 13.1.4) ; la légende de la figure 7.56 (« Network load is increased '
+      + 'when rotating fixtures by 90 degrees ») contredit le texte du manuel : non retenue.');
+  }
+  // Forme réelle (9c, Z35) : zone courbe ou pliée, joints plus clairs ou plus sombres ; rien ne change dans le calcul.
+  if ((m.saisie?.zones ?? []).some((z) => z.courbure || z.pose?.type === 'pliee')) {
+    const tete = 'Mur courbe ou plié : joints plus clairs ou plus sombres possibles entre les dalles';
+    if (proc.famille === 'brompton') notes.push(`${tete} ; correction joint par joint dans Tessera, Seams Adjustment dans OSCA (manuel Tessera V3.5, § 12.1.9, p. 179).`);
+    else if (proc.logiciel === 'NovaLCT') notes.push(`${tete} ; correction dans NovaLCT, Adjust Dark or Bright Lines (guide NovaLCT V5.5.0, § 6.4, p. 63).`);
+    else notes.push(`${tete} ; correction des joints : à chercher dans le logiciel du processeur.`);
+  }
   const avecVides = zones && (m.pxCanvas > m.pxTotal || m.zones.some((z) => z.forme));
   if (avecVides && proc.topologieLibre) {
     const s = proc.sources?.topologieLibre?.source;
@@ -3257,6 +3812,11 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     seuil: { dallesEnMoins: d.global.seuil.dallesEnMoins, colonnesEnMoins, ...(seuilEnZones ? { zonesEnMoins: seuilEnZones.zonesEnMoins } : {}) },
     // Mur mixte (9b3) : mapping retenu, mur calculé (en pixels interpolés le cas échéant), pixels comptés par dalle de zone.
     ...(m.mixte ? { mapping, mur: m, pixelsParDalle: m.zones.map((z) => ({ zone: z.nom, px: pixelsComptes(z.dalle, proc) })) } : {}),
+    // Zones tournées hors axe (9c4) : pixels comptés par dalle (deux fois) et dalles par port, pour Data.
+    ...(m.horsAxe ? {
+      pixelsHorsAxe: m.zones.filter((z) => z.roulis).map((z) => ({ zone: z.nom, px: pixelsComptes(z.dalle, proc), parPort: dallesParPort(capacite, pixelsComptes(z.dalle, proc), { plafond }) })),
+      toutHorsAxe: m.zones.every((z) => z.roulis),
+    } : {}),
     // Variantes de découpage (9b2, Z20), affichées sous le conseil, jamais conseillées d'office ; `decoupage` : celle retenue.
     ...(zones && m.zones.length > 1 ? {
       decoupage,
@@ -4838,7 +5398,7 @@ function poidsZones(m, dalle, reglages) {
     const p = saisies[i]?.placement;
     return mode === 'accroche' && p?.type === 'dessous' && p.accrocheeSous ? m.zones.findIndex((x) => x.nom === p.zone) : -1;
   });
-  const seul = murs.map((s) => poids(s, s.fiche ?? dalle, { ...reglages, autresKg: 0 }));
+  const seul = murs.map((s, i) => poids(s, s.fiche ?? dalle, { ...reglages, autresKg: 0, zoneCourbe: Boolean(saisies[i]?.courbure) }));
   const alertesAccroche = [];
   // Colonnes d'une zone, zones accrochées dessous comprises (en cascade).
   const memo = new Map();
@@ -4858,9 +5418,16 @@ function poidsZones(m, dalle, reglages) {
           alertesAccroche.push(`${zb.nom} · C${j + 1} accrochée sous ${zh.nom} : aucune colonne de ${zh.nom} au-dessus d'elle, accroche à revoir avec le rigger.`);
           return;
         }
+        // Colonne du dessus sans dalle en bas (absente, ou colonne remontée) : rien ne tient celle-ci (9c, Z41).
+        const colonneH = zh.forme?.colonnes[k];
+        const bas = colonneH?.cases.at(-1);
+        const vide = colonneH && (!bas.presente ? `${zh.nom} · C${k + 1} R${bas.rangee} absente`
+          : colonneH.decalageMm > 0 ? `${zh.nom} · C${k + 1} remontée de ${nombreCourt(colonneH.decalageMm, 1)} mm` : null);
+        if (vide) alertesAccroche.push(`${zb.nom} · C${j + 1} accrochée sous un vide (${vide}) : rien ne la tient, accroche à revoir avec le rigger.`);
         colonnes[k] = { kg: colonnes[k].kg + c.kg, dalles: colonnes[k].dalles + c.dalles };
       });
-      hauteurMm = Math.max(hauteurMm, zb.hauteurMm + dessous.hauteurMm);
+      // L'écart vertical entre les deux zones compte dans la hauteur accrochée (9c, Z41, par prudence).
+      hauteurMm = Math.max(hauteurMm, zb.hauteurMm + (saisies[b]?.placement?.ecartMm ?? 0) + dessous.hauteurMm);
       const fh = ficheZone(m, zh, dalle);
       const fb = ficheZone(m, zb, dalle);
       if (fh.id !== fb.id) {
@@ -4876,7 +5443,7 @@ function poidsZones(m, dalle, reglages) {
     const total = colonnesTotales(i);
     const ajouts = total.colonnes.map((c, j) => ({ kg: arrondiKg(c.kg - seul[i].colonnes[j].kg), dalles: c.dalles - seul[i].colonnes[j].dalles }));
     const r = ajouts.some((a) => a.kg > EPS || a.dalles > 0)
-      ? poids(s, s.fiche ?? dalle, { ...reglages, autresKg: 0, ajoutsColonnes: ajouts, hauteurAjouteeMm: total.hauteurMm })
+      ? poids(s, s.fiche ?? dalle, { ...reglages, autresKg: 0, ajoutsColonnes: ajouts, hauteurAjouteeMm: total.hauteurMm, zoneCourbe: Boolean(saisies[i]?.courbure) })
       : seul[i];
     // Zone accrochée : ni point ni bumper à elle, son maximum se contrôle avec la zone du dessus ; ses alertes de
     // bumper, de point et de maximum (et le manque du maximum) partent avec eux.
@@ -4893,6 +5460,15 @@ function poidsZones(m, dalle, reglages) {
   const murKg = arrondiKg(dallesKg + cablesKg);
   const suspenduKg = arrondiKg(murKg + bumpersKg + autresKg);
   const alertes = [...regrouperAlertes(parZone.map((r) => r.alertes), noms), ...alertesAccroche];
+  // Zone au plafond ou inclinée (9c, Z40) : le maximum de la fiche est écrit pour une accroche verticale.
+  if (mode === 'accroche' && saisies.some((z) => z.pose)) {
+    formeReelle(m, dalle).zones.forEach((z, i) => {
+      if (Math.abs(z.tangageDeg) > 1e-6 && reference[i] < 0) {
+        alertes.push(`${z.nom} : zone au plafond ou inclinée (tangage ${texteAngle(z.tangageDeg)}) : maximum en accroche de la fiche écrit pour une accroche verticale ; `
+          + 'accroche à plat à valider par le rigger.');
+      }
+    });
+  }
   // Les autres charges ne sont sur aucun point de zone : à placer avec le rigger, pont compris.
   if (mode === 'accroche' && autresKg > 0) {
     alertes.push(`Autres charges suspendues (${texteKg(autresKg)}) : à reprendre sur un point ou sur la structure, avec le rigger.`);
@@ -4997,11 +5573,17 @@ export function poids(m, dalle, reglages = {}) {
     if (accroche.type === 'pont') {
       const n = accroche.points;
       const totalKg = arrondiKg(suspenduKg + (accroche.poidsPontKg ?? 0));
-      const renvoiRigger = !(n >= 1 && n <= 4 && Number.isInteger(n)) || accroche.porteesEgales === false;
+      // Zone courbe (9c, Z39) : un pont droit ne suit pas la courbe.
+      const courbe = Boolean(reglages.zoneCourbe ?? m.saisie?.zones?.[0]?.courbure);
+      const horsParts = !(n >= 1 && n <= 4 && Number.isInteger(n)) || accroche.porteesEgales === false;
+      const renvoiRigger = horsParts || courbe;
       const liste = renvoiRigger ? null : PARTS_PONT[n].map((part, i) => ({ numero: i + 1, part, kg: arrondiKg(part * totalKg) }));
       points = { type: 'pont', points: liste, totalKg, renvoiRigger, cmuMoteurKg: cmu, configurationMoteur: accroche.configurationMoteur ?? null, indicatif: true };
-      if (renvoiRigger) {
+      if (horsParts) {
         alertes.push('Pont sur plus de 4 points, à portées inégales ou en porte-à-faux : la répartition doit être établie par le rigger.');
+      }
+      if (courbe) {
+        alertes.push('Zone courbe : un pont droit ne suit pas la courbe ; la répartition sur le pont doit être établie par le rigger (pont courbe ou portées inégales).');
       }
     } else {
       // Chaque bumper (ou, sans bumper renseigné, chaque colonne) pend à son propre point : parts égales.
@@ -5174,7 +5756,23 @@ function dallesDesZones(m, dalleMur) {
   const hautMax = basMin + m.hauteurMm;
   // Une seule zone (de forme libre) : noms sans la zone, « C3 R2 », comme le mode Dalles.
   const nommer = m.zones.length > 1 ? idDalleZone : (zone, c, r) => idDalle(c, r);
-  return m.zones.flatMap((z) => {
+  return m.zones.flatMap((z) => tournerDalles(z, dallesZone(z)));
+  // Zone tournée hors axe (9c4) : chaque dalle tournée autour du coin haut gauche de la zone, recalée dans son rectangle
+  // englobant ; la dalle garde sa taille, son centre tourne, `rotation` donne l'angle.
+  function tournerDalles(z, dalles) {
+    if (!z.roulis) return dalles;
+    const yMm = hautMax - z.basMm - z.hauteurMm;
+    return dalles.map((d) => {
+      const [cx, cy] = tournerDansZone(z.roulis, d.px.x - z.x + d.px.largeur / 2, d.px.y - z.y + d.px.hauteur / 2, false);
+      const [mx, my] = tournerDansZone(z.roulis, d.mm.x - z.xMm + d.mm.largeur / 2, d.mm.y - yMm + d.mm.hauteur / 2, true);
+      return {
+        ...d, rotation: z.roulis.deg,
+        px: { ...d.px, x: z.x + cx - d.px.largeur / 2, y: z.y + cy - d.px.hauteur / 2 },
+        mm: { ...d.mm, x: z.xMm + mx - d.mm.largeur / 2, y: yMm + my - d.mm.hauteur / 2 },
+      };
+    });
+  }
+  function dallesZone(z) {
     // Mur mixte : chaque zone avec sa dalle et sa demi-dalle.
     const dalle = ficheZone(m, z, dalleMur);
     const demi = demiZone(m, z);
@@ -5219,7 +5817,7 @@ function dallesDesZones(m, dalleMur) {
       }
     }
     return dalles;
-  });
+  }
 }
 
 // Pixel map : le mur à sa résolution native, puis un canvas par processeur (bloc posé en (0,0) de son canvas,
@@ -5236,6 +5834,7 @@ export function pixelMap(m, dalle, evaluation = null) {
   const zone = (d, x0 = 0, y0 = 0) => ({
     id: d.id, colonne: d.colonne, rangee: d.rangee, type: d.type,
     ...(enZones ? { zone: indexZone.get(d.zone), colonneZone: d.colonneZone } : {}),
+    ...(d.rotation ? { rotation: d.rotation } : {}),
     x: [d.px.x - x0, d.px.x - x0 + d.px.largeur - 1],
     y: [d.px.y - y0, d.px.y - y0 + d.px.hauteur - 1],
   });
@@ -5280,6 +5879,88 @@ export function pixelMap(m, dalle, evaluation = null) {
     },
     canvas,
   };
+}
+
+// Liste des positions par dalle (9c3, Z42, Z43) : pour le serveur média ou la 3D. Chaque dalle présente, dans l'ordre
+// des zones, puis des colonnes et des rangées : sa place dans la pixel map du mur (mapping retenu compris, coins dans
+// l'ordre bas gauche, bas droit, haut droit, haut gauche), son processeur et son port (câblage retenu, `variante` de
+// cablageData), le centre de sa face (mm), ses angles et ses quatre coins (formeReelle). Pixels du contenu : une sortie
+// pliée (9b7) ne change pas cette liste.
+export function positionsDalles(m, dalle, { evaluation = null, variante = null, pliage = null } = {}) {
+  const f = formeReelle(m, dalle);
+  const pm = pixelMap(m, dalle, evaluation);
+  const px = new Map(pm.mur.dalles.map((d) => [d.id, d]));
+  const ports = new Map();
+  for (const p of variante?.processeurs ?? []) for (const port of p.ports) for (const id of port.dalles) ports.set(id, { processeur: p.numero, port: port.numero });
+  const dalles = f.dalles.map((d) => {
+    const q = px.get(d.id);
+    const x0 = q.x[0];
+    const y0 = q.y[0];
+    const w = q.x[1] - q.x[0] + 1;
+    const h = q.y[1] - q.y[0] + 1;
+    // Dalle tournée hors axe (9c4) : ses coins tournent autour de son centre ; px_x et px_y, son coin haut gauche.
+    const pxCoins = q.rotation ? coinsTournes(x0 + w / 2, y0 + h / 2, w, h, q.rotation) : [[x0, y0 + h], [x0 + w, y0 + h], [x0 + w, y0], [x0, y0]];
+    return {
+      id: d.id, zone: d.zone, colonne: d.colonne, rangee: d.rangee, fiche: d.fiche?.id ?? '', largeurMm: d.largeurMm, hauteurMm: d.hauteurMm,
+      px: { x: pxCoins[3][0], y: pxCoins[3][1], largeur: w, hauteur: h }, pxCoins,
+      ...(ports.get(d.id) ?? { processeur: null, port: null }),
+      centreMm: d.centreMm, lacetDeg: d.lacetDeg, tangageDeg: d.tangageDeg, roulisDeg: d.roulisDeg, coinsMm: d.coinsMm,
+    };
+  });
+  return { dalles, largeurPx: pm.mur.largeurPx, hauteurPx: pm.mur.hauteurPx, plie: Boolean(pliage?.plie) };
+}
+
+// Coins d'un rectangle de centre (cx, cy), tourné de `deg` (sens inverse des aiguilles d'une montre vu du public),
+// coordonnées vers le bas : bas gauche, bas droit, haut droit, haut gauche.
+export function coinsTournes(cx, cy, w, h, deg) {
+  const c = Math.cos(rad(deg));
+  const s = Math.sin(rad(deg));
+  return [[-w / 2, h / 2], [w / 2, h / 2], [w / 2, -h / 2], [-w / 2, -h / 2]].map(([x, y]) => [cx + x * c + y * s, cy - x * s + y * c]);
+}
+const chiffre = (x, decimales) => {
+  const k = 10 ** decimales;
+  return String(Math.round(x * k) / k + 0);
+};
+const champCsv = (x) => {
+  const s = x === null || x === undefined ? '' : String(x);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+export const ENTETE_CSV = ['dalle', 'zone', 'colonne', 'rangee', 'fiche', 'largeur_mm', 'hauteur_mm', 'px_x', 'px_y', 'px_largeur', 'px_hauteur',
+  'processeur', 'port', 'x_mm', 'y_mm', 'z_mm', 'lacet_deg', 'tangage_deg', 'roulis_deg'];
+// CSV : UTF-8, virgule, point décimal, en-têtes sans accent ; mm et px à 0,1 près, angles à 0,01° (Z42).
+export function texteCSV(positions) {
+  const lignes = positions.dalles.map((d) => [
+    d.id, d.zone, d.colonne, d.rangee, d.fiche, chiffre(d.largeurMm, 1), chiffre(d.hauteurMm, 1),
+    chiffre(d.px.x, 1), chiffre(d.px.y, 1), chiffre(d.px.largeur, 1), chiffre(d.px.hauteur, 1), d.processeur, d.port,
+    ...d.centreMm.map((x) => chiffre(x, 1)), chiffre(d.lacetDeg, 2), chiffre(d.tangageDeg, 2), chiffre(d.roulisDeg, 2),
+  ].map(champCsv).join(','));
+  return [ENTETE_CSV.join(','), ...lignes].join('\n');
+}
+
+// OBJ : en mètres, un objet par zone, une face carrée par dalle (sommets bas gauche, bas droit, haut droit, haut gauche,
+// sens inverse des aiguilles d'une montre vu du public), UV = place de la dalle dans la pixel map, de 0 à 1, v = 1 en
+// haut ; repère en commentaire (Z43). Commentaires sans accent, lus par tous les logiciels 3D.
+export function texteOBJ(positions) {
+  const { largeurPx: W, hauteurPx: H } = positions;
+  const lignes = [
+    '# Mur LED : modele 3D exporte par l\'appli, une face par dalle presente',
+    '# Unites : metres. Repere : X vers la droite, Y vers le haut, Z vers le public ; origine au coin bas gauche de la face de la premiere zone',
+    `# UV : place de chaque dalle dans la pixel map du mur (${W} x ${H} px), de 0 a 1, v = 1 en haut`,
+    ...(positions.plie ? ['# Sortie du serveur pliee : place des tranches dans l\'onglet Canvas (le modele suit le contenu, a plat)'] : []),
+  ];
+  let zone = null;
+  let n = 0;
+  for (const d of positions.dalles) {
+    if (d.zone !== zone) {
+      zone = d.zone;
+      lignes.push(`o ${String(zone).replace(/\s+/g, '_')}`);
+    }
+    for (const c of d.coinsMm) lignes.push(`v ${c.map((x) => chiffre(x / 1000, 6)).join(' ')}`);
+    for (const [x, y] of d.pxCoins) lignes.push(`vt ${chiffre(x / W, 6)} ${chiffre(1 - y / H, 6)}`);
+    lignes.push(`f ${[1, 2, 3, 4].map((k) => `${n + k}/${n + k}`).join(' ')}`);
+    n += 4;
+  }
+  return lignes.join('\n');
 }
 
 // Sortie pliée (9b7, S7) : la pixel map de chaque processeur plié, à la taille du format de la sortie, chaque dalle
@@ -5504,7 +6185,7 @@ export function cablageData(m, dalle, evaluation, {
   const poids = (p) => {
     const t = tuile(p);
     if (!t) return 0;
-    if (m.mixte) return pixelsComptes(t.fiche, proc);
+    if (m.mixte || m.horsAxe) return pixelsComptes(t.fiche, proc);
     return t.type === 'demi' ? evaluation.pxParDemi : evaluation.pxParDalle;
   };
   const hauteurs = m.rangees.map((type) => (type === 'demi' ? m.demi.pxV : dalle.pxV));
@@ -5517,7 +6198,7 @@ export function cablageData(m, dalle, evaluation, {
       charge: { ...charge, pxParDalle: px, pxParDemi: pxDemi, ...chargeGeometrie(proc, fiche, { demi: demiFiche }), ...(proc.logiciel === 'NovaLCT' ? { rectangle: true } : {}) },
     };
   };
-  const enFormes = m.mixte || m.zones?.some((z) => z.forme);
+  const enFormes = m.mixte || m.horsAxe || m.zones?.some((z) => z.forme);
   // Rectangle englobant d'un groupe de dalles, d'après leurs pixels (formes libres, mur mixte).
   const rectangleGroupe = (grp) => {
     const t = grp.map(tuile).filter(Boolean);
@@ -5609,7 +6290,7 @@ export function cablageData(m, dalle, evaluation, {
       } else if (mode === 'colonnes') {
         // Mêmes colonnes par port que l'onglet Data : le plus possible, en nombre pair en redondance
         // (sauf s'il coûte un processeur). Mur mixte : la charge de la dalle du morceau.
-        const t = m.mixte && sous.fiche ? chargeDeFiche(sous.fiche, sous.demiFiche) : { parPort: evaluation.dallesParPort, charge };
+        const t = (m.mixte || m.horsAxe) && sous.fiche ? chargeDeFiche(sous.fiche, sous.demiFiche) : { parPort: evaluation.dallesParPort, charge };
         const cBloc = cablage(sous, t.parPort, t.charge, { pair: evaluation.colonnesPaires });
         const k = cBloc.colonnes.colonnesParPort;
         if (k) {
@@ -6023,15 +6704,25 @@ export function motifPixelMap(zone, { grille = false, cercles = false, diagonale
     // Mur en zones : une couleur par zone, deux tons en damier (comme la slide de la formation).
     ...(d.zone !== undefined ? { zone: d.zone, ton: (d.colonneZone + d.rangee) % 2 } : {}),
   }));
-  const x0 = Math.min(...fonds.map((f) => f.x));
-  const y0 = Math.min(...fonds.map((f) => f.y));
-  const bloc = { x: x0, y: y0, largeur: Math.max(...fonds.map((f) => f.x + f.largeur)) - x0, hauteur: Math.max(...fonds.map((f) => f.y + f.hauteur)) - y0 };
+  // Dalle tournée hors axe (9c4) : ses quatre coins (bas gauche, bas droit, haut droit, haut gauche) et son angle.
+  zone.dalles.forEach((d, i) => {
+    if (!d.rotation) return;
+    const f = fonds[i];
+    f.rotation = d.rotation;
+    f.coins = coinsTournes(f.x + f.largeur / 2, f.y + f.hauteur / 2, f.largeur, f.hauteur, d.rotation);
+  });
+  const coins = (f) => f.coins ?? [[f.x, f.y + f.hauteur], [f.x + f.largeur, f.y + f.hauteur], [f.x + f.largeur, f.y], [f.x, f.y]];
+  const tous = fonds.flatMap(coins);
+  const x0 = Math.min(...tous.map((c) => c[0]));
+  const y0 = Math.min(...tous.map((c) => c[1]));
+  const bloc = { x: x0, y: y0, largeur: Math.max(...tous.map((c) => c[0])) - x0, hauteur: Math.max(...tous.map((c) => c[1])) - y0 };
   const traits = [];
   const ronds = [];
   if (diagonales) {
     for (const f of fonds) {
-      traits.push({ x1: f.x, y1: f.y, x2: f.x + f.largeur, y2: f.y + f.hauteur, global: false });
-      traits.push({ x1: f.x + f.largeur, y1: f.y, x2: f.x, y2: f.y + f.hauteur, global: false });
+      const [bg, bd, hd, hg] = coins(f);
+      traits.push({ x1: hg[0], y1: hg[1], x2: bd[0], y2: bd[1], global: false });
+      traits.push({ x1: hd[0], y1: hd[1], x2: bg[0], y2: bg[1], global: false });
     }
     traits.push({ x1: bloc.x, y1: bloc.y, x2: bloc.x + bloc.largeur, y2: bloc.y + bloc.hauteur, global: true });
     traits.push({ x1: bloc.x + bloc.largeur, y1: bloc.y, x2: bloc.x, y2: bloc.y + bloc.hauteur, global: true });
@@ -6045,7 +6736,7 @@ export function motifPixelMap(zone, { grille = false, cercles = false, diagonale
     hauteurPx,
     bloc,
     fonds,
-    contours: grille ? fonds.map(({ x, y, largeur, hauteur }) => ({ x, y, largeur, hauteur })) : [],
+    contours: grille ? fonds.map(({ x, y, largeur, hauteur, coins: c }) => ({ x, y, largeur, hauteur, ...(c ? { coins: c } : {}) })) : [],
     traits,
     cercles: ronds,
     textes: numeros
