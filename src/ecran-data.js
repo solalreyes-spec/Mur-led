@@ -774,7 +774,7 @@ function calculer(e) {
       : `Mur : ${mur.colonnes} × ${mur.lignes}${mur.rangeeDemi ? ' + rangée de demi-dalles' : ''} = ${pluriel(mur.dalles.total, 'dalle', 'dalles')} `)
     + `${dalle.nom}, ${nombre(mur.pxLargeur)} × ${nombre(mur.pxHauteur)} px (${millions(mur.pxTotal)}). `
     + (mur.mixte ? texteCartesMixte(mur) : (carte ? `Carte de réception : ${carte}${sourceCarte ? ` (${sourceCarte.sources.map(sourceCourte).join(', ')})` : ''}. ` : '')),
-    el('a', { href: '#mur' }, 'Modifier le mur'));
+    el('a', { href: '#mur', class: 'lien-discret' }, 'Modifier le mur'));
 
   const configs = configsData(choisie);
   const { base, parcId } = contexteLots;

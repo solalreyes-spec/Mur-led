@@ -1,7 +1,7 @@
 // Calculs du mur LED, mur en plusieurs zones (étapes 9a et 9b) : zones, placement, formes libres, murs mixtes.
 // Module de src/calculs.js, le point d'entrée qui réexporte tout : fonctions pures, sans accès à l'interface.
 import { EPS, ErreurSaisie, suite } from './commun.js';
-import { ratio, verifierDemi, mur, pitchLePlusFin, pixelsInterpoles } from './mur.js';
+import { ratio, verifierDemi, mur, pitchLePlusFin, pixelsInterpoles, verifierNombreDalles } from './mur.js';
 import { horsAxe, verifierRoulis, rotationZone, verifierFormeReelle } from './forme-reelle.js';
 
 // ---------------------------------------------------------------------------
@@ -147,6 +147,7 @@ export function murZones(dalleMur, zones, { ecarts = 'reel', ecartsPx = [], yPx 
   const ficheReelle = (z) => z.dalle ?? dalleMur;
   const tournees = zones.some(horsAxe);
   if (zones.length === 1 && !avecForme && !placees && !mixte && !tournees) {
+    verifierNombreDalles(murs[0].dalles.total);
     verifierFormeReelle(zones, description, ficheReelle);
     return { ...murs[0], zones: description, ecarts: [], pas, modeEcarts: ecarts, pxCanvas: murs[0].pxTotal, saisie, sauts: [], superposees: [] };
   }
@@ -171,6 +172,7 @@ export function murZones(dalleMur, zones, { ecarts = 'reel', ecartsPx = [], yPx 
   const pxHauteur = Math.max(...description.map((d) => d.y + d.pxHauteur));
   const entieres = description.reduce((s, d) => s + (d.forme ? d.forme.dalles.entieres : d.dalles), 0);
   const nbDemi = description.reduce((s, d) => s + (d.forme ? d.forme.dalles.demi : 0), 0);
+  verifierNombreDalles(entieres + nbDemi);
   const lignes = Math.max(...zones.map((z) => z.rangees));
   return {
     colonnes: colonne - 1,

@@ -5,7 +5,7 @@ import * as calculs from '../src/calculs.js';
 import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, enregistrer, modeEnregistrement, TEINTES } from '../src/export.js';
 import { geometrieSchema, trajetsSchema, construireSvg, repereSchema, PALETTE_EXPORT, PALETTE_ECRAN } from '../src/dessin-schema.js';
 import { processeurDeBase, baseProcesseurs, dalleDeBase, liaisonsDeBase, regieDeBase } from './base.js';
-import { DALLE_CAS_13, DALLE_CAS_7 } from './dalles-fictives.js';
+import { DALLE_CAS_13, DALLE_CAS_7, CB5, CB5_DEMI } from './dalles-fictives.js';
 import { versionCache, empreinteDeclaree, empreinteCache, listeCache } from './fichiers.js';
 import { VERSIONS_CACHE } from './versions-cache.js';
 import { creerStockage } from '../src/stockage.js';
@@ -2120,26 +2120,37 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N47',
-    titre: 'Mur en petits carrés (§ 3) : une grille colonnes × lignes en damier de deux tons de la famille, présente à 72 dalles (12 × 6), absente au-delà de 1 000 dalles',
+    titre: 'Aperçu du mur (§ 3, refait à l\'étape 11c, § 8) : petits carrés aux proportions réelles en millimètres (dalle de 500 × 1 000 mm deux fois plus haute que large), damier de deux tons de la famille, 72 dalles sur le 12 × 6 ; jusqu\'à 1 000 dalles chacune dessinée ; au-delà, le contour et un trait toutes les 10 dalles, avec une note ; dessin caché aux lecteurs d\'écran',
     etape: 'look',
-    async verifier(v) {
+    async verifier(v, contexte) {
       const look = await moduleAppli(v, '../src/look.js');
-      if (!look) return;
+      if (!look?.apercuMur) {
+        v.vrai('apercuMur exportée par look.js', false);
+        return;
+      }
       const { sombre } = await jetonsStyles();
       const retirer = await chargerStylesLook();
-      const cadre = el('div', { 'data-famille': 'image', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      const cadre = el('div', { 'data-famille': 'image', class: 'carte', style: 'position:absolute;left:-10000px;top:0;width:375px' });
       document.body.append(cadre);
       try {
-        const grille = look.murCarres(12, 6);
-        cadre.append(grille ?? '');
-        const carres = [...(grille?.querySelectorAll('.mc') ?? [])];
-        const hauts = carres.map((c) => Math.round(c.getBoundingClientRect().top));
-        v.egal('12 × 6 : 72 carrés, 12 par rangée, damier (36 et 36)', [carres.length, hauts[0] === hauts[11] && hauts[12] > hauts[11], carres.filter((c) => c.classList.contains('ton-b')).length,
-          carres[0]?.classList.contains('ton-b'), carres[1]?.classList.contains('ton-b'), carres[12]?.classList.contains('ton-b')], [72, true, 36, false, true, true]);
-        v.egal('deux tons de la famille', [rgbVersHex(getComputedStyle(carres[0]).backgroundColor), rgbVersHex(getComputedStyle(carres[1]).backgroundColor)],
-          [sombre['--famille-image-bord'], sombre['--famille-image']]);
-        v.vrai('décorative : cachée aux lecteurs d\'écran', grille?.getAttribute('aria-hidden') === 'true');
-        v.egal('1 000 dalles : présente ; 1 001 et 40 × 26 : absente', [Boolean(look.murCarres(40, 25)), look.murCarres(1001, 1), look.murCarres(40, 26)], [true, null, null]);
+        const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+        const apercu = look.apercuMur(calculs.mur(bp2, 12, 6), bp2);
+        cadre.append(apercu ?? '');
+        const carres = [...(apercu?.querySelectorAll('.ap-dalle') ?? [])];
+        v.egal('12 × 6 : 72 carrés, damier (36 et 36), premier clair', [carres.length, carres.filter((c) => c.classList.contains('ap-b')).length, carres[0]?.classList.contains('ap-a'), carres[1]?.classList.contains('ap-b'), carres[12]?.classList.contains('ap-b')],
+          [72, 36, true, true, true]);
+        v.egal('deux tons de la famille', [rgbVersHex(getComputedStyle(carres[0]).fill), rgbVersHex(getComputedStyle(carres[1]).fill)], [sombre['--famille-image'], sombre['--famille-image-bord']]);
+        v.egal('proportions réelles : 6 000 × 3 000 mm', apercu?.querySelector('svg')?.getAttribute('viewBox'), '0 0 6000 3000');
+        const haute = { id: 'fictive-haute', nom: 'Dalle 500 × 1000', largeurMm: 500, hauteurMm: 1000, pxH: 128, pxV: 256 };
+        const a2 = look.apercuMur(calculs.mur(haute, 3, 2), haute);
+        const r = a2?.querySelector('.ap-dalle');
+        v.egal('dalle de 500 × 1 000 mm : deux fois plus haute que large', [a2?.querySelector('svg')?.getAttribute('viewBox'), Number(r?.getAttribute('height')) / Number(r?.getAttribute('width'))], ['0 0 1500 2000', 2]);
+        v.vrai('dessin caché aux lecteurs d\'écran', apercu?.querySelector('svg')?.getAttribute('aria-hidden') === 'true');
+        v.egal('1 000 dalles (40 × 25) : chacune dessinée', look.apercuMur(calculs.mur(bp2, 40, 25), bp2)?.querySelectorAll('.ap-dalle').length, 1000);
+        const grand = look.apercuMur(calculs.mur(bp2, 50, 30), bp2);
+        v.egal('1 500 dalles (50 × 30) : contour, 4 traits verticaux et 2 horizontaux, aucune dalle, une note', [grand?.querySelectorAll('.ap-dalle').length, grand?.querySelectorAll('.ap-contour').length,
+          grand?.querySelectorAll('.ap-trait-v').length, grand?.querySelectorAll('.ap-trait-h').length, texteDe(grand?.querySelector('.apercu-note'))],
+        [0, 1, 4, 2, '1500 dalles : un trait toutes les 10 dalles.']);
       } finally {
         cadre.remove();
         retirer();
@@ -2373,7 +2384,7 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N57',
-    titre: 'Mur en petits carrés en mode Zones (étape 9a) : une grille par zone, à sa place réelle (écarts et hauteur du bas, en % du mur), autant de carrés que de dalles, décoratif ; rien au-delà de 1 000 dalles',
+    titre: 'Mur en petits carrés en mode Zones (étape 9a ; aperçu du mur de l\'étape 11c) : chaque zone à sa place réelle (écarts et hauteur du bas, en % du mur), autant de carrés que de dalles, décoratif ; au-delà de 1 000 dalles, le contour de chaque zone au lieu des carrés',
     etape: '9a',
     async verifier(v) {
       const look = await moduleAppli(v, '../src/look.js');
@@ -2385,19 +2396,25 @@ export const NAVIGATEUR = [
       try {
         const dalle = { id: 'f', nom: 'f', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
         const m = calculs.murZones(dalle, [{ nom: 'A', colonnes: 4, rangees: 4 }, { nom: 'B', colonnes: 2, rangees: 2, ecartMm: 1000, basMm: 500 }]);
-        const dessin = look.murCarresZones(m);
-        cadre.append(dessin ?? '');
-        const grilles = [...(dessin?.querySelectorAll('.mur-carres') ?? [])];
-        v.egal('une grille par zone, un carré par dalle', [grilles.length, grilles.map((g) => g.querySelectorAll('.mc').length)], [2, [16, 4]]);
+        const apercu = look.apercuMur(m, dalle);
+        cadre.append(apercu ?? '');
+        const dessin = apercu?.querySelector('svg');
+        const carres = (zone) => [...(dessin?.querySelectorAll(`.ap-dalle[data-zone="${zone}"]`) ?? [])];
+        v.egal('chaque zone dessinée, un carré par dalle', [carres('A').length, carres('B').length], [16, 4]);
+        const [, , W, H] = (dessin?.getAttribute('viewBox') ?? '0 0 1 1').split(' ').map(Number);
+        const n = (r, a) => Number(r.getAttribute(a));
+        const b = carres('B');
+        const x0 = Math.min(...b.map((r) => n(r, 'x')));
+        const x1 = Math.max(...b.map((r) => n(r, 'x') + n(r, 'width')));
+        const y0 = Math.min(...b.map((r) => n(r, 'y')));
+        const y1 = Math.max(...b.map((r) => n(r, 'y') + n(r, 'height')));
+        v.egal('zone B : à 3 m du bord gauche sur 4 m, 1 m de large (en % de la largeur)', [Math.round((100 * x0) / W), Math.round((100 * (x1 - x0)) / W)], [75, 25]);
+        v.egal('zone B : bas à 0,5 m du sol, haut à 1,5 m sur 2 m (en % de la hauteur)', [Math.round((100 * y0) / H), Math.round((100 * (y1 - y0)) / H)], [25, 50]);
         const boite = dessin.getBoundingClientRect();
-        const b = grilles[1].getBoundingClientRect();
-        const pc = (x) => Math.round((100 * x) / boite.width);
-        v.egal('zone B : à 3 m du bord gauche sur 4 m, 1 m de large (en % de la largeur)', [pc(b.left - boite.left), pc(b.width)], [75, 25]);
-        v.egal('zone B : bas à 0,5 m du sol, haut à 1,5 m sur 2 m (en % de la hauteur)', [Math.round((100 * (b.top - boite.top)) / boite.height), Math.round((100 * b.height) / boite.height)], [25, 50]);
         v.vrai('proportions du mur réel (4 × 2 m)', Math.abs(boite.width / boite.height - 2) < 0.02);
-        v.vrai('décoratif : caché aux lecteurs d\'écran', dessin.getAttribute('aria-hidden') === 'true');
-        const grand = calculs.murZones(dalle, [{ nom: 'A', colonnes: 40, rangees: 20 }, { nom: 'B', colonnes: 21, rangees: 10 }]);
-        v.egal('au-delà de 1 000 dalles : rien', look.murCarresZones(grand), null);
+        v.vrai('décoratif : caché aux lecteurs d\'écran', dessin?.getAttribute('aria-hidden') === 'true');
+        const grand = look.apercuMur(calculs.murZones(dalle, [{ nom: 'A', colonnes: 40, rangees: 20 }, { nom: 'B', colonnes: 21, rangees: 10 }]), dalle);
+        v.egal('au-delà de 1 000 dalles : le contour de chaque zone, aucun carré', [grand?.querySelectorAll('.ap-contour').length, grand?.querySelectorAll('.ap-dalle').length], [2, 0]);
       } finally {
         cadre.remove();
         retirer();
@@ -2762,7 +2779,7 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N65',
-    titre: 'Écran Prestas (10b2, § 7) : presta ouverte en tête (nom, dates et lieu, dernier export), ses murs avec leur résumé, le mur ouvert marqué, boutons de chaque mur et de la presta ; autres prestas, la dernière modifiée en tête, avec « Ouvrir » ; archivées repliées ; « Nouvelle presta » ; rappel d\'export sans stockage persistant ; « Modifier » et « Renommer » dans l\'écran, erreur affichée ; chaque bouton appelle son action ; cibles de 48 px, rien ne dépasse à 375 px, noms longs compris',
+    titre: 'Écran Prestas (10b2, § 7) : presta ouverte en tête (nom, dates et lieu, dernier export), ses murs avec leur résumé, le mur ouvert marqué, carte de chaque mur et menus « ⋯ » de chaque mur et de la presta (11b) ; autres prestas, la dernière modifiée en tête, avec « Ouvrir » ; archivées repliées ; « Nouvelle presta » ; rappel d\'export sans stockage persistant ; « Modifier » et « Renommer » dans l\'écran, erreur affichée ; chaque bouton appelle son action ; cibles de 48 px, rien ne dépasse à 375 px, noms longs compris',
     etape: '10b',
     async verifier(v) {
       const ep = await moduleAppli(v, '../src/ecran-prestas.js');
@@ -2804,25 +2821,34 @@ export const NAVIGATEUR = [
         const murs = [...racine.querySelectorAll('.pr-mur')];
         v.egal('ses murs : nom, résumé, le mur ouvert marqué', murs.map((m) => [texteDe(m.querySelector('.pr-mur-nom')), texteDe(m.querySelector('.pr-mur-resume')), m.getAttribute('aria-current')]),
           [['Mur 1', 'Réglages par défaut', 'true'], [murLong, 'Réglages par défaut', null]]);
-        v.egal('boutons d\'un mur, sans « Ouvrir » pour le mur ouvert', murs.map((m) => [...m.querySelectorAll('button')].map(texteDe)),
-          [['Renommer', 'Dupliquer', 'Supprimer'], ['Ouvrir', 'Renommer', 'Dupliquer', 'Supprimer']]);
-        v.egal('boutons de la presta', [...racine.querySelectorAll('.pr-actions-presta button')].map(texteDe), ['Ajouter un mur', 'Modifier', 'Dupliquer', 'Archiver', 'Supprimer']);
+        // 11b : la carte d'un mur s'ouvre d'un appui (sauf le mur ouvert), ses actions rares dans son menu « ⋯ » ; la presta
+        // garde « Ajouter un mur », « Exporter » et « Plus », le reste dans le menu « Plus ».
+        const ouvrirMenu = (b) => { if (b.getAttribute('aria-expanded') !== 'true') b.click(); };
+        const menuDe = (b) => { ouvrirMenu(b); return [...document.getElementById(b.getAttribute('aria-controls'))?.querySelectorAll('button') ?? []]; };
+        const dansMenu = (b, texte) => menuDe(b).find((x) => texteDe(x) === texte);
+        v.egal('carte d\'un mur : appui sur la carte (sauf le mur ouvert) et bouton « ⋯ »', murs.map((m) => [Boolean(m.querySelector('.pr-mur-ouvrir')), m.querySelector('.pr-menu-bouton')?.getAttribute('aria-label')]),
+          [[false, 'Actions de Mur 1'], [true, `Actions de ${murLong}`]]);
+        v.egal('menu d\'un mur', murs.map((m) => menuDe(m.querySelector('.pr-menu-bouton')).map(texteDe)), [['Renommer', 'Dupliquer', 'Supprimer'], ['Renommer', 'Dupliquer', 'Supprimer']]);
+        const plus = [...racine.querySelectorAll('.pr-actions-presta button')].find((x) => texteDe(x) === 'Plus');
+        v.egal('boutons de la presta', [...racine.querySelectorAll('.pr-actions-presta button')].map(texteDe), ['Ajouter un mur', 'Exporter', 'Plus']);
+        v.egal('menu « Plus » de la presta', menuDe(plus).map(texteDe), ['Modifier', 'Dupliquer', 'Archiver', 'Supprimer la presta']);
+        plus.click();
         v.egal('autres prestas, la dernière modifiée en tête, avec le nombre de murs', [...racine.querySelectorAll('.pr-autres .pr-presta')].map((p) => [texteDe(p.querySelector('.pr-nom')), texteDe(p.querySelector('.pr-infos'))]),
           [['Presta B', '1 mur'], ['Presta sans nom', '1 mur']]);
         v.egal('archivées repliées', [texteDe(racine.querySelector('.pr-archivees > summary')), racine.querySelector('.pr-archivees')?.open], ['Archivées (1)', false]);
         v.egal('« Nouvelle presta »', texteDe(racine.querySelector('.pr-nouvelle')), 'Nouvelle presta');
         v.vrai('rappel d\'export sans stockage persistant', /Exporte tes prestas/.test(texteDe(racine)));
-        const boutons = [...racine.querySelectorAll('button, summary')];
+        const boutons = [...racine.querySelectorAll('button, summary')].filter((x) => x.getBoundingClientRect().width > 0);
         v.egal('cibles de 48 px au moins', boutons.filter((x) => x.getBoundingClientRect().height < 47.5).map(texteDe), []);
         const droite = racine.getBoundingClientRect().right;
         v.egal('rien ne dépasse à 375 px, noms longs compris', [...racine.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > droite + 0.5).map((x) => x.className || x.tagName), []);
         murs[1].querySelector('button').click();
         racine.querySelector('.pr-autres .pr-presta button').click();
         racine.querySelector('.pr-nouvelle').click();
-        const boutonPresta = (texte) => [...racine.querySelectorAll('.pr-actions-presta button')].find((x) => texteDe(x) === texte);
-        for (const texte of ['Ajouter un mur', 'Dupliquer', 'Archiver', 'Supprimer']) boutonPresta(texte).click();
-        [...murs[1].querySelectorAll('button')].find((x) => texteDe(x) === 'Dupliquer').click();
-        [...murs[1].querySelectorAll('button')].find((x) => texteDe(x) === 'Supprimer').click();
+        const boutonPresta = (texte) => [...racine.querySelectorAll('.pr-actions-presta button')].find((x) => texteDe(x) === texte) ?? dansMenu(plus, texte);
+        for (const texte of ['Ajouter un mur', 'Dupliquer', 'Archiver', 'Supprimer la presta']) boutonPresta(texte).click();
+        dansMenu(murs[1].querySelector('.pr-menu-bouton'), 'Dupliquer').click();
+        dansMenu(murs[1].querySelector('.pr-menu-bouton'), 'Supprimer').click();
         await attendre();
         v.egal('chaque bouton appelle son action', appels.map((x) => x.join(' ')), [
           `ouvrir ${a} ${mur2}`, `ouvrir ${b}`, 'creerPresta', `ajouterMur ${a}`, `dupliquerPresta ${a}`, `archiverPresta ${a} true`, `supprimerPresta ${a}`,
@@ -2841,7 +2867,7 @@ export const NAVIGATEUR = [
         await attendre();
         v.egal('enregistré : infos envoyées, formulaire fermé', [appels.at(-1)?.[2], racine.querySelector('.pr-formulaire')],
           [{ nom: 'Presta A', debut: '2026-10-17', fin: '2026-10-19', lieu: 'Lieu B', notes: '' }, null]);
-        [...murs[1].querySelectorAll('button')].find((x) => texteDe(x) === 'Renommer').click();
+        dansMenu(murs[1].querySelector('.pr-menu-bouton'), 'Renommer').click();
         const renommer = racine.querySelector('.pr-renommer');
         v.egal('« Renommer » : champ dans la ligne du mur, nom actuel', [renommer?.closest('.pr-mur') === murs[1], renommer?.elements.nom.value], [true, murLong]);
         renommer.elements.nom.value = 'Retour scène';
@@ -2859,7 +2885,7 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N66',
-    titre: 'Bouton « Presta · Mur » de l\'en-tête (10b2, § 7) : dans la rangée du titre, entre « Mur LED » et la version ; nom de la presta puis nom du mur, chacun sur une ligne coupée par « … », nom entier dans l\'étiquette accessible ; zone d\'appui de 48 px (60 en grand affichage) sans hauteur ajoutée à la rangée du titre ; rien ne dépasse à 375 px',
+    titre: 'Bouton « Presta · Mur » de l\'en-tête (10b2, § 7 ; fil d\'Ariane de l\'étape 11d) : sous la rangée du titre, au-dessus des outils, en pleine largeur ; nom de la presta puis nom du mur sur une seule ligne, chacun coupé par « … » s\'il ne tient pas, nom entier dans l\'étiquette accessible ; zone d\'appui de 48 px (60 en grand affichage) ; rien ne dépasse à 375 px',
     etape: '10b',
     async verifier(v) {
       const ep = await moduleAppli(v, '../src/ecran-prestas.js');
@@ -2867,8 +2893,8 @@ export const NAVIGATEUR = [
       const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
       const entete = page.querySelector('header.entete-app');
       const source = entete?.querySelector('#bouton-presta');
-      v.vrai('bouton dans la rangée du titre, entre le titre et la version', Boolean(source) && Boolean(source.parentElement?.classList.contains('titre-app'))
-        && source.previousElementSibling?.tagName === 'H1' && source.nextElementSibling?.id === 'version-appli');
+      v.vrai('fil d\'Ariane : sous la rangée du titre, au-dessus des outils', Boolean(source) && source.parentElement === entete
+        && Boolean(source.previousElementSibling?.classList.contains('titre-app')) && Boolean(source.nextElementSibling?.classList.contains('outils-entete')));
       if (!source) return;
       const retirer = await chargerStylesLook();
       const cadre = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
@@ -2896,19 +2922,22 @@ export const NAVIGATEUR = [
           const avec = copie(true);
           const bouton = avec.querySelector('[data-ident="bouton-presta"]');
           ep.remplirBoutonPresta(bouton, { presta: { nom: long }, mur: { nom: murLong } });
-          const hauteur = (e) => e.querySelector('.titre-app').getBoundingClientRect().height;
-          v.vrai(`${taille} : hauteur de la rangée du titre inchangée (${Math.round(hauteur(sans))} px sans, ${Math.round(hauteur(avec))} px avec)`, Math.abs(hauteur(avec) - hauteur(sans)) <= 1);
+          const largeurUtile = avec.getBoundingClientRect().width - parseFloat(getComputedStyle(avec).paddingLeft) - parseFloat(getComputedStyle(avec).paddingRight);
+          v.vrai(`${taille} : pleine largeur (${Math.round(bouton.getBoundingClientRect().width)} px sur ${Math.round(largeurUtile)})`, Math.abs(bouton.getBoundingClientRect().width - largeurUtile) <= 1);
+          void sans;
           const cible = taille === 'grand' ? 60 : 48;
           v.vrai(`${taille} : zone d'appui de ${cible} px au moins (${Math.round(bouton.getBoundingClientRect().height)} px)`, bouton.getBoundingClientRect().height >= cible - 0.5);
           const droite = cadre.getBoundingClientRect().right;
           v.egal(`${taille} : rien ne dépasse à 375 px`, [...avec.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().right > droite + 0.5).map((x) => x.className || x.tagName), []);
           const lignes = [bouton.querySelector('.bp-presta'), bouton.querySelector('.bp-mur')];
-          v.egal(`${taille} : presta puis mur, chacun sur une ligne coupée par « … »`, lignes.map((x) => [texteDe(x), getComputedStyle(x).whiteSpace, getComputedStyle(x).textOverflow, x.scrollWidth > x.clientWidth]),
+          v.vrai(`${taille} : presta et mur sur la même ligne`, Math.abs(lignes[0].getBoundingClientRect().top - lignes[1].getBoundingClientRect().top) <= 2);
+          v.egal(`${taille} : presta puis mur, chacun coupé par « … »`, lignes.map((x) => [texteDe(x), getComputedStyle(x).whiteSpace, getComputedStyle(x).textOverflow, x.scrollWidth > x.clientWidth]),
             [[long, 'nowrap', 'ellipsis', true], [murLong, 'nowrap', 'ellipsis', true]]);
           v.egal(`${taille} : étiquette accessible`, bouton.getAttribute('aria-label'), `Prestas : ${long}, ${murLong}`);
         }
         ep.remplirBoutonPresta(cadre.querySelector('[data-ident="bouton-presta"]'), { presta: { nom: 'Presta A' }, mur: { nom: 'Mur 1' } });
-        v.egal('noms courts', [texteDe(cadre.querySelector('.bp-presta')), texteDe(cadre.querySelector('.bp-mur'))], ['Presta A', 'Mur 1']);
+        v.egal('noms courts, entiers', [texteDe(cadre.querySelector('.bp-presta')), texteDe(cadre.querySelector('.bp-mur')), cadre.querySelector('.bp-presta').scrollWidth > cadre.querySelector('.bp-presta').clientWidth],
+          ['Presta A', 'Mur 1', false]);
       } finally {
         if (avant) document.documentElement.dataset.taille = avant;
         else delete document.documentElement.dataset.taille;
@@ -3098,6 +3127,417 @@ export const NAVIGATEUR = [
         v.egal('import fini : rapport affiché', texteDe(racine.querySelector('.pr-rapport li')), 'Presta A importée, avec son mur.');
       } finally {
         racine.remove();
+      }
+    },
+  },
+  {
+    id: 'N70',
+    titre: 'Grand mur (11-0, § 2.4) : au-delà de 2 000 dalles, le Schéma (vue physique et vue pixels) se dessine simplifié : une bande par segment de port au lieu d\'une forme par dalle, sans nom ni coordonnées de dalle, moins de 5 000 éléments ; mêmes ports, mêmes départs, mêmes couleurs et mêmes processeurs que le dessin complet, chaque dalle couverte par une bande de sa couleur ; à 2 000 dalles, dessin complet',
+    etape: '11-0',
+    async verifier(v, contexte) {
+      v.egal('seuil : 2 000 dalles', dessinSchema.SEUIL_DESSIN_SIMPLIFIE, 2000);
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      const preparer = (colonnes, lignes, nomVue) => {
+        const m = calculs.mur(bp2, colonnes, lignes);
+        const e = calculs.evaluerProcesseur(m, bp2, s8, { frequenceHz: 60, bits: 12 });
+        const data = calculs.cablageData(m, bp2, e, { depart: 'haut-gauche' });
+        const vd = data.variantes.find((x) => x.mode === data.conseil);
+        const vue = { vue: nomVue, canvasVue: 'mur', cablage: 'data' };
+        const pm = calculs.pixelMap(m, bp2, e);
+        const geo = geometrieSchema(vue, m, bp2, pm);
+        return { geo, trajets: trajetsSchema(vue, vd, null, null), blocs: dessinSchema.blocsSchema(geo, pm, { cablage: 'data' }), coin: 'haut-gauche', palette: PALETTE_ECRAN };
+      };
+      const departs = (svg) => [...svg.querySelectorAll('[data-trajet]')].map((g) => {
+        const c = g.querySelector('.depart');
+        return `${g.dataset.trajet} ${Number(c.getAttribute('cx')).toFixed(3)} ${Number(c.getAttribute('cy')).toFixed(3)} ${c.style.fill} ${g.querySelector('.numero-trajet').textContent}`;
+      });
+      for (const nomVue of ['physique', 'pixels']) {
+        const p = preparer(69, 29, nomVue);
+        const simple = construireSvg(p).svg;
+        const complet = construireSvg({ ...p, simplifie: false }).svg;
+        v.vrai(`${nomVue}, 69 × 29 = 2 001 dalles : dessin simplifié`, simple.classList.contains('simplifie') && !complet.classList.contains('simplifie'));
+        v.egal(`${nomVue} : aucune forme ni aucun nom de dalle`, simple.querySelectorAll('[data-dalle], .etiquette-dalle').length, 0);
+        const n = simple.getElementsByTagName('*').length;
+        v.vrai(`${nomVue} : moins de 5 000 éléments (${n} ; dessin complet ${complet.getElementsByTagName('*').length})`, n < 5000);
+        v.egal(`${nomVue} : mêmes ports, mêmes départs, mêmes numéros et couleurs`, departs(simple), departs(complet));
+        v.egal(`${nomVue} : mêmes processeurs`, [...simple.querySelectorAll('.etiquette-bloc')].map(texteDe), [...complet.querySelectorAll('.etiquette-bloc')].map(texteDe));
+        const bandes = [...simple.querySelectorAll('.bande')].map((b) => ({ x: Number(b.getAttribute('x')), y: Number(b.getAttribute('y')), w: Number(b.getAttribute('width')), h: Number(b.getAttribute('height')), fill: b.style.fill }));
+        const surface = (liste) => liste.reduce((t, r) => t + r.w * r.h, 0);
+        const rects = [...p.geo.rects.values()];
+        v.vrai(`${nomVue} : les bandes couvrent exactement les dalles (${bandes.length} bandes)`, bandes.length > 0 && Math.abs(surface(bandes) - surface(rects)) < 1e-6 * surface(rects));
+        const fondDe = (id) => complet.querySelector(`[data-dalle="${id}"] rect`).style.fill;
+        const fautes = [...p.geo.rects].filter(([id, r]) => {
+          const [cx, cy] = [r.x + r.w / 2, r.y + r.h / 2];
+          const b = bandes.find((x) => cx > x.x && cx < x.x + x.w && cy > x.y && cy < x.y + x.h);
+          return !b || b.fill !== fondDe(id);
+        }).map(([id]) => id);
+        v.egal(`${nomVue} : chaque dalle dans une bande de sa couleur`, fautes.slice(0, 5), []);
+      }
+      const p = preparer(50, 40, 'physique');
+      const dessin = construireSvg(p).svg;
+      v.vrai('50 × 40 = 2 000 dalles : dessin complet, 2 000 dalles dessinées', !dessin.classList.contains('simplifie') && dessin.querySelectorAll('[data-dalle]').length === 2000);
+    },
+  },
+  {
+    id: 'N71',
+    titre: 'Grand mur (11-0, § 2.4) : au-delà de 2 000 dalles, le guide pas à pas ne dessine que les dalles du port en cours (numérotées dans l\'ordre du câble, son seul trajet), dans le cadre du mur entier ; à 2 000 dalles, tout le mur comme aujourd\'hui',
+    etape: '11-0',
+    async verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const s8 = processeurDeBase(contexte, 'brompton-s8');
+      for (const [colonnes, lignes, simplifie] of [[69, 29, true], [50, 40, false]]) {
+        const nom = `${colonnes} × ${lignes}`;
+        const m = calculs.mur(bp2, colonnes, lignes);
+        const e = calculs.evaluerProcesseur(m, bp2, s8, { frequenceHz: 60, bits: 12 });
+        const data = calculs.cablageData(m, bp2, e, { depart: 'haut-gauche' });
+        const vd = data.variantes.find((x) => x.mode === data.conseil);
+        const vue = { vue: 'physique', canvasVue: 'mur', cablage: 'data' };
+        const geo = geometrieSchema(vue, m, bp2, calculs.pixelMap(m, bp2, e));
+        const trajets = trajetsSchema(vue, vd, null, null);
+        const t = trajets[1];
+        const g = dessinSchema.geometrieGuide?.(geo, t.dalles);
+        if (!g) {
+          v.vrai('geometrieGuide exportée', false);
+          return;
+        }
+        v.egal(`${nom} : ${simplifie ? 'dalles du port seulement' : 'tout le mur'}`, g.rects.size, simplifie ? t.dalles.length : colonnes * lignes);
+        v.egal(`${nom} : cadre du mur entier`, [g.largeur, g.hauteur], [geo.largeur, geo.hauteur]);
+        const { svg } = construireSvg({ geo: g, trajets, coin: 'haut-gauche', blocs: [], palette: PALETTE_ECRAN, selection: t.cle, ordre: t.cle });
+        v.egal(`${nom} : dalles du port numérotées de 1 à ${t.dalles.length}`, [...svg.querySelectorAll('.ordre-dalle text')].map((x) => x.textContent), t.dalles.map((_, i) => `${i + 1}`));
+        if (simplifie) {
+          v.egal(`${nom} : le seul trajet du port en cours`, [...svg.querySelectorAll('[data-trajet]')].map((x) => x.dataset.trajet), [t.cle]);
+          v.vrai(`${nom} : dessin sous 2 000 éléments (${svg.getElementsByTagName('*').length})`, svg.getElementsByTagName('*').length < 2000);
+        }
+      }
+    },
+  },
+  {
+    id: 'N73',
+    titre: 'Boutons (11a, § 5) : cinq styles dans chaque famille (presta comprise), en thème sombre et en mode rouge : principal (fond de la famille, texte foncé), secondaire (fond et bordure teintés, liseré clair en haut, icône de la couleur de la famille), discret (sans fond ni cadre, texte de la famille), danger (sans fond, bordure et texte rouges, icône poubelle ; bordure de 2 px en mode rouge), icône seule (48 × 48) ; texte à 4,5:1 sur son fond réel ; cibles de 48 px, 60 en grand affichage ; cartes avec un liseré clair en haut',
+    etape: '11a',
+    async verifier(v) {
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const html = document.documentElement;
+      const avant = { mode: html.dataset.mode, taille: html.dataset.taille };
+      const cs = (e, pseudo = null) => getComputedStyle(e, pseudo);
+      const lum = (c) => luminance(rgbVersHex(c));
+      try {
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          delete html.dataset.taille;
+          const fautes = [];
+          for (const famille of ['image', 'donnees', 'electricite', 'accroche', 'depannage', 'base', 'apprendre', 'regie', 'presta']) {
+            const carte = el('section', { class: 'carte', 'data-famille': famille },
+              el('button', { class: 'bouton bouton-principal', type: 'button' }, 'Enregistrer'),
+              el('button', { class: 'bouton', type: 'button', 'data-icone': 'copier' }, 'Copier les résultats'),
+              el('button', { class: 'bouton bouton-discret', type: 'button' }, 'Annuler'),
+              el('button', { class: 'bouton bouton-danger', type: 'button' }, 'Supprimer'),
+              el('button', { class: 'bouton bouton-icone', type: 'button', 'aria-label': 'Actions de Mur 1' }, '⋯'));
+            racine.replaceChildren(carte);
+            const [p, s, d, x, i] = carte.querySelectorAll('button');
+            const couleur = rgbVersHex(cs(el('span')).color);
+            const sonde = el('span', { style: 'color: var(--famille)' });
+            carte.append(sonde);
+            const fam = rgbVersHex(cs(sonde).color);
+            sonde.style.color = 'var(--famille-fond)';
+            const famFond = rgbVersHex(cs(sonde).color);
+            sonde.style.color = 'var(--famille-bord)';
+            const famBord = rgbVersHex(cs(sonde).color);
+            sonde.style.color = 'var(--echec)';
+            const echec = rgbVersHex(cs(sonde).color);
+            sonde.remove();
+            void couleur;
+            const k = (e) => contraste(rgbVersHex(cs(e).color), fondDe(e));
+            const faute = (cond, texte) => { if (!cond) fautes.push(`${famille} : ${texte}`); };
+            // Étape 11d : dans la Base, le principal est clair (fond du texte), le gris de la famille ayant l'air désactivé.
+            const fondPrincipal = famille === 'base' ? rgbVersHex(cs(carte).color) : fam;
+            faute(rgbVersHex(cs(p).backgroundColor) === fondPrincipal && k(p) >= 4.5, `principal (fond ${rgbVersHex(cs(p).backgroundColor)}, ${k(p).toFixed(2)}:1)`);
+            faute(rgbVersHex(cs(s).backgroundColor) === famFond && rgbVersHex(cs(s).borderLeftColor) === famBord && k(s) >= 4.5, `secondaire (fond ${rgbVersHex(cs(s).backgroundColor)}, bord ${rgbVersHex(cs(s).borderLeftColor)}, ${k(s).toFixed(2)}:1)`);
+            faute(lum(cs(s).borderTopColor) > lum(cs(s).borderLeftColor), 'secondaire : liseré clair en haut');
+            faute(cs(s, '::before').content !== 'none' && rgbVersHex(cs(s, '::before').backgroundColor) === fam && /url/.test(cs(s, '::before').webkitMaskImage ?? cs(s, '::before').maskImage ?? ''), 'secondaire : icône de la couleur de la famille');
+            faute(/rgba\(.*,\s*0\)|transparent/.test(cs(d).backgroundColor) && /rgba\(.*,\s*0\)|transparent/.test(cs(d).borderLeftColor) && rgbVersHex(cs(d).color) === fam && k(d) >= 4.5, `discret (${cs(d).backgroundColor}, ${cs(d).borderLeftColor}, ${k(d).toFixed(2)}:1)`);
+            faute(/rgba\(.*,\s*0\)|transparent/.test(cs(x).backgroundColor) && rgbVersHex(cs(x).borderLeftColor) === echec && rgbVersHex(cs(x).color) === echec && k(x) >= 4.5, `danger (${cs(x).backgroundColor}, ${rgbVersHex(cs(x).borderLeftColor)}, ${k(x).toFixed(2)}:1)`);
+            faute(/url/.test(cs(x, '::before').webkitMaskImage ?? cs(x, '::before').maskImage ?? ''), 'danger : icône poubelle');
+            faute(parseFloat(cs(x).borderLeftWidth) === (mode === 'rouge' ? 2 : 1), `danger : bordure de ${cs(x).borderLeftWidth}`);
+            const r = i.getBoundingClientRect();
+            faute(Math.round(r.width) === 48 && Math.round(r.height) === 48, `icône seule ${Math.round(r.width)} × ${Math.round(r.height)}`);
+            faute([p, s, d, x].every((b) => b.getBoundingClientRect().height >= 47.5), 'cibles de 48 px');
+            faute(lum(cs(carte).borderTopColor) > lum(cs(carte).borderLeftColor), 'carte : liseré clair en haut');
+          }
+          v.egal(`${mode} : styles, contrastes, cibles`, fautes.slice(0, 10), []);
+          html.dataset.taille = 'grand';
+          const carte = el('section', { class: 'carte', 'data-famille': 'image' },
+            ['bouton bouton-principal', 'bouton', 'bouton bouton-discret', 'bouton bouton-danger'].map((c) => el('button', { class: c, type: 'button' }, 'Action')),
+            el('button', { class: 'bouton bouton-icone', type: 'button', 'aria-label': 'Actions' }, '⋯'));
+          racine.replaceChildren(carte);
+          v.egal(`${mode}, grand affichage : cibles de 60 px`, [...carte.querySelectorAll('button')].map((b) => b.getBoundingClientRect()).filter((r) => Math.min(r.width, r.height) < 59.5).length, 0);
+        }
+      } finally {
+        if (avant.mode) html.dataset.mode = avant.mode;
+        else delete html.dataset.mode;
+        if (avant.taille) html.dataset.taille = avant.taille;
+        else delete html.dataset.taille;
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N74',
+    titre: 'Écran Prestas refait (11b, § 6) : carte de chaque mur (un seul bouton qui l\'ouvre, flèche ›), le mur ouvert sans bouton ni flèche, avec la puce « Ouvert » ; un seul menu « ⋯ » ouvert à la fois, refermé par « ⋯ » ou Échap (Échap ne ferme pas l\'écran) ; « Renommer » à la place du menu ; « Supprimer » en danger, à 16 px des autres ; dates et lieu en puces (texte lu inchangé) ; pastille d\'export orange puis verte ; autres prestas en cartes ; cibles de 48 px, rien ne dépasse à 375 px, menus ouverts et noms longs compris',
+    etape: '11b',
+    async verifier(v) {
+      const ep = await moduleAppli(v, '../src/ecran-prestas.js');
+      const pr = await moduleAppli(v, '../src/prestas.js');
+      if (!ep || !pr) return;
+      let n = 0;
+      const o = (iso) => ({ maintenant: new Date(iso), alea: () => `m${(n += 1)}` });
+      let etat = pr.migrer({}, o('2026-10-16T08:00:00Z'));
+      etat = pr.creerPresta(etat, { nom: 'Presta B' }, o('2026-10-16T09:00:00Z'));
+      const long = 'Presta'.padEnd(60, 'x');
+      etat = pr.creerPresta(etat, { nom: long }, o('2026-10-16T10:00:00Z'));
+      const a = etat.index.ouverte.presta;
+      etat = pr.modifierPresta(etat, a, { nom: long, debut: '2026-10-17', fin: '2026-10-19', lieu: 'Lieu B', notes: '' }, o('2026-10-16T10:00:00Z'));
+      etat = pr.ajouterMur(etat, a, { nom: 'Mur'.padEnd(40, 'y') }, o('2026-10-16T10:30:00Z'));
+      etat = pr.ouvrir(etat, a, etat.index.prestas.find((p) => p.id === a).murs[0].id);
+      const actions = Object.fromEntries(['ouvrir', 'creerPresta', 'ajouterMur', 'dupliquerMur', 'supprimerMur', 'dupliquerPresta', 'archiverPresta', 'supprimerPresta', 'modifierPresta', 'renommerMur', 'exporter']
+        .map((nom) => [nom, async () => {}]));
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px', 'data-famille': 'presta' });
+      document.body.append(racine);
+      let echapApp = 0;
+      const ecouteApp = (e) => { if (e.key === 'Escape') echapApp += 1; };
+      document.addEventListener('keydown', ecouteApp);
+      const visibles = () => [...racine.querySelectorAll('button, summary')].filter((x) => x.getBoundingClientRect().width > 0);
+      const ouverts = () => [...racine.querySelectorAll('.pr-menu')].filter((m) => !m.hidden).length;
+      try {
+        const ecran = ep.monterPrestas(racine, { actions, resumeMur: () => 'Réglages par défaut', confirmer: () => true });
+        ecran.afficher(etat, { persistant: true });
+        const murs = [...racine.querySelectorAll('.pr-mur')];
+        v.egal('mur ouvert : ni bouton de carte ni flèche, puce « Ouvert » ; autre mur : carte-bouton avec flèche', murs.map((m) => [
+          Boolean(m.querySelector('.pr-mur-ouvrir')), Boolean(m.querySelector('.pr-fleche')), texteDe(m.querySelector('.pr-puce-ouvert'))]),
+        [[false, false, 'Ouvert'], [true, true, '']]);
+        v.egal('la carte-bouton contient le nom et le résumé', [texteDe(murs[1].querySelector('.pr-mur-ouvrir .pr-mur-nom')), texteDe(murs[1].querySelector('.pr-mur-ouvrir .pr-mur-resume'))],
+          ['Mur'.padEnd(40, 'y'), 'Réglages par défaut']);
+        v.egal('menus fermés au départ', ouverts(), 0);
+        const menuMur = murs[1].querySelector('.pr-menu-bouton');
+        const plus = [...racine.querySelectorAll('.pr-actions-presta button')].find((x) => texteDe(x) === 'Plus');
+        menuMur.click();
+        v.egal('« ⋯ » d\'un mur : son menu ouvert sous la carte', [ouverts(), menuMur.getAttribute('aria-expanded'), document.getElementById(menuMur.getAttribute('aria-controls'))?.closest('.pr-mur') === murs[1]], [1, 'true', true]);
+        plus.click();
+        v.egal('« Plus » : un seul menu ouvert à la fois', [ouverts(), menuMur.getAttribute('aria-expanded'), plus.getAttribute('aria-expanded')], [1, 'false', 'true']);
+        const droite = racine.getBoundingClientRect().right;
+        const depasse = () => [...racine.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > droite + 0.5).map((x) => x.className || x.tagName);
+        v.egal('menu de la presta ouvert : rien ne dépasse à 375 px', depasse(), []);
+        v.egal('menu de la presta ouvert : cibles de 48 px', visibles().filter((x) => x.getBoundingClientRect().height < 47.5).map(texteDe), []);
+        const ecart = (menu) => {
+          const d = menu.querySelector('.bouton-danger');
+          if (!d) return -1;
+          const r = d.getBoundingClientRect();
+          return Math.min(...[...menu.querySelectorAll('button')].filter((x) => x !== d).map((x) => {
+            const b = x.getBoundingClientRect();
+            return Math.max(b.left - r.right, r.left - b.right, b.top - r.bottom, r.top - b.bottom);
+          }));
+        };
+        const menuPresta = document.getElementById(plus.getAttribute('aria-controls'));
+        v.vrai(`« Supprimer la presta » en danger, à 16 px au moins des autres (${ecart(menuPresta)})`, ecart(menuPresta) >= 15.5);
+        plus.click();
+        v.egal('« Plus » de nouveau : menu refermé', ouverts(), 0);
+        menuMur.click();
+        v.vrai(`« Supprimer » d\'un mur en danger, à 16 px au moins des autres (${ecart(document.getElementById(menuMur.getAttribute('aria-controls')))})`,
+          ecart(document.getElementById(menuMur.getAttribute('aria-controls'))) >= 15.5);
+        v.egal('menu d\'un mur ouvert : rien ne dépasse, cibles de 48 px', [depasse(), visibles().filter((x) => x.getBoundingClientRect().height < 47.5).map(texteDe)], [[], []]);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        v.egal('Échap : menu refermé, l\'écran ne reçoit pas Échap', [ouverts(), echapApp], [0, 0]);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        v.egal('Échap sans menu ouvert : l\'appli le reçoit (fermeture de l\'écran)', echapApp, 1);
+        menuMur.click();
+        [...document.getElementById(menuMur.getAttribute('aria-controls')).querySelectorAll('button')].find((x) => texteDe(x) === 'Renommer').click();
+        v.egal('« Renommer » : champ dans la carte du mur, menu refermé', [racine.querySelector('.pr-renommer')?.closest('.pr-mur') === murs[1], ouverts()], [true, 0]);
+        const infos = racine.querySelector('.pr-ouverte .pr-infos');
+        v.egal('dates et lieu en puces, texte lu inchangé', [[...infos.querySelectorAll('.pr-puce')].map(texteDe), texteDe(infos)], [['du 17 au 19/10/2026', 'Lieu B'], 'du 17 au 19/10/2026 · Lieu B']);
+        const pastille = () => {
+          const e = racine.querySelector('.pr-ouverte .pr-export');
+          return [texteDe(e), rgbVersHex(getComputedStyle(e, '::before').backgroundColor)];
+        };
+        const sonde = el('span', { style: 'color: var(--alerte)' });
+        racine.append(sonde);
+        const orange = rgbVersHex(getComputedStyle(sonde).color);
+        sonde.style.color = 'var(--ok)';
+        const vert = rgbVersHex(getComputedStyle(sonde).color);
+        sonde.remove();
+        v.egal('jamais exportée : pastille orange', pastille(), ['Jamais exportée', orange]);
+        ecran.afficher({ ...etat, index: { ...etat.index, prestas: etat.index.prestas.map((p) => (p.id === a ? { ...p, exporteeLe: '2026-10-12T08:00:00.000Z' } : p)) } }, { persistant: true });
+        v.egal('exportée : pastille verte', pastille(), ['Exportée le 12/10/2026', vert]);
+        const autre = racine.querySelector('.pr-autres .pr-presta');
+        v.egal('autres prestas : une carte-bouton (nom, infos, flèche)', [autre?.querySelectorAll('button').length, Boolean(autre?.querySelector('button .pr-nom')), Boolean(autre?.querySelector('button .pr-fleche'))], [1, true, true]);
+      } finally {
+        document.removeEventListener('keydown', ecouteApp);
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N75',
+    titre: 'Aperçu du mur (11c, § 8) : rangée de demi-dalles à demi-hauteur, d\'un ton plus clair, en bas ou en haut ; zones à leur place, écart entre zones laissé vide ; dalles absentes d\'une forme libre en vide ; mur mixte d\'un troisième ton ; dalles tournées dessinées tournées ; cotes en mètres et en pixels ; étiquette pour les lecteurs d\'écran ; moins de 1 000 éléments à 5 000 dalles ; ton clair à 3:1 sur la carte, ton foncé à 1,5:1 du clair et de la carte, en sombre et en rouge',
+    etape: '11c',
+    async verifier(v, contexte) {
+      const look = await moduleAppli(v, '../src/look.js');
+      if (!look?.apercuMur) {
+        v.vrai('apercuMur exportée par look.js', false);
+        return;
+      }
+      const retirer = await chargerStylesLook();
+      const cadre = el('div', { 'data-famille': 'image', class: 'carte', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(cadre);
+      const html = document.documentElement;
+      const mode = html.dataset.mode;
+      const nb = (a, sel) => a?.querySelectorAll(sel).length ?? -1;
+      try {
+        const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+        for (const position of ['bas', 'haut']) {
+          const m = calculs.dimensionner(CB5, { mode: 'dalles', colonnes: 4, lignes: 2, rangeeDemi: true }, { demi: CB5_DEMI, positionDemi: position }).mur;
+          const a = look.apercuMur(m, CB5);
+          const demi = [...(a?.querySelectorAll('.ap-demi') ?? [])];
+          const entiere = a?.querySelector('.ap-dalle:not(.ap-demi)');
+          v.egal(`demi-dalles en ${position} : 4, demi-hauteur, ${position === 'bas' ? 'sous' : 'au-dessus de'} la dernière rangée`, [demi.length, Number(demi[0]?.getAttribute('height')) * 2 === Number(entiere?.getAttribute('height')),
+            position === 'bas' ? Number(demi[0]?.getAttribute('y')) === 2400 : Number(demi[0]?.getAttribute('y')) === 0], [4, true, true]);
+          if (position === 'bas') {
+            cadre.replaceChildren(a);
+            v.vrai('ton des demi-dalles plus clair que le ton foncé du damier', luminance(rgbVersHex(getComputedStyle(demi[0]).fill)) > luminance(rgbVersHex(getComputedStyle(a.querySelector('.ap-b')).fill)));
+            v.egal('étiquette', a.getAttribute('aria-label'), 'Aperçu du mur : 4 × 2 dalles et une rangée de demi-dalles en bas, 2,40 × 3,00 m, 416 × 520 px');
+            v.egal('cotes : largeur dessous, hauteur à droite', [texteDe(a.querySelector('.apercu-largeur')), texteDe(a.querySelector('.apercu-hauteur'))], ['2,40 m · 416 px', '3,00 m 520 px']);
+          }
+        }
+        const zones = calculs.murZones(bp2, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 2, ecartMm: 1000 }], { ecarts: 'reel' });
+        const az = look.apercuMur(zones, bp2);
+        const xs = [...(az?.querySelectorAll('.ap-dalle') ?? [])].map((r) => [Number(r.getAttribute('x')), Number(r.getAttribute('x')) + Number(r.getAttribute('width'))]);
+        v.egal('zones : 8 dalles, écart de 1 m vide (rien entre 1 000 et 2 000 mm)', [xs.length, xs.some(([x0, x1]) => x1 > 1000.5 && x0 < 1999.5)], [8, false]);
+        const forme = calculs.murZones(bp2, [{ nom: 'A', colonnes: 3, rangees: 2, absentes: [[2, 1]] }], { ecarts: 'reel' });
+        v.egal('forme libre : la dalle absente laissée vide', nb(look.apercuMur(forme, bp2), '.ap-dalle'), 5);
+        const mixte = calculs.murZones(bp2, [{ nom: 'A', colonnes: 2, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 2, dalle: DALLE_CAS_13 }], { ecarts: 'reel' });
+        v.egal('mur mixte : les dalles de l\'autre fiche d\'un troisième ton', nb(look.apercuMur(mixte, bp2), '.ap-autre'), 4);
+        const biais = calculs.murZones(bp2, [{ nom: 'BIAIS', colonnes: 4, rangees: 2, roulisDeg: 45 }], { ecarts: 'reel' });
+        v.vrai('dalles tournées dessinées tournées', [...(look.apercuMur(biais, bp2)?.querySelectorAll('.ap-dalle') ?? [])].every((r) => /rotate\(/.test(r.getAttribute('transform') ?? '')));
+        const limite = look.apercuMur(calculs.mur(bp2, 100, 50), bp2);
+        v.vrai(`5 000 dalles : moins de 1 000 éléments (${limite?.getElementsByTagName('*').length})`, limite && limite.getElementsByTagName('*').length < 1000);
+        const a = look.apercuMur(calculs.mur(bp2, 12, 6), bp2);
+        cadre.replaceChildren(a);
+        for (const m of ['sombre', 'rouge']) {
+          if (m === 'rouge') html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          const fondCarte = rgbVersHex(getComputedStyle(cadre).backgroundColor);
+          const clair = rgbVersHex(getComputedStyle(a.querySelector('.ap-a')).fill);
+          const fonce = rgbVersHex(getComputedStyle(a.querySelector('.ap-b')).fill);
+          v.vrai(`${m} : ton clair à 3:1 sur la carte (${contraste(clair, fondCarte).toFixed(2)}), ton foncé à 1,5:1 du clair (${contraste(clair, fonce).toFixed(2)}) et de la carte (${contraste(fonce, fondCarte).toFixed(2)})`,
+            contraste(clair, fondCarte) >= 3 && contraste(clair, fonce) >= 1.5 && contraste(fonce, fondCarte) >= 1.5);
+        }
+      } finally {
+        if (mode) html.dataset.mode = mode;
+        else delete html.dataset.mode;
+        cadre.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N76',
+    titre: 'Aperçu du mur, lignes de cote (11d, § 13.2) : sous le dessin, une ligne de sa largeur avec une butée à chaque bout et « 6,00 m · 2112 px » centré ; à droite, une ligne verticale de sa hauteur, butées, « 3,00 m » et « 1056 px » ; cotes en 12 px, 14 px en grand affichage ; zones collées : le contour de chaque zone se voit aussi sous 1 000 dalles',
+    etape: '11d',
+    async verifier(v, contexte) {
+      const look = await moduleAppli(v, '../src/look.js');
+      if (!look?.apercuMur) return;
+      const retirer = await chargerStylesLook();
+      const cadre = el('div', { 'data-famille': 'image', class: 'carte', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(cadre);
+      const html = document.documentElement;
+      const taille = html.dataset.taille;
+      try {
+        const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+        for (const t of ['normal', 'grand']) {
+          if (t === 'grand') html.dataset.taille = 'grand';
+          else delete html.dataset.taille;
+          const a = look.apercuMur(calculs.mur(bp2, 12, 6), bp2);
+          cadre.replaceChildren(a);
+          const dessin = a.querySelector('svg').getBoundingClientRect();
+          const h = a.querySelector('.cote-h');
+          const vv = a.querySelector('.cote-v');
+          const rh = h?.getBoundingClientRect();
+          const rv = vv?.getBoundingClientRect();
+          const th = h?.querySelector('.cote-texte')?.getBoundingClientRect();
+          v.egal(`${t} : cotes écrites`, [texteDe(h), texteDe(vv)], ['6,00 m · 2112 px', '3,00 m 1056 px']);
+          v.vrai(`${t} : ligne de cote horizontale de la largeur du dessin, sous lui, texte centré`, rh && Math.abs(rh.width - dessin.width) <= 1.5 && rh.top >= dessin.bottom - 0.5
+            && th && Math.abs((th.left + th.right) / 2 - (rh.left + rh.right) / 2) <= 2);
+          v.vrai(`${t} : ligne de cote verticale de la hauteur du dessin, à sa droite`, rv && Math.abs(rv.height - dessin.height) <= 1.5 && rv.left >= dessin.right - 0.5);
+          v.vrai(`${t} : butées aux deux bouts des deux cotes`, [h, vv].every((x) => x && getComputedStyle(x, '::before').content !== 'none' && getComputedStyle(x, '::after').content !== 'none'));
+          v.egal(`${t} : cotes en ${t === 'grand' ? 14 : 12} px`, parseFloat(getComputedStyle(h.querySelector('.cote-texte')).fontSize), t === 'grand' ? 14 : 12);
+        }
+        delete html.dataset.taille;
+        const collees = calculs.murZones(bp2, [{ nom: 'A', colonnes: 3, rangees: 2 }, { nom: 'B', colonnes: 3, rangees: 2 }], { ecarts: 'reel' });
+        v.egal('zones collées : un contour par zone', look.apercuMur(collees, bp2)?.querySelectorAll('.ap-zone').length, 2);
+        v.egal('mur d\'une seule zone : pas de contour de zone', look.apercuMur(calculs.mur(bp2, 4, 2), bp2)?.querySelectorAll('.ap-zone').length, 0);
+      } finally {
+        if (taille) html.dataset.taille = taille;
+        else delete html.dataset.taille;
+        cadre.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N77',
+    titre: 'Écran Prestas, mini-aperçu (11d, § 13.2) : proportions d\'un mur lues dans ses saisies sans calcul (Dalles : colonnes × lignes et taille de la dalle ; Taille : la cible ; Résolution : la cible en pixels ; réglages par défaut : 6 × 3 m ; Zones : inconnues) ; vignette de 44 × 28 px au plus à gauche du nom, aux proportions, cachée aux lecteurs d\'écran ; aucune si les proportions sont inconnues ; résumé écrit inchangé',
+    etape: '11d',
+    async verifier(v) {
+      const pr = await moduleAppli(v, '../src/prestas.js');
+      const ep = await moduleAppli(v, '../src/ecran-prestas.js');
+      if (!pr || !ep) return;
+      if (!pr.proportionsMur) {
+        v.vrai('proportionsMur exportée par prestas.js', false);
+        return;
+      }
+      const fiche = (id) => ({ 'roe-bp2-v2': { largeurMm: 500, hauteurMm: 500 }, haute: { largeurMm: 500, hauteurMm: 1000 } })[id] ?? null;
+      const mur = (f) => ({ configuration: f ? { formulaires: { 'form-mur': f } } : null });
+      const p = (m) => pr.proportionsMur(m, { ficheDalle: fiche });
+      v.egal('Dalles 12 × 6 de 500 × 500 ; 3 × 2 de 500 × 1000 ; Taille 6 × 3 m ; Résolution 1920 × 1080 ; défaut ; Zones', [
+        p(mur({ mode: 'dalles', dalle: 'roe-bp2-v2', colonnes: '12', lignes: '6' })),
+        p(mur({ mode: 'dalles', dalle: 'haute', colonnes: '3', lignes: '2' })),
+        p(mur({ mode: 'taille', dalle: 'roe-bp2-v2', largeurM: '6', hauteurM: '3' })),
+        p(mur({ mode: 'resolution', dalle: 'roe-bp2-v2', largeurPx: '1920', hauteurPx: '1080' })),
+        p(mur(null)),
+        p(mur({ mode: 'zones', dalle: 'roe-bp2-v2', zones: '{"zones":[]}' })),
+      ], [{ largeur: 6000, hauteur: 3000 }, { largeur: 1500, hauteur: 2000 }, { largeur: 6, hauteur: 3 }, { largeur: 1920, hauteur: 1080 }, { largeur: 6, hauteur: 3 }, null]);
+      v.egal('saisie illisible : inconnue', p(mur({ mode: 'dalles', dalle: 'inconnue', colonnes: '12', lignes: '6' })), null);
+      let n = 0;
+      const o = () => ({ maintenant: new Date('2026-10-16T12:00:00Z'), alea: () => `v${(n += 1)}` });
+      let etat = pr.migrer({}, o());
+      const a = etat.index.ouverte.presta;
+      etat = pr.ajouterMur(etat, a, {}, o());
+      const [m1, m2] = etat.index.prestas.find((x) => x.id === a).murs.map((x) => x.id);
+      etat = pr.enregistrerMur(etat, m1, { configuration: { formulaires: { 'form-mur': { mode: 'dalles', dalle: 'roe-bp2-v2', colonnes: '12', lignes: '6' } } } });
+      etat = pr.enregistrerMur(etat, m2, { configuration: { formulaires: { 'form-mur': { mode: 'zones', dalle: 'roe-bp2-v2', zones: '{"zones":[]}' } } } });
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px', 'data-famille': 'presta' });
+      document.body.append(racine);
+      try {
+        const ecran = ep.monterPrestas(racine, { actions: {}, resumeMur: () => 'résumé', proportionsMur: (m) => pr.proportionsMur(m, { ficheDalle: fiche }) });
+        ecran.afficher(etat, { persistant: true });
+        const murs = [...racine.querySelectorAll('.pr-mur')];
+        const vignette = murs[0].querySelector('.pr-vignette');
+        const r = vignette?.getBoundingClientRect();
+        const nom = murs[0].querySelector('.pr-mur-nom').getBoundingClientRect();
+        v.vrai(`vignette du mur en Dalles : 44 × 28 px au plus, proportions 2:1 (${r ? `${r.width.toFixed(1)} × ${r.height.toFixed(1)}` : 'aucune'}), à gauche du nom, cachée aux lecteurs d'écran`,
+          r && r.width <= 44.5 && r.height <= 28.5 && Math.abs(r.width / r.height - 2) < 0.05 && r.right <= nom.left + 0.5 && vignette.getAttribute('aria-hidden') === 'true');
+        v.egal('mur en zones : pas de vignette', murs[1].querySelector('.pr-vignette'), null);
+        v.egal('résumé écrit inchangé', texteDe(murs[0].querySelector('.pr-mur-resume')), 'résumé');
+      } finally {
+        racine.remove();
+        retirer();
       }
     },
   },

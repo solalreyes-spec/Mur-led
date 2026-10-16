@@ -602,7 +602,10 @@ export function seuilZones(m, dalle, proc, contexte, nombre) {
         }));
         let n = null;
         try {
-          n = decouper(murZones(dalle, zones, m.saisie.options), dalle, proc, contexte).nombre;
+          const reduit = murZones(dalle, zones, m.saisie.options);
+          // Grand mur (11-0) : le découpage ne descend jamais sous le contrôle des pixels ; s'il garde déjà `nombre`
+          // processeurs, le découpage complet (le plus long) n'apprendrait rien.
+          if (Math.ceil(reduit.pxTotal / proc.pixelsMax) < nombre) n = decouper(reduit, dalle, proc, contexte).nombre;
         } catch (erreur) {
           if (!(erreur instanceof ErreurSaisie)) throw erreur;
         }

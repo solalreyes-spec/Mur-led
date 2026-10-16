@@ -131,7 +131,7 @@ function contrasteLook(a, b) {
 }
 const FAMILLES_LOOK = {
   image: '#b08cff', donnees: '#4da3ff', electricite: '#ffa53d', accroche: '#5bd48c',
-  depannage: '#ff6b7f', base: '#a3abb8', apprendre: '#f2d34b', regie: '#3fd0c9',
+  depannage: '#ff6b7f', base: '#a3abb8', apprendre: '#f2d34b', regie: '#3fd0c9', presta: '#e879f9',
 };
 
 export const DONNEES = [

@@ -27,9 +27,10 @@
   <header class="entete entete-app">
     <div class="titre-app">
       <h1><span class="logo-barres" aria-hidden="true"><span></span><span></span><span></span></span>Mur LED</h1>
-      <button id="bouton-presta" class="bouton bouton-presta" type="button" aria-haspopup="dialog" aria-label="Prestas : Presta sans nom, Mur 1"><span class="bp-lignes"><span class="bp-presta">Presta sans nom</span><span class="bp-mur">Mur 1</span></span></button>
       <span id="version-appli" class="version-appli"></span>
     </div>
+    <!-- Fil d'Ariane de la presta (étape 11d) : sous le titre, en pleine largeur, ouvre l'écran Prestas. -->
+    <button id="bouton-presta" class="bouton bouton-presta" data-famille="presta" type="button" aria-haspopup="dialog" aria-label="Prestas : Presta sans nom, Mur 1"><span class="bp-pastille" aria-hidden="true"></span><span class="bp-presta">Presta sans nom</span><span class="bp-sep" aria-hidden="true">›</span><span class="bp-mur">Mur 1</span></button>
     <div class="outils-entete">
       <button id="tout-copier" class="bouton bouton-petit" type="button"><svg class="icone-bouton" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span>Tout copier</span></button>
       <button id="mode-rouge" class="bouton bouton-petit" type="button" aria-pressed="false"><svg class="icone-bouton" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><span>Mode rouge</span></button>
@@ -39,7 +40,7 @@
   <p id="etat-copie-global" class="etat-copie entete" aria-live="polite"></p>
   <div id="bandeau-maj" class="bandeau-maj" role="status" hidden>
     <span>Une nouvelle version de l'appli est prête.</span>
-    <button id="recharger" class="bouton bouton-petit" type="button">Recharger</button>
+    <button id="recharger" class="bouton bouton-petit bouton-principal" type="button">Recharger</button>
   </div>
 
   <nav class="onglets" aria-label="Modules">
@@ -153,6 +154,8 @@
           <p id="note-demi-zones" class="note" hidden>Demi-dalles en mode Zones : étape 9b.</p>
         </div>
         <input name="zones" type="text" hidden value="">
+        <!-- Erreur de saisie du Mur (étape 11d) : juste sous les champs qui la causent. -->
+        <div id="erreur-mur" class="erreur-mur" aria-live="polite"></div>
 
         <div id="bloc-demi" class="bloc-demi" hidden>
           <label class="case"><input type="checkbox" name="demi"><span id="libelle-demi">Demi-dalles disponibles</span></label>
@@ -169,12 +172,13 @@
       </form>
 
       <div class="barre-copie">
-        <button class="bouton bouton-petit" type="button" data-copier="mur">Copier les résultats</button>
+        <button class="bouton bouton-petit" type="button" data-icone="copier" data-copier="mur">Copier les résultats</button>
         <span class="etat-copie" aria-live="polite"></span>
       </div>
       <!-- Mire de mapping et fiche contenu : écran plein ouvert d'ici (et du Dépannage), pas un onglet de plus. -->
       <div class="barre-mire">
         <button id="bouton-mire" class="bouton" type="button">Mire et fiche contenu</button>
+        <p id="note-mire" class="note note-mire" hidden>Mire indisponible : corrige le mur.</p>
       </div>
       <div id="resultats" class="resultats" aria-live="polite"></div>
     </section>
@@ -327,7 +331,7 @@
       </form>
 
       <div class="barre-copie">
-        <button class="bouton bouton-petit" type="button" data-copier="data">Copier les résultats</button>
+        <button class="bouton bouton-petit" type="button" data-icone="copier" data-copier="data">Copier les résultats</button>
         <span class="etat-copie" aria-live="polite"></span>
       </div>
       <div id="resultats-data" class="resultats" aria-live="polite"></div>
@@ -336,7 +340,7 @@
         <h3 id="titre-depart">Avant de partir</h3>
         <div id="liste-depart"></div>
         <div class="barre-copie">
-          <button class="bouton bouton-petit" type="button" data-copier="depart">Copier la check-list</button>
+          <button class="bouton bouton-petit" type="button" data-icone="copier" data-copier="depart">Copier la check-list</button>
           <span class="etat-copie" aria-live="polite"></span>
         </div>
       </section>
@@ -349,7 +353,7 @@
         <p class="note">Source envoyée à chaque processeur : un bloc par processeur, placé en haut à gauche de son image.</p>
         <div id="etat-source" class="etat-source">
           <p id="texte-source" class="note"></p>
-          <button id="bouton-conseil" class="bouton" type="button" hidden>Revenir à la source conseillée</button>
+          <button id="bouton-conseil" class="bouton bouton-discret" type="button" hidden>Revenir à la source conseillée</button>
         </div>
         <div class="champ">
           <label for="source-sortie">Sortie du serveur</label>
@@ -518,7 +522,7 @@
       </form>
 
       <div class="barre-copie">
-        <button class="bouton bouton-petit" type="button" data-copier="canvas">Copier les résultats</button>
+        <button class="bouton bouton-petit" type="button" data-icone="copier" data-copier="canvas">Copier les résultats</button>
         <span class="etat-copie" aria-live="polite"></span>
       </div>
       <div id="resultats-canvas" class="resultats" aria-live="polite"></div>
@@ -579,7 +583,7 @@
       </form>
 
       <div class="barre-copie">
-        <button class="bouton bouton-petit" type="button" data-copier="elec">Copier les résultats</button>
+        <button class="bouton bouton-petit" type="button" data-icone="copier" data-copier="elec">Copier les résultats</button>
         <span class="etat-copie" aria-live="polite"></span>
       </div>
       <div id="resultats-elec" class="resultats" aria-live="polite"></div>
@@ -671,7 +675,7 @@
       </form>
 
       <div class="barre-copie">
-        <button class="bouton bouton-petit" type="button" data-copier="poids">Copier les résultats</button>
+        <button class="bouton bouton-petit" type="button" data-icone="copier" data-copier="poids">Copier les résultats</button>
         <span class="etat-copie" aria-live="polite"></span>
       </div>
       <div id="resultats-poids" class="resultats" aria-live="polite"></div>
@@ -756,7 +760,7 @@
       </form>
 
       <div class="barre-copie">
-        <button class="bouton bouton-petit" type="button" data-copier="schema">Copier les résultats</button>
+        <button class="bouton bouton-petit" type="button" data-icone="copier" data-copier="schema">Copier les résultats</button>
         <span class="etat-copie" aria-live="polite"></span>
       </div>
 
@@ -766,7 +770,7 @@
         <label class="case"><input id="export-mire" type="checkbox"><span>Mire : grille, cercles, diagonales</span></label>
         <label class="case"><input id="export-numeros" type="checkbox"><span>Numéros des dalles</span></label>
         <ul id="liste-exports" class="liste-exports"></ul>
-        <button id="export-schema" class="bouton" type="button">Schéma de câblage en image (PNG)</button>
+        <button id="export-schema" class="bouton" type="button" data-icone="partager">Schéma de câblage en image (PNG)</button>
         <p id="etat-export" class="etat-copie" aria-live="polite"></p>
       </section>
     </section>
@@ -785,7 +789,7 @@
       <section class="carte formulaire">
         <h3>Configuration en cours</h3>
         <p class="note">Les saisies de chaque onglet sont gardées automatiquement avec le mur ouvert de ta presta (bouton en haut de l'écran) et reviennent à la prochaine ouverture.</p>
-        <button id="reglages-defaut" class="bouton" type="button">Repartir des réglages par défaut</button>
+        <button id="reglages-defaut" class="bouton bouton-danger" type="button" data-icone="revenir">Repartir des réglages par défaut</button>
         <p class="note">Le mur ouvert seulement : les autres murs et les autres prestas ne changent pas.</p>
       </section>
 
@@ -796,7 +800,7 @@
         <div id="fiches-retirees"></div>
         <form id="form-parc" class="ligne-saisie" novalidate>
           <input name="nom" type="text" autocomplete="off" placeholder="Nom du prestataire" aria-label="Nom du nouveau parc">
-          <button class="bouton" type="submit">Créer le parc</button>
+          <button class="bouton bouton-principal" type="submit" data-icone="ajouter">Créer le parc</button>
         </form>
       </section>
 
@@ -852,7 +856,7 @@
             <textarea id="json-fiche" rows="12" spellcheck="false"></textarea>
           </div>
           <div id="rapport-json"></div>
-          <button id="enregistrer-json" class="bouton" type="button" disabled>Enregistrer</button>
+          <button id="enregistrer-json" class="bouton bouton-principal" type="button" data-icone="enregistrer" disabled>Enregistrer</button>
         </div>
         <details class="fiche">
           <summary>Consigne pour Claude et modèle de JSON</summary>
@@ -868,7 +872,7 @@
               </select>
             </div>
             <textarea id="consigne-texte" rows="10" readonly></textarea>
-            <button id="copier-consigne" class="bouton" type="button">Copier la consigne et le modèle</button>
+            <button id="copier-consigne" class="bouton" type="button" data-icone="copier">Copier la consigne et le modèle</button>
           </div>
         </details>
       </section>
@@ -877,7 +881,7 @@
         <h3>Sauvegarde et partage</h3>
         <label class="case"><input id="exporter-tout" type="checkbox"><span>Tout exporter, base de départ comprise</span></label>
         <label class="case"><input id="exporter-fichiers" type="checkbox"><span id="libelle-exporter-fichiers">Inclure les fichiers joints</span></label>
-        <button id="exporter" class="bouton" type="button">Exporter en JSON</button>
+        <button id="exporter" class="bouton" type="button" data-icone="partager">Exporter en JSON</button>
         <div class="champ">
           <label for="fichier-import">Importer un fichier JSON</label>
           <input id="fichier-import" type="file" accept="application/json,.json">
@@ -910,7 +914,7 @@
   <div id="mire-fiche" class="montage mire-fiche" data-famille="image" role="dialog" aria-modal="true" aria-labelledby="mire-fiche-titre" hidden>
     <header class="montage-haut">
       <h2 id="mire-fiche-titre" class="mire-fiche-titre">Mire et fiche contenu</h2>
-      <button id="mire-fermer" class="bouton" type="button">Fermer</button>
+      <button id="mire-fermer" class="bouton" type="button" data-icone="fermer">Fermer</button>
     </header>
     <div id="ecran-mire" class="mf-defilant"></div>
   </div>
@@ -920,7 +924,7 @@
   <div id="pourquoi" class="montage pourquoi" role="dialog" aria-modal="true" aria-labelledby="pourquoi-titre" hidden>
     <header class="montage-haut">
       <h2 id="pourquoi-titre" class="pourquoi-titre">Pourquoi ?</h2>
-      <button id="pourquoi-fermer" class="bouton" type="button">Fermer</button>
+      <button id="pourquoi-fermer" class="bouton" type="button" data-icone="fermer">Fermer</button>
     </header>
     <div id="ecran-pourquoi" class="mf-defilant"></div>
   </div>
@@ -930,16 +934,16 @@
   <div id="entrainement" class="montage entrainement" data-famille="apprendre" role="dialog" aria-modal="true" aria-labelledby="entrainement-titre" hidden>
     <header class="montage-haut">
       <h2 id="entrainement-titre" class="pourquoi-titre">S'entraîner</h2>
-      <button id="entrainement-fermer" class="bouton" type="button">Fermer</button>
+      <button id="entrainement-fermer" class="bouton" type="button" data-icone="fermer">Fermer</button>
     </header>
     <div id="ecran-entrainement" class="mf-defilant"></div>
   </div>
 
   <!-- Prestas (étape 10b) : ouvert par le bouton « Presta · Mur » de l'en-tête. -->
-  <div id="prestas" class="montage prestas" data-famille="base" role="dialog" aria-modal="true" aria-labelledby="prestas-titre" hidden>
+  <div id="prestas" class="montage prestas" data-famille="presta" role="dialog" aria-modal="true" aria-labelledby="prestas-titre" hidden>
     <header class="montage-haut">
       <h2 id="prestas-titre" class="prestas-titre">Prestas</h2>
-      <button id="prestas-fermer" class="bouton" type="button">Fermer</button>
+      <button id="prestas-fermer" class="bouton" type="button" data-icone="fermer">Fermer</button>
     </header>
     <div id="ecran-prestas" class="mf-defilant pr"></div>
   </div>
@@ -952,7 +956,7 @@
         <p id="montage-sur-titre" class="montage-sur-titre"></p>
         <div class="montage-commandes">
           <button id="montage-liste" class="bouton" type="button">Tous les ports</button>
-          <button id="montage-fermer" class="bouton" type="button">Fermer</button>
+          <button id="montage-fermer" class="bouton" type="button" data-icone="fermer">Fermer</button>
         </div>
       </div>
       <div class="montage-ligne-titre">
@@ -983,7 +987,7 @@
     <div id="montage-tous" class="montage-panneau" hidden>
       <h3 id="montage-tous-titre">Tous les ports</h3>
       <ul id="montage-etapes" class="montage-etapes"></ul>
-      <button id="montage-tous-fermer" class="bouton" type="button">Revenir au port en cours</button>
+      <button id="montage-tous-fermer" class="bouton bouton-discret" type="button">Revenir au port en cours</button>
     </div>
     <div id="montage-fin" class="montage-panneau" hidden>
       <h3>Montage terminé ?</h3>
@@ -991,7 +995,7 @@
       <div class="montage-fin-actions">
         <button id="montage-retour" class="bouton bouton-principal" type="button">Revenir au Schéma</button>
         <button id="montage-autre" class="bouton" type="button">Passer à l'élec</button>
-        <button id="montage-tout-decocher" class="bouton" type="button">Tout décocher</button>
+        <button id="montage-tout-decocher" class="bouton bouton-danger" type="button" data-icone="revenir">Tout décocher</button>
       </div>
     </div>
   </div>

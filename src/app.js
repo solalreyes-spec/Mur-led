@@ -573,6 +573,7 @@ const nomDalle = (id) => [...courant.dalles, ...courant.gabarits].find((d) => d.
 const nomParcDe = (id) => base.parcs.find((p) => p.id === id)?.nom ?? null;
 ecranPrestas = monterPrestas(document.getElementById('ecran-prestas'), {
   resumeMur: (m) => prestas.resumeMur(m, { nomDalle, nomParc: nomParcDe }),
+  proportionsMur: (m) => prestas.proportionsMur(m, { ficheDalle: (id) => courant.dalles.find((x) => x.id === id) ?? null }),
   actions: {
     // Ouvrir une presta ou un mur ferme l'écran : on revient au mur.
     ouvrir: async (id, murId = null) => {

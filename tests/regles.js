@@ -6619,6 +6619,31 @@ export const REGLES = [
       ], ['BP2 V2, 3 zones', 'BP2 V2, 1 zone']);
     },
   },
+  {
+    id: 'R306',
+    titre: 'Grand mur (11-0, § 2.4) : 5 000 dalles au plus par mur, demi-dalles comptées, dans les modes Dalles, Taille, Résolution et Zones ; au-delà, erreur de saisie qui donne le nombre de dalles, la limite et la solution (plusieurs murs de la presta)',
+    etape: '11-0',
+    verifier(v) {
+      v.egal('limite : 5 000 dalles', calculs.DALLES_MAX_MUR, 5000);
+      const message = (n) => new RegExp(`^Mur de ${n.replace(' ', '\\s?')} dalles : l'appli calcule jusqu'à 5\\s?000 dalles par mur \\(au-delà, un téléphone peut manquer de mémoire\\)\\. Vérifie la saisie, ou découpe le mur en plusieurs murs de la presta\\.$`);
+      const dalles = (colonnes, lignes, options = {}) => calculs.dimensionner(DALLE_CAS_7, { mode: 'dalles', colonnes, lignes }, options);
+      v.egal('Dalles, 100 × 50 = 5 000 : accepté', [dalles(100, 50).erreurs, dalles(100, 50).mur?.dalles.total], [[], 5000]);
+      v.egal('Dalles, 1 667 × 3 = 5 001 : refusé', dalles(1667, 3).mur, null);
+      v.vrai('Dalles, 1 667 × 3 : message', message('5 001').test(dalles(1667, 3).erreurs[0] ?? ''), dalles(1667, 3).erreurs[0]);
+      v.vrai('Dalles, 200 × 40 : « Mur de 8 000 dalles »', message('8 000').test(dalles(200, 40).erreurs[0] ?? ''), dalles(200, 40).erreurs[0]);
+      const demi = (colonnes, lignes) => calculs.dimensionner(CB5, { mode: 'dalles', colonnes, lignes, rangeeDemi: true }, { demi: CB5_DEMI });
+      v.egal('demi-dalles comptées : 100 × 49 + 100 demi = 5 000, accepté', [demi(100, 49).erreurs, demi(100, 49).mur?.dalles.total], [[], 5000]);
+      v.vrai('demi-dalles comptées : 100 × 50 + 100 demi = 5 100, refusé', message('5 100').test(demi(100, 50).erreurs[0] ?? ''), demi(100, 50).erreurs[0]);
+      const taille = (largeurMm, hauteurMm) => calculs.dimensionner(DALLE_CAS_7, { mode: 'taille', largeurMm, hauteurMm });
+      v.egal('Taille, 50 × 25 m (100 × 50 dalles) : accepté', taille(50000, 25000).erreurs, []);
+      v.vrai('Taille, 100 × 20 m (200 × 40 dalles) : refusé', message('8 000').test(taille(100000, 20000).erreurs[0] ?? ''), taille(100000, 20000).erreurs[0]);
+      const resolution = calculs.dimensionner(DALLE_CAS_7, { mode: 'resolution', largeurPx: 38400, hauteurPx: 7680 });
+      v.vrai('Résolution, 38 400 × 7 680 px (200 × 40 dalles) : refusé', message('8 000').test(resolution.erreurs[0] ?? ''), resolution.erreurs[0]);
+      const enZones = (rangees) => () => calculs.murZones(DALLE_CAS_7, ['A', 'B', 'C', 'D'].map((nom) => ({ nom, colonnes: 50, rangees })), { ecarts: 'reel' });
+      v.egal('Zones, 4 × (50 × 25) = 5 000 : accepté', enZones(25)().dalles.total, 5000);
+      v.vrai('Zones, 4 × (50 × 26) = 5 200 : refusé', message('5 200').test(messageErreur(enZones(26))), messageErreur(enZones(26)));
+    },
+  },
 ];
 
 // Message de l'erreur levée par `f`, ou chaîne vide.

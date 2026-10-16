@@ -182,7 +182,7 @@ function mettreAJour() {
           ...fichesDemiMixtes(mur).map((f) => `${f.nom}, ${kg(f.poidsKg)} par demi-dalle${sourceDe(f) ? ` (${sourceDe(f)})` : ''}`)].join(' ; ')}`
       : `Mur : ${r.zones ? `${pluriel(r.zones.length, 'zone', 'zones')}, ` : ''}${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}, ${kg(r.poidsDalleKg)} par dalle`)
     + `${sourcePoids && !mur.mixte ? ` (${sourcePoids})` : ''}${r.poidsDemiKg && !mur.mixte ? ` ; demi-dalle : ${kg(r.poidsDemiKg)}` : ''}. `,
-    el('a', { href: '#mur' }, 'Modifier le mur'));
+    el('a', { href: '#mur', class: 'lien-discret' }, 'Modifier le mur'));
 
   const bumpers = r.bumpers.length
     ? el('p', { class: 'source' }, `${pluriel(r.bumpers.length, 'bumper', 'bumpers')} : ${r.bumpers.map((b) => kg(b.kg)).join(', ')}`

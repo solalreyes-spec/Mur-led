@@ -8,6 +8,16 @@ import { EPS, ErreurSaisie } from './commun.js';
 // Module 1 : dimensionnement
 // ---------------------------------------------------------------------------
 
+// Grand mur (11-0) : au-delà de 5 000 dalles, demi-dalles comptées, le mur n'est pas calculé ; un téléphone peut manquer
+// de mémoire (limite d'une page sur iPhone, environ 1,5 Go).
+export const DALLES_MAX_MUR = 5000;
+export function verifierNombreDalles(total) {
+  if (total > DALLES_MAX_MUR) {
+    throw new ErreurSaisie(`Mur de ${nombreCourt(total)} dalles : l'appli calcule jusqu'à ${nombreCourt(DALLES_MAX_MUR)} dalles par mur `
+      + '(au-delà, un téléphone peut manquer de mémoire). Vérifie la saisie, ou découpe le mur en plusieurs murs de la presta.');
+  }
+}
+
 // Pitch réel : largeur / pixels de la fiche (le pitch écrit sur la fiche est arrondi).
 export function pitchCalculeMm(dalle) {
   return dalle.largeurMm / dalle.pxH;
@@ -183,6 +193,7 @@ export function dimensionner(dalle, demande, options = {}) {
 
     const optionsMur = { demi, rangeeDemi, positionDemi };
     const base = mur(dalle, colonnes, lignes, optionsMur);
+    verifierNombreDalles(base.dalles.total);
     const variantes = VARIANTES
       .filter(({ dc, dl }) => colonnes + dc >= 1 && (lignes + dl >= 1 || (lignes + dl === 0 && rangeeDemi)))
       .map(({ libelle, dc, dl }) => {

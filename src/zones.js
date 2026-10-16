@@ -266,7 +266,7 @@ function optionsZone(etat, z, i, { dalles, demiDisponible }) {
         el('span', {}, 'Rangée de demi-dalles')),
       z.rangeeDemi ? reglage('Rangée de demi-dalles', 'positionDemi', z.positionDemi ?? 'bas', [{ valeur: 'haut', libelle: 'En haut' }, { valeur: 'bas', libelle: 'En bas' }]) : null) : null,
     el('div', { class: 'actions-zone' },
-      el('button', { type: 'button', form: HORS_FORMULAIRE, class: 'bouton bouton-petit', 'data-action': 'forme' }, 'Modifier la forme'),
+      el('button', { type: 'button', form: HORS_FORMULAIRE, class: 'bouton bouton-petit', 'data-icone': 'modifier', 'data-action': 'forme' }, 'Modifier la forme'),
       el('span', { class: 'compte-zone' }, `${presentes} ${presentes > 1 ? 'dalles' : 'dalle'} sur ${places}`)));
 }
 
@@ -388,7 +388,7 @@ export function monterEditeurZones({ saisie, mur = null, surChange = () => {}, d
       formeReelleZone(z, i, { largeurColonne }),
       el('div', { class: 'actions-zone' },
         el('button', { type: 'button', form: HORS_FORMULAIRE, class: 'bouton bouton-petit', 'data-action': 'gauche', disabled: i === 0 ? '' : null }, 'Déplacer à gauche'),
-        el('button', { type: 'button', form: HORS_FORMULAIRE, class: 'bouton bouton-petit', 'data-action': 'retirer', disabled: etat.zones.length <= 1 ? '' : null }, 'Retirer'))));
+        el('button', { type: 'button', form: HORS_FORMULAIRE, class: 'bouton bouton-petit bouton-danger', 'data-action': 'retirer', disabled: etat.zones.length <= 1 ? '' : null }, 'Retirer'))));
     const choix = el('fieldset', { class: 'segmente choix-ecarts', form: HORS_FORMULAIRE },
       el('legend', {}, 'Écarts dans la pixel map'),
       el('div', { class: 'segments' }, MODES.map((mode) => el('label', {},
@@ -396,7 +396,7 @@ export function monterEditeurZones({ saisie, mur = null, surChange = () => {}, d
         el('span', {}, LIBELLES_MODES[mode])))));
     racine.replaceChildren(
       el('ol', { class: 'liste-zones' }, cartes),
-      el('button', { type: 'button', form: HORS_FORMULAIRE, class: 'bouton', 'data-action': 'ajouter', disabled: etat.zones.length >= ZONES_MAX ? '' : null },
+      el('button', { type: 'button', form: HORS_FORMULAIRE, class: 'bouton', 'data-icone': 'ajouter', 'data-action': 'ajouter', disabled: etat.zones.length >= ZONES_MAX ? '' : null },
         `Ajouter une zone${etat.zones.length >= ZONES_MAX ? ` (${ZONES_MAX} au plus)` : ''}`),
       choix,
       el('p', { class: 'note' }, main

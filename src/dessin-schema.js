@@ -349,13 +349,74 @@ export function cadrageGuide(geo, dalles, aspect, { coin = 'haut-gauche', orient
 // colonne). `grand` : grand affichage, en vue physique seulement (traits plus épais, noms de dalle et numéros plus
 // grands) ; la vue pixels reste telle quelle : son premier pixel (« x 1056 ») va presque jusqu'au trait central.
 // Renvoie le SVG et son cadre complet.
+// Grand mur (11-0) : au-delà de 2 000 dalles, le dessin se simplifie (une bande par segment de port, sans nom ni
+// coordonnées de dalle) et le guide ne dessine que le port en cours ; mêmes ports, départs et couleurs.
+export const SEUIL_DESSIN_SIMPLIFIE = 2000;
+
+// Cadre complet d'un dessin : le mur et une marge de 12 % de son plus grand côté.
+export function cadreComplet(geo) {
+  const marge = 0.12 * Math.max(geo.largeur, geo.hauteur);
+  return { x: -marge, y: -marge, w: geo.largeur + 2 * marge, h: geo.hauteur + 2 * marge };
+}
+
+// Guide pas à pas d'un grand mur : seulement les dalles du port en cours, dans le cadre du mur entier.
+export function geometrieGuide(geo, dalles) {
+  if (geo.rects.size <= SEUIL_DESSIN_SIMPLIFIE) return geo;
+  return { ...geo, rects: new Map(dalles.filter((id) => geo.rects.has(id)).map((id) => [id, geo.rects.get(id)])), absentes: [] };
+}
+
+// Bandes du dessin simplifié : les dalles voisines d'un même trajet et d'un même fond, dans une même colonne (une même
+// rangée pour un câblage par rangées), réunies en un rectangle ; une dalle tournée reste seule.
+function bandesDalles(rects, trajets, fondDalle) {
+  const trajetDe = new Map(trajets.flatMap((t) => t.dalles.map((id) => [id, t])));
+  const groupes = new Map();
+  const seules = [];
+  for (const [id, r] of rects) {
+    if (r.rotation) {
+      seules.push({ ...r, fond: fondDalle(id, r), transform: transformDalle(r) });
+      continue;
+    }
+    const t = trajetDe.get(id);
+    const parRangees = t?.orientation === 'rangees';
+    const fond = fondDalle(id, r);
+    const cle = `${t?.cle ?? ''}|${fond}|${parRangees ? `r${r.y}|${r.h}` : `c${r.x}|${r.w}`}`;
+    if (!groupes.has(cle)) groupes.set(cle, { parRangees, fond, rects: [] });
+    groupes.get(cle).rects.push(r);
+  }
+  const bandes = [];
+  for (const { parRangees, fond, rects: liste } of groupes.values()) {
+    const [debut, longueur] = parRangees ? ['x', 'w'] : ['y', 'h'];
+    liste.sort((a, b) => a[debut] - b[debut]);
+    let b = null;
+    for (const r of liste) {
+      if (b && r[debut] <= b[debut] + b[longueur] + 1e-6 * r[longueur]) {
+        b[longueur] = Math.max(b[longueur], r[debut] + r[longueur] - b[debut]);
+      } else {
+        b = { x: r.x, y: r.y, w: r.w, h: r.h, fond };
+        bandes.push(b);
+      }
+    }
+  }
+  return [...bandes, ...seules];
+}
+
+// Points d'un trajet sans ses points alignés (dessin simplifié) : le trait est le même, avec une flèche à chaque coude.
+function sansPointsAlignes(points) {
+  return points.filter((p, i) => {
+    if (i === 0 || i === points.length - 1) return true;
+    const [a, b] = [points[i - 1], points[i + 1]];
+    return Math.abs((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) > 1e-9 * (Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1])) ** 2;
+  });
+}
+
 export function construireSvg({
   geo, trajets, coin, blocs = [], palette = PALETTE_ECRAN, cadrage = null, selection = null, dalleChoisie = null, largeurPx = null,
-  repere = null, ordre = null, grand = false,
+  repere = null, ordre = null, grand = false, simplifie = null,
 }) {
   const { largeur, hauteur, rects } = geo;
   const marge = 0.12 * Math.max(largeur, hauteur);
-  const complet = { x: -marge, y: -marge, w: largeur + 2 * marge, h: hauteur + 2 * marge };
+  const complet = cadreComplet(geo);
+  const simple = simplifie ?? rects.size > SEUIL_DESSIN_SIMPLIFIE;
   const vue = cadrage ?? complet;
   const cote = Math.min(...[...rects.values()].map((r) => Math.min(r.w, r.h)));
   const grandPhysique = grand && geo.unite !== 'px';
@@ -383,7 +444,10 @@ export function construireSvg({
     const taille = Math.min(cote * 0.11, (cote * 0.3) / (0.62 * plusLong));
     return ligne(r.x + bordTexte, r.y + r.h - bordTexte - taille * 1.35, taille, lignesCoord);
   };
-  const tuiles = [...rects.entries()].map(([id, r]) => {
+  const tuiles = simple ? bandesDalles(rects, trajets, fondDalle).map((b) => svg('rect', {
+    class: 'bande', x: b.x, y: b.y, width: b.w, height: b.h, transform: b.transform ?? null,
+    style: `fill: ${b.fond}; stroke: ${palette.bord}`, 'stroke-width': cote * 0.015,
+  })) : [...rects.entries()].map(([id, r]) => {
     const choisie = id === dalleChoisie;
     const tailleNom = cote * (grandPhysique ? 0.177 : 0.16);
     return svg('g', { 'data-dalle': id, transform: transformDalle(r) },
@@ -537,7 +601,7 @@ export function construireSvg({
     const lisere = t.couleur?.lisere ? `fill: none; stroke: ${palette.lisere}` : null;
     const texteNumero = t.couleur ? palette.texteSur(t.couleur) : palette.fond;
     const contour = t.couleur?.lisere ? palette.lisere : couleur;
-    const listePoints = points.map((p) => p.join(',')).join(' ');
+    const listePoints = (simple ? sansPointsAlignes(points) : points).map((p) => p.join(',')).join(' ');
     return svg('g', { 'data-trajet': t.cle, class: actif ? null : 'attenue' },
       lisere ? svg('line', { class: 'lisere', x1: xd, y1: yd, x2: x0, y2: y0, style: lisere, 'stroke-width': largeurTrait * 1.5, 'stroke-linecap': 'round' }) : null,
       lisere ? svg('polyline', {
@@ -565,7 +629,8 @@ export function construireSvg({
         class: 'numero-trajet', x: xd, y: yd, 'font-size': police * (t.etiquette.length > 3 ? 0.62 : 0.95), style: `fill: ${texteNumero}`,
         'font-weight': 700, 'text-anchor': 'middle', 'dominant-baseline': 'central',
       }, t.etiquette),
-      t.cle === ordre ? numerosOrdre(t, ids, points, couleur, texteNumero, contour) : numerosSurTrajet(t, points, couleur, texteNumero, contour));
+      // Dessin simplifié : le numéro au départ seulement (pas de pastille sur chaque colonne).
+      t.cle === ordre ? numerosOrdre(t, ids, points, couleur, texteNumero, contour) : simple ? null : numerosSurTrajet(t, points, couleur, texteNumero, contour));
   });
 
   // Repère du processeur (ou de l'armoire) au coin de départ, hors du mur, du côté des départs ; les câbles de tête
@@ -600,6 +665,7 @@ export function construireSvg({
 
   const hauteurPx = largeurPx ? Math.round((largeurPx * complet.h) / complet.w) : null;
   const racine = svg('svg', {
+    class: simple ? 'simplifie' : null,
     viewBox: `${vue.x} ${vue.y} ${vue.w} ${vue.h}`,
     width: largeurPx,
     height: hauteurPx,

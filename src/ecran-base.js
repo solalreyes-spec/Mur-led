@@ -106,7 +106,7 @@ function afficherEtatFichiers() {
   const orphelins = surAppareil.filter((f) => !idsDecrits.has(f.id));
   let nettoyer = null;
   if (orphelins.length) {
-    nettoyer = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Les effacer de cet appareil');
+    nettoyer = el('button', { type: 'button', class: 'bouton bouton-petit bouton-danger' }, 'Les effacer de cet appareil');
     nettoyer.addEventListener('click', async () => {
       if (!confirm(`Effacer de cet appareil ${pluriel(orphelins.length, 'fichier', 'fichiers')} rattaché${orphelins.length > 1 ? 's' : ''} à aucun lot (${orphelins.map((f) => f.nom).join(', ')}) ?`)) return;
       await effacerFichiers(orphelins);
@@ -160,7 +160,7 @@ function afficherFichesRetirees() {
     el('p', {}, `${liste.length > 1 ? `${nombre(liste.length)} fiches retirées` : 'Une fiche retirée'} de la base de départ `
       + `(par exemple les fiches LEDCAST, une erreur de marque) ${liste.length > 1 ? 'sont encore citées' : 'est encore citée'} par un parc :`),
     el('ul', { class: 'rappels' }, liste.map((x) => {
-      const bouton = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Retirer du parc');
+      const bouton = el('button', { type: 'button', class: 'bouton bouton-petit bouton-danger' }, 'Retirer du parc');
       bouton.addEventListener('click', async () => {
         const joints = fichiersDe(x.parcId, x.id);
         if (!confirm(`Retirer ${x.id} du parc « ${x.parcNom} »${x.reglage ? ', avec son réglage' : ''}${x.lots ? ` et ${pluriel(x.lots, 'lot', 'lots')}` : ''}${avecFichiers(joints)} ?`)) return;
@@ -183,7 +183,7 @@ function afficherParcs() {
         if (nom && nom !== parc.nom) enregistrer(renommerParc(ctx.base, parc.id, nom));
         else champ.value = parc.nom;
       });
-      const bouton = el('button', { class: 'bouton bouton-discret', type: 'button' }, 'Supprimer');
+      const bouton = el('button', { class: 'bouton bouton-danger', type: 'button' }, 'Supprimer');
       bouton.addEventListener('click', async () => {
         const joints = fichiersDe(parc.id, null);
         if (!confirm(`Supprimer le parc « ${parc.nom} »${avecFichiers(joints)} ? Ses fiches restent dans la base.`)) return;
@@ -251,7 +251,7 @@ function formulaireReglage(parc, brute, resolue) {
   const formulaire = el('form', { class: 'formulaire reglage-parc', novalidate: '' },
     el('p', { class: 'compte' }, 'Laisse vide pour garder la valeur de la fiche.'),
     champs,
-    el('button', { class: 'bouton', type: 'submit' }, 'Enregistrer pour ce parc'));
+    el('button', { class: 'bouton bouton-principal', type: 'submit', 'data-icone': 'enregistrer' }, 'Enregistrer pour ce parc'));
   formulaire.addEventListener('submit', (evenement) => {
     evenement.preventDefault();
     const donnees = new FormData(formulaire);
@@ -388,7 +388,7 @@ async function preparerPartage(joint, zone) {
     remplacer(zone, el('p', { class: 'note' }, NOTE_TELECHARGEMENT_CONFIG));
     return;
   }
-  const partager = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Partager maintenant');
+  const partager = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-icone': 'partager' }, 'Partager maintenant');
   partager.addEventListener('click', async () => {
     const { mode, note } = await partagerFichier(f.contenu, f.nom, type);
     remplacer(zone, el('p', { class: 'note' }, { partage: `${f.nom} partagé.`, annule: 'Partage annulé.', telechargement: note }[mode]));
@@ -415,9 +415,9 @@ function elementFichierJoint(parc, brute, lot, config, role) {
       el('div', { class: 'champ' }, el('label', { for: id }, `${NOMS_ROLE[role]}${extensions} : joindre un fichier`), choix),
       zone);
   }
-  const partager = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Partager le fichier');
+  const partager = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-icone': 'partager' }, 'Partager le fichier');
   partager.addEventListener('click', () => preparerPartage(joint, zone));
-  const retirer = el('button', { type: 'button', class: 'bouton bouton-petit bouton-discret' }, 'Retirer');
+  const retirer = el('button', { type: 'button', class: 'bouton bouton-petit bouton-danger' }, 'Retirer');
   retirer.addEventListener('click', async () => {
     if (!confirm(`Retirer ${joint.nom} et l'effacer de cet appareil ?`)) return;
     await effacerFichiers([joint]);
@@ -467,7 +467,7 @@ function elementConfig(parc, brute, lot, config) {
   const champs = CHAMPS_CONFIG_FORMULAIRE[logiciel];
   const formulaire = el('form', { class: 'formulaire', novalidate: '' },
     champs.map((nom) => champConfig(`config-${parc.id}-${brute.id}-${lot.id}-${logiciel}`, logiciel, nom, config[nom])),
-    el('button', { class: 'bouton', type: 'submit' }, 'Enregistrer la config'));
+    el('button', { class: 'bouton bouton-principal', type: 'submit', 'data-icone': 'enregistrer' }, 'Enregistrer la config'));
   formulaire.addEventListener('submit', (evenement) => {
     evenement.preventDefault();
     const donnees = new FormData(formulaire);
@@ -475,7 +475,7 @@ function elementConfig(parc, brute, lot, config) {
       { logiciel, ...Object.fromEntries(champs.map((n) => [n, donnees.get(n)])) }));
     if (nouvelle) enregistrer(nouvelle);
   });
-  const retirer = el('button', { type: 'button', class: 'bouton bouton-discret' }, `Retirer la config ${logiciel}`);
+  const retirer = el('button', { type: 'button', class: 'bouton bouton-danger' }, `Retirer la config ${logiciel}`);
   retirer.addEventListener('click', async () => {
     const joints = fichiersDe(parc.id, brute.id, lot.id, logiciel);
     if (!confirm(`Retirer la config ${logiciel} du lot « ${lot.identifiant} »${avecFichiers(joints)} ?`)) return;
@@ -504,7 +504,7 @@ function elementLot(parc, brute, resolue, lot) {
     champTexte(`${prefixe}-identifiant`, 'identifiant', 'Identifiant ou date du lot', lot.identifiant),
     champTexte(`${prefixe}-quantite`, 'quantite', 'Quantité (dalles)', lot.quantite, { inputmode: 'numeric' }),
     champTexte(`${prefixe}-notes`, 'notes', 'Notes', lot.notes),
-    el('button', { class: 'bouton', type: 'submit' }, 'Enregistrer le lot'));
+    el('button', { class: 'bouton bouton-principal', type: 'submit', 'data-icone': 'enregistrer' }, 'Enregistrer le lot'));
   formulaire.addEventListener('submit', (evenement) => {
     evenement.preventDefault();
     const donnees = new FormData(formulaire);
@@ -518,12 +518,12 @@ function elementLot(parc, brute, resolue, lot) {
   const conseille = LOGICIEL_DE_MARQUE[normaliser(reglageDalleParc(ctx.base, parc.id, brute.id)?.carteReceptionMarque ?? resolue.carteReceptionMarque)];
   const choix = el('select', { 'aria-label': `Logiciel de la nouvelle config du lot ${lot.identifiant}` },
     [...libres.filter((l) => l === conseille), ...libres.filter((l) => l !== conseille)].map((l) => el('option', { value: l }, NOMS_LOGICIEL[l])));
-  const ajouter = el('button', { type: 'button', class: 'bouton' }, 'Ajouter une config');
+  const ajouter = el('button', { type: 'button', class: 'bouton', 'data-icone': 'ajouter' }, 'Ajouter une config');
   ajouter.addEventListener('click', () => {
     const nouvelle = essayer(zone, () => reglerConfigLot(ctx.base, parc.id, brute.id, lot.id, { logiciel: choix.value }));
     if (nouvelle) enregistrer(nouvelle);
   });
-  const supprimer = el('button', { type: 'button', class: 'bouton bouton-discret' }, 'Supprimer le lot');
+  const supprimer = el('button', { type: 'button', class: 'bouton bouton-danger' }, 'Supprimer le lot');
   supprimer.addEventListener('click', async () => {
     const joints = fichiersDe(parc.id, brute.id, lot.id);
     if (!confirm(`Supprimer le lot « ${lot.identifiant} »${avecFichiers(joints)} ?`)) return;
@@ -556,7 +556,7 @@ function sectionLots(parc, brute, resolue) {
     champTexte(`${prefixe}-identifiant`, 'identifiant', 'Identifiant ou date du lot', null),
     champTexte(`${prefixe}-quantite`, 'quantite', 'Quantité (dalles, facultatif)', null, { inputmode: 'numeric' }),
     champTexte(`${prefixe}-notes`, 'notes', 'Notes (facultatif)', null),
-    el('button', { class: 'bouton', type: 'submit' }, 'Ajouter le lot'));
+    el('button', { class: 'bouton bouton-principal', type: 'submit', 'data-icone': 'ajouter' }, 'Ajouter le lot'));
   formulaire.addEventListener('submit', (evenement) => {
     evenement.preventDefault();
     const donnees = new FormData(formulaire);
@@ -589,7 +589,7 @@ function formulaireLogiciel(parc, brute, resolue) {
     champTexte(`${prefixe}-version`, 'version', `Version de ${logiciel} ou du firmware, dans ce parc`, actuel.version, { placeholder: 'non relevée' }),
     champTexte(`${prefixe}-date`, 'dateReleve', 'Date du relevé', actuel.dateReleve, { type: 'date' }),
     el('p', { class: 'compte' }, 'Laisse la version vide pour retirer le relevé.'),
-    el('button', { class: 'bouton', type: 'submit' }, 'Enregistrer pour ce parc'));
+    el('button', { class: 'bouton bouton-principal', type: 'submit', 'data-icone': 'enregistrer' }, 'Enregistrer pour ce parc'));
   formulaire.addEventListener('submit', (evenement) => {
     evenement.preventDefault();
     const donnees = new FormData(formulaire);
@@ -614,11 +614,11 @@ function elementFiche(type, { brute, resolue }) {
   });
 
   const actions = [];
-  const boutonModifier = el('button', { class: 'bouton', type: 'button' }, 'Modifier');
+  const boutonModifier = el('button', { class: 'bouton', type: 'button', 'data-icone': 'modifier' }, 'Modifier');
   boutonModifier.addEventListener('click', () => modifierFiche(type, brute));
   actions.push(boutonModifier);
   if (brute.statutBase === 'modifiee') {
-    const bouton = el('button', { class: 'bouton', type: 'button' }, 'Revenir à l\'original');
+    const bouton = el('button', { class: 'bouton bouton-danger', type: 'button', 'data-icone': 'revenir' }, 'Revenir à l\'original');
     bouton.addEventListener('click', () => {
       if (confirm(`Revenir à la fiche d'origine de ${resolue.nom} ? Ta version modifiée sera effacée.`)) {
         enregistrer(supprimerFiche(ctx.base, type, brute.id));
@@ -627,7 +627,7 @@ function elementFiche(type, { brute, resolue }) {
     actions.push(bouton);
   }
   if (brute.statutBase === 'ajoutee') {
-    const bouton = el('button', { class: 'bouton', type: 'button' }, 'Supprimer');
+    const bouton = el('button', { class: 'bouton bouton-danger', type: 'button' }, 'Supprimer');
     bouton.addEventListener('click', () => {
       if (confirm(`Supprimer ta fiche ${resolue.nom} ? Exporte ta base avant si tu veux la garder.`)) {
         enregistrer(supprimerFiche(ctx.base, type, brute.id));
@@ -643,7 +643,9 @@ function elementFiche(type, { brute, resolue }) {
         brute.statutBase === 'modifiee' ? badge('version modifiée', 'badge-info') : null,
         brute.statutBase === 'ajoutee' ? badge('ma fiche', 'badge-reussi') : null,
         brute.statut === 'information' ? badge('information, à compléter', 'badge-alerte')
-          : (manquants.length ? badge(type === 'dalle' ? 'incomplète' : 'à compléter', 'badge-alerte') : null),
+          // Badge « incomplète » sur les fiches du parc actif seulement (étape 11c) : en « Tous », une ligne de compte.
+          : (manquants.length && ctx.parcActif && estMembre(ctx.base, ctx.parcActif, type, brute.id)
+            ? badge(type === 'dalle' ? 'incomplète' : 'à compléter', 'badge-alerte') : null),
         parcs.filter((p) => estMembre(ctx.base, p.id, type, brute.id)).map((p) => {
           if (type === 'processeur') {
             const l = logicielParc(ctx.base, p.id, brute.id);
@@ -688,8 +690,12 @@ function afficherFiches() {
         : 'Aucune fiche pour l\'instant.'));
     return;
   }
+  const incompletes = ctx.parcActif ? 0
+    : liste.filter(({ brute, resolue }) => brute.statut !== 'information' && champsManquantsFiche(type, resolue).length).length;
   remplacer($('liste-fiches'), liste.length
-    ? liste.map((f) => elementFiche(type, f))
+    ? [incompletes ? el('li', { class: 'compte compte-incompletes' },
+      `${incompletes} fiche${incompletes > 1 ? 's' : ''} incomplète${incompletes > 1 ? 's' : ''} : choisis un parc pour voir les tiennes.`) : null,
+    ...liste.map((f) => elementFiche(type, f))]
     : el('li', { class: 'compte' }, 'Aucune fiche.'));
 }
 

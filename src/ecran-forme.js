@@ -41,7 +41,7 @@ export function ouvrirForme({ zone, surChange = () => {}, surFermer = () => {} }
       el('div', { class: 'montage-haut' },
         el('p', { class: 'montage-sur-titre' }, 'Forme de la zone'),
         el('div', { class: 'montage-commandes' },
-          el('button', { type: 'button', class: 'bouton', 'data-action': 'remettre' }, 'Tout remettre'),
+          el('button', { type: 'button', class: 'bouton bouton-danger', 'data-icone': 'revenir', 'data-action': 'remettre' }, 'Tout remettre'),
           el('button', { type: 'button', class: 'bouton bouton-principal', 'data-action': 'fermer' }, 'Retour'))),
       el('div', { class: 'montage-ligne-titre' }, el('h2', { id: titreId }, `Forme de ${zone.nom}`)),
       compte,

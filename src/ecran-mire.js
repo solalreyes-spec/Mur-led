@@ -151,7 +151,7 @@ export function monterMireFiche(racine, donnees, {
   const apercu = (a) => el('figure', { class: 'mf-figure' },
     el('img', { src: a.url, alt: `Mire ${a.nom}` }),
     el('figcaption', {}, `${a.nom}, ${a.largeur} × ${a.hauteur} px`),
-    el('button', { type: 'button', class: 'bouton mf-enregistrer' }, 'Enregistrer la mire'));
+    el('button', { type: 'button', class: 'bouton bouton-principal mf-enregistrer', 'data-icone': 'enregistrer' }, 'Enregistrer la mire'));
 
   function dessinerFiche(r) {
     if (!r) {
@@ -188,8 +188,8 @@ export function monterMireFiche(racine, donnees, {
       el('h3', { class: 'mf-intertitre' }, 'Texte à envoyer'),
       el('pre', { class: 'mf-texte' }, etat.texte),
       el('div', { class: 'mf-boutons' },
-        el('button', { type: 'button', class: 'bouton mf-copier' }, 'Copier le texte'),
-        el('button', { type: 'button', class: 'bouton mf-partager' }, etat.partage ? 'Partager le texte et la mire' : 'Préparer le partage (texte et mire)')),
+        el('button', { type: 'button', class: 'bouton mf-copier', 'data-icone': 'copier' }, 'Copier le texte'),
+        el('button', { type: 'button', class: 'bouton bouton-principal mf-partager', 'data-icone': 'partager' }, etat.partage ? 'Partager le texte et la mire' : 'Préparer le partage (texte et mire)')),
       el('p', { class: 'mf-note mf-etat', 'aria-live': 'polite' }),
       listeSources());
   }

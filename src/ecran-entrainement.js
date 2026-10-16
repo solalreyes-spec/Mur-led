@@ -54,7 +54,7 @@ export function monterEntrainement(racine, {
     remplacer(racine,
       el('p', { class: 'en-intro' }, INTRO),
       el('div', { class: 'en-modes' },
-        el('button', { type: 'button', class: 'bouton en-mode', 'data-mode': 'jour' }, 'Séance du jour'),
+        el('button', { type: 'button', class: 'bouton bouton-principal en-mode', 'data-mode': 'jour' }, 'Séance du jour'),
         el('button', { type: 'button', class: 'bouton en-mode', 'data-mode': 'essentiels' }, 'Les 5 essentiels'),
         el('button', { type: 'button', class: 'bouton en-mode', 'data-mode': 'famille', 'aria-expanded': String(etat.familles) }, 'Par famille')),
       etat.familles ? el('div', { class: 'en-familles' }, ...donnees.familles.map((f) => el('button', { type: 'button', class: 'bouton en-famille', 'data-famille': f.id }, f.titre))) : null,
@@ -65,9 +65,9 @@ export function monterEntrainement(racine, {
         ? el('div', { class: 'en-confirmation' },
           el('p', {}, 'Effacer toute ta progression ? Toutes les questions repartent sans boîte.'),
           el('div', { class: 'en-boutons' },
-            el('button', { type: 'button', class: 'bouton en-confirmer' }, 'Oui, effacer'),
-            el('button', { type: 'button', class: 'bouton en-annuler' }, 'Annuler')))
-        : el('button', { type: 'button', class: 'bouton en-effacer' }, 'Effacer ma progression'));
+            el('button', { type: 'button', class: 'bouton bouton-danger en-confirmer' }, 'Oui, effacer'),
+            el('button', { type: 'button', class: 'bouton bouton-discret en-annuler' }, 'Annuler')))
+        : el('button', { type: 'button', class: 'bouton bouton-danger en-effacer' }, 'Effacer ma progression'));
   }
 
   // --- Séance -------------------------------------------------------------------------------------------------------
@@ -169,13 +169,13 @@ export function monterEntrainement(racine, {
       ligneStockage(),
       el('div', { class: 'en-boutons' },
         el('button', { type: 'button', class: 'bouton bouton-principal en-encore' }, 'Encore 5 questions'),
-        el('button', { type: 'button', class: 'bouton en-fermer' }, 'Fermer')));
+        el('button', { type: 'button', class: 'bouton en-fermer', 'data-icone': 'fermer' }, 'Fermer')));
   }
 
   // --- Fiche lue depuis le mode : « Retour » ramène à la question ou au bilan, dans le même état ---------------------
   function dessinerFiche() {
     const contenu = el('div');
-    remplacer(racine, el('div', { class: 'en-barre' }, el('button', { type: 'button', class: 'bouton en-retour' }, 'Retour')), contenu);
+    remplacer(racine, el('div', { class: 'en-barre' }, el('button', { type: 'button', class: 'bouton bouton-discret en-retour' }, 'Retour')), contenu);
     monterPourquoi(contenu, pourquoi, { enLigne, versListe: false }).afficherFiche(etat.fiche);
   }
 

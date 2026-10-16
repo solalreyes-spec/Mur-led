@@ -29,7 +29,7 @@ export function ficheDuTexte(table, ecran, element, texte) {
 }
 
 function boutonPourquoi(fiche, ouvrir) {
-  const b = el('button', { type: 'button', class: 'bouton bouton-petit lien-pourquoi', 'data-fiche': fiche, 'aria-label': `Pourquoi ? Fiche ${fiche}` }, 'Pourquoi ?');
+  const b = el('button', { type: 'button', class: 'bouton bouton-petit bouton-discret lien-pourquoi', 'data-fiche': fiche, 'aria-label': `Pourquoi ? Fiche ${fiche}` }, 'Pourquoi ?');
   b.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -134,7 +134,7 @@ export function monterPourquoi(racine, donnees, { enLigne = () => navigator.onLi
     racine.dataset.famille = familleDeFiche(id) ?? 'base';
     const codes = new Set(f.parties.flatMap((p) => p.sources.map((s) => s.code)));
     remplacer(racine,
-      versListe ? el('div', { class: 'pq-barre' }, el('button', { type: 'button', class: 'bouton pq-vers-liste' }, 'Toutes les fiches')) : null,
+      versListe ? el('div', { class: 'pq-barre' }, el('button', { type: 'button', class: 'bouton bouton-discret pq-vers-liste' }, 'Toutes les fiches')) : null,
       el('p', { class: 'pq-contexte' }, `${familles.get(f.famille)?.titre} · ${f.id}`),
       el('h2', { class: 'pq-question' }, f.question),
       ...f.parties.map((p) => el('section', { class: `pq-partie pq-partie-${p.cle}` },

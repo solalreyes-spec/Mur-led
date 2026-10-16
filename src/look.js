@@ -3,6 +3,8 @@
 // d'écran (aria-hidden), car le texte qu'il accompagne (charge en %, colonnes × lignes) reste écrit à côté.
 
 import { el } from './dom.js';
+import { nombre } from './format.js';
+import { geometrieSchema } from './dessin-schema.js';
 
 // Famille de chaque onglet (§ 2) : sa couleur sert à l'icône, au titre, au bouton principal et au fond teinté.
 export const FAMILLES_ONGLETS = {
@@ -37,46 +39,66 @@ export function barreCharge(charge, options = {}) {
     el('div', { class: 'bc-graduations' }, ...graduations, el('span', { class: 'bc-trait bc-seuil', style: `left: ${seuil}%` })));
 }
 
-// Mur en petits carrés : colonnes × lignes en damier de deux tons de la famille ; rien au-delà de 1 000 dalles.
-export const DALLES_MAX_CARRES = 1000;
-export function murCarres(colonnes, lignes) {
-  const n = colonnes * lignes;
-  if (!(colonnes > 0 && lignes > 0) || n > DALLES_MAX_CARRES) return null;
-  const carres = [];
-  for (let r = 0; r < lignes; r += 1) {
-    for (let c = 0; c < colonnes; c += 1) carres.push(el('span', { class: `mc${(r + c) % 2 ? ' ton-b' : ''}` }));
+// Aperçu du mur (étape 11c, spec du 16/10/2026 § 8) : la géométrie du Schéma en vue physique (zones, écarts, formes
+// libres, demi-dalles, murs mixtes, dalles tournées, plis), dessinée en petits carrés arrondis : damier de deux tons de
+// la famille, demi-dalles d'un ton plus clair, dalles d'une autre fiche d'un troisième ton, vides laissés vides. Au-delà
+// de 1 000 dalles, le contour du mur ou de chaque zone et un trait toutes les 10 dalles. Cotes discrètes en mètres et
+// en pixels ; le dessin est caché aux lecteurs d'écran, l'étiquette dit le mur.
+export const DALLES_MAX_APERCU = 1000;
+const NS_APERCU = 'http://www.w3.org/2000/svg';
+const svgApercu = (nom, attributs = {}) => {
+  const e = document.createElementNS(NS_APERCU, nom);
+  for (const [k, v] of Object.entries(attributs)) if (v !== null && v !== undefined) e.setAttribute(k, String(v));
+  return e;
+};
+const metres = (mm) => `${nombre(mm / 1000, 2)} m`;
+export function apercuMur(m, dalle) {
+  if (!m || !(m.largeurMm > 0 && m.hauteurMm > 0)) return null;
+  const W = m.largeurMm;
+  const H = m.hauteurMm;
+  const dessin = svgApercu('svg', { class: 'apercu-dessin', viewBox: `0 0 ${W} ${H}`, 'aria-hidden': 'true', preserveAspectRatio: 'xMidYMid meet', style: `--ap-rapport: ${W / H}` });
+  // Dalles de moins de 8 px à l'écran (mur très large) : trait de séparation aminci, le damier reste lisible. Largeur
+  // dessinée estimée : 260 px au plus dans la carte à 375 px, 220 px de haut au plus.
+  const cotePx = (Math.min(260, (220 * W) / H) * Math.min(dalle.largeurMm, dalle.hauteurMm)) / W;
+  if (cotePx < 8) dessin.classList.add('ap-serre');
+  const total = m.dalles.total;
+  const zones = m.zones?.length > 1 || m.zones?.some((z) => z.forme || z.roulis) ? m.zones : null;
+  if (total <= DALLES_MAX_APERCU) {
+    const geo = geometrieSchema({ vue: 'physique', canvasVue: 'mur' }, m, dalle, null);
+    for (const r of geo.rects.values()) {
+      const d = r.d ?? {};
+      const ton = d.type === 'demi' ? 'ap-demi' : d.fiche && d.fiche.id !== dalle.id && zones ? 'ap-autre' : (d.colonne + d.rangee) % 2 ? 'ap-b' : 'ap-a';
+      dessin.append(svgApercu('rect', {
+        class: `ap-dalle ${ton}`, 'data-zone': d.zone ?? null, x: r.x, y: r.y, width: r.w, height: r.h, rx: 0.12 * Math.min(r.w, r.h),
+        transform: r.rotation ? `rotate(${-r.rotation} ${r.x + r.w / 2} ${r.y + r.h / 2})` : null,
+      }));
+    }
+    for (const p of geo.plis ?? []) dessin.append(svgApercu('line', { class: 'ap-pli', x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2 }));
+    // Plusieurs zones (11d) : le contour de chacune, visible même quand elles se touchent.
+    if (m.zones?.length > 1) for (const z of geo.zones ?? []) dessin.append(svgApercu('rect', { class: 'ap-zone', x: z.x, y: z.y, width: z.w, height: z.h }));
+  } else {
+    // Grand mur : contour de chaque zone (du mur entier sans zones) et un trait toutes les 10 dalles.
+    const basMin = m.zones ? Math.min(...m.zones.map((z) => z.basMm)) : 0;
+    const cadres = (m.zones ?? [null]).map((z) => {
+      const fiche = z?.dalle ?? dalle;
+      return z ? { x: z.xMm, y: basMin + H - z.basMm - z.hauteurMm, w: z.largeurMm, h: z.hauteurMm, colonnes: z.colonnes, lignes: z.lignes, fiche }
+        : { x: 0, y: 0, w: W, h: H, colonnes: m.colonnes, lignes: m.lignes, fiche };
+    });
+    for (const c of cadres) {
+      dessin.append(svgApercu('rect', { class: 'ap-contour', x: c.x, y: c.y, width: c.w, height: c.h, rx: 0.12 * Math.min(c.fiche.largeurMm, c.fiche.hauteurMm) }));
+      for (let k = 10; k < c.colonnes; k += 10) dessin.append(svgApercu('line', { class: 'ap-trait ap-trait-v', x1: c.x + k * c.fiche.largeurMm, y1: c.y, x2: c.x + k * c.fiche.largeurMm, y2: c.y + c.h }));
+      for (let k = 10; k < c.lignes; k += 10) dessin.append(svgApercu('line', { class: 'ap-trait ap-trait-h', x1: c.x, y1: c.y + k * c.fiche.hauteurMm, x2: c.x + c.w, y2: c.y + k * c.fiche.hauteurMm }));
+    }
   }
-  return el('div', { class: 'mur-carres', 'aria-hidden': 'true', style: `grid-template-columns: repeat(${colonnes}, minmax(0, 1fr)); --rapport: ${colonnes} / ${lignes}` }, ...carres);
-}
-
-// Zone de forme libre (9b) : une case par place, en % de la zone, décalages compris ; dalle absente en creux.
-function carresForme(z) {
-  const pc = (x) => `${(100 * x).toFixed(4)}%`;
-  const largeur = 1 / z.colonnes;
-  const carres = z.forme.colonnes.flatMap((col, j) => col.cases.map((x, r) => el('span', {
-    class: `mc${(r + j) % 2 ? ' ton-b' : ''}${x.presente ? '' : ' absente'}`,
-    style: `left: ${pc(j * largeur)}; width: ${pc(largeur)}; top: ${pc(x.yMm / z.hauteurMm)}; height: ${pc(x.hMm / z.hauteurMm)}`,
-  })));
-  return el('div', { class: 'mur-carres mur-carres-forme', 'aria-hidden': 'true' }, ...carres);
-}
-
-// Mur en zones (étape 9a) : une grille par zone, à sa place réelle (écarts et hauteur du bas), en % du mur entier,
-// aux proportions du mur réel ; rien au-delà de 1 000 dalles en tout.
-export function murCarresZones(m) {
-  if (!m?.zones?.length || m.dalles.total > DALLES_MAX_CARRES || !(m.largeurMm > 0 && m.hauteurMm > 0)) return null;
-  const basMin = Math.min(...m.zones.map((z) => z.basMm));
-  const hautMax = basMin + m.hauteurMm;
-  const pc = (x) => `${(100 * x).toFixed(4)}%`;
-  const grilles = m.zones.map((z) => {
-    // Forme libre (9b) : chaque place à sa position réelle dans la zone, les dalles absentes en creux.
-    const grille = z.forme ? carresForme(z) : murCarres(z.colonnes, z.lignes);
-    grille.style.left = pc(z.xMm / m.largeurMm);
-    grille.style.width = pc(z.largeurMm / m.largeurMm);
-    grille.style.top = pc((hautMax - z.basMm - z.hauteurMm) / m.hauteurMm);
-    grille.style.height = pc(z.hauteurMm / m.hauteurMm);
-    return grille;
-  });
-  return el('div', { class: 'mur-carres-zones', 'aria-hidden': 'true', style: `--rapport: ${m.largeurMm} / ${m.hauteurMm}` }, ...grilles);
+  const demi = m.rangeeDemi ? ` et une rangée de demi-dalles ${m.positionDemi === 'haut' ? 'en haut' : 'en bas'}` : '';
+  const quoi = m.zones?.length > 1 ? `${m.zones.length} zones, ${total} dalles` : `${m.colonnes} × ${m.lignes} dalles${demi}`;
+  // Lignes de cote (11d) : sous le dessin, un trait de sa largeur avec une butée à chaque bout et le texte centré ; à
+  // droite, un trait de sa hauteur.
+  return el('div', { class: 'apercu', role: 'img', 'aria-label': `Aperçu du mur : ${quoi}, ${nombre(W / 1000, 2)} × ${metres(H)}, ${nombre(m.pxLargeur)} × ${nombre(m.pxHauteur)} px` },
+    el('div', { class: 'apercu-grille' }, dessin,
+      el('div', { class: 'cote cote-v apercu-hauteur' }, el('span', { class: 'cote-texte' }, el('span', {}, metres(H)), ' ', el('span', {}, `${nombre(m.pxHauteur)} px`))),
+      el('div', { class: 'cote cote-h apercu-largeur' }, el('span', { class: 'cote-texte' }, `${metres(W)} · ${nombre(m.pxLargeur)} px`))),
+    total > DALLES_MAX_APERCU ? el('p', { class: 'apercu-note' }, `${total} dalles : un trait toutes les 10 dalles.`) : null);
 }
 
 // Vue de dessus du mur (9c2) : chaque zone vue d'en haut, public en bas, aux proportions de la boîte réelle ; une

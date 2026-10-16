@@ -197,7 +197,7 @@ function mettreAJour() {
           + `${z.pMax.demi && mur.zones[i].demi ? `, demi-dalle : ${textePMax(mur.zones[i].demi, z.pMax.demi)}` : ''}`).join(' ; ')}. `
       : `Mur : ${parZone ? `${pluriel(mur.zones.length, 'zone', 'zones')}, ` : ''}${pluriel(mur.dalles.total, 'dalle', 'dalles')} ${dalle.nom}. P max retenue : ${textePMax(dalle, r.pMax.dalle)}`
         + `${r.pMax.demi ? ` ; demi-dalle : ${textePMax(mur.demi, r.pMax.demi)}` : ''}. `),
-    el('a', { href: '#mur' }, 'Modifier le mur'));
+    el('a', { href: '#mur', class: 'lien-discret' }, 'Modifier le mur'));
   const d = r.dallesParLigne;
   const mixte = Boolean(mur.mixte && r.zones?.[0]?.dallesParLigne);
   const colonnes = r.lignes.colonnes;

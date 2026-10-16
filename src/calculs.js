@@ -11,7 +11,7 @@
 
 export { ErreurSaisie, COINS, LIBELLES_COIN } from './calculs/commun.js';
 export { PLUS_DEFAVORABLE, valeurRetenue, resoudreFiche, valeursEnConflit } from './calculs/valeurs-sourcees.js';
-export { pitchCalculeMm, densite, mur, dimensionner, pitchLePlusFin, pixelsInterpoles } from './calculs/mur.js';
+export { pitchCalculeMm, densite, DALLES_MAX_MUR, verifierNombreDalles, mur, dimensionner, pitchLePlusFin, pixelsInterpoles } from './calculs/mur.js';
 export { limitesCourbure, grandeursCourbure, aFormeReelle, formeReelle } from './calculs/forme-reelle.js';
 export { ZONES_MAX, NOM_ZONE_MAX, murZones } from './calculs/mur-zones.js';
 export { DEBIT_UTILE_BPS, BIT_DEPTH_PAR_DEFAUT, SEUIL_CHARGE_PORT, rappelTessera, entierInferieur, capacitePort,

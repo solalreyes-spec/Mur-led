@@ -4,7 +4,7 @@
 import { dimensionner, densite, pitchCalculeMm, dalleTournee, murZones, ErreurSaisie, formeReelle, aFormeReelle } from './calculs.js';
 import { nombre, nombreCourt, signe, sourceCourte, dateCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
-import { murCarres, murCarresZones, vueDessus } from './look.js';
+import { apercuMur, vueDessus } from './look.js';
 import { lireSaisieZones, ecrireSaisieZones, argumentsMurZones, monterEditeurZones } from './zones.js';
 import { resumeMur } from './resumes.js';
 import { optionsInformations, configsDuMur, arbreDalles } from './fiches.js';
@@ -367,10 +367,27 @@ export function resumeOngletMur() {
   return dernier ? resumeMur(dernier) : null;
 }
 
+// Erreur de saisie (étape 11d) : sous les champs qui la causent, champs du mode marqués (sauf l'éditeur des zones),
+// mire indisponible avec sa raison ; tout revient quand le mur est valide.
+function signalerSaisie(erreurs, { marquer = true } = {}) {
+  const zone = document.getElementById('erreur-mur');
+  remplacer(zone, erreurs.length ? el('div', { class: 'alerte alerte-erreur', role: 'alert' }, erreurs.join(' ')) : null);
+  for (const champ of formulaire.querySelectorAll('.groupe-mode input')) {
+    const enErreur = erreurs.length > 0 && marquer && !champ.closest('[data-modes="zones"]') && !champ.closest('.groupe-mode').hidden && champ.type !== 'checkbox';
+    if (enErreur) champ.setAttribute('aria-invalid', 'true');
+    else champ.removeAttribute('aria-invalid');
+  }
+  const mire = document.getElementById('bouton-mire');
+  if (mire) mire.disabled = erreurs.length > 0;
+  const note = document.getElementById('note-mire');
+  if (note) note.hidden = erreurs.length === 0;
+}
+
 function afficherResultats(dalle, r, groupes = []) {
   dernier = r.erreurs.length > 0 ? null : { dalle, mur: r.mur };
+  signalerSaisie(r.erreurs);
   if (r.erreurs.length > 0) {
-    remplacer(zoneResultats, el('div', { class: 'alerte alerte-erreur', role: 'alert' }, r.erreurs.join(' ')));
+    remplacer(zoneResultats);
     return;
   }
   const m = r.mur;
@@ -382,7 +399,7 @@ function afficherResultats(dalle, r, groupes = []) {
   const detailHauteurPx = `${m.lignes} × ${dalle.pxV} px` + (m.rangeeDemi ? ` + ${m.demi.pxV} px (demi)` : '');
 
   // Nouveau look : les deux chiffres clés (colonnes × lignes, nombre de dalles) en grand, le réglage en puces (pas et
-  // pixels de la dalle), le mur en petits carrés pour ses proportions (rien au-delà de 1 000 dalles).
+  // pixels de la dalle), l'aperçu du mur à ses proportions réelles (étape 11c).
   const principal = el('div', { class: 'carte resultat-principal' },
     el('ul', { class: 'puces-info' },
       el('li', { class: 'puce-info' }, dalle.nom),
@@ -391,7 +408,7 @@ function afficherResultats(dalle, r, groupes = []) {
     el('p', { class: 'chiffre-cle' }, `${m.colonnes} × ${m.lignes}`,
       el('span', { class: 'chiffre-groupe' }, el('span', {}, ' = '), el('strong', { class: 'chiffre-second' }, nombre(m.dalles.entieres)), el('span', {}, ' dalles'))),
     el('p', { class: 'sous-titre' }, 'colonnes × lignes, largeur en premier'),
-    murCarres(m.colonnes, m.lignes),
+    apercuMur(m, dalle),
     m.rangeeDemi ? el('p', { class: 'demi' },
       `+ ${m.dalles.demi} demi-dalles (${m.demi.nom}), rangée ${m.positionDemi === 'haut' ? 'en haut' : 'en bas'}. `
       + `Total : ${m.dalles.total} éléments.`) : null);
@@ -452,8 +469,9 @@ function texteFormeZone(f, i, saisie) {
 // Mur en plusieurs zones (étape 9a) : chiffres clés, mur en petits carrés à sa place réelle, tuiles et tableau des zones.
 function afficherResultatsZones(dalle, r, groupes = []) {
   dernier = r.erreurs.length > 0 ? null : { dalle, mur: r.mur };
+  signalerSaisie(r.erreurs, { marquer: false });
   if (r.erreurs.length > 0) {
-    remplacer(zoneResultats, el('div', { class: 'alerte alerte-erreur', role: 'alert' }, r.erreurs.join(' ')));
+    remplacer(zoneResultats);
     return;
   }
   const m = r.mur;
@@ -476,7 +494,7 @@ function afficherResultatsZones(dalle, r, groupes = []) {
       el('span', { class: 'chiffre-groupe' }, el('span', {}, ' = '), el('strong', { class: 'chiffre-second' }, nombre(m.dalles.total)), el('span', {}, ' dalles'))),
     el('p', { class: 'sous-titre' }, placees ? 'zones placées sur le mur, vues de face' : 'zones de gauche à droite vu de face'),
     m.mixte ? el('p', { class: 'sous-titre' }, `${pluriel(new Set(m.zones.map((z) => z.dalle.id)).size, 'dalle différente', 'dalles différentes')}`) : null,
-    murCarresZones(m),
+    apercuMur(m, dalle),
     vueDessus(forme));
   const alertesForme = forme ? [...forme.alertes.map((a) => el('div', { class: 'alerte' }, a)), ...forme.notes.map((n) => el('div', { class: 'alerte alerte-info' }, n))] : [];
   const tuiles = el('dl', { class: 'tuiles' },
@@ -560,9 +578,10 @@ function tableauVariantes(r) {
 // Calcul à chaque saisie
 // ---------------------------------------------------------------------------
 
-function mettreAJour(fiches, surChangement) {
+function mettreAJour(fiches, surChangement, { repousser = false } = {}) {
   // Dalle retenue (saisie gardée, changement de parc) : les trois sélecteurs la montrent.
   if (!vueInformation) remplirChoix();
+  derniereCle = cleFormulaire();
   const e = lireFormulaire();
   const fiche = fiches.get(e.dalleId);
   // Rotation : proposée seulement si la fiche, ou le parc actif, la permet. La dalle tournée n'a pas de demi-dalle.
@@ -611,7 +630,7 @@ function mettreAJour(fiches, surChangement) {
     dernierMurZones = resultat.mur;
     const groupes = resultat.erreurs.length ? [] : groupesLots(fiche, resultat.mur);
     afficherResultatsZones(dalle, resultat, groupes);
-    surChangement({ dalle, mur: resultat.mur, erreurs: resultat.erreurs, lots: groupes });
+    propager(surChangement, { dalle, mur: resultat.mur, erreurs: resultat.erreurs, lots: groupes }, repousser);
     return;
   }
 
@@ -634,8 +653,42 @@ function mettreAJour(fiches, surChangement) {
   // Lots : ceux de la fiche d'origine (une dalle tournée garde ses lots).
   const groupes = resultat.erreurs.length ? [] : groupesLots(fiche, resultat.mur);
   afficherResultats(dalle, resultat, groupes);
-  surChangement({ dalle, mur: resultat.mur, erreurs: resultat.erreurs, lots: groupes });
+  propager(surChangement, { dalle, mur: resultat.mur, erreurs: resultat.erreurs, lots: groupes }, repousser);
 }
+
+// Grand mur (11-0) : au-delà de 1 000 dalles, pendant la frappe, les autres onglets suivent 0,4 s après la dernière
+// touche (« 200 » ne calcule plus 2, 20 puis 200) ; tout de suite à la sortie du champ. Le Mur, lui, se calcule à
+// chaque touche (1 ms).
+const DALLES_SANS_DELAI = 1000;
+const DELAI_GRAND_MUR_MS = 400;
+let propagationEnAttente = null;
+function propager(rappel, etat, repousser) {
+  clearTimeout(propagationEnAttente?.minuteur);
+  propagationEnAttente = null;
+  if (repousser && (etat.mur?.dalles.total ?? 0) > DALLES_SANS_DELAI) {
+    const attente = { rappel, etat };
+    attente.minuteur = setTimeout(() => {
+      propagationEnAttente = null;
+      rappel(etat);
+    }, DELAI_GRAND_MUR_MS);
+    propagationEnAttente = attente;
+    return;
+  }
+  rappel(etat);
+}
+function propagerSansAttendre() {
+  if (!propagationEnAttente) return;
+  const { rappel, etat, minuteur } = propagationEnAttente;
+  clearTimeout(minuteur);
+  propagationEnAttente = null;
+  rappel(etat);
+}
+
+// Saisie identique à la précédente (« change » après « input ») : rien n'est recalculé. Tous les champs du formulaire
+// comptent, nommés ou non (listes de choix de la dalle, éditeur des zones).
+let derniereCle = null;
+const cleFormulaire = () => JSON.stringify([vueInformation, ...[...formulaire.elements]
+  .map((e) => (e.type === 'checkbox' || e.type === 'radio' ? e.checked : e.value))]);
 
 // `base` : { dalles, gabarits } déjà résolues. `surChangement({ dalle, mur, erreurs })` est appelé
 // après chaque calcul, pour que les autres onglets suivent le mur.
@@ -648,10 +701,13 @@ export function initialiserMur(base, surChangement) {
   rappelMur = surChangement;
   initialiserChoix();
   formulaire.addEventListener('input', (evenement) => {
-    if (evenement.target.name !== 'parc') mettreAJour(fichesMur, rappelMur);
+    if (evenement.target.name === 'parc' || cleFormulaire() === derniereCle) return;
+    mettreAJour(fichesMur, rappelMur, { repousser: true });
   });
   formulaire.addEventListener('change', (evenement) => {
-    if (evenement.target.name !== 'parc') mettreAJour(fichesMur, rappelMur);
+    if (evenement.target.name === 'parc') return;
+    if (cleFormulaire() === derniereCle) propagerSansAttendre();
+    else mettreAJour(fichesMur, rappelMur);
   });
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());
   actualiserMur(base);

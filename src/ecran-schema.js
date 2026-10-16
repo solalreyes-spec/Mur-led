@@ -11,8 +11,11 @@ import { el, svg, remplacer } from './dom.js';
 import { barreCharge } from './look.js';
 import {
   trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT, tiretsMotif, cadrageGuide as calculerCadrageGuide,
+  SEUIL_DESSIN_SIMPLIFIE, geometrieGuide, cadreComplet,
 } from './dessin-schema.js';
-import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, telecharger, enregistrer, modeEnregistrement, fichierTexte } from './export.js';
+import {
+  pixelMapEnCanvas, canvasEnPng, schemaEnPng, verifierTailleSchema, telecharger, enregistrer, modeEnregistrement, fichierTexte,
+} from './export.js';
 import { etapesData, etapesElec, rapprocherMontage, texteEtatMontage } from './montage.js';
 import { lire, ecrire } from './stockage.js';
 
@@ -369,7 +372,7 @@ async function produire(nom, fabriquer, { type = 'image/png', mot = 'Image' } = 
     etat.textContent = `${mot} téléchargé${feminin ? 'e' : ''} : ${taille}.`;
     return;
   }
-  const partager = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Enregistrer ou partager');
+  const partager = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-icone': 'partager' }, 'Enregistrer ou partager');
   partager.addEventListener('click', async () => {
     const resultat = await enregistrer(blob, nom);
     const e = feminin ? 'e' : '';
@@ -384,7 +387,7 @@ async function produire(nom, fabriquer, { type = 'image/png', mot = 'Image' } = 
 }
 
 function boutonExport(texte, nom, fabriquer) {
-  const bouton = el('button', { type: 'button', class: 'bouton bouton-petit' }, texte);
+  const bouton = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-icone': 'partager' }, texte);
   bouton.addEventListener('click', () => produire(nom, fabriquer));
   return bouton;
 }
@@ -409,7 +412,7 @@ function elementPositions({ mur, dalle, evaluation, vd, pliage }) {
   const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const positions = () => positionsDalles(mur, dalle, { evaluation, variante: vd, pliage });
   const bouton = (texte, nom, type, fabriquer) => {
-    const b = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-export': type.split('/')[1] }, texte);
+    const b = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-icone': 'partager', 'data-export': type.split('/')[1] }, texte);
     b.addEventListener('click', () => produire(nom, async () => fichierTexte(fabriquer(positions()), nom, type), { type, mot: 'Fichier' }));
     return b;
   };
@@ -435,13 +438,22 @@ function afficherExports(contexte) {
 function exporterSchema() {
   if (!contexteExport) return;
   const { e, geo, trajets, coin, blocs, repere, data, vd, elec, ve } = contexteExport;
+  const d = new Date();
+  const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const nom = `mur-led-schema-${e.cablage === 'aucun' ? 'mur' : e.cablage}-${jour}.png`;
+  // Image trop grande : refus tout de suite, avant de construire le dessin (11-0).
+  const cadre = cadreComplet(geo);
+  try {
+    verifierTailleSchema(2000, cadre.w, cadre.h, { titre: true });
+  } catch (erreur) {
+    produire(nom, async () => { throw erreur; });
+    return;
+  }
   const { svg: image } = construireSvg({ geo, trajets, coin, blocs, repere, palette: PALETTE_EXPORT, largeurPx: 2000 });
   const sujet = { data: vd ? `câblage data ${vd.libelle}, départ ${LIBELLES_COIN[data.depart]}` : null, elec: ve ? `câblage élec ${ve.libelle}, départ ${LIBELLES_COIN[elec.depart]}` : null }[e.cablage];
   const texte = e.cablage === 'data' && vd ? resumeCablage({ data, modeData: vd.mode })
     : e.cablage === 'elec' && ve ? resumeCablage({ elec, modeElec: ve.mode }) : '';
-  const d = new Date();
-  const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  produire(`mur-led-schema-${e.cablage === 'aucun' ? 'mur' : e.cablage}-${jour}.png`, () => schemaEnPng(image, {
+  produire(nom, () => schemaEnPng(image, {
     largeurPx: 2000,
     titre: `Mur LED${sujet ? `, ${sujet}` : ''}`,
     lignes: texte ? texte.split('\n').slice(1) : [],
@@ -451,25 +463,62 @@ function exporterSchema() {
 // Câblage data retenu dans le Schéma (variante choisie), pour la mire de mapping : mêmes ports, mêmes numéros, mêmes
 // couleurs que le dessin.
 export function cablageRetenu() {
+  assurerCalcul();
   if (!etatData?.mur || !dernier?.data) return null;
   const variante = dernier.data.variantes.find((x) => x.mode === dernier.modeData) ?? null;
   return variante ? { mur: etatData.mur, dalle: etatData.dalle, evaluation: etatData.choisie ?? null, variante, pliage: dernier.pliage ?? null } : null;
 }
 
 export function resumeOngletSchema() {
+  assurerCalcul();
   if (!dernier) return null;
   const etat = (type) => (etapesCourantes[type].length ? texteEtatMontage(montage[type], etapesCourantes[type], type) : null);
   return resumeCablage({ ...dernier, montage: { data: etat('data'), elec: etat('elec') } });
 }
 
+// Grand mur (11-0) : chaque demande (mur, Data, Élec, réglage, sortie pliée…) est regroupée avec les autres de la même
+// saisie ; le Schéma ne se calcule et ne se dessine qu'une fois, et seulement si son onglet ou le guide est affiché.
+// Sinon il est marqué « à refaire » : dessiné à l'ouverture de l'onglet, calculé sans dessin pour le texte copié et
+// la mire. Le coin de départ, lui, est publié tout de suite (Data et Élec en dépendent).
+let calculARefaire = true;
+let dessinARefaire = true;
+let miseAJourPrevue = false;
+const schemaAffiche = () => location.hash === '#schema' || Boolean(guide);
 function mettreAJour() {
-  dernier = null;
-  const e = lireFormulaire();
-  // Le coin de départ décide aussi du serpentin au plus juste des onglets Data et Élec.
+  calculARefaire = true;
+  dessinARefaire = true;
+  if (miseAJourPrevue) return;
+  miseAJourPrevue = true;
+  queueMicrotask(() => {
+    try {
+      publierDepartsSiChanges(lireFormulaire());
+      if (schemaAffiche()) mettreAJourMaintenant();
+    } finally {
+      miseAJourPrevue = false;
+    }
+  });
+}
+function assurerCalcul() {
+  if (calculARefaire) mettreAJourMaintenant({ dessiner: false });
+}
+window.addEventListener('hashchange', () => {
+  if (schemaAffiche() && dessinARefaire) mettreAJourMaintenant();
+});
+
+function publierDepartsSiChanges(e) {
   if (e.departData !== departsPublies.data || e.departElec !== departsPublies.elec) {
     departsPublies = { data: e.departData, elec: e.departElec };
     publierDeparts({ data: e.departData, elec: e.departElec });
   }
+}
+
+function mettreAJourMaintenant({ dessiner = true } = {}) {
+  calculARefaire = false;
+  if (dessiner) dessinARefaire = false;
+  dernier = null;
+  const e = lireFormulaire();
+  // Le coin de départ décide aussi du serpentin au plus juste des onglets Data et Élec.
+  publierDepartsSiChanges(e);
   if (!etatMur?.mur) {
     remplacer(zone, alerte('Le mur n\'est pas valide : corrige-le dans l\'onglet Mur.', 'alerte-erreur'));
     return;
@@ -511,6 +560,14 @@ function mettreAJour() {
     distanceM: e.cablage === 'elec' ? e.distanceArmoireM : e.distanceRegieM,
   });
   afficherExports({ pm, e, geo, trajets, coin, blocs, repere, data, vd, elec, ve, mur, dalle, evaluation, pliage });
+  // Guide pas à pas : étapes du câblage affiché (data et élec), pour le bouton, le bandeau et le texte copié.
+  etapesCourantes = {
+    data: etapesData(vd, { depart: data?.depart ?? e.departData }),
+    elec: etapesElec(ve, { depart: elec?.depart ?? e.departElec }),
+  };
+  contexteGuide = { mur, dalle, pm, vd, ve, departData: data?.depart ?? e.departData, departElec: elec?.depart ?? e.departElec };
+  if (!dessiner) return;
+  const simplifie = geo.rects.size > SEUIL_DESSIN_SIMPLIFIE;
 
   const alertes = [...erreurs.map((x) => alerte(x, 'alerte-erreur'))];
   if (pm.canvas.some((c) => c.plie)) {
@@ -548,27 +605,30 @@ function mettreAJour() {
     }
   }
 
+  if (simplifie) {
+    alertes.push(alerte(`Mur de ${nombreCourt(mur.dalles.total)} dalles : dessin simplifié au-delà de ${nombreCourt(SEUIL_DESSIN_SIMPLIFIE)} dalles, `
+      + 'un rectangle par segment de port.', 'alerte-info'));
+  }
   const racine = dessin(eVue, geo, trajets, coin, blocs, repere);
-  // Guide pas à pas : étapes du câblage affiché (data et élec), pour le bouton, le bandeau et le texte copié.
-  etapesCourantes = {
-    data: etapesData(vd, { depart: data?.depart ?? e.departData }),
-    elec: etapesElec(ve, { depart: elec?.depart ?? e.departElec }),
-  };
-  contexteGuide = { mur, dalle, pm, vd, ve, departData: data?.depart ?? e.departData, departElec: elec?.depart ?? e.departElec };
   const typeGuide = e.cablage === 'aucun' ? null : e.cablage;
   const etapesGuide = typeGuide ? etapesCourantes[typeGuide] : [];
   const rapprochement = typeGuide ? rapprocherMontage(montage[typeGuide], etapesGuide) : null;
   const avisMontage = rapprochement ? (rapprochement.avis ?? montage[typeGuide].avis) : null;
   if (avisMontage) alertes.unshift(alerte(avisMontage, 'alerte-montage'));
   const boutonMontage = el('button', {
-    type: 'button', id: 'bouton-montage', class: 'bouton bouton-montage', disabled: etapesGuide.length ? null : '',
+    type: 'button', id: 'bouton-montage', class: 'bouton bouton-principal bouton-montage', disabled: etapesGuide.length ? null : '',
   }, el('span', { class: 'montage-libelle' }, 'Montage pas à pas'),
   etapesGuide.length ? el('span', { class: 'montage-etat' }, texteEtatMontage(montage[typeGuide], etapesGuide, typeGuide)) : null);
   boutonMontage.addEventListener('click', () => ouvrirGuide(typeGuide));
-  const outils = el('div', { class: 'schema-outils' },
-    boutonMontage,
+  // « Montage pas à pas » sur sa ligne ; zoom en trois icônes dans le coin du dessin (étape 11d, choix de l'utilisateur :
+  // le dessin reste dans le premier écran).
+  const outils = el('div', { class: 'schema-outils' }, boutonMontage);
+  const zoom = el('div', { class: 'schema-zoom' },
     ['+', '−', 'Tout voir'].map((texte) => {
-      const b = el('button', { type: 'button', class: 'bouton bouton-petit', 'aria-label': { '+': 'Zoomer', '−': 'Dézoomer', 'Tout voir': 'Voir tout le mur' }[texte] }, texte);
+      const b = el('button', {
+        type: 'button', class: 'bouton bouton-petit bouton-icone', 'aria-label': { '+': 'Zoomer', '−': 'Dézoomer', 'Tout voir': 'Voir tout le mur' }[texte],
+        'data-icone': texte === 'Tout voir' ? 'cadrer' : null,
+      }, texte === 'Tout voir' ? null : texte);
       b.addEventListener('click', () => {
         if (texte === 'Tout voir') {
           cadrage = { ...cadrageComplet };
@@ -581,9 +641,9 @@ function mettreAJour() {
   remplacer(zone,
     entete,
     alertes,
-    el('div', { class: 'schema-cadre' }, outils, racine),
+    el('div', { class: 'schema-cadre' }, outils, el('div', { class: 'schema-dessin' }, racine, zoom)),
     el('p', { class: 'source' }, `${geo.unite === 'mm' ? 'Vue physique à l\'échelle, en millimètres' : 'Vue en pixels, pixel (0,0) en haut à gauche'}. `
-      + 'Appuie sur une dalle pour sa position, sur un trajet pour le mettre en évidence ; deux doigts pour zoomer.'),
+      + `${simplifie ? 'Appuie' : 'Appuie sur une dalle pour sa position,'} sur un trajet pour le mettre en évidence ; deux doigts pour zoomer.`),
     dalleChoisie ? ficheDalle(dalleChoisie, pm, e.cablage === 'data' ? vd : null, e.cablage === 'elec' ? ve : null) : null,
     legende(trajets),
     variantes ? el('h3', { class: 'titre-variantes' }, 'Variantes de câblage') : null,
@@ -645,6 +705,7 @@ const etapeEnCours = () => etapesCourantes[guide.type].find((x) => x.cle === gui
 
 // Ouvre le guide du câblage affiché : les cases dont le câble a changé sont retirées, le bandeau le dit.
 function ouvrirGuide(type) {
+  assurerCalcul();
   const etapes = type ? etapesCourantes[type] : [];
   if (!etapes.length) return;
   const r = rapprocherMontage(montage[type], etapes);
@@ -710,7 +771,7 @@ function dessinerGuide(etape, { recentrer }) {
   const { type } = guide;
   const { mur, dalle, pm, vd, ve, departData, departElec } = contexteGuide;
   const vue = { vue: 'physique', canvasVue: 'mur', cablage: type };
-  const geo = geometrieSchema(vue, mur, dalle, pm);
+  const geo = geometrieGuide(geometrieSchema(vue, mur, dalle, pm), etape.dalles);
   const trajets = trajetsSchema(vue, vd, ve, null);
   const coin = type === 'elec' ? departElec : departData;
   const cadre = $m('montage-dessin');

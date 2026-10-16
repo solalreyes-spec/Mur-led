@@ -142,7 +142,7 @@ export function monterDepannage(racine, donnees, {
   // --- Écrans --------------------------------------------------------------------------------------------------------
   function barre() {
     return el('div', { class: 'dep-barre' },
-      el('button', { type: 'button', class: 'bouton dep-retour' }, '◀ Retour'),
+      el('button', { type: 'button', class: 'bouton bouton-discret dep-retour' }, '◀ Retour'),
       el('button', { type: 'button', class: 'bouton dep-recommencer' }, 'Recommencer'));
   }
 

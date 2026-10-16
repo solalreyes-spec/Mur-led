@@ -82,7 +82,7 @@ export function monterApprendre(racine, {
     }
     racine.dataset.vue = 'famille';
     remplacer(racine,
-      el('div', { class: 'ap-barre' }, el('button', { type: 'button', class: 'bouton ap-retour' }, 'Retour')),
+      el('div', { class: 'ap-barre' }, el('button', { type: 'button', class: 'bouton bouton-discret ap-retour' }, 'Retour')),
       el('section', { class: 'ap-fiches-famille', 'data-famille': f.id },
         el('h3', {}, f.titre),
         el('div', { class: 'pq-fiches' }, ...f.fiches.map((id) => el('button', { type: 'button', class: 'bouton pq-fiche-bouton', 'data-fiche': id },

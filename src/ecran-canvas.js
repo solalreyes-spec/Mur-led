@@ -396,7 +396,7 @@ async function produire(etat, nom, fabriquer) {
     etat.textContent = `Image téléchargée : ${taille}.`;
     return;
   }
-  const partager = el('button', { type: 'button', class: 'bouton bouton-petit' }, 'Enregistrer ou partager');
+  const partager = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-icone': 'partager' }, 'Enregistrer ou partager');
   partager.addEventListener('click', async () => {
     const resultat = await enregistrer(blob, nom);
     etat.textContent = { partage: `Image partagée : ${taille}.`, annule: 'Partage annulé.', telechargement: `Image téléchargée : ${taille}.` }[resultat];
@@ -410,13 +410,13 @@ function exportsPliage(numero) {
     const { choisie, mur, dalle, depart } = etatData;
     return { choisie, mur, dalle, depart: depart ?? 'haut-gauche', pliage: dernier?.pliage };
   };
-  const png = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-export': 'png' }, 'PNG de la sortie');
+  const png = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-icone': 'partager', 'data-export': 'png' }, 'PNG de la sortie');
   png.addEventListener('click', () => {
     const { choisie, mur, dalle, pliage } = contexte();
     const c = pixelMapPliee(pixelMap(mur, dalle, choisie), mur, pliage).canvas[numero - 1];
     produire(etat, `mur-led-sortie-pliee-processeur-${numero}-${c.bloc.largeurPx}x${c.bloc.hauteurPx}.png`, () => canvasEnPng(pixelMapEnCanvas(c)));
   });
-  const mire = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-export': 'mire' }, 'Mire de la sortie');
+  const mire = el('button', { type: 'button', class: 'bouton bouton-petit', 'data-icone': 'partager', 'data-export': 'mire' }, 'Mire de la sortie');
   mire.addEventListener('click', () => {
     const { choisie, mur, dalle, depart, pliage } = contexte();
     const data = cablageData(mur, dalle, choisie, { depart });

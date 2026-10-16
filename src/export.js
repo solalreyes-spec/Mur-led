@@ -131,6 +131,20 @@ function couperLignes(ctx, lignes, largeur) {
 }
 
 // Schéma de câblage (SVG construit avec la palette d'export) en PNG : un titre, le dessin, puis le texte du câblage.
+// Mise en page de l'image d'un schéma : marges, taille du texte, interligne (px).
+const PAGE_SCHEMA = { marge: 40, taille: 26, interligne: 36 };
+function hauteurImageSchema(hauteurDessin, avecTitre, nbLignes) {
+  const { marge, interligne } = PAGE_SCHEMA;
+  return Math.ceil(marge + (avecTitre ? interligne * 1.6 : 0) + hauteurDessin + marge / 2 + nbLignes * interligne + marge);
+}
+
+// Image d'un schéma au moins aussi grande que son dessin (vue de `vbL` × `vbH`), titre compris : au-delà de la limite
+// de surface, l'erreur de `nouveauCanvas` est levée tout de suite, avant de construire le dessin (11-0).
+export function verifierTailleSchema(largeurPx, vbL, vbH, { titre = false } = {}) {
+  const hauteur = hauteurImageSchema(Math.round((largeurPx * vbH) / vbL), titre, 0);
+  if (largeurPx * hauteur > SURFACE_MAX_IMAGE) nouveauCanvas(largeurPx, hauteur);
+}
+
 export async function schemaEnPng(svgElement, { largeurPx = 2000, titre = '', lignes = [] } = {}) {
   const [, , vbL, vbH] = svgElement.getAttribute('viewBox').split(/\s+/).map(Number);
   const hauteurDessin = Math.round((largeurPx * vbH) / vbL);
@@ -140,14 +154,12 @@ export async function schemaEnPng(svgElement, { largeurPx = 2000, titre = '', li
     const image = new Image();
     image.src = url;
     await image.decode();
-    const marge = 40;
-    const taille = 26;
-    const interligne = 36;
+    const { marge, taille, interligne } = PAGE_SCHEMA;
     const mesure = document.createElement('canvas').getContext('2d');
     mesure.font = `${taille}px Helvetica, Arial, sans-serif`;
     let texte = couperLignes(mesure, lignes, largeurPx - 2 * marge);
     const hauteurTitre = titre ? interligne * 1.6 : 0;
-    const hauteurDe = (n) => Math.ceil(marge + hauteurTitre + hauteurDessin + marge / 2 + n * interligne + marge);
+    const hauteurDe = (n) => hauteurImageSchema(hauteurDessin, Boolean(titre), n);
     // Texte trop long pour la limite de surface : il est tronqué, la suite reste dans « Copier les résultats ».
     while (texte.length > 0 && largeurPx * hauteurDe(texte.length) > SURFACE_MAX_IMAGE) texte = texte.slice(0, -2);
     if (texte.length < lignes.length && texte.length > 0) texte.push('… suite dans « Copier les résultats ».');

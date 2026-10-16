@@ -634,6 +634,23 @@ export function resumeMur(mur, { nomDalle = () => null, nomParc = () => null } =
   return [nomDalle(f.dalle) ?? 'Dalle inconnue', taille, parc ? `parc ${parc}` : null].filter(Boolean).join(', ');
 }
 
+// Proportions d'un mur lues dans ses saisies, sans calcul (mini-aperçu de l'écran Prestas, étape 11d) : Dalles,
+// colonnes × lignes et taille de la dalle (`ficheDalle(id)`) ; Taille et Résolution, la cible ; réglages par défaut,
+// 6 × 3 m ; Zones ou saisie illisible : null.
+export function proportionsMur(mur, { ficheDalle = () => null } = {}) {
+  const f = mur?.configuration?.formulaires?.['form-mur'];
+  if (!f) return { largeur: 6, hauteur: 3 };
+  const n = (x) => Number(String(x ?? '').replace(',', '.'));
+  const si = (largeur, hauteur) => (largeur > 0 && hauteur > 0 ? { largeur, hauteur } : null);
+  if (f.mode === 'dalles') {
+    const d = ficheDalle(f.dalle);
+    return d ? si(n(f.colonnes) * d.largeurMm, n(f.lignes) * d.hauteurMm) : null;
+  }
+  if (f.mode === 'taille') return si(n(f.largeurM), n(f.hauteurM));
+  if (f.mode === 'resolution') return si(n(f.largeurPx), n(f.hauteurPx));
+  return null;
+}
+
 // Clés de stockage : l'index des prestas, et une clé par mur.
 export const CLE_INDEX = 'prestas';
 export const cleMur = (id) => `mur:${id}`;
