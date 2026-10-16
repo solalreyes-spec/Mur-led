@@ -92,8 +92,9 @@ function murCable(contexte, colonnes, lignes, id = 'brompton-s8') {
 const rgbHex = (p) => `#${p.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
 // Nouveau look : onglets et familles attendus (§ 3 de la spec du 09/10/2026) ; feuille de styles de l'appli chargée
 // dans la page de tests le temps d'un contrôle.
-const ONGLETS_LOOK = [['mur', 'image'], ['data', 'donnees'], ['canvas', 'image'], ['elec', 'electricite'], ['poids', 'accroche'],
-  ['schema', 'donnees'], ['depannage', 'depannage'], ['base', 'base'], ['apprendre', 'apprendre']];
+// Étape 11e : Canvas dans la famille de la régie (turquoise), Schéma dans sa propre famille (vert anis).
+const ONGLETS_LOOK = [['mur', 'image'], ['data', 'donnees'], ['canvas', 'regie'], ['elec', 'electricite'], ['poids', 'accroche'],
+  ['schema', 'schema'], ['depannage', 'depannage'], ['base', 'base'], ['apprendre', 'apprendre']];
 async function chargerStylesLook() {
   const feuille = el('link', { rel: 'stylesheet', href: 'styles.css' });
   await new Promise((fin) => {
@@ -3537,6 +3538,38 @@ export const NAVIGATEUR = [
         v.egal('résumé écrit inchangé', texteDe(murs[0].querySelector('.pr-mur-resume')), 'résumé');
       } finally {
         racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N78',
+    titre: 'Une couleur par rubrique (11e, § 14) : en thème sombre, les neuf onglets et l\'écran Prestas ont dix couleurs différentes ; Mur bleu ciel, Data indigo, Canvas turquoise, Schéma vert anis ; guide de montage dans la famille du Schéma, mire dans celle du Mur ; aperçu du mur à joint de 1 px et coins à 12 %',
+    etape: '11e',
+    async verifier(v, contexte) {
+      const look = await moduleAppli(v, '../src/look.js');
+      if (!look) return;
+      const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+      const { sombre } = await jetonsStyles();
+      const couleurs = [...page.querySelectorAll('.onglet')].map((o) => [o.getAttribute('href').slice(1), sombre[`--famille-${o.dataset.famille}`]]);
+      couleurs.push(['prestas', sombre[`--famille-${page.getElementById('prestas')?.dataset.famille}`]]);
+      v.egal('dix couleurs différentes', new Set(couleurs.map(([, c]) => c?.toLowerCase())).size, 10);
+      v.egal('Mur, Data, Canvas, Schéma', Object.fromEntries(couleurs.filter(([o]) => ['mur', 'data', 'canvas', 'schema'].includes(o)).map(([o, c]) => [o, c?.toLowerCase()])),
+        { mur: '#38bdf8', data: '#818cf8', canvas: '#2dd4bf', schema: '#a3e635' });
+      v.egal('guide de montage dans la famille du Schéma, mire dans celle du Mur, panneaux dans celle de leur onglet', [page.getElementById('montage')?.dataset.famille, page.getElementById('mire-fiche')?.dataset.famille,
+        page.getElementById('canvas')?.dataset.famille, page.getElementById('schema')?.dataset.famille], ['schema', 'image', 'regie', 'schema']);
+      v.egal('familles des onglets dans look.js', [look.FAMILLES_ONGLETS.canvas, look.FAMILLES_ONGLETS.schema], ['regie', 'schema']);
+      const retirer = await chargerStylesLook();
+      const cadre = el('div', { 'data-famille': 'image', class: 'carte', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(cadre);
+      try {
+        const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+        const a = look.apercuMur(calculs.mur(bp2, 12, 6), bp2);
+        cadre.append(a);
+        const r = a.querySelector('.ap-dalle');
+        v.egal('aperçu : joint de 1 px, coins à 12 % du côté', [parseFloat(getComputedStyle(r).strokeWidth), Number(r.getAttribute('rx')) / Math.min(Number(r.getAttribute('width')), Number(r.getAttribute('height')))], [1, 0.12]);
+      } finally {
+        cadre.remove();
         retirer();
       }
     },

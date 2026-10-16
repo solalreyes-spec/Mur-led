@@ -129,9 +129,10 @@ function contrasteLook(a, b) {
   const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
   return (x + 0.05) / (y + 0.05);
 }
+// Étape 11e : une couleur par rubrique (Mur bleu ciel, Data indigo, Canvas turquoise avec la régie, Schéma vert anis).
 const FAMILLES_LOOK = {
-  image: '#b08cff', donnees: '#4da3ff', electricite: '#ffa53d', accroche: '#5bd48c',
-  depannage: '#ff6b7f', base: '#a3abb8', apprendre: '#f2d34b', regie: '#3fd0c9', presta: '#e879f9',
+  image: '#38bdf8', donnees: '#818cf8', electricite: '#ffa53d', accroche: '#5bd48c',
+  depannage: '#ff6b7f', base: '#a3abb8', apprendre: '#f2d34b', regie: '#2dd4bf', presta: '#e879f9', schema: '#a3e635',
 };
 
 export const DONNEES = [
