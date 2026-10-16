@@ -607,8 +607,9 @@ export function resumeAvantDePartir(liste) {
   return texte([`AVANT DE PARTIR, parc ${liste.nomParc}`, ...liste.lignes.map((l) => `${etat(l.fait)} : ${l.texte}`)]);
 }
 
-// « Tout copier » : les résumés disponibles, séparés par une ligne vide, sous un en-tête daté.
-export function toutResumer(resumes, date = new Date()) {
+// « Tout copier » : les résumés disponibles, séparés par une ligne vide, sous un en-tête daté ; la ligne de la presta et
+// du mur ouverts (prestas.js, lignePresta) juste sous l'en-tête quand elle est donnée.
+export function toutResumer(resumes, date = new Date(), lignePresta = null) {
   const jour = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-  return [`Mur LED, calcul du ${jour}`, ...resumes.filter(Boolean)].join('\n\n');
+  return [`Mur LED, calcul du ${jour}${lignePresta ? `\n${lignePresta}` : ''}`, ...resumes.filter(Boolean)].join('\n\n');
 }

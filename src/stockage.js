@@ -109,7 +109,7 @@ export function creerStockage(nomBase) {
   }
 
   return {
-    lire, ecrire, ecrireFichier, lireFichier, supprimerFichier, listerFichiers,
+    lire, ecrire, effacer, ecrireFichier, lireFichier, supprimerFichier, listerFichiers,
     disponible: () => disponible,
   };
 }
@@ -118,6 +118,7 @@ export function creerStockage(nomBase) {
 const appli = creerStockage('appli-mur-led');
 export const lire = appli.lire;
 export const ecrire = appli.ecrire;
+export const effacer = appli.effacer;
 export const ecrireFichier = appli.ecrireFichier;
 export const lireFichier = appli.lireFichier;
 export const supprimerFichier = appli.supprimerFichier;

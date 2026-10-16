@@ -603,6 +603,11 @@ function mettreAJour() {
 // ---------------------------------------------------------------------------
 
 const CLE_MONTAGE = 'montage';
+// Où le suivi est gardé : la clé « montage » par défaut ; avec les prestas (étape 10b), le mur ouvert.
+let stockageMontage = { lire: () => lire(CLE_MONTAGE), ecrire: (valeur) => ecrire(CLE_MONTAGE, valeur) };
+export function definirStockageMontage(stockage) {
+  stockageMontage = stockage;
+}
 const $m = (id) => document.getElementById(id);
 const MOTS_GUIDE = {
   data: { suivant: 'Port suivant ▶', tous: 'Tous les ports', branche: 'branché', autre: 'Passer à l\'élec' },
@@ -616,7 +621,7 @@ const vueGuide = {
 };
 
 function enregistrerMontage() {
-  Promise.resolve(ecrire(CLE_MONTAGE, { version: 1, data: montage.data, elec: montage.elec })).catch(() => {});
+  Promise.resolve(stockageMontage.ecrire({ version: 1, data: montage.data, elec: montage.elec })).catch(() => {});
 }
 
 async function garderEcranAllume() {
@@ -842,7 +847,14 @@ function initialiserGuide() {
   document.addEventListener('keydown', (ev) => { if (guide && ev.key === 'Escape') fermerGuide(); });
   document.addEventListener('visibilitychange', () => { if (guide && document.visibilityState === 'visible') garderEcranAllume(); });
   window.addEventListener('resize', () => { if (guide) afficherGuide({ recentrer: true }); });
-  Promise.resolve(lire(CLE_MONTAGE)).then((v) => {
+  rechargerMontage();
+}
+
+// Suivi du montage relu (au lancement, et à l'ouverture d'un autre mur) : le guide ouvert se ferme.
+export function rechargerMontage() {
+  if (guide) fermerGuide();
+  montage = { data: videMontage(), elec: videMontage() };
+  return Promise.resolve(stockageMontage.lire()).then((v) => {
     if (v?.data || v?.elec) montage = { data: { ...videMontage(), ...v.data }, elec: { ...videMontage(), ...v.elec } };
     mettreAJour();
   }).catch(() => {});
@@ -857,7 +869,7 @@ export function actualiserAffichageSchema() {
 // « Repartir des réglages par défaut » (onglet Base) : le suivi du montage est effacé aussi.
 export function effacerMontage() {
   montage = { data: videMontage(), elec: videMontage() };
-  Promise.resolve(ecrire(CLE_MONTAGE, null)).catch(() => {});
+  Promise.resolve(stockageMontage.ecrire(null)).catch(() => {});
   if (guide) fermerGuide();
   else mettreAJour();
 }

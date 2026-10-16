@@ -10,11 +10,17 @@ import { initialiserCanvas, actualiserRegies, donneesModifiees } from './ecran-c
 import { initialiserElec, murModifiePourElec, definirDepartElec } from './ecran-elec.js';
 import {
   initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema,
-  cablageRetenu, sortieModifieePourSchema,
+  cablageRetenu, sortieModifieePourSchema, definirStockageMontage, rechargerMontage,
 } from './ecran-schema.js';
 import { initialiserPoids, actualiserBumpers, murModifiePourPoids } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
-import { restaurerConfiguration, suivreConfiguration, reglagesParDefaut } from './configuration.js';
+import {
+  restaurerConfiguration, suivreConfiguration, reglagesParDefaut, definirSauvegarde, sauverMaintenant, releverDefauts, appliquerConfiguration,
+} from './configuration.js';
+import * as prestas from './prestas.js';
+import { chargerPrestas, creerEnregistreur } from './prestas-appareil.js';
+import { monterPrestas, remplirBoutonPresta, fichierExportPresta } from './ecran-prestas.js';
+import { enregistrer } from './export.js';
 import { initialiserCopie } from './copie.js';
 import { monterDepannage, marqueDuProcesseur } from './ecran-depannage.js';
 import { monterMireFiche } from './ecran-mire.js';
@@ -196,8 +202,42 @@ if (JSON.stringify(migree) !== JSON.stringify(base)) {
   base = migree;
   await ecrire('base-utilisateur', base);
 }
-let parcActif = (await lire('parc-actif')) ?? null;
-if (!base.parcs.some((p) => p.id === parcActif)) parcActif = null;
+// Prestas (étape 10b) : la presta et le mur ouverts, gardés sur l'appareil (la première fois, la configuration en cours
+// devient « Presta sans nom · Mur 1 ») ; le parc actif est celui du mur ouvert.
+const chargement = await chargerPrestas();
+let etatPrestas = chargement.etat;
+const enregistrerPrestas = creerEnregistreur(chargement.migre ? null : etatPrestas);
+if (chargement.migre) enregistrerPrestas(etatPrestas);
+let parcActif = null;
+// Parc du mur ouvert absent de ma base (supprimé depuis) : calcul en « Tous », avec une alerte dans le Mur.
+let parcDisparu = null;
+function lireParcDuMur() {
+  parcActif = prestas.murOuvert(etatPrestas)?.parc ?? null;
+  parcDisparu = parcActif && !base.parcs.some((p) => p.id === parcActif) ? parcActif : null;
+  if (parcDisparu) parcActif = null;
+}
+lireParcDuMur();
+// Saisies, parc ou suivi du montage du mur ouvert, enregistrés avec lui.
+function majMur(champs) {
+  const mur = prestas.murOuvert(etatPrestas);
+  if (!mur) return;
+  etatPrestas = prestas.enregistrerMur(etatPrestas, mur.id, champs);
+  enregistrerPrestas(etatPrestas);
+}
+definirSauvegarde((config) => {
+  const mur = prestas.murOuvert(etatPrestas);
+  if (mur && JSON.stringify(mur.configuration) !== JSON.stringify(config)) majMur({ configuration: config });
+  // Une dalle ou un processeur choisi de nouveau : l'alerte « introuvable » se retire.
+  alertesMurOuvert();
+  return true;
+});
+definirStockageMontage({
+  lire: async () => prestas.murOuvert(etatPrestas)?.montage ?? null,
+  ecrire: async (valeur) => {
+    majMur({ montage: valeur });
+    return true;
+  },
+});
 
 // Fusion base de départ + ma base, puis résolution des valeurs sourcées.
 function construire() {
@@ -275,9 +315,10 @@ function appliquer() {
 // Enregistre ma nouvelle base ; renvoie false si le stockage local n'a pas pu l'écrire.
 async function enregistrerBase(nouvelle) {
   base = nouvelle;
-  if (!base.parcs.some((p) => p.id === parcActif)) {
+  if (parcActif && !base.parcs.some((p) => p.id === parcActif)) {
     parcActif = null;
     await ecrire('parc-actif', null);
+    majMur({ parc: null });
   }
   const ok = await ecrire('base-utilisateur', base);
   appliquer();
@@ -287,8 +328,11 @@ async function enregistrerBase(nouvelle) {
 for (const select of selecteursParc) {
   select.addEventListener('change', async () => {
     parcActif = select.value || null;
+    parcDisparu = null;
     await ecrire('parc-actif', parcActif);
+    majMur({ parc: parcActif });
     appliquer();
+    alertesMurOuvert();
   });
 }
 remplirParcs();
@@ -433,7 +477,12 @@ if (pourquoi) {
   remplacer(document.getElementById('ecran-apprendre'), erreurAlerte('Fiches « pourquoi » introuvables : l\'onglet Apprendre ne peut pas s\'afficher.'));
 }
 // Version de l'appli à droite du titre : celle du cache qui sert l'appli.
-versionAppli().then((v) => { document.getElementById('version-appli').textContent = v ?? ''; });
+// Son numéro est aussi écrit dans le fichier d'une presta exportée.
+let numeroVersion = null;
+versionAppli().then((v) => {
+  document.getElementById('version-appli').textContent = v ?? '';
+  numeroVersion = Number(/\d+/.exec(v ?? '')?.[0]) || null;
+});
 if (ficheContenu) {
   ecranMire = monterMireFiche(document.getElementById('ecran-mire'), ficheContenu, {
     contexte: cablageRetenu,
@@ -456,15 +505,139 @@ window.addEventListener('hashchange', () => {
   fermerMire();
 });
 
-// Saisies de la dernière session, puis sauvegarde automatique ; copie des résultats.
-await restaurerConfiguration();
+// Mur ouvert : alertes quand son parc, sa dalle ou son processeur manquent sur cet appareil.
+function alertesMurOuvert() {
+  const f = prestas.murOuvert(etatPrestas)?.configuration?.formulaires ?? {};
+  const lignes = [];
+  if (parcDisparu) lignes.push('Le parc de ce mur n\'existe plus sur cet appareil : calcul avec toutes les fiches (« Tous »).');
+  const connue = (id) => [...courant.dalles, ...courant.gabarits].some((d) => d.id === id);
+  const dalle = f['form-mur']?.dalle;
+  if (dalle && !connue(dalle)) lignes.push(`Dalle de ce mur introuvable sur cet appareil : ${dalle}.`);
+  // Mode Zones : la dalle propre de chaque zone (mur mixte).
+  if (f['form-mur']?.mode === 'zones') {
+    let zones = [];
+    try {
+      zones = JSON.parse(f['form-mur'].zones || '{}').zones ?? [];
+    } catch (erreur) {
+      zones = [];
+    }
+    for (const z of zones) if (z.dalleId && !connue(z.dalleId)) lignes.push(`Dalle de la zone ${z.nom} introuvable sur cet appareil : ${z.dalleId}.`);
+  }
+  const processeur = f['form-data']?.processeur;
+  if (processeur && !/^conseil/.test(processeur) && !courant.processeurs.some((x) => x.id === processeur)) {
+    lignes.push(`Processeur de ce mur introuvable sur cet appareil : ${processeur}.`);
+  }
+  remplacer(document.getElementById('alertes-mur-ouvert'), lignes.map((t) => el('div', { class: 'alerte' }, t)));
+}
+
+// Bouton « Presta · Mur » de l'en-tête et écran Prestas.
+const boutonPresta = document.getElementById('bouton-presta');
+const actualiserBoutonPresta = () => remplirBoutonPresta(boutonPresta, { presta: prestas.prestaOuverte(etatPrestas), mur: prestas.murOuvert(etatPrestas) });
+const panneauPrestas = document.getElementById('prestas');
+let ecranPrestas = null;
+
+// Un autre mur ouvert : son parc, ses saisies (réglages par défaut d'abord) et son suivi du montage.
+async function ouvrirMurCourant() {
+  lireParcDuMur();
+  await ecrire('parc-actif', parcActif);
+  appliquer();
+  await appliquerConfiguration(prestas.murOuvert(etatPrestas)?.configuration ?? null);
+  await rechargerMontage();
+  alertesMurOuvert();
+}
+// Opération sur les prestas (prestas.js) : les saisies en attente vont d'abord au mur ouvert ; une erreur de saisie
+// remonte à l'écran Prestas, qui l'affiche.
+async function operationPrestas(calcul) {
+  sauverMaintenant();
+  const avant = etatPrestas;
+  etatPrestas = calcul(avant);
+  enregistrerPrestas(etatPrestas);
+  if (etatPrestas.index.ouverte.mur !== avant.index.ouverte.mur) await ouvrirMurCourant();
+  actualiserBoutonPresta();
+  ecranPrestas?.afficher(etatPrestas, { persistant });
+}
+function fermerPrestas() {
+  if (panneauPrestas.hidden) return false;
+  panneauPrestas.hidden = true;
+  document.body.classList.remove('montage-ouvert');
+  return true;
+}
+function ouvrirPrestas() {
+  sauverMaintenant();
+  ecranPrestas.afficher(etatPrestas, { persistant, ouverture: true });
+  panneauPrestas.hidden = false;
+  document.body.classList.add('montage-ouvert');
+  document.getElementById('ecran-prestas').scrollTop = 0;
+}
+const nomDalle = (id) => [...courant.dalles, ...courant.gabarits].find((d) => d.id === id)?.nom ?? null;
+const nomParcDe = (id) => base.parcs.find((p) => p.id === id)?.nom ?? null;
+ecranPrestas = monterPrestas(document.getElementById('ecran-prestas'), {
+  resumeMur: (m) => prestas.resumeMur(m, { nomDalle, nomParc: nomParcDe }),
+  actions: {
+    // Ouvrir une presta ou un mur ferme l'écran : on revient au mur.
+    ouvrir: async (id, murId = null) => {
+      await operationPrestas((e) => prestas.ouvrir(e, id, murId));
+      fermerPrestas();
+    },
+    // Nouveau mur, nouvelle presta : le parc actif (« Tous » quand celui du mur ouvert a disparu).
+    creerPresta: () => operationPrestas((e) => prestas.creerPresta(e, { parc: parcActif })),
+    modifierPresta: (id, infos) => operationPrestas((e) => prestas.modifierPresta(e, id, infos)),
+    ajouterMur: (id) => operationPrestas((e) => prestas.ajouterMur(e, id, { parc: parcActif })),
+    renommerMur: (id, murId, nom) => operationPrestas((e) => prestas.renommerMur(e, id, murId, nom)),
+    dupliquerMur: (id, murId) => operationPrestas((e) => prestas.dupliquerMur(e, id, murId)),
+    supprimerMur: (id, murId) => operationPrestas((e) => prestas.supprimerMur(e, id, murId)),
+    dupliquerPresta: (id) => operationPrestas((e) => prestas.dupliquerPresta(e, id)),
+    archiverPresta: (id, archivee) => operationPrestas((e) => prestas.archiverPresta(e, id, archivee)),
+    supprimerPresta: (id) => operationPrestas((e) => prestas.supprimerPresta(e, id)),
+    // Export : feuille de partage ou téléchargement, sans attente avant (Safari n'ouvre la feuille qu'en réponse
+    // directe à un appui) ; la date d'export n'est gardée que si le fichier est parti.
+    exporter: async (id) => {
+      sauverMaintenant();
+      const { donnees } = prestas.exporterPresta(etatPrestas, id, base, { versionAppli: numeroVersion, depart });
+      const fichier = fichierExportPresta(donnees);
+      const mode = await enregistrer(fichier, fichier.name);
+      if (mode !== 'annule') await operationPrestas((e) => prestas.exporterPresta(e, id, base, { versionAppli: numeroVersion, depart }).etat);
+      return mode;
+    },
+    verifierImport: async (texte) => {
+      sauverMaintenant();
+      return prestas.verifierImportPresta(texte, etatPrestas, base, depart);
+    },
+    // Import : ma base d'abord (fiches et parcs du fichier), puis la presta, ouverte.
+    importer: async (texte, choix) => {
+      sauverMaintenant();
+      const r = prestas.importerPresta(etatPrestas, base, depart, texte, choix);
+      if (r.erreurs.length) throw new Error(r.erreurs[0]);
+      if (r.base !== base) await enregistrerBase(r.base);
+      await operationPrestas(() => r.etat);
+      return r.rapport;
+    },
+  },
+});
+boutonPresta.addEventListener('click', ouvrirPrestas);
+document.getElementById('prestas-fermer').addEventListener('click', fermerPrestas);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerPrestas(); });
+window.addEventListener('hashchange', fermerPrestas);
+actualiserBoutonPresta();
+
+// Saisies du mur ouvert, puis sauvegarde automatique ; copie des résultats. Les valeurs de départ des formulaires sont
+// relevées avant (réglages par défaut d'un nouveau mur).
+releverDefauts();
+await restaurerConfiguration(prestas.murOuvert(etatPrestas)?.configuration ?? null);
 suivreConfiguration();
-initialiserCopie();
+alertesMurOuvert();
+initialiserCopie({
+  lignePresta: () => {
+    const p = prestas.prestaOuverte(etatPrestas);
+    const m = prestas.murOuvert(etatPrestas);
+    return p && m ? prestas.lignePresta(p, m.nom) : null;
+  },
+});
 
 // Dépannage : avec des saisies gardées (un projet), la marque du processeur retenu dans Data déplie ses lignes ; sans
 // saisies, l'écran demande la marque. Relu à chaque ouverture de l'onglet.
 async function projetDepannage() {
-  if (!(await lire('configuration'))) return null;
+  if (!prestas.murOuvert(etatPrestas)?.configuration) return null;
   const processeur = processeurRetenu();
   return processeur ? { marque: marqueDuProcesseur(processeur), nom: processeur.nom } : null;
 }
@@ -488,7 +661,8 @@ demanderStockagePersistant().then((accorde) => {
   actualiserEcranBase({ base, depart, fusion: courant.fusion, parcActif, persistant });
 });
 document.getElementById('reglages-defaut').addEventListener('click', () => {
-  if (confirm('Remettre toutes les saisies des onglets Mur, Data, Canvas, Élec, Poids et Schéma à leurs valeurs par défaut, et effacer le suivi du montage ? Ta base et tes parcs ne changent pas.')) {
+  const mur = prestas.murOuvert(etatPrestas)?.nom ?? 'le mur ouvert';
+  if (confirm(`Remettre toutes les saisies de ${mur} (onglets Mur, Data, Canvas, Élec, Poids et Schéma) à leurs valeurs par défaut, et effacer son suivi du montage ? Les autres murs, ta base et tes parcs ne changent pas.`)) {
     reglagesParDefaut();
     effacerMontage();
   }

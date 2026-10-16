@@ -384,6 +384,8 @@ export function validerImport(entree, sourcesConnues = {}) {
     }
   }
   if (!objet || typeof objet !== 'object') return { entrees: [], sources: {}, parcs: [], erreurs: ['JSON vide ou mal formé.'] };
+  // Fichier d'une presta (prestas.js) : il a ses fiches et ses parcs, mais s'importe depuis l'écran Prestas.
+  if (objet.format === 'appli-mur-led/presta') return { entrees: [], sources: {}, parcs: [], erreurs: ['C\'est une presta : importe-la depuis l\'écran Prestas.'] };
   const sources = objet.sources ?? {};
   const brutes = objet.fiches ?? (objet.fiche ? [{ type: objet.type ?? objet.fiche.type, fiche: objet.fiche }] : []);
   const entrees = brutes.map(({ type, fiche }) => {

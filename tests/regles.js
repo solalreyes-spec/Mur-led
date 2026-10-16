@@ -11,6 +11,7 @@ import * as montage from '../src/montage.js';
 import * as contenu from '../src/contenu.js';
 import * as entrainement from '../src/entrainement.js';
 import * as zones from '../src/zones.js';
+import * as prestas from '../src/prestas.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
@@ -6210,6 +6211,414 @@ export const REGLES = [
         { nom: 'B', colonnes: 10, rangees: 2, courbure: courbe, placement: { type: 'dessus', zone: 'A' }, pose: { type: 'pliee', sens: 'concave', angleDeg: 90 } }]))));
     },
   },
+  {
+    id: 'R291',
+    titre: 'Prestas (10b, § 5 de la spec) : au premier lancement, la configuration en cours devient « Presta sans nom » avec « Mur 1 », qui reprend les saisies, le parc actif et le suivi du montage ; un appareil neuf a un « Mur 1 » aux réglages par défaut',
+    etape: '10b',
+    verifier(v) {
+      const config = configurationEssai(12);
+      const montage = { data: { branches: ['1'] }, elec: { branches: [] } };
+      const etat = prestas.migrer({ configuration: config, parcActif: 'parc-a', montage }, optionsPresta());
+      const p = etat.index.prestas[0];
+      v.egal('une presta « Presta sans nom », sans date, lieu ni notes, non archivée, jamais exportée, avec « Mur 1 »',
+        [etat.index.prestas.length, p.nom, p.debut, p.fin, p.lieu, p.notes, p.archivee, p.exporteeLe, p.murs.map((m) => m.nom)],
+        [1, 'Presta sans nom', null, null, '', '', false, null, ['Mur 1']]);
+      const mur = etat.murs[p.murs[0].id];
+      v.egal('Mur 1 : saisies, parc actif et suivi du montage repris', [mur.configuration, mur.parc, mur.montage], [config, 'parc-a', montage]);
+      v.vrai('saisies copiées, pas partagées avec l\'objet lu', mur.configuration !== config);
+      v.egal('presta et mur ouverts', etat.index.ouverte, { presta: p.id, mur: p.murs[0].id });
+      v.egal('version du modèle (index et mur)', [etat.index.version, mur.version], [1, 1]);
+      v.egal('dates de création et de modification', [p.creeeLe, p.modifieeLe], [MAINTENANT_PRESTA.toISOString(), MAINTENANT_PRESTA.toISOString()]);
+      v.vrai('identifiants tirés au hasard, jamais dérivés du nom', /^p-/.test(p.id) && /^m-/.test(p.murs[0].id) && !/sans|nom/i.test(p.id));
+      const neuf = prestas.migrer({}, optionsPresta());
+      const murNeuf = neuf.murs[neuf.index.prestas[0].murs[0].id];
+      v.egal('appareil neuf : Mur 1 aux réglages par défaut, sans parc ni suivi', [murNeuf.configuration, murNeuf.parc, murNeuf.montage], [null, null, null]);
+      v.egal('presta et mur ouverts lus par prestaOuverte et murOuvert', [prestas.prestaOuverte(etat).nom, prestas.murOuvert(etat).nom, prestas.murOuvert(etat).parc], ['Presta sans nom', 'Mur 1', 'parc-a']);
+    },
+  },
+  {
+    id: 'R292',
+    titre: 'Prestas (10b, § 4) : nom obligatoire de 60 caractères au plus, dates AAAA-MM-JJ avec une fin jamais avant le début, lieu de 80 caractères au plus, notes de 2 000 caractères au plus ; espaces de bord retirés ; une saisie refusée donne sa raison et ne change rien',
+    etape: '10b',
+    verifier(v) {
+      const o = optionsPresta();
+      const etat = prestas.migrer({}, o);
+      const id = etat.index.prestas[0].id;
+      const plusTard = { ...o, maintenant: new Date('2026-10-14T12:00:00Z') };
+      const e = prestas.modifierPresta(etat, id, { nom: '  Presta A  ', debut: '2026-10-17', fin: '2026-10-19', lieu: ' Lieu B ', notes: 'note d\'essai' }, plusTard);
+      const p = e.index.prestas[0];
+      v.egal('infos enregistrées, espaces de bord retirés', [p.nom, p.debut, p.fin, p.lieu, p.notes], ['Presta A', '2026-10-17', '2026-10-19', 'Lieu B', 'note d\'essai']);
+      v.egal('date de modification mise à jour', p.modifieeLe, '2026-10-14T12:00:00.000Z');
+      v.egal('l\'état de départ n\'est pas modifié', etat.index.prestas[0].nom, 'Presta sans nom');
+      const essai = (infos) => messageErreur(() => prestas.modifierPresta(e, id, { ...p, ...infos }, o));
+      v.egal('refus, avec leur raison', [
+        essai({ nom: '   ' }), essai({ nom: 'x'.repeat(61) }), essai({ debut: null, fin: '2026-10-19' }), essai({ debut: '2026-10-19', fin: '2026-10-17' }),
+        essai({ debut: '17/10/2026' }), essai({ lieu: 'x'.repeat(81) }), essai({ notes: 'x'.repeat(2001) }),
+      ], [
+        'Donne un nom à la presta.', 'Nom de presta trop long : 60 caractères au plus.', 'Date de fin sans date de début.',
+        'La fin (17/10/2026) est avant le début (19/10/2026).', 'Date illisible : 17/10/2026.', 'Lieu trop long : 80 caractères au plus.',
+        'Notes trop longues : 2 000 caractères au plus.',
+      ]);
+      v.egal('acceptés : 60 caractères, fin le jour du début, sans date, notes de 2 000 caractères', [
+        essai({ nom: 'x'.repeat(60) }), essai({ fin: '2026-10-17' }), essai({ debut: null, fin: null }), essai({ notes: 'x'.repeat(2000) }),
+      ], ['', '', '', '']);
+    },
+  },
+  {
+    id: 'R293',
+    titre: 'Prestas (10b, § 6) : nouvelle presta « Presta du JJ/MM/AAAA » ouverte aussitôt, avec un « Mur 1 » aux réglages par défaut et le parc du mur ouvert ; nouveau mur « Mur n » (le premier numéro libre) qui reprend le parc du mur en cours ; ouvrir une presta ouvre son premier mur ; noms de mur obligatoires, de 40 caractères au plus, uniques dans la presta',
+    etape: '10b',
+    verifier(v) {
+      const o = optionsPresta();
+      let etat = prestas.migrer({ configuration: configurationEssai(12), parcActif: 'parc-a' }, o);
+      const premiere = etat.index.prestas[0].id;
+      etat = prestas.creerPresta(etat, {}, o);
+      const nouvelle = prestas.prestaOuverte(etat);
+      v.egal('nouvelle presta : nom du jour, un Mur 1 aux réglages par défaut, parc du mur ouvert, ouverte',
+        [etat.index.prestas.length, nouvelle.nom, nouvelle.murs.map((m) => m.nom), prestas.murOuvert(etat).configuration, prestas.murOuvert(etat).parc],
+        [2, 'Presta du 13/10/2026', ['Mur 1'], null, 'parc-a']);
+      etat = prestas.ajouterMur(etat, nouvelle.id, {}, o);
+      v.egal('nouveau mur : Mur 2, ouvert, parc du mur en cours', [prestas.murOuvert(etat).nom, prestas.murOuvert(etat).parc], ['Mur 2', 'parc-a']);
+      etat = prestas.enregistrerMur(etat, prestas.murOuvert(etat).id, { parc: 'parc-b' }, o);
+      etat = prestas.ajouterMur(etat, nouvelle.id, {}, o);
+      v.egal('Mur 3 reprend le parc du Mur 2 (parc-b)', [prestas.murOuvert(etat).nom, prestas.murOuvert(etat).parc], ['Mur 3', 'parc-b']);
+      const mur2 = prestas.prestaOuverte(etat).murs.find((m) => m.nom === 'Mur 2').id;
+      etat = prestas.supprimerMur(etat, nouvelle.id, mur2, o);
+      etat = prestas.ajouterMur(etat, nouvelle.id, {}, o);
+      v.egal('premier numéro libre : Mur 2 de nouveau', prestas.prestaOuverte(etat).murs.map((m) => m.nom), ['Mur 1', 'Mur 3', 'Mur 2']);
+      etat = prestas.ajouterMur(etat, nouvelle.id, { nom: 'Écran gauche' }, o);
+      v.egal('mur nommé à la création', prestas.murOuvert(etat).nom, 'Écran gauche');
+      etat = prestas.ouvrir(etat, premiere);
+      v.egal('ouvrir une presta : son premier mur', [etat.index.ouverte.presta, prestas.murOuvert(etat).nom, prestas.murOuvert(etat).parc], [premiere, 'Mur 1', 'parc-a']);
+      const murs = etat.index.prestas.find((p) => p.id === nouvelle.id).murs;
+      etat = prestas.ouvrir(etat, nouvelle.id, murs[1].id);
+      v.egal('ouvrir un mur précis', prestas.murOuvert(etat).nom, 'Mur 3');
+      const renommer = (nom) => messageErreur(() => prestas.renommerMur(etat, nouvelle.id, murs[1].id, nom, o));
+      v.egal('renommer un mur : refus avec la raison', [renommer(' '), renommer('x'.repeat(41)), renommer('Mur 1')],
+        ['Donne un nom au mur.', 'Nom de mur trop long : 40 caractères au plus.', 'Un autre mur de cette presta s\'appelle déjà Mur 1.']);
+      etat = prestas.renommerMur(etat, nouvelle.id, murs[1].id, '  Retour scène ', o);
+      v.egal('renommer un mur : espaces de bord retirés ; le garder sous son nom est permis', [prestas.murOuvert(etat).nom, messageErreur(() => prestas.renommerMur(etat, nouvelle.id, murs[1].id, 'Retour scène', o))], ['Retour scène', '']);
+    },
+  },
+  {
+    id: 'R294',
+    titre: 'Prestas (10b, § 6) : dupliquer une presta copie ses infos et tous ses murs (saisies et parcs), sous « Presta A (copie) », non archivée, jamais exportée, suivis de montage vides, nouveaux identifiants, ouverte ; dupliquer un mur donne « Mur 1 (copie) », puis « Mur 1 (copie 2) » ; nom coupé pour tenir dans la limite',
+    etape: '10b',
+    verifier(v) {
+      const o = optionsPresta();
+      const { etat, presta } = prestaEssai(o);
+      let e = prestas.archiverPresta(etat, presta.id, true, o);
+      e = { ...e, index: { ...e.index, prestas: e.index.prestas.map((p) => (p.id === presta.id ? { ...p, exporteeLe: '2026-10-12T08:00:00.000Z' } : p)) } };
+      const apres = prestas.dupliquerPresta(e, presta.id, o);
+      const copie = prestas.prestaOuverte(apres);
+      v.egal('copie : infos reprises, nom « (copie) », non archivée, jamais exportée, ouverte',
+        [copie.nom, copie.debut, copie.fin, copie.lieu, copie.notes, copie.archivee, copie.exporteeLe, apres.index.prestas.length],
+        ['Presta A (copie)', '2026-10-17', '2026-10-19', 'Lieu B', 'note d\'essai', false, null, 3]);
+      v.egal('copie : mêmes murs, mêmes saisies et mêmes parcs, suivis vides',
+        copie.murs.map((m) => [m.nom, apres.murs[m.id].configuration, apres.murs[m.id].parc, apres.murs[m.id].montage]),
+        presta.murs.map((m) => [m.nom, etat.murs[m.id].configuration, etat.murs[m.id].parc, null]));
+      const ids = [...apres.index.prestas.map((p) => p.id), ...Object.keys(apres.murs)];
+      v.vrai('nouveaux identifiants, tous différents', copie.id !== presta.id && new Set(ids).size === ids.length && copie.murs.every((m) => !presta.murs.some((x) => x.id === m.id)));
+      v.vrai('saisies copiées, pas partagées', copie.murs.every((m, i) => apres.murs[m.id].configuration !== etat.murs[presta.murs[i].id].configuration));
+      v.egal('l\'original reste tel quel (archivé, exporté)', [apres.index.prestas.find((p) => p.id === presta.id).archivee, apres.index.prestas.find((p) => p.id === presta.id).exporteeLe], [true, '2026-10-12T08:00:00.000Z']);
+      const long = prestas.modifierPresta(etat, presta.id, { ...presta, nom: 'x'.repeat(58) }, o);
+      const copieLongue = prestas.prestaOuverte(prestas.dupliquerPresta(long, presta.id, o));
+      v.egal('nom long : coupé pour garder « (copie) » dans les 60 caractères', [copieLongue.nom.length, copieLongue.nom.endsWith(' (copie)')], [60, true]);
+      const mur1 = presta.murs[0].id;
+      let m = prestas.dupliquerMur(etat, presta.id, mur1, o);
+      const murCopie = prestas.murOuvert(m);
+      v.egal('dupliquer un mur : « Mur 1 (copie) », ouvert, mêmes saisies et parc, suivi vide',
+        [murCopie.nom, murCopie.configuration, murCopie.parc, murCopie.montage], ['Mur 1 (copie)', etat.murs[mur1].configuration, etat.murs[mur1].parc, null]);
+      m = prestas.dupliquerMur(m, presta.id, mur1, o);
+      v.egal('seconde copie : « Mur 1 (copie 2) »', prestas.prestaOuverte(m).murs.map((x) => x.nom), ['Mur 1', 'Mur 2', 'Mur 1 (copie)', 'Mur 1 (copie 2)']);
+    },
+  },
+  {
+    id: 'R295',
+    titre: 'Prestas (10b, § 6) : archiver et désarchiver ; supprimer un mur (jamais le dernier de sa presta) ou une presta (ses murs partent avec elle) ; la presta ou le mur ouvert supprimé laisse la place au suivant ; supprimer la dernière presta en crée une vide « Presta sans nom »',
+    etape: '10b',
+    verifier(v) {
+      const o = optionsPresta();
+      const { etat, presta } = prestaEssai(o);
+      let e = prestas.archiverPresta(etat, presta.id, true, o);
+      v.egal('archivée : dans « Archivées »', [prestas.listePrestas(e).actives.map((p) => p.nom), prestas.listePrestas(e).archivees.map((p) => p.nom)], [['Presta sans nom'], ['Presta A']]);
+      e = prestas.archiverPresta(e, presta.id, false, o);
+      v.egal('désarchivée : de retour', prestas.listePrestas(e).archivees.length, 0);
+      const [mur1, mur2] = presta.murs.map((m) => m.id);
+      e = prestas.ouvrir(e, presta.id, mur2);
+      e = prestas.supprimerMur(e, presta.id, mur2, o);
+      v.egal('mur ouvert supprimé : le premier mur restant s\'ouvre, ses saisies partent', [prestas.murOuvert(e).id, mur2 in e.murs], [mur1, false]);
+      v.egal('dernier mur : refus', messageErreur(() => prestas.supprimerMur(e, presta.id, mur1, o)), 'Une presta garde au moins un mur : supprime la presta si tu n\'en veux plus.');
+      const sansNom = e.index.prestas.find((p) => p.nom === 'Presta sans nom');
+      const autre = prestas.supprimerPresta(e, sansNom.id, o);
+      v.egal('presta fermée supprimée : ses murs partent, la presta ouverte reste', [autre.index.prestas.map((p) => p.nom), sansNom.murs.some((m) => m.id in autre.murs), autre.index.ouverte.presta], [['Presta A'], false, presta.id]);
+      let trois = prestas.creerPresta(prestas.creerPresta(e, { nom: 'Presta C' }, horloge(o, '2026-10-13T13:00:00Z')), { nom: 'Presta D' }, horloge(o, '2026-10-13T14:00:00Z'));
+      trois = prestas.toucher(trois, presta.id, horloge(o, '2026-10-13T15:00:00Z'));
+      const sansD = prestas.supprimerPresta(trois, trois.index.ouverte.presta, o);
+      v.egal('presta ouverte supprimée : la dernière modifiée des autres s\'ouvre', prestas.prestaOuverte(sansD).nom, 'Presta A');
+      let seule = prestas.supprimerPresta(autre, presta.id, o);
+      const vide = seule.index.prestas[0];
+      v.egal('dernière presta supprimée : une presta vide la remplace', [seule.index.prestas.length, vide.nom, vide.murs.map((m) => m.nom), seule.murs[vide.murs[0].id].configuration, seule.murs[vide.murs[0].id].parc, Object.keys(seule.murs).length],
+        [1, 'Presta sans nom', ['Mur 1'], null, null, 1]);
+      seule = prestas.ouvrir(seule, vide.id);
+      v.egal('elle est ouverte', [seule.index.ouverte.presta, seule.index.ouverte.mur], [vide.id, vide.murs[0].id]);
+    },
+  },
+  {
+    id: 'R296',
+    titre: 'Prestas (10b, § 4 et § 7) : liste, la dernière modifiée en tête, archivées à part ; dates affichées « 17/10/2026 », « du 17 au 19/10/2026 », « du 30/10 au 02/11/2026 », « du 30/12/2026 au 02/01/2027 » ; enregistrer les saisies d\'un mur met à jour sa presta',
+    etape: '10b',
+    verifier(v) {
+      v.egal('texte des dates', [
+        prestas.texteDates(null, null), prestas.texteDates('2026-10-17', null), prestas.texteDates('2026-10-17', '2026-10-17'),
+        prestas.texteDates('2026-10-17', '2026-10-19'), prestas.texteDates('2026-10-30', '2026-11-02'), prestas.texteDates('2026-12-30', '2027-01-02'),
+      ], ['', '17/10/2026', '17/10/2026', 'du 17 au 19/10/2026', 'du 30/10 au 02/11/2026', 'du 30/12/2026 au 02/01/2027']);
+      const o = optionsPresta();
+      let e = prestas.migrer({}, o);
+      e = prestas.creerPresta(e, { nom: 'Presta B' }, horloge(o, '2026-10-13T13:00:00Z'));
+      e = prestas.creerPresta(e, { nom: 'Presta C' }, horloge(o, '2026-10-13T14:00:00Z'));
+      const b = e.index.prestas.find((p) => p.nom === 'Presta B');
+      v.egal('la dernière modifiée en tête', prestas.listePrestas(e).actives.map((p) => p.nom), ['Presta C', 'Presta B', 'Presta sans nom']);
+      const config = configurationEssai(8);
+      e = prestas.enregistrerMur(e, b.murs[0].id, { configuration: config, montage: { data: { branches: ['2'] } } }, horloge(o, '2026-10-13T15:00:00Z'));
+      v.egal('saisies du mur enregistrées, parc inchangé', [e.murs[b.murs[0].id].configuration, e.murs[b.murs[0].id].montage, e.murs[b.murs[0].id].parc], [config, { data: { branches: ['2'] } }, null]);
+      v.egal('sa presta passe en tête', prestas.listePrestas(e).actives.map((p) => p.nom), ['Presta B', 'Presta C', 'Presta sans nom']);
+      e = prestas.archiverPresta(e, e.index.prestas.find((p) => p.nom === 'Presta C').id, true, o);
+      v.egal('archiver ne change pas la date de modification ; archivées à part', [prestas.listePrestas(e).actives.map((p) => p.nom), prestas.listePrestas(e).archivees.map((p) => p.nom), e.index.prestas.find((p) => p.nom === 'Presta C').modifieeLe],
+        [['Presta B', 'Presta sans nom'], ['Presta C'], '2026-10-13T14:00:00.000Z']);
+    },
+  },
+  {
+    id: 'R297',
+    titre: 'Prestas (10b, § 8) : fiches à joindre à l\'export, celles de ma base (fiches perso et versions modifiées) citées par les saisies des murs, zones comprises, ou par leurs parcs ; jamais les fiches de la base de départ ; parcs des murs seulement',
+    etape: '10b',
+    verifier(v, contexte) {
+      const o = optionsPresta();
+      const { etat, presta, base } = prestaEssai(o, contexte);
+      v.egal('fiches utilisées : la version modifiée de la BP2 V2 (Mur 1), la dalle Z d\'une zone (Mur 2), la dalle W citée par le parc ; ni le processeur perso inutilisé, ni le S8 de départ',
+        prestas.fichesUtilisees(etat, presta.id, base).map((f) => `${f.type} ${f.fiche.id}`).sort(), ['dalle essai-dalle-w', 'dalle essai-dalle-z', 'dalle roe-bp2-v2']);
+      v.egal('parcs utilisés : celui du Mur 1 seulement', prestas.parcsUtilises(etat, presta.id, base).map((p) => p.nom), ['Prestataire A']);
+    },
+  },
+  {
+    id: 'R298',
+    titre: 'Prestas (10b, § 8) : fichier exporté au format « appli-mur-led/presta », version 1 : infos de la presta, murs (saisies et parc, sans le suivi de montage), fiches, sources et parcs utilisés, taille des fichiers de config sans leur contenu ; date d\'export gardée ; nom « mur-led-presta-<nom simplifié>-<AAAA-MM-JJ>.json »',
+    etape: '10b',
+    verifier(v, contexte) {
+      const o = optionsPresta();
+      const { etat, presta, base } = prestaEssai(o, contexte);
+      const { donnees, etat: apres } = prestas.exporterPresta(etat, presta.id, base, { ...o, versionAppli: 25 });
+      v.egal('en-tête', [donnees.format, donnees.version, donnees.versionAppli, donnees.exporteLe], ['appli-mur-led/presta', 1, 25, MAINTENANT_PRESTA.toISOString()]);
+      v.egal('infos de la presta, sans état de l\'appareil', donnees.presta, { id: presta.id, nom: 'Presta A', debut: '2026-10-17', fin: '2026-10-19', lieu: 'Lieu B', notes: 'note d\'essai' });
+      v.egal('murs : nom, parc et saisies, sans suivi de montage', donnees.murs, presta.murs.map((m) => ({ id: m.id, nom: m.nom, parc: etat.murs[m.id].parc, configuration: etat.murs[m.id].configuration })));
+      v.egal('fiches, sources et parcs utilisés', [donnees.fiches.map((f) => f.fiche.id).sort(), Object.keys(donnees.sources), donnees.parcs.map((p) => p.nom)],
+        [['essai-dalle-w', 'essai-dalle-z', 'roe-bp2-v2'], ['perso'], ['Prestataire A']]);
+      v.egal('fichiers de config : taille seulement, jamais le contenu', [donnees.tailleFichiersJoints, JSON.stringify(donnees).includes('contenuBase64')], [1234, false]);
+      v.egal('date d\'export gardée dans la presta', apres.index.prestas.find((p) => p.id === presta.id).exporteeLe, MAINTENANT_PRESTA.toISOString());
+      v.egal('nom du fichier', [prestas.nomFichierPresta('Presta Été / A', MAINTENANT_PRESTA), prestas.nomFichierPresta('  ', MAINTENANT_PRESTA), prestas.nomFichierPresta('x'.repeat(60), MAINTENANT_PRESTA)],
+        ['mur-led-presta-presta-ete-a-2026-10-13.json', 'mur-led-presta-sans-nom-2026-10-13.json', `mur-led-presta-${'x'.repeat(40)}-2026-10-13.json`]);
+    },
+  },
+  {
+    id: 'R299',
+    titre: 'Prestas (10b, § 8) : fichier vérifié avant l\'import (lisible, format presta, version, nom, murs et saisies) ; export de la base renvoyé vers l\'onglet Base, et une presta refusée par l\'import de la base ; formulaires inconnus ignorés ; presta déjà présente et conflits de fiches ou de parcs annoncés avant de choisir',
+    etape: '10b',
+    verifier(v, contexte) {
+      const o = optionsPresta();
+      const { etat, presta, base, depart } = prestaEssai(o, contexte);
+      const { donnees } = prestas.exporterPresta(etat, presta.id, base, { ...o, versionAppli: 25 });
+      const texte = (d) => JSON.stringify(d);
+      const erreurs = (t) => prestas.verifierImportPresta(t, prestas.migrer({}, o), fiches.baseVide(), depart).erreurs;
+      v.vrai('fichier illisible', /^Fichier illisible/.test(erreurs('{ pas du json')[0] ?? ''));
+      v.egal('refus, avec leur raison', [
+        erreurs(texte(fiches.exporter(base, depart))), erreurs(texte({ format: 'autre' })), erreurs(texte({ ...donnees, version: 2 })),
+        erreurs(texte({ ...donnees, murs: [] })), erreurs(texte({ ...donnees, presta: { ...donnees.presta, nom: ' ' } })),
+        erreurs(texte({ ...donnees, murs: [{ ...donnees.murs[0], configuration: { formulaires: { 'form-mur': { colonnes: 12 } } } }] })),
+        erreurs(texte({ ...donnees, murs: [donnees.murs[0], { ...donnees.murs[1], nom: 'Mur 1' }] })),
+      ], [
+        ['C\'est un export de la base : importe-le dans l\'onglet Base.'], ['Ce fichier n\'est pas une presta de l\'appli Mur LED.'],
+        ['Presta faite par une version plus récente de l\'appli : mets l\'appli à jour avant de l\'importer.'], ['Presta sans mur : rien à importer.'],
+        ['Donne un nom à la presta.'], ['Mur 1 : saisies illisibles.'], ['Deux murs s\'appellent Mur 1.'],
+      ]);
+      v.egal('import de la base : une presta refusée', fiches.validerImport(texte(donnees)).erreurs, ['C\'est une presta : importe-la depuis l\'écran Prestas.']);
+      const avecInconnu = { ...donnees, murs: [{ ...donnees.murs[0], configuration: { ...donnees.murs[0].configuration, formulaires: { ...donnees.murs[0].configuration.formulaires, 'form-inconnu': { x: '1' } } } }, donnees.murs[1]] };
+      const lu = prestas.verifierImportPresta(texte(avecInconnu), prestas.migrer({}, o), fiches.baseVide(), depart);
+      v.egal('fichier valable : aucune erreur, formulaire inconnu ignoré, presta absente ; la BP2 V2 modifiée du fichier diffère de la fiche de départ (conflit, relecture du 16/10/2026)',
+        [lu.erreurs, Object.keys(lu.donnees.murs[0].configuration.formulaires), lu.prestaExiste, lu.conflits], [[], ['form-mur', 'form-data'], false, { fiches: ['roe-bp2-v2'], parcs: [] }]);
+      const autre = autreAppareil(contexte);
+      const conflits = prestas.verifierImportPresta(texte(donnees), etat, autre, depart);
+      v.egal('sur un appareil qui a la presta, une autre BP2 V2 modifiée et un autre parc du même identifiant : annoncés', [conflits.prestaExiste, conflits.conflits], [true, { fiches: ['roe-bp2-v2'], parcs: ['Prestataire A'] }]);
+    },
+  },
+  {
+    id: 'R300',
+    titre: 'Prestas (10b, § 8) : import ; presta absente ajoutée et ouverte ; déjà présente : « Garder les deux » (copie « (reçue le JJ/MM/AAAA) », nouveaux identifiants) ou « Remplacer la mienne » ; fiches et parcs absents ajoutés, identiques ignorés, différents gardés (par défaut) ou pris du fichier ; fiche invalide refusée ; fichier refusé : rien ne change',
+    etape: '10b',
+    verifier(v, contexte) {
+      const o = optionsPresta();
+      const { etat, presta, base, depart } = prestaEssai(o, contexte);
+      const texte = JSON.stringify(prestas.exporterPresta(etat, presta.id, base, { ...o, versionAppli: 25 }).donnees);
+      const autre = autreAppareil(contexte);
+      const neuf = prestas.migrer({}, o);
+      const r1 = prestas.importerPresta(neuf, autre, depart, texte, {}, o);
+      const p1 = prestas.prestaOuverte(r1.etat);
+      v.egal('presta absente : ajoutée telle quelle et ouverte', [r1.erreurs, r1.rapport.presta, p1.id, p1.nom, p1.murs.map((m) => m.nom), r1.etat.index.prestas.length, r1.mursSupprimes],
+        [[], 'ajoutee', presta.id, 'Presta A', ['Mur 1', 'Mur 2'], 2, []]);
+      v.egal('saisies et parcs des murs repris, suivis vides', p1.murs.map((m) => [r1.etat.murs[m.id].configuration, r1.etat.murs[m.id].parc, r1.etat.murs[m.id].montage]),
+        presta.murs.map((m) => [etat.murs[m.id].configuration, etat.murs[m.id].parc, null]));
+      const bp2 = (b) => b.fiches.find((f) => f.fiche.id === 'roe-bp2-v2').fiche.poidsKg.valeur;
+      v.egal('par défaut : fiches et parcs différents gardés, absents ajoutés', [r1.rapport.fiches, r1.rapport.parcs, bp2(r1.base), r1.base.parcs.find((p) => p.id === base.parcs[0].id).nom],
+        [{ ajoutees: ['essai-dalle-w', 'essai-dalle-z'], identiques: [], gardees: ['roe-bp2-v2'], remplacees: [], refusees: [] }, { ajoutes: [], identiques: [], gardes: ['Prestataire A'], remplaces: [] }, 9.8, 'Prestataire A']);
+      v.egal('fichiers de config décrits (à joindre de nouveau)', r1.rapport.fichiersDecrits, ['BP2V2_A.rcfgx']);
+      const r2 = prestas.importerPresta(neuf, autre, depart, texte, { conflits: 'prendre' }, o);
+      v.egal('« Prendre ceux du fichier » : fiche et parc remplacés', [r2.rapport.fiches.remplacees, r2.rapport.parcs.remplaces, bp2(r2.base), r2.base.parcs.find((p) => p.id === base.parcs[0].id).membres.length],
+        [['roe-bp2-v2'], ['Prestataire A'], 9.5, base.parcs[0].membres.length]);
+      const r3 = prestas.importerPresta(r1.etat, r1.base, depart, texte, {}, horloge(o, '2026-10-15T12:00:00Z'));
+      const p3 = prestas.prestaOuverte(r3.etat);
+      v.egal('déjà présente, « Garder les deux » par défaut : copie reçue, nouveaux identifiants ; fiches et parcs déjà importés identiques',
+        [r3.rapport.presta, p3.nom, p3.id !== presta.id, p3.murs.every((m) => !presta.murs.some((x) => x.id === m.id)), r3.etat.index.prestas.length, r3.rapport.fiches.identiques, r3.rapport.parcs.gardes],
+        ['copie', 'Presta A (reçue le 15/10/2026)', true, true, 3, ['essai-dalle-w', 'essai-dalle-z'], ['Prestataire A']]);
+      const modifiee = prestas.renommerMur(r1.etat, presta.id, p1.murs[0].id, 'Mur modifié', o);
+      const r4 = prestas.importerPresta(modifiee, r1.base, depart, texte, { presta: 'remplacer' }, o);
+      const p4 = prestas.prestaOuverte(r4.etat);
+      v.egal('« Remplacer la mienne » : même presta, murs du fichier sous de nouveaux identifiants, anciens murs effacés',
+        [r4.rapport.presta, r4.etat.index.prestas.length, p4.id, p4.murs.map((m) => m.nom), [...r4.mursSupprimes].sort(), p4.murs.every((m) => m.id in r4.etat.murs),
+          r4.mursSupprimes.some((id) => id in r4.etat.murs)],
+        ['remplacee', 2, presta.id, ['Mur 1', 'Mur 2'], p1.murs.map((m) => m.id).sort(), true, false]);
+      const vide = { type: 'dalle', fiche: { id: 'essai-vide', nom: 'Fiche vide' } };
+      const avecVide = JSON.stringify({ ...JSON.parse(texte), fiches: [...JSON.parse(texte).fiches, vide] });
+      const r5 = prestas.importerPresta(neuf, fiches.baseVide(), depart, avecVide, {}, o);
+      v.egal('fiche invalide refusée, les fiches perso ajoutées ; la BP2 V2 modifiée garde la fiche de départ par défaut (relecture du 16/10/2026)', [r5.rapport.fiches.refusees.map((f) => f.id), r5.base.fiches.map((f) => f.fiche.id).sort(), r5.rapport.fiches.gardees],
+        [['essai-vide'], ['essai-dalle-w', 'essai-dalle-z'], ['roe-bp2-v2']]);
+      const r6 = prestas.importerPresta(neuf, autre, depart, '{ pas du json', {}, o);
+      v.vrai('fichier refusé : rien ne change', r6.erreurs.length === 1 && r6.etat === neuf && r6.base === autre && r6.mursSupprimes.length === 0);
+    },
+  },
+  {
+    id: 'R301',
+    titre: 'Prestas (10b2, § 7) : ligne « Presta A, du 17 au 19/10/2026, Lieu B · Mur 1 » sous l\'en-tête daté de « Tout copier », texte d\'avant mot pour mot sans elle ; résumé d\'un mur lu dans ses saisies, sans calcul (dalle, taille, cible ou zones, parc)',
+    etape: '10b',
+    verifier(v) {
+      const { presta } = prestaEssai(optionsPresta());
+      v.egal('ligne de presta, avec ou sans dates et lieu', [prestas.lignePresta(presta, 'Mur 1'), prestas.lignePresta({ ...presta, debut: null, fin: null, lieu: '' }, 'Mur 2')],
+        ['Presta A, du 17 au 19/10/2026, Lieu B · Mur 1', 'Presta A · Mur 2']);
+      const date = new Date(2026, 9, 13);
+      v.egal('Tout copier sans ligne de presta : le texte d\'avant', resumes.toutResumer(['MUR', null, 'DATA'], date), 'Mur LED, calcul du 13/10/2026\n\nMUR\n\nDATA');
+      v.egal('Tout copier avec la ligne de presta, sous l\'en-tête daté', resumes.toutResumer(['MUR'], date, 'Presta A · Mur 1'), 'Mur LED, calcul du 13/10/2026\nPresta A · Mur 1\n\nMUR');
+      const noms = { nomDalle: (id) => ({ 'roe-bp2-v2': 'BP2 V2' })[id] ?? null, nomParc: (id) => ({ 'prestataire-a': 'Prestataire A' })[id] ?? null };
+      const resume = (champs, parc = null) => prestas.resumeMur({ parc, configuration: champs ? { formulaires: { 'form-mur': champs } } : null }, noms);
+      v.egal('résumé d\'un mur', [
+        resume({ mode: 'dalles', dalle: 'roe-bp2-v2', colonnes: '12', lignes: '6' }, 'prestataire-a'),
+        resume({ mode: 'taille', dalle: 'roe-bp2-v2', largeurM: '6', hauteurM: '3.5' }),
+        resume({ mode: 'resolution', dalle: 'roe-bp2-v2', largeurPx: '1920', hauteurPx: '1080' }),
+        resume({ mode: 'zones', dalle: 'roe-bp2-v2', zones: JSON.stringify([{ nom: 'A' }, { nom: 'B' }]) }),
+        resume({ mode: 'dalles', dalle: 'inconnue', colonnes: '4', lignes: '2' }, 'parc-supprime'),
+        resume(null),
+      ], [
+        'BP2 V2, 12 × 6 dalles, parc Prestataire A', 'BP2 V2, cible 6 × 3,5 m', 'BP2 V2, cible 1920 × 1080 px', 'BP2 V2, 2 zones', 'Dalle inconnue, 4 × 2 dalles', 'Réglages par défaut',
+      ]);
+    },
+  },
+  {
+    id: 'R302',
+    titre: 'Prestas (10b2, § 4) : écritures du stockage après une opération : l\'index « prestas » s\'il a changé, la clé « mur:<id> » de chaque mur nouveau ou changé, les murs disparus effacés ; rien quand rien ne change',
+    etape: '10b',
+    verifier(v) {
+      const o = optionsPresta();
+      const { etat, presta } = prestaEssai(o);
+      const cles = (e) => ({ ecrire: e.ecrire.map(([k]) => k).sort(), effacer: [...e.effacer].sort() });
+      const [mur1, mur2] = presta.murs.map((m) => m.id);
+      v.egal('rien ne change', prestas.ecrituresPrestas(etat, etat), { ecrire: [], effacer: [] });
+      v.egal('premier enregistrement (migration) : l\'index et chaque mur', cles(prestas.ecrituresPrestas(null, etat)),
+        { ecrire: ['prestas', ...Object.keys(etat.murs).map((id) => `mur:${id}`)].sort(), effacer: [] });
+      const saisie = prestas.enregistrerMur(etat, mur2, { configuration: configurationEssai(8) }, horloge(o, '2026-10-13T16:00:00Z'));
+      const ecr = prestas.ecrituresPrestas(etat, saisie);
+      v.egal('saisie d\'un mur : sa clé et l\'index (date de modification)', cles(ecr), { ecrire: [`mur:${mur2}`, 'prestas'].sort(), effacer: [] });
+      v.egal('valeurs écrites : le mur et l\'index', [ecr.ecrire.find(([k]) => k === `mur:${mur2}`)[1], ecr.ecrire.find(([k]) => k === 'prestas')[1]], [saisie.murs[mur2], saisie.index]);
+      v.egal('ouvrir un autre mur : l\'index seulement', cles(prestas.ecrituresPrestas(etat, prestas.ouvrir(etat, presta.id, mur1))), { ecrire: ['prestas'], effacer: [] });
+      v.egal('supprimer un mur : l\'index, et sa clé effacée', cles(prestas.ecrituresPrestas(etat, prestas.supprimerMur(etat, presta.id, mur1, o))), { ecrire: ['prestas'], effacer: [`mur:${mur1}`] });
+    },
+  },
+  {
+    id: 'R303',
+    titre: 'Prestas (10b3, § 8) : rapport d\'import en phrases : presta ajoutée, gardée en copie ou remplacée, avec ses murs ; fiches et parcs ajoutés, gardés dans ma version, remplacés ou refusés (les identiques ne sont pas cités) ; fichiers de config décrits mais jamais dans le fichier',
+    etape: '10b',
+    verifier(v) {
+      const vide = { fiches: { ajoutees: [], identiques: [], gardees: [], remplacees: [], refusees: [] }, parcs: { ajoutes: [], identiques: [], gardes: [], remplaces: [] }, fichiersDecrits: [] };
+      v.egal('presta ajoutée, rien d\'autre', prestas.texteRapportImport({ ...vide, presta: 'ajoutee', nom: 'Presta A', murs: 2 }), ['Presta A importée, avec ses 2 murs.']);
+      v.egal('copie et remplacement, un seul mur', [
+        prestas.texteRapportImport({ ...vide, presta: 'copie', nom: 'Presta A (reçue le 16/10/2026)', murs: 1 }),
+        prestas.texteRapportImport({ ...vide, presta: 'remplacee', nom: 'Presta A', murs: 1 }),
+      ], [['Presta A (reçue le 16/10/2026) ajoutée à côté de la tienne, avec son mur.'], ['Ta presta Presta A remplacée par celle du fichier, avec son mur.']]);
+      const complet = {
+        presta: 'ajoutee', nom: 'Presta A', murs: 2,
+        fiches: { ajoutees: ['essai-dalle-w', 'essai-dalle-z'], identiques: ['roe-cb5-mkii'], gardees: ['roe-bp2-v2'], remplacees: ['essai-proc'], refusees: [{ id: 'essai-vide', erreurs: ['x'] }] },
+        parcs: { ajoutes: ['Prestataire B'], identiques: ['Prestataire C'], gardes: ['Prestataire A'], remplaces: ['Prestataire D'] },
+        fichiersDecrits: ['BP2V2_A.rcfgx'],
+      };
+      v.egal('fiches, parcs et fichiers de config', prestas.texteRapportImport(complet), [
+        'Presta A importée, avec ses 2 murs.',
+        'Fiches ajoutées à ta base : essai-dalle-w, essai-dalle-z.',
+        'Fiches gardées dans ta version, différente de celle du fichier (le calcul se fait avec la tienne) : roe-bp2-v2.',
+        'Fiches remplacées par celles du fichier : essai-proc.',
+        'Fiches refusées, incomplètes : essai-vide.',
+        'Parcs ajoutés : Prestataire B.',
+        'Parcs gardés dans ta version, différente de celle du fichier : Prestataire A.',
+        'Parcs remplacés par ceux du fichier : Prestataire D.',
+        'Fichiers de config jamais joints au fichier d\'une presta : BP2V2_A.rcfgx. Joins-les sur cet appareil si besoin (onglet Base, lots du parc).',
+      ]);
+    },
+  },
+  {
+    id: 'R304',
+    titre: 'Prestas, relecture du 16/10/2026 : version modifiée d\'une fiche de départ reçue dans un fichier annoncée comme conflit (fiche de départ gardée par défaut, ajoutée seulement par « Prendre ceux du fichier ») ; demi-dalle de ma base jointe à l\'export par le lien de sa dalle ; fichier mal formé refusé avec sa raison ; identifiant de mur inhabituel remplacé ; saisies inchangées : presta non marquée modifiée ; parc d\'un nouveau mur ou d\'une nouvelle presta donné par l\'appli',
+    etape: '10b',
+    verifier(v, contexte) {
+      const o = optionsPresta();
+      const { etat, presta, base, depart } = prestaEssai(o, contexte);
+      const texte = JSON.stringify(prestas.exporterPresta(etat, presta.id, base, { ...o, versionAppli: 25 }).donnees);
+      const neuf = prestas.migrer({}, o);
+      const garde = prestas.importerPresta(neuf, fiches.baseVide(), depart, texte, {}, o);
+      v.egal('fiche de départ modifiée reçue : conflit, gardée par défaut, absente de ma base', [prestas.verifierImportPresta(texte, neuf, fiches.baseVide(), depart).conflits.fiches, garde.rapport.fiches.gardees, garde.base.fiches.some((f) => f.fiche.id === 'roe-bp2-v2')],
+        [['roe-bp2-v2'], ['roe-bp2-v2'], false]);
+      const prise = prestas.importerPresta(neuf, fiches.baseVide(), depart, texte, { conflits: 'prendre' }, o);
+      v.egal('« Prendre ceux du fichier » : ajoutée (9,5 kg)', [prise.rapport.fiches.remplacees, prise.base.fiches.find((f) => f.fiche.id === 'roe-bp2-v2')?.fiche.poidsKg.valeur], [['roe-bp2-v2'], 9.5]);
+      const demi = contexte.dalles.dalles.find((d) => d.id === 'roe-cb5-mkii-demi');
+      const baseDemi = fiches.enregistrerFiche(fiches.baseVide(), 'dalle', { ...demi, poidsKg: { valeur: 6, source: 'perso' } }, { perso: { titre: 'pesée', court: 'Pesée', date: '2026-10-16', confiance: 'mesuré' } });
+      const murDemi = prestas.enregistrerMur(neuf, neuf.index.ouverte.mur, { configuration: { version: 2, sourceModifiee: false, formulaires: { 'form-mur': { mode: 'dalles', dalle: 'roe-cb5-mkii', demi: true, colonnes: '8', lignes: '4' } } } }, o);
+      const pid = murDemi.index.ouverte.presta;
+      v.egal('demi-dalle modifiée de ma base, reliée à la dalle de départ du mur : jointe à l\'export', [prestas.fichesUtilisees(murDemi, pid, baseDemi, depart).map((f) => f.fiche.id), prestas.exporterPresta(murDemi, pid, baseDemi, { ...o, depart }).donnees.fiches.map((f) => f.fiche.id)],
+        [['roe-cb5-mkii-demi'], ['roe-cb5-mkii-demi']]);
+      const donnees = JSON.parse(texte);
+      const erreurs = (d) => prestas.verifierImportPresta(JSON.stringify(d), neuf, fiches.baseVide(), depart).erreurs;
+      v.egal('fichier mal formé : refusé avec sa raison, jamais une erreur technique', [
+        erreurs({ ...donnees, fiches: [null] }), erreurs({ ...donnees, fiches: [{ type: 'dalle', fiche: { nom: 'sans identifiant' } }] }), erreurs({ ...donnees, fiches: [{ fiche: { id: 'x' } }] }),
+      ], [['Fiches du fichier illisibles.'], ['Fiches du fichier illisibles.'], ['Fiches du fichier illisibles.']]);
+      const bizarre = { ...donnees, presta: { ...donnees.presta, id: '__proto__' }, murs: [{ ...donnees.murs[0], id: '__proto__' }, { ...donnees.murs[1], id: 'constructor' }] };
+      const r = prestas.importerPresta(neuf, fiches.baseVide(), depart, JSON.stringify(bizarre), {}, o);
+      const p = prestas.prestaOuverte(r.etat);
+      v.vrai('identifiants inhabituels : remplacés, saisies de chaque mur bien gardées', /^p-/.test(p.id) && p.murs.every((m) => /^m-/.test(m.id) && Object.prototype.hasOwnProperty.call(r.etat.murs, m.id))
+        && JSON.stringify(r.etat.murs[p.murs[0].id].configuration) === JSON.stringify(donnees.murs[0].configuration));
+      const memes = prestas.enregistrerMur(etat, presta.murs[0].id, { configuration: etat.murs[presta.murs[0].id].configuration, montage: etat.murs[presta.murs[0].id].montage }, horloge(o, '2026-10-20T12:00:00Z'));
+      v.vrai('saisies et suivi inchangés : rien ne change, presta non marquée modifiée', memes === etat);
+      const parcDonne = prestas.ajouterMur(etat, presta.id, { parc: null }, o);
+      const prestaParc = prestas.creerPresta(etat, { parc: 'prestataire-b' }, o);
+      v.egal('parc donné par l\'appli à un nouveau mur (aucun) et à une nouvelle presta (Prestataire B)', [prestas.murOuvert(parcDonne).parc, prestas.murOuvert(prestaParc).parc], [null, 'prestataire-b']);
+    },
+  },
+  {
+    id: 'R305',
+    titre: 'Prestas, relecture du 16/10/2026 : résumé d\'un mur en zones lu dans le champ caché tel que l\'appli l\'écrit (objet { zones: [...] } de zones.js) : « BP2 V2, 3 zones », « 1 zone »',
+    etape: '10b',
+    verifier(v) {
+      const noms = { nomDalle: (id) => ({ 'roe-bp2-v2': 'BP2 V2' })[id] ?? null };
+      const resume = (saisie) => prestas.resumeMur({ parc: null, configuration: { formulaires: { 'form-mur': { mode: 'zones', dalle: 'roe-bp2-v2', zones: zones.ecrireSaisieZones(saisie) } } } }, noms);
+      v.egal('trois zones, puis une', [
+        resume({ zones: [{ nom: 'A', colonnes: 4, rangees: 2 }, { nom: 'B', colonnes: 4, rangees: 2 }, { nom: 'C', colonnes: 2, rangees: 2 }], ecarts: 'reel', ecartsPx: [], yPx: null }),
+        resume({ zones: [{ nom: 'A', colonnes: 4, rangees: 2 }], ecarts: 'reel', ecartsPx: [], yPx: null }),
+      ], ['BP2 V2, 3 zones', 'BP2 V2, 1 zone']);
+    },
+  },
 ];
 
 // Message de l'erreur levée par `f`, ou chaîne vide.
@@ -6297,4 +6706,62 @@ function verifierLignes(v, variante, total, utileW, chainage) {
   v.egal(`${variante.mode} : chaque dalle une seule fois`, [ids.length, new Set(ids).size], [total, total]);
   v.vrai(`${variante.mode} : aucune ligne au-delà de ${utileW} W${chainage ? ` ni de ${chainage} dalles` : ''}`,
     variante.lignesDetail.every((l) => l.puissanceW <= utileW + 1e-6 && l.dalles.length <= (chainage ?? Infinity)));
+}
+
+// Prestas (étape 10b) : heure et identifiants fixés pour des tests reproductibles ; noms neutres, jamais un client
+// ni une salle.
+const MAINTENANT_PRESTA = new Date('2026-10-13T12:00:00Z');
+function optionsPresta() {
+  let n = 0;
+  return { maintenant: MAINTENANT_PRESTA, alea: () => `t${(n += 1)}` };
+}
+const horloge = (o, iso) => ({ ...o, maintenant: new Date(iso) });
+
+function configurationEssai(colonnes) {
+  return {
+    version: 2,
+    sourceModifiee: false,
+    formulaires: {
+      'form-mur': { mode: 'dalles', dalle: 'roe-bp2-v2', colonnes: String(colonnes), lignes: '6', demiDisponibles: false },
+      'form-data': { processeur: 'brompton-s8', redondance: false },
+    },
+  };
+}
+
+// « Presta A » (du 17 au 19/10/2026, « Lieu B ») : Mur 1 en BP2 V2 sur S8 avec le parc « Prestataire A » et un suivi de
+// montage, Mur 2 en zones avec la dalle perso Z, sans parc ; « Presta sans nom » à côté. Avec le contexte : ma base
+// (BP2 V2 modifiée, dalles Z et W, processeur P, parcs A et B) et la base de départ.
+function prestaEssai(o, contexte = null) {
+  let etat = prestas.migrer({ configuration: configurationEssai(10) }, o);
+  etat = prestas.creerPresta(etat, { nom: 'Presta A' }, o);
+  const id = etat.index.ouverte.presta;
+  etat = prestas.modifierPresta(etat, id, { nom: 'Presta A', debut: '2026-10-17', fin: '2026-10-19', lieu: 'Lieu B', notes: 'note d\'essai' }, o);
+  etat = prestas.enregistrerMur(etat, etat.index.ouverte.mur, { configuration: configurationEssai(12), parc: 'prestataire-a', montage: { data: { branches: ['1'] } } }, o);
+  etat = prestas.ajouterMur(etat, id, {}, o);
+  const zonesMur = JSON.stringify([{ nom: 'A', colonnes: 4, rangees: 2, dalleId: 'essai-dalle-z' }]);
+  etat = prestas.enregistrerMur(etat, etat.index.ouverte.mur, { configuration: { version: 2, sourceModifiee: false, formulaires: { 'form-mur': { mode: 'zones', zones: zonesMur } } }, parc: null }, o);
+  const presta = etat.index.prestas.find((p) => p.id === id);
+  if (!contexte) return { etat, presta };
+  const depart = { dalles: contexte.dalles, processeurs: contexte.processeurs, regies: contexte.regies };
+  const bp2 = contexte.dalles.dalles.find((d) => d.id === 'roe-bp2-v2');
+  const s8 = contexte.processeurs.processeurs.find((p) => p.id === 'brompton-s8');
+  const sources = { perso: { titre: 'relevé atelier p. 1', court: 'Relevé', date: '2026-09-20', confiance: 'mesuré' } };
+  let base = fiches.enregistrerFiche(fiches.baseVide(), 'dalle', { ...bp2, poidsKg: { valeur: 9.5, source: 'perso' } }, sources);
+  base = fiches.enregistrerFiche(base, 'dalle', { ...bp2, id: 'essai-dalle-z', modele: 'Essai Z', nom: 'Dalle Z' });
+  base = fiches.enregistrerFiche(base, 'dalle', { ...bp2, id: 'essai-dalle-w', modele: 'Essai W', nom: 'Dalle W' });
+  base = fiches.enregistrerFiche(base, 'processeur', { ...s8, id: 'essai-proc', modele: 'Essai P', nom: 'Processeur P' });
+  base = fiches.creerParc(base, 'Prestataire A');
+  for (const [type, membre] of [['dalle', 'roe-bp2-v2'], ['dalle', 'essai-dalle-w'], ['processeur', 'brompton-s8']]) base = fiches.basculerMembre(base, 'prestataire-a', type, membre);
+  const lots = { 'roe-bp2-v2': [{ id: '2024-03 A', quantite: 100, configs: [{ logiciel: 'tessera', fichier: { id: 'f-essai', nom: 'BP2V2_A.rcfgx', taille: 1234 } }] }] };
+  base = { ...base, parcs: base.parcs.map((p) => ({ ...p, lots })) };
+  base = fiches.basculerMembre(fiches.creerParc(base, 'Prestataire B'), 'prestataire-b', 'processeur', 'essai-proc');
+  return { etat, presta, base, depart };
+}
+
+// L'appareil d'un collègue : une autre version modifiée de la BP2 V2 et un autre parc « Prestataire A ».
+function autreAppareil(contexte) {
+  const bp2 = contexte.dalles.dalles.find((d) => d.id === 'roe-bp2-v2');
+  const autre = fiches.enregistrerFiche(fiches.baseVide(), 'dalle', { ...bp2, poidsKg: { valeur: 9.8, source: 'perso2' } },
+    { perso2: { titre: 'pesée', court: 'Pesée', date: '2026-09-21', confiance: 'mesuré' } });
+  return fiches.basculerMembre(fiches.creerParc(autre, 'Prestataire A'), 'prestataire-a', 'dalle', 'roe-bp2-v2');
 }

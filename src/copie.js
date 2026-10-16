@@ -44,7 +44,8 @@ function annoncer(etat, message) {
   etat.minuterie = setTimeout(() => { etat.textContent = ''; }, 4000);
 }
 
-export function initialiserCopie() {
+// `lignePresta()` : ligne de la presta et du mur ouverts, sous l'en-tête de « Tout copier » (étape 10b).
+export function initialiserCopie({ lignePresta = () => null } = {}) {
   for (const bouton of document.querySelectorAll('[data-copier]')) {
     const etat = bouton.parentElement.querySelector('.etat-copie');
     bouton.addEventListener('click', async () => {
@@ -64,7 +65,7 @@ export function initialiserCopie() {
       annoncer(etatGlobal, 'Rien à copier : aucun calcul valide.');
       return;
     }
-    const ok = await copier(toutResumer(resumes));
+    const ok = await copier(toutResumer(resumes, new Date(), lignePresta()));
     annoncer(etatGlobal, ok ? `Résultats de ${nombre} onglet${nombre > 1 ? 's' : ''} copiés, à coller dans ton message.` : 'Copie impossible sur cet appareil.');
   });
 }

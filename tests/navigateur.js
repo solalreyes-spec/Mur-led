@@ -2,7 +2,7 @@
 // pas par node --test. Ils vérifient les exports d'image de l'étape 8c.
 
 import * as calculs from '../src/calculs.js';
-import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, enregistrer, TEINTES } from '../src/export.js';
+import { pixelMapEnCanvas, canvasEnPng, schemaEnPng, enregistrer, modeEnregistrement, TEINTES } from '../src/export.js';
 import { geometrieSchema, trajetsSchema, construireSvg, repereSchema, PALETTE_EXPORT, PALETTE_ECRAN } from '../src/dessin-schema.js';
 import { processeurDeBase, baseProcesseurs, dalleDeBase, liaisonsDeBase, regieDeBase } from './base.js';
 import { DALLE_CAS_13, DALLE_CAS_7 } from './dalles-fictives.js';
@@ -2757,6 +2757,347 @@ export const NAVIGATEUR = [
         v.egal('éditeur : rotation gardée', recu?.zones[0].roulisDeg, 45);
       } finally {
         ed.remove();
+      }
+    },
+  },
+  {
+    id: 'N65',
+    titre: 'Écran Prestas (10b2, § 7) : presta ouverte en tête (nom, dates et lieu, dernier export), ses murs avec leur résumé, le mur ouvert marqué, boutons de chaque mur et de la presta ; autres prestas, la dernière modifiée en tête, avec « Ouvrir » ; archivées repliées ; « Nouvelle presta » ; rappel d\'export sans stockage persistant ; « Modifier » et « Renommer » dans l\'écran, erreur affichée ; chaque bouton appelle son action ; cibles de 48 px, rien ne dépasse à 375 px, noms longs compris',
+    etape: '10b',
+    async verifier(v) {
+      const ep = await moduleAppli(v, '../src/ecran-prestas.js');
+      const pr = await moduleAppli(v, '../src/prestas.js');
+      if (!ep || !pr) return;
+      let n = 0;
+      const o = (iso) => ({ maintenant: new Date(iso), alea: () => `n${(n += 1)}` });
+      let etat = pr.migrer({}, o('2026-10-13T08:00:00Z'));
+      etat = pr.creerPresta(etat, { nom: 'Presta B' }, o('2026-10-13T09:00:00Z'));
+      const b = etat.index.ouverte.presta;
+      etat = pr.creerPresta(etat, { nom: 'Presta C' }, o('2026-10-13T10:00:00Z'));
+      etat = pr.archiverPresta(etat, etat.index.ouverte.presta, true);
+      const long = 'Presta'.padEnd(60, 'x');
+      const murLong = 'Mur'.padEnd(40, 'y');
+      etat = pr.creerPresta(etat, { nom: long }, o('2026-10-13T11:00:00Z'));
+      const a = etat.index.ouverte.presta;
+      etat = pr.modifierPresta(etat, a, { nom: long, debut: '2026-10-17', fin: '2026-10-19', lieu: 'Lieu B', notes: '' }, o('2026-10-13T11:00:00Z'));
+      etat = pr.ajouterMur(etat, a, { nom: murLong }, o('2026-10-13T11:30:00Z'));
+      const [mur1, mur2] = etat.index.prestas.find((p) => p.id === a).murs.map((m) => m.id);
+      etat = pr.ouvrir(etat, a, mur1);
+      const appels = [];
+      const actions = Object.fromEntries(['ouvrir', 'creerPresta', 'ajouterMur', 'dupliquerMur', 'supprimerMur', 'dupliquerPresta', 'archiverPresta', 'supprimerPresta']
+        .map((nom) => [nom, async (...args) => { appels.push([nom, ...args]); }]));
+      actions.modifierPresta = async (id, infos) => {
+        appels.push(['modifierPresta', id, infos]);
+        if (!infos.nom.trim()) throw new calculs.ErreurSaisie('Donne un nom à la presta.');
+      };
+      actions.renommerMur = async (id, murId, nom) => { appels.push(['renommerMur', id, murId, nom]); };
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      try {
+        const ecran = ep.monterPrestas(racine, { actions, resumeMur: (m) => (m.configuration ? 'résumé' : 'Réglages par défaut'), confirmer: () => true });
+        ecran.afficher(etat, { persistant: false });
+        const tete = racine.querySelector('.pr-ouverte');
+        v.egal('presta ouverte en tête : nom, dates et lieu, export', [texteDe(tete?.querySelector('.pr-nom')), texteDe(tete?.querySelector('.pr-infos')), texteDe(tete?.querySelector('.pr-export'))],
+          [long, 'du 17 au 19/10/2026 · Lieu B', 'Jamais exportée']);
+        const murs = [...racine.querySelectorAll('.pr-mur')];
+        v.egal('ses murs : nom, résumé, le mur ouvert marqué', murs.map((m) => [texteDe(m.querySelector('.pr-mur-nom')), texteDe(m.querySelector('.pr-mur-resume')), m.getAttribute('aria-current')]),
+          [['Mur 1', 'Réglages par défaut', 'true'], [murLong, 'Réglages par défaut', null]]);
+        v.egal('boutons d\'un mur, sans « Ouvrir » pour le mur ouvert', murs.map((m) => [...m.querySelectorAll('button')].map(texteDe)),
+          [['Renommer', 'Dupliquer', 'Supprimer'], ['Ouvrir', 'Renommer', 'Dupliquer', 'Supprimer']]);
+        v.egal('boutons de la presta', [...racine.querySelectorAll('.pr-actions-presta button')].map(texteDe), ['Ajouter un mur', 'Modifier', 'Dupliquer', 'Archiver', 'Supprimer']);
+        v.egal('autres prestas, la dernière modifiée en tête, avec le nombre de murs', [...racine.querySelectorAll('.pr-autres .pr-presta')].map((p) => [texteDe(p.querySelector('.pr-nom')), texteDe(p.querySelector('.pr-infos'))]),
+          [['Presta B', '1 mur'], ['Presta sans nom', '1 mur']]);
+        v.egal('archivées repliées', [texteDe(racine.querySelector('.pr-archivees > summary')), racine.querySelector('.pr-archivees')?.open], ['Archivées (1)', false]);
+        v.egal('« Nouvelle presta »', texteDe(racine.querySelector('.pr-nouvelle')), 'Nouvelle presta');
+        v.vrai('rappel d\'export sans stockage persistant', /Exporte tes prestas/.test(texteDe(racine)));
+        const boutons = [...racine.querySelectorAll('button, summary')];
+        v.egal('cibles de 48 px au moins', boutons.filter((x) => x.getBoundingClientRect().height < 47.5).map(texteDe), []);
+        const droite = racine.getBoundingClientRect().right;
+        v.egal('rien ne dépasse à 375 px, noms longs compris', [...racine.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > droite + 0.5).map((x) => x.className || x.tagName), []);
+        murs[1].querySelector('button').click();
+        racine.querySelector('.pr-autres .pr-presta button').click();
+        racine.querySelector('.pr-nouvelle').click();
+        const boutonPresta = (texte) => [...racine.querySelectorAll('.pr-actions-presta button')].find((x) => texteDe(x) === texte);
+        for (const texte of ['Ajouter un mur', 'Dupliquer', 'Archiver', 'Supprimer']) boutonPresta(texte).click();
+        [...murs[1].querySelectorAll('button')].find((x) => texteDe(x) === 'Dupliquer').click();
+        [...murs[1].querySelectorAll('button')].find((x) => texteDe(x) === 'Supprimer').click();
+        await attendre();
+        v.egal('chaque bouton appelle son action', appels.map((x) => x.join(' ')), [
+          `ouvrir ${a} ${mur2}`, `ouvrir ${b}`, 'creerPresta', `ajouterMur ${a}`, `dupliquerPresta ${a}`, `archiverPresta ${a} true`, `supprimerPresta ${a}`,
+          `dupliquerMur ${a} ${mur2}`, `supprimerMur ${a} ${mur2}`,
+        ]);
+        appels.length = 0;
+        boutonPresta('Modifier').click();
+        const form = racine.querySelector('.pr-formulaire');
+        v.egal('« Modifier » : formulaire rempli', ['nom', 'debut', 'fin', 'lieu', 'notes'].map((c) => form?.elements[c]?.value), [long, '2026-10-17', '2026-10-19', 'Lieu B', '']);
+        form.elements.nom.value = ' ';
+        form.requestSubmit();
+        await attendre();
+        v.egal('erreur affichée dans le formulaire', texteDe(form.querySelector('.alerte')), 'Donne un nom à la presta.');
+        form.elements.nom.value = 'Presta A';
+        form.requestSubmit();
+        await attendre();
+        v.egal('enregistré : infos envoyées, formulaire fermé', [appels.at(-1)?.[2], racine.querySelector('.pr-formulaire')],
+          [{ nom: 'Presta A', debut: '2026-10-17', fin: '2026-10-19', lieu: 'Lieu B', notes: '' }, null]);
+        [...murs[1].querySelectorAll('button')].find((x) => texteDe(x) === 'Renommer').click();
+        const renommer = racine.querySelector('.pr-renommer');
+        v.egal('« Renommer » : champ dans la ligne du mur, nom actuel', [renommer?.closest('.pr-mur') === murs[1], renommer?.elements.nom.value], [true, murLong]);
+        renommer.elements.nom.value = 'Retour scène';
+        renommer.requestSubmit();
+        await attendre();
+        v.egal('renommé', appels.at(-1)?.join(' '), `renommerMur ${a} ${mur2} Retour scène`);
+        const exporte = { ...etat, index: { ...etat.index, prestas: etat.index.prestas.map((p) => (p.id === a ? { ...p, exporteeLe: '2026-10-12T08:00:00.000Z' } : p)) } };
+        ecran.afficher(exporte, { persistant: true });
+        v.egal('date du dernier export ; pas de rappel avec le stockage persistant', [texteDe(racine.querySelector('.pr-export')), /Exporte tes prestas/.test(texteDe(racine))], ['Exportée le 12/10/2026', false]);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N66',
+    titre: 'Bouton « Presta · Mur » de l\'en-tête (10b2, § 7) : dans la rangée du titre, entre « Mur LED » et la version ; nom de la presta puis nom du mur, chacun sur une ligne coupée par « … », nom entier dans l\'étiquette accessible ; zone d\'appui de 48 px (60 en grand affichage) sans hauteur ajoutée à la rangée du titre ; rien ne dépasse à 375 px',
+    etape: '10b',
+    async verifier(v) {
+      const ep = await moduleAppli(v, '../src/ecran-prestas.js');
+      if (!ep) return;
+      const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+      const entete = page.querySelector('header.entete-app');
+      const source = entete?.querySelector('#bouton-presta');
+      v.vrai('bouton dans la rangée du titre, entre le titre et la version', Boolean(source) && Boolean(source.parentElement?.classList.contains('titre-app'))
+        && source.previousElementSibling?.tagName === 'H1' && source.nextElementSibling?.id === 'version-appli');
+      if (!source) return;
+      const retirer = await chargerStylesLook();
+      const cadre = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(cadre);
+      const copie = (avecBouton) => {
+        const e = document.importNode(entete, true);
+        for (const x of e.querySelectorAll('[id]')) {
+          x.dataset.ident = x.id;
+          x.removeAttribute('id');
+        }
+        if (!avecBouton) e.querySelector('[data-ident="bouton-presta"]').remove();
+        e.querySelector('[data-ident="version-appli"]').textContent = 'v25';
+        cadre.append(e);
+        return e;
+      };
+      const avant = document.documentElement.dataset.taille;
+      try {
+        const long = 'Presta'.padEnd(60, 'x');
+        const murLong = 'Mur'.padEnd(40, 'y');
+        for (const taille of ['normal', 'grand']) {
+          if (taille === 'grand') document.documentElement.dataset.taille = 'grand';
+          else delete document.documentElement.dataset.taille;
+          cadre.replaceChildren();
+          const sans = copie(false);
+          const avec = copie(true);
+          const bouton = avec.querySelector('[data-ident="bouton-presta"]');
+          ep.remplirBoutonPresta(bouton, { presta: { nom: long }, mur: { nom: murLong } });
+          const hauteur = (e) => e.querySelector('.titre-app').getBoundingClientRect().height;
+          v.vrai(`${taille} : hauteur de la rangée du titre inchangée (${Math.round(hauteur(sans))} px sans, ${Math.round(hauteur(avec))} px avec)`, Math.abs(hauteur(avec) - hauteur(sans)) <= 1);
+          const cible = taille === 'grand' ? 60 : 48;
+          v.vrai(`${taille} : zone d'appui de ${cible} px au moins (${Math.round(bouton.getBoundingClientRect().height)} px)`, bouton.getBoundingClientRect().height >= cible - 0.5);
+          const droite = cadre.getBoundingClientRect().right;
+          v.egal(`${taille} : rien ne dépasse à 375 px`, [...avec.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().right > droite + 0.5).map((x) => x.className || x.tagName), []);
+          const lignes = [bouton.querySelector('.bp-presta'), bouton.querySelector('.bp-mur')];
+          v.egal(`${taille} : presta puis mur, chacun sur une ligne coupée par « … »`, lignes.map((x) => [texteDe(x), getComputedStyle(x).whiteSpace, getComputedStyle(x).textOverflow, x.scrollWidth > x.clientWidth]),
+            [[long, 'nowrap', 'ellipsis', true], [murLong, 'nowrap', 'ellipsis', true]]);
+          v.egal(`${taille} : étiquette accessible`, bouton.getAttribute('aria-label'), `Prestas : ${long}, ${murLong}`);
+        }
+        ep.remplirBoutonPresta(cadre.querySelector('[data-ident="bouton-presta"]'), { presta: { nom: 'Presta A' }, mur: { nom: 'Mur 1' } });
+        v.egal('noms courts', [texteDe(cadre.querySelector('.bp-presta')), texteDe(cadre.querySelector('.bp-mur'))], ['Presta A', 'Mur 1']);
+      } finally {
+        if (avant) document.documentElement.dataset.taille = avant;
+        else delete document.documentElement.dataset.taille;
+        cadre.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N67',
+    titre: 'Export d\'une presta (10b3, § 8) : fichier JSON « mur-led-presta-<nom>-<date>.json » au format presta ; feuille de partage quand l\'appareil sait partager le fichier, téléchargement sinon ; bouton « Exporter » à côté de la date du dernier export, note après un téléchargement, rien après une feuille fermée',
+    etape: '10b',
+    async verifier(v) {
+      const ep = await moduleAppli(v, '../src/ecran-prestas.js');
+      const pr = await moduleAppli(v, '../src/prestas.js');
+      if (!ep || !pr) return;
+      let n = 0;
+      const o = { maintenant: new Date('2026-10-16T12:00:00Z'), alea: () => `e${(n += 1)}` };
+      let etat = pr.creerPresta(pr.migrer({}, o), { nom: 'Presta A' }, o);
+      const a = etat.index.ouverte.presta;
+      const { donnees } = pr.exporterPresta(etat, a, { fiches: [], parcs: [], sources: {} }, { ...o, versionAppli: 25 });
+      const fichier = ep.fichierExportPresta(donnees, o.maintenant);
+      v.egal('fichier : nom, type, contenu', [fichier.name, fichier.type, JSON.parse(await fichier.text())], ['mur-led-presta-presta-a-2026-10-16.json', 'application/json', donnees]);
+      const partages = [];
+      const telecharges = [];
+      const navPartage = { canShare: ({ files }) => files[0].type === 'application/json', share: async ({ files }) => { partages.push(files[0].name); } };
+      const navSans = {};
+      v.egal('feuille de partage si l\'appareil sait partager le fichier, téléchargement sinon', [
+        await enregistrer(fichier, fichier.name, { nav: navPartage, telecharger: (b, nom) => telecharges.push(nom) }),
+        await enregistrer(fichier, fichier.name, { nav: navSans, telecharger: (b, nom) => telecharges.push(nom) }),
+      ], ['partage', 'telechargement']);
+      v.egal('fichier partagé, puis téléchargé', [partages, telecharges], [[fichier.name], [fichier.name]]);
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const reponses = ['telechargement', 'annule', 'partage'];
+      const appels = [];
+      try {
+        const ecran = ep.monterPrestas(racine, { actions: { exporter: async (id) => { appels.push(id); return reponses.shift(); } }, confirmer: () => true });
+        ecran.afficher(etat, { persistant: true });
+        const bouton = racine.querySelector('.pr-export-bloc button');
+        v.egal('bouton « Exporter » à côté de la date du dernier export', [texteDe(bouton), Boolean(bouton?.closest('.pr-ouverte')), bouton?.getBoundingClientRect().height >= 47.5], ['Exporter', true, true]);
+        const note = () => texteDe(racine.querySelector('.pr-export-bloc .pr-note-export'));
+        bouton.click();
+        await new Promise((fin) => setTimeout(fin, 0));
+        v.egal('après un téléchargement : où trouver le fichier', note(), 'Fichier enregistré dans Fichiers (Téléchargements) : envoie-le par AirDrop, Messages ou Mail.');
+        bouton.click();
+        await new Promise((fin) => setTimeout(fin, 0));
+        v.egal('feuille fermée sans envoyer : rien', note(), '');
+        bouton.click();
+        await new Promise((fin) => setTimeout(fin, 0));
+        v.egal('après une feuille de partage : presta exportée', [note(), appels], ['Presta exportée.', [a, a, a]]);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+      const reel = modeEnregistrement(navigator, [fichier]);
+      v.vrai(`ce navigateur : ${reel === 'partage' ? 'feuille de partage' : 'téléchargement'} pour un fichier JSON`, reel === 'partage' || reel === 'telechargement');
+    },
+  },
+  {
+    id: 'N68',
+    titre: 'Import d\'une presta dans l\'écran (10b3, § 8) : bouton « Importer une presta » et sélecteur de fichier sans filtre ; fichier refusé : sa raison ; presta déjà là ou fiches et parcs différents : choix « Garder les deux » et « Garder les miens » cochés par défaut, les fiches et parcs nommés ; « Remplacer » ou « Prendre » demandent une confirmation ; rapport en phrases ; « Annuler »',
+    etape: '10b',
+    async verifier(v) {
+      const ep = await moduleAppli(v, '../src/ecran-prestas.js');
+      const pr = await moduleAppli(v, '../src/prestas.js');
+      if (!ep || !pr) return;
+      const etat = pr.migrer({}, { maintenant: new Date('2026-10-16T12:00:00Z'), alea: (() => { let n = 0; return () => `i${(n += 1)}`; })() });
+      const analyses = [
+        { erreurs: ['C\'est un export de la base : importe-le dans l\'onglet Base.'] },
+        { erreurs: [], donnees: { presta: { nom: 'Presta A' }, murs: [{}, {}] }, prestaExiste: true, conflits: { fiches: ['roe-bp2-v2'], parcs: ['Prestataire A'] } },
+      ];
+      const rapport = { presta: 'copie', nom: 'Presta A (reçue le 16/10/2026)', murs: 2, fiches: { ajoutees: [], identiques: [], gardees: ['roe-bp2-v2'], remplacees: [], refusees: [] }, parcs: { ajoutes: [], identiques: [], gardes: ['Prestataire A'], remplaces: [] }, fichiersDecrits: [] };
+      const lus = [];
+      const importes = [];
+      const confirmations = [];
+      let accepter = false;
+      const actions = {
+        verifierImport: async (texte) => { lus.push(texte); return analyses[Math.min(lus.length - 1, 1)]; },
+        importer: async (texte, choix) => { importes.push([texte, choix]); return rapport; },
+      };
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 50));
+      const choisirFichier = async (texte) => {
+        const champ = racine.querySelector('.pr-fichier-import');
+        const dt = new DataTransfer();
+        dt.items.add(new File([texte], 'mur-led-presta-presta-a-2026-10-16.json', { type: 'application/json' }));
+        champ.files = dt.files;
+        champ.dispatchEvent(new Event('change', { bubbles: true }));
+        await attendre();
+      };
+      try {
+        const ecran = ep.monterPrestas(racine, { actions, confirmer: (t) => { confirmations.push(t); return accepter; } });
+        ecran.afficher(etat, { persistant: true });
+        const bouton = [...racine.querySelectorAll('button')].find((b) => texteDe(b) === 'Importer une presta');
+        const champ = racine.querySelector('.pr-fichier-import');
+        v.egal('bouton « Importer une presta » ; sélecteur de fichier caché, sans filtre', [Boolean(bouton), champ?.type, champ?.hasAttribute('accept'), champ?.hidden], [true, 'file', false, true]);
+        await choisirFichier('{"format":"appli-mur-led/export"}');
+        v.egal('fichier refusé : sa raison', texteDe(racine.querySelector('.pr-import .alerte-erreur')), 'C\'est un export de la base : importe-le dans l\'onglet Base.');
+        await choisirFichier('{"format":"appli-mur-led/presta"}');
+        const panneau = racine.querySelector('.pr-import');
+        v.egal('titre du choix', texteDe(panneau?.querySelector('.pr-import-titre')), 'Importer « Presta A » (2 murs)');
+        const coche = (nom) => panneau?.querySelector(`input[name="${nom}"]:checked`)?.value;
+        v.egal('choix par défaut : garder les deux, garder les miens', [coche('choixPresta'), coche('choixConflits')], ['deux', 'garder']);
+        v.vrai('fiches et parcs différents nommés', /roe-bp2-v2/.test(texteDe(panneau)) && /Prestataire A/.test(texteDe(panneau)));
+        panneau.querySelector('input[name="choixPresta"][value="remplacer"]').click();
+        [...panneau.querySelectorAll('button')].find((b) => texteDe(b) === 'Importer').click();
+        await attendre();
+        v.egal('« Remplacer la mienne » : confirmation demandée, refusée : rien importé', [confirmations.length, importes.length], [1, 0]);
+        panneau.querySelector('input[name="choixPresta"][value="deux"]').click();
+        [...panneau.querySelectorAll('button')].find((b) => texteDe(b) === 'Importer').click();
+        await attendre();
+        v.egal('« Garder les deux » et « Garder les miens » : sans confirmation, texte du fichier et choix envoyés', [confirmations.length, importes[0]],
+          [1, ['{"format":"appli-mur-led/presta"}', { presta: 'deux', conflits: 'garder' }]]);
+        v.egal('rapport en phrases', [...racine.querySelectorAll('.pr-import .pr-rapport li')].map(texteDe), pr.texteRapportImport(rapport));
+        await choisirFichier('{"format":"appli-mur-led/presta"}');
+        accepter = true;
+        racine.querySelector('.pr-import input[name="choixConflits"][value="prendre"]').click();
+        [...racine.querySelectorAll('.pr-import button')].find((b) => texteDe(b) === 'Importer').click();
+        await attendre();
+        v.egal('« Prendre ceux du fichier » : confirmation, puis import', [confirmations.length, importes[1]?.[1]], [2, { presta: 'deux', conflits: 'prendre' }]);
+        await choisirFichier('{"format":"appli-mur-led/presta"}');
+        [...racine.querySelectorAll('.pr-import button')].find((b) => texteDe(b) === 'Annuler').click();
+        await attendre();
+        v.egal('« Annuler » : choix retiré, rien importé', [racine.querySelector('.pr-import')?.childElementCount ?? 0, importes.length], [0, 2]);
+        const droite = racine.getBoundingClientRect().right;
+        v.egal('rien ne dépasse à 375 px', [...racine.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > droite + 0.5).map((x) => x.className || x.tagName), []);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N69',
+    titre: 'Écran Prestas, relecture du 16/10/2026 : un double appui ne lance qu\'une action (« Nouvelle presta », « Importer » du choix d\'import) tant que la première n\'est pas finie ; ensuite les boutons répondent de nouveau',
+    etape: '10b',
+    async verifier(v) {
+      const ep = await moduleAppli(v, '../src/ecran-prestas.js');
+      const pr = await moduleAppli(v, '../src/prestas.js');
+      if (!ep || !pr) return;
+      const etat = pr.migrer({}, { maintenant: new Date('2026-10-16T12:00:00Z'), alea: (() => { let n = 0; return () => `d${(n += 1)}`; })() });
+      const appels = [];
+      let finir = null;
+      const lente = (nom) => (...args) => {
+        appels.push(nom);
+        return new Promise((fin) => { finir = () => fin(nom === 'importer' ? { presta: 'ajoutee', nom: 'Presta A', murs: 1, fiches: { ajoutees: [], identiques: [], gardees: [], remplacees: [], refusees: [] }, parcs: { ajoutes: [], identiques: [], gardes: [], remplaces: [] }, fichiersDecrits: [] } : undefined); });
+      };
+      const actions = {
+        creerPresta: lente('creerPresta'),
+        importer: lente('importer'),
+        verifierImport: async () => ({ erreurs: [], donnees: { presta: { nom: 'Presta A' }, murs: [{}] }, prestaExiste: false, conflits: { fiches: [], parcs: [] } }),
+      };
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 50));
+      try {
+        const ecran = ep.monterPrestas(racine, { actions, confirmer: () => true });
+        ecran.afficher(etat, { persistant: true });
+        racine.querySelector('.pr-nouvelle').click();
+        racine.querySelector('.pr-nouvelle').click();
+        await attendre();
+        v.egal('« Nouvelle presta » appuyé deux fois : une seule action', appels, ['creerPresta']);
+        finir();
+        await attendre();
+        racine.querySelector('.pr-nouvelle').click();
+        await attendre();
+        v.egal('action finie : le bouton répond de nouveau', appels, ['creerPresta', 'creerPresta']);
+        finir();
+        await attendre();
+        const champ = racine.querySelector('.pr-fichier-import');
+        const dt = new DataTransfer();
+        dt.items.add(new File(['{}'], 'presta.json', { type: 'application/json' }));
+        champ.files = dt.files;
+        champ.dispatchEvent(new Event('change', { bubbles: true }));
+        await attendre();
+        const importer = [...racine.querySelectorAll('.pr-import-choix button')].find((b) => texteDe(b) === 'Importer');
+        importer.click();
+        importer.click();
+        await attendre();
+        v.egal('« Importer » appuyé deux fois : un seul import', appels.filter((a) => a === 'importer').length, 1);
+        finir();
+        await attendre();
+        v.egal('import fini : rapport affiché', texteDe(racine.querySelector('.pr-rapport li')), 'Presta A importée, avec son mur.');
+      } finally {
+        racine.remove();
       }
     },
   },

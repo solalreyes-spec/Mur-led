@@ -1,5 +1,7 @@
 // Configuration en cours : les saisies des onglets Mur, Data, Canvas, Élec, Poids et Schéma sont gardées dans
 // IndexedDB à chaque changement et reviennent à la prochaine ouverture. Le parc actif est gardé à part.
+// Prestas (étape 10b) : l'appli dit où garder les saisies (le mur ouvert, `definirSauvegarde`) et donne celles du mur
+// à ouvrir (`appliquerConfiguration`) ; sans elle, la clé « configuration » d'avant.
 
 import { lire, ecrire } from './stockage.js';
 import { sourceEstModifiee, definirSourceModifiee } from './ecran-canvas.js';
@@ -42,20 +44,46 @@ function ecrireFormulaire(formulaire, valeurs, garder = () => true) {
 // Recalcule un onglet comme après une saisie (les écouteurs sont posés sur le formulaire).
 const recalculer = (formulaire) => formulaire.dispatchEvent(new Event('change'));
 
+// Saisies de tous les onglets, telles qu'elles sont gardées.
+export function lireSaisies() {
+  const config = { version: VERSION, sourceModifiee: sourceEstModifiee(), formulaires: {} };
+  for (const f of formulaires()) config.formulaires[f.id] = lireFormulaire(f);
+  return config;
+}
+
+let sauvegarde = (config) => ecrire(CLE, config);
+export function definirSauvegarde(f) {
+  sauvegarde = f;
+}
+
 let minuterie = null;
 function planifierSauvegarde() {
   clearTimeout(minuterie);
   minuterie = setTimeout(() => {
-    const config = { version: VERSION, sourceModifiee: sourceEstModifiee(), formulaires: {} };
-    for (const f of formulaires()) config.formulaires[f.id] = lireFormulaire(f);
-    ecrire(CLE, config);
+    minuterie = null;
+    sauvegarde(lireSaisies());
   }, 400);
+}
+
+// Sauvegarde en attente faite tout de suite (avant de changer de mur).
+export function sauverMaintenant() {
+  if (minuterie === null) return;
+  clearTimeout(minuterie);
+  minuterie = null;
+  sauvegarde(lireSaisies());
+}
+
+// Valeurs de départ de chaque formulaire, champs cachés compris (zones, lots cochés, processeur retenu), relevées au
+// lancement avant toute reprise : « reset » ne remet pas les champs cachés.
+let defauts = null;
+export function releverDefauts() {
+  defauts = Object.fromEntries(formulaires().map((f) => [f.id, lireFormulaire(f)]));
 }
 
 // Remet les saisies gardées, onglet par onglet dans l'ordre de la chaîne Mur → Data → Canvas → Élec → Poids.
 // Deux passes : certaines listes (processeurs, arrivées, bumpers) ne se remplissent qu'après le premier calcul.
-export async function restaurerConfiguration() {
-  const config = await lire(CLE);
+export async function restaurerConfiguration(donnee = undefined) {
+  const config = donnee === undefined ? await lire(CLE) : donnee;
   if (!config?.formulaires) return false;
   definirSourceModifiee(config.sourceModifiee);
   for (let passe = 0; passe < 2; passe += 1) {
@@ -73,19 +101,34 @@ export async function restaurerConfiguration() {
 }
 
 // Réglages par défaut : chaque formulaire revient à son état d'origine, la source suit de nouveau le conseil.
-export async function reglagesParDefaut() {
+function remettreDefauts() {
   definirSourceModifiee(false);
   // Le parc actif n'est pas une saisie : il reste tel quel.
   const parcs = [...document.querySelectorAll('.selecteur-parc')].map((s) => [s, s.value]);
   for (let passe = 0; passe < 2; passe += 1) {
     for (const f of formulaires()) {
       f.reset();
+      if (defauts?.[f.id]) ecrireFormulaire(f, defauts[f.id]);
       for (const [select, valeur] of parcs) select.value = valeur;
       recalculer(f);
     }
   }
   clearTimeout(minuterie);
-  await ecrire(CLE, null);
+  minuterie = null;
+}
+
+export async function reglagesParDefaut() {
+  remettreDefauts();
+  await sauvegarde(null);
+}
+
+// Saisies d'un autre mur (prestas) : réglages par défaut, puis ses saisies ; null : réglages par défaut seulement.
+// Rien n'est enregistré ici : le mur garde ses saisies telles quelles.
+export async function appliquerConfiguration(config) {
+  remettreDefauts();
+  if (config?.formulaires) await restaurerConfiguration(config);
+  clearTimeout(minuterie);
+  minuterie = null;
 }
 
 export function suivreConfiguration() {

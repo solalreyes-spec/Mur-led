@@ -27,6 +27,7 @@
   <header class="entete entete-app">
     <div class="titre-app">
       <h1><span class="logo-barres" aria-hidden="true"><span></span><span></span><span></span></span>Mur LED</h1>
+      <button id="bouton-presta" class="bouton bouton-presta" type="button" aria-haspopup="dialog" aria-label="Prestas : Presta sans nom, Mur 1"><span class="bp-lignes"><span class="bp-presta">Presta sans nom</span><span class="bp-mur">Mur 1</span></span></button>
       <span id="version-appli" class="version-appli"></span>
     </div>
     <div class="outils-entete">
@@ -57,6 +58,7 @@
     <section id="mur" aria-labelledby="titre-mur" data-famille="image">
       <h2 id="titre-mur" class="cache-visuel">Dimensionnement du mur</h2>
       <p class="alerte alerte-info bandeau-donnees">Données de départ relevées sur des fiches constructeur, des loueurs ou des bases tierces, chacune avec sa source. Vérifie la fiche officielle de ta dalle avant une presta.</p>
+      <div id="alertes-mur-ouvert" class="alertes-mur-ouvert" aria-live="polite"></div>
 
       <form id="form-mur" class="carte formulaire" novalidate>
         <div class="champ">
@@ -782,8 +784,9 @@
 
       <section class="carte formulaire">
         <h3>Configuration en cours</h3>
-        <p class="note">Les saisies de chaque onglet sont gardées automatiquement et reviennent à la prochaine ouverture.</p>
+        <p class="note">Les saisies de chaque onglet sont gardées automatiquement avec le mur ouvert de ta presta (bouton en haut de l'écran) et reviennent à la prochaine ouverture.</p>
         <button id="reglages-defaut" class="bouton" type="button">Repartir des réglages par défaut</button>
+        <p class="note">Le mur ouvert seulement : les autres murs et les autres prestas ne changent pas.</p>
       </section>
 
       <section class="carte formulaire">
@@ -930,6 +933,15 @@
       <button id="entrainement-fermer" class="bouton" type="button">Fermer</button>
     </header>
     <div id="ecran-entrainement" class="mf-defilant"></div>
+  </div>
+
+  <!-- Prestas (étape 10b) : ouvert par le bouton « Presta · Mur » de l'en-tête. -->
+  <div id="prestas" class="montage prestas" data-famille="base" role="dialog" aria-modal="true" aria-labelledby="prestas-titre" hidden>
+    <header class="montage-haut">
+      <h2 id="prestas-titre" class="prestas-titre">Prestas</h2>
+      <button id="prestas-fermer" class="bouton" type="button">Fermer</button>
+    </header>
+    <div id="ecran-prestas" class="mf-defilant pr"></div>
   </div>
 
   <!-- Guide de câblage pas à pas (option 1, port par port), ouvert depuis le Schéma : un port ou une ligne à la fois,
