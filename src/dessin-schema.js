@@ -411,7 +411,7 @@ function sansPointsAlignes(points) {
 
 export function construireSvg({
   geo, trajets, coin, blocs = [], palette = PALETTE_ECRAN, cadrage = null, selection = null, dalleChoisie = null, largeurPx = null,
-  repere = null, ordre = null, grand = false, simplifie = null,
+  repere = null, ordre = null, grand = false, simplifie = null, boitiers = null,
 }) {
   const { largeur, hauteur, rects } = geo;
   const marge = 0.12 * Math.max(largeur, hauteur);
@@ -515,6 +515,31 @@ export function construireSvg({
   const versExterieurX = coin.endsWith('gauche') ? -1 : 1;
   const rayon = (etiquette) => police * (etiquette.length > 3 ? 1.2 : 0.95);
   const departs = [];
+  // Distribution (étape 12c) : `boitiers` = [{ nom: 'B1', trajets: ['l1', 'l4', …] }]. Chaque boîtier est un petit cadre
+  // hors du mur, sur le bord de départ, au droit de ses lignes et plus loin que leurs départs ; ses lignes partent de lui.
+  const departDe = new Map(trajets.map((t) => {
+    const r = t.dalles.map((id) => rects.get(id)).find(Boolean);
+    if (!r) return [t.cle, null];
+    const [x0, y0] = centre(r);
+    return [t.cle, t.orientation === 'rangees' ? [bordX, y0] : [x0, bordY]];
+  }));
+  const boitierRangees = trajets[0]?.orientation === 'rangees';
+  const hBoitier = police * 1.5;
+  const wBoitier = police * 2.4;
+  const ecartBoitier = Math.max(marge * 0.35, police * 1.2 + (boitierRangees ? wBoitier : hBoitier) / 2 + trait);
+  const milieu = (valeurs) => (Math.min(...valeurs) + Math.max(...valeurs)) / 2;
+  const cadresBoitiers = (boitiers ?? []).map((b) => {
+    const points = b.trajets.map((cle) => departDe.get(cle)).filter(Boolean);
+    if (!points.length) return null;
+    const [cx, cy] = boitierRangees
+      ? [bordX + versExterieurX * ecartBoitier, milieu(points.map((p) => p[1]))]
+      : [milieu(points.map((p) => p[0])), bordY + versExterieurY * ecartBoitier];
+    // Point d'attache des lignes : le côté du cadre tourné vers le mur.
+    const attache = boitierRangees ? [cx - versExterieurX * (wBoitier / 2), cy] : [cx, cy - versExterieurY * (hBoitier / 2)];
+    return { ...b, cx, cy, attache };
+  }).filter(Boolean);
+  const boitierDe = new Map(cadresBoitiers.flatMap((b) => b.trajets.map((cle) => [cle, b])));
+  const departsDirects = [];
   // Flèches : une par couleur de trait.
   const fleches = new Map([[palette.principal, 'fleche']]);
   const fleche = (couleur) => {
@@ -573,6 +598,8 @@ export function construireSvg({
     const [xd, yd] = parRangees ? [bordX, y0] : [x0, bordY];
     let [xs, ys] = parRangees ? [bordX, yn] : [xn, bordY];
     departs.push(parRangees ? yd : xd);
+    const boitier = boitierDe.get(t.cle);
+    if (!boitier) departsDirects.push(parRangees ? yd : xd);
     // Bout du retour de secours, numéroté comme les départs ; sur le départ de sa chaîne (une colonne par port),
     // le numéro passe plus loin du mur et le pointillé longe le trait principal sans le cacher.
     const rDepart = rayon(t.etiquette);
@@ -602,7 +629,18 @@ export function construireSvg({
     const texteNumero = t.couleur ? palette.texteSur(t.couleur) : palette.fond;
     const contour = t.couleur?.lisere ? palette.lisere : couleur;
     const listePoints = (simple ? sansPointsAlignes(points) : points).map((p) => p.join(',')).join(' ');
+    // Ligne d'un boîtier : elle part de lui (trait du boîtier jusqu'à son départ, sous le rond numéroté).
+    const depuisBoitier = boitier ? [
+      lisere ? svg('line', {
+        class: 'lisere', x1: boitier.attache[0], y1: boitier.attache[1], x2: xd, y2: yd, style: lisere, 'stroke-width': largeurTrait * 1.2, 'stroke-linecap': 'round',
+      }) : null,
+      svg('line', {
+        class: 'depuis-boitier', x1: boitier.attache[0], y1: boitier.attache[1], x2: xd, y2: yd, style, 'stroke-width': largeurTrait * 0.8,
+        'stroke-linecap': 'round', 'stroke-dasharray': tirets,
+      }),
+    ] : null;
     return svg('g', { 'data-trajet': t.cle, class: actif ? null : 'attenue' },
+      depuisBoitier,
       lisere ? svg('line', { class: 'lisere', x1: xd, y1: yd, x2: x0, y2: y0, style: lisere, 'stroke-width': largeurTrait * 1.5, 'stroke-linecap': 'round' }) : null,
       lisere ? svg('polyline', {
         class: 'lisere', points: listePoints, style: lisere, 'stroke-width': largeurTrait * 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
@@ -636,6 +674,15 @@ export function construireSvg({
   // Repère du processeur (ou de l'armoire) au coin de départ, hors du mur, du côté des départs ; les câbles de tête
   // longent le bord de départ jusqu'au départ le plus loin.
   let dessinRepere = null;
+  // Boîtiers de la distribution : cadre « B1 » au fond du dessin, sous les lignes qui en partent.
+  const dessinBoitiers = cadresBoitiers.length ? svg('g', { class: 'boitiers' }, cadresBoitiers.map((b) => svg('g', { class: 'boitier', 'data-boitier': b.nom },
+    svg('rect', {
+      x: b.cx - wBoitier / 2, y: b.cy - hBoitier / 2, width: wBoitier, height: hBoitier, rx: police * 0.3,
+      style: `fill: ${palette.fond}; stroke: ${palette.contour}`, 'stroke-width': trait * 0.5,
+    }),
+    svg('text', {
+      x: b.cx, y: b.cy, 'font-size': police * 0.95, style: `fill: ${palette.texte}`, 'font-weight': 700, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+    }, b.nom)))) : null;
   if (repere && departs.length > 0) {
     const parRangees = trajets[0].orientation === 'rangees';
     const n = repere.lignes.length;
@@ -644,14 +691,26 @@ export function construireSvg({
     const { cx, cy, w, h, taille, x: xCadre, y: yCadre } = geometrieDepart(geo, coin, { orientation: trajets[0].orientation, repere }).cadreRepere;
     const cadre = { x: xCadre, y: yCadre };
     // Câbles de tête : du repère au départ le plus loin, le long du bord de départ.
-    const chemin = parRangees
-      ? { x1: bordX, y1: enHaut ? cadre.y + h : cadre.y, x2: bordX, y2: enHaut ? Math.max(...departs) : Math.min(...departs) }
-      : { x1: gauche ? cadre.x + w : cadre.x, y1: bordY, x2: gauche ? Math.max(...departs) : Math.min(...departs), y2: bordY };
+    // Lignes directes seulement : celles d'un boîtier partent de lui.
+    const loin = (liste) => (parRangees ? (enHaut ? Math.max(...liste) : Math.min(...liste)) : (gauche ? Math.max(...liste) : Math.min(...liste)));
+    const chemin = !departsDirects.length ? null : parRangees
+      ? { x1: bordX, y1: enHaut ? cadre.y + h : cadre.y, x2: bordX, y2: loin(departsDirects) }
+      : { x1: gauche ? cadre.x + w : cadre.x, y1: bordY, x2: loin(departsDirects), y2: bordY };
+    // Câble P17 32 A tri : de l'armoire au boîtier le plus loin, sur la ligne des boîtiers, en tirets.
+    const plusLoin = cadresBoitiers.length ? loin(cadresBoitiers.map((b) => (parRangees ? b.cy : b.cx))) : null;
+    const ligneBoitiers = cadresBoitiers.length ? (parRangees ? cadresBoitiers[0].cx : cadresBoitiers[0].cy) : null;
+    const p17 = cadresBoitiers.length ? (parRangees
+      ? [[cx, cy], [ligneBoitiers, cy], [ligneBoitiers, plusLoin]]
+      : [[cx, cy], [cx, ligneBoitiers], [plusLoin, ligneBoitiers]]) : null;
     dessinRepere = svg('g', { class: 'repere' },
-      svg('line', {
+      chemin ? svg('line', {
         class: 'chemin-tete', ...chemin,
         style: `stroke: ${palette.contour}`, 'stroke-width': trait * 0.5, 'stroke-dasharray': `${trait * 0.3} ${trait * 0.9}`, 'stroke-linecap': 'round',
-      }),
+      }) : null,
+      p17 ? svg('polyline', {
+        class: 'cable-p17', points: p17.map((p) => p.join(',')).join(' '), fill: 'none',
+        style: `fill: none; stroke: ${palette.contour}`, 'stroke-width': trait * 0.6, 'stroke-dasharray': `${trait * 1.6} ${trait * 0.9}`, 'stroke-linejoin': 'round',
+      }) : null,
       svg('rect', {
         x: cadre.x, y: cadre.y, width: w, height: h, rx: taille * 0.3,
         style: `fill: ${palette.fond}; stroke: ${palette.contour}`, 'stroke-width': trait * 0.5,
@@ -682,6 +741,6 @@ export function construireSvg({
   // Cadre du mur ; en zones, seulement en vue pixels (le cadre de la pixel map, vides compris).
   geo.zones && geo.unite !== 'px' ? null
     : svg('rect', { x: 0, y: 0, width: largeur, height: hauteur, style: `fill: none; stroke: ${palette.texteDoux}`, 'stroke-width': cote * 0.02 }),
-  absentes, tuiles, plis, contours, nomsZones, courbures, dessinRepere, lignes);
+  absentes, tuiles, plis, contours, nomsZones, courbures, dessinRepere, dessinBoitiers, lignes);
   return { svg: racine, complet };
 }

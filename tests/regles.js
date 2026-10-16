@@ -6644,7 +6644,275 @@ export const REGLES = [
       v.vrai('Zones, 4 × (50 × 26) = 5 200 : refusé', message('5 200').test(messageErreur(enZones(26))), messageErreur(enZones(26)));
     },
   },
+  {
+    id: 'R307',
+    titre: 'Distribution (12a), conseil : lignes directes si l\'armoire est à 10 m au plus ou si la distance n\'est pas saisie ; au-delà, boîtiers 32 A tri de 6 prises (2 par phase), au nombre de max(lignes ÷ 6, lignes d\'une phase ÷ 2) arrondi au-dessus, chaque ligne dans l\'ordre du câblage au premier boîtier qui a une prise libre de sa phase',
+    etape: '12a',
+    verifier(v) {
+      const { m, elec, variante } = varianteConseil(calculs.mur(DALLE_CAS_13, 24, 6), DALLE_CAS_13, { depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+      const dist = (distanceArmoireM, options = {}) => calculs.distributionElec(m, variante, elec, { depart: 'bas-gauche', distanceArmoireM, mode: 'stack', ...options });
+      v.egal('mur 24 × 6, tri 32 A : 9 lignes L1 L2 L3 dans l\'ordre du câblage', variante.lignesDetail.map((l) => l.phase), [1, 2, 3, 1, 2, 3, 1, 2, 3]);
+      for (const d of [null, 10]) {
+        const r = dist(d);
+        v.egal(`armoire ${d === null ? 'non saisie' : 'à 10 m'} : lignes directes, 9 prises 16 A sur l'armoire`, [r.type, r.boitiers.length, r.lignes.map((l) => l.depuis), r.armoire],
+          ['directe', 0, Array(9).fill('armoire'), { sortiesP17: 0, prises16: 9 }]);
+      }
+      const loin = dist(10.5);
+      v.egal('armoire à 10,5 m : 2 boîtiers, lignes 1 à 6 puis 7 à 9, chacune sur une prise de sa phase', [loin.type, contenuBoitiers(loin)],
+        ['boitiers', ['1L1 2L2 3L3 4L1 5L2 6L3', '7L1 8L2 9L3']]);
+      v.egal('ce que l\'armoire fournit : 2 sorties P17 32 A tri, aucune prise 16 A', loin.armoire, { sortiesP17: 2, prises16: 0 });
+      v.egal('chaque ligne dit d\'où elle part', loin.lignes.map((l) => `${l.numero} ${l.depuis} ${l.prise}`).slice(5, 7), ['6 B1 L3', '7 B2 L1']);
+      v.egal('pose selon le montage : au sol derrière le mur en stack, sur le pont en accroche', [loin.pose, dist(10.5, { mode: 'accroche' }).pose], ['au sol derrière le mur', 'sur le pont']);
+      v.vrai('lignes et phases inchangées, 2 prises par phase au plus par boîtier', distributionCoherente(loin, variante, 2));
+      const fictif = (phases) => calculs.distributionElec(MUR_FICTIF, varianteFictive(phases), ELEC_TRI_FICTIF, { depart: 'bas-gauche', distanceArmoireM: 20 });
+      v.egal('L1 L1 L1 L1 L2 L3 : 2 boîtiers (4 lignes sur L1), lignes 3 et 4 au boîtier 2', contenuBoitiers(fictif([1, 1, 1, 1, 2, 3])), ['1L1 2L1 5L2 6L3', '3L1 4L1']);
+      v.egal('L1 L2 L1 L1 L2 L2 L3 L3 L3 : 2 boîtiers, chaque ligne au premier boîtier libre de sa phase', contenuBoitiers(fictif([1, 2, 1, 1, 2, 2, 3, 3, 3])),
+        ['1L1 2L2 3L1 5L2 7L3 8L3', '4L1 6L2 9L3']);
+      v.egal('7 lignes à tour de rôle : 2 boîtiers (7 ÷ 6)', contenuBoitiers(fictif([1, 2, 3, 1, 2, 3, 1])), ['1L1 2L2 3L3 4L1 5L2 6L3', '7L1']);
+      const z = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 12, rangees: 6 }, { nom: 'B', colonnes: 15, rangees: 6 }], { ecarts: 'reel' });
+      const vz = varianteConseil(z, DALLE_CAS_13, { depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+      const dz = calculs.distributionElec(z, vz.variante, vz.elec, { depart: 'bas-gauche', distanceArmoireM: 30 });
+      const n = (k) => vz.variante.lignesDetail.filter((l) => l.phase === k).length;
+      v.egal('mur en zones : nombre de boîtiers de la règle, sur toutes les lignes du mur', dz.boitiers.length,
+        Math.max(Math.ceil(vz.variante.lignesDetail.length / 6), ...[1, 2, 3].map((k) => Math.ceil(n(k) / 2))));
+      v.vrai('mur en zones : lignes et phases inchangées', distributionCoherente(dz, vz.variante, 2));
+    },
+  },
+  {
+    id: 'R308',
+    titre: 'Distribution (12a) : arrivée monophasée ou départs réglés au-delà de 16 A, lignes directes (les prises des boîtiers 32 A tri sont en 16 A), avec la note « câbles de tête longs » si l\'armoire est à plus de 10 m',
+    etape: '12a',
+    verifier(v) {
+      const cas = (reglages, distanceArmoireM) => {
+        const { m, elec, variante } = varianteConseil(calculs.mur(DALLE_CAS_13, 12, 6), DALLE_CAS_13, { ...reglages, depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+        return calculs.distributionElec(m, variante, elec, { depart: 'bas-gauche', distanceArmoireM, mode: 'stack' });
+      };
+      const mono = { arrivee: { type: 'mono', intensiteA: 32 } };
+      const monoLoin = cas(mono, 25);
+      v.egal('mono, armoire à 25 m : lignes directes, sans boîtier', [monoLoin.type, monoLoin.boitiers.length, monoLoin.armoire.prises16], ['directe', 0, 4]);
+      v.vrai('mono, armoire à 25 m : note des rallonges', monoLoin.notes.includes('Arrivée monophasée : pas de boîtier 32 A tri, lignes en direct sur l\'armoire à 25 m. Câbles de tête longs : prévois des rallonges 16 A.'), monoLoin.notes);
+      v.egal('mono, prise sans phase', monoLoin.lignes[0].prise, null);
+      v.egal('mono, armoire à 5 m : pas de note', cas(mono, 5).notes, []);
+      const fort = cas({ departA: 20 }, 25);
+      v.egal('départs de 20 A, armoire à 25 m : lignes directes', [fort.type, fort.boitiers.length], ['directe', 0]);
+      v.vrai('départs de 20 A : note', fort.notes.includes('Départs réglés à 20 A : les prises des boîtiers 32 A tri sont en 16 A, lignes en direct sur l\'armoire à 25 m. Câbles de tête longs : prévois des rallonges 20 A.'), fort.notes);
+      v.egal('départs de 20 A, armoire à 5 m : pas de note', cas({ departA: 20 }, 5).notes, []);
+    },
+  },
+  {
+    id: 'R309',
+    titre: 'Distribution (12a), avec mon matériel : chaque champ facultatif (vide = supposé suffisant, dit dans le résultat), boîtiers au plus le nombre de boîtiers et de sorties P17 32 A, lignes restantes en direct ; armoire à 10 m au plus : en direct tant qu\'il y a des prises 16 A, puis boîtiers ; matériel insuffisant : refus avec ce qui manque',
+    etape: '12a',
+    verifier(v) {
+      const { m, elec, variante } = varianteConseil(calculs.mur(DALLE_CAS_13, 24, 6), DALLE_CAS_13, { depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+      const mat = (distanceArmoireM, materiel, e = elec, va = variante) => calculs.distributionElec(m, va, e, { depart: 'bas-gauche', distanceArmoireM, mode: 'stack', choix: 'materiel', materiel });
+      const vide = mat(25, {});
+      v.egal('champs vides, armoire à 25 m : comme le conseil', [vide.choix, contenuBoitiers(vide), vide.refus], ['materiel', ['1L1 2L2 3L3 4L1 5L2 6L3', '7L1 8L2 9L3'], null]);
+      v.egal('champs vides : le résultat dit ce qui est supposé (seulement le matériel utilisé)', vide.notes, [
+        'Sorties P17 32 A tri de l\'armoire : non précisées, supposées suffisantes.',
+        'Boîtiers 32 A tri : non précisés, supposés suffisants.',
+        'Prises 16 A par boîtier : non précisées, 6 (2 par phase).',
+      ]);
+      const un = mat(25, { boitiers: 1 });
+      v.egal('1 boîtier : lignes 1 à 6 sur le boîtier, 7 à 9 en direct', [un.type, contenuBoitiers(un), un.lignes.filter((l) => l.depuis === 'armoire').map((l) => l.numero), un.armoire],
+        ['mixte', ['1L1 2L2 3L3 4L1 5L2 6L3'], [7, 8, 9], { sortiesP17: 1, prises16: 3 }]);
+      v.vrai('1 boîtier : note des câbles de tête longs, prises 16 A supposées suffisantes', un.notes.some((n) => /^Armoire à 25 m : .*câbles de tête longs.*rallonges 16 A\.$/.test(n))
+        && un.notes.includes('Prises 16 A de l\'armoire : non précisées, supposées suffisantes.'), un.notes);
+      const sorties = mat(25, { sortiesP17: 1, boitiers: 3 });
+      v.egal('3 boîtiers mais 1 sortie P17 : 1 boîtier utilisé', sorties.boitiers.length, 1);
+      v.egal('refus : il manque 1 prise 16 A', [mat(25, { boitiers: 1, prises16: 2 }).refus, mat(25, { boitiers: 1, prises16: 2 }).manque],
+        ['Il manque 1 prise 16 A : ajoute 1 boîtier 32 A tri, ou 1 prise 16 A sur l\'armoire.', { prises16: 1, boitiers: 1, sortiesP17: 0 }]);
+      v.egal('refus : la sortie P17 manque', mat(25, { boitiers: 2, sortiesP17: 1, prises16: 0 }).refus,
+        'Il manque 3 prises 16 A : ajoute 1 sortie P17 32 A tri sur l\'armoire, ou 3 prises 16 A sur l\'armoire.');
+      v.egal('refus : boîtier et sortie P17 manquent', mat(25, { boitiers: 1, sortiesP17: 1, prises16: 0 }).refus,
+        'Il manque 3 prises 16 A : ajoute 1 boîtier 32 A tri et 1 sortie P17 32 A tri sur l\'armoire, ou 3 prises 16 A sur l\'armoire.');
+      v.egal('matériel suffisant : pas de refus', [mat(25, { boitiers: 2, sortiesP17: 2, prises16: 0 }).refus, mat(25, { boitiers: 2, sortiesP17: 2, prises16: 0 }).manque], [null, null]);
+      v.egal('3 prises par boîtier (1 par phase) : 3 boîtiers', contenuBoitiers(mat(25, { prisesParBoitier: 3 })), ['1L1 2L2 3L3', '4L1 5L2 6L3', '7L1 8L2 9L3']);
+      v.vrai('3 prises par boîtier : 1 prise par phase au plus', distributionCoherente(mat(25, { prisesParBoitier: 3 }), variante, 1));
+      const pres = mat(5, { prises16: 4, boitiers: 1 });
+      v.egal('armoire à 5 m, 4 prises 16 A : lignes 1 à 4 en direct, 5 à 9 sur un boîtier', [pres.type, pres.lignes.filter((l) => l.depuis === 'armoire').map((l) => l.numero), contenuBoitiers(pres), pres.armoire],
+        ['mixte', [1, 2, 3, 4], ['5L2 6L3 7L1 8L2 9L3'], { sortiesP17: 1, prises16: 4 }]);
+      v.egal('armoire à 5 m, assez de prises 16 A : tout en direct, sans note de boîtier', [mat(5, { prises16: 9 }).type, mat(5, { prises16: 9 }).notes], ['directe', []]);
+      v.egal('armoire à 5 m, 4 prises 16 A, aucun boîtier : refus', mat(5, { prises16: 4, boitiers: 0 }).refus,
+        'Il manque 5 prises 16 A : ajoute 1 boîtier 32 A tri, ou 5 prises 16 A sur l\'armoire.');
+      const vingt = varianteConseil(calculs.mur(DALLE_CAS_13, 24, 6), DALLE_CAS_13, { depart: 'bas-gauche', departA: 20 }, { depart: 'bas-gauche' });
+      v.egal('départs de 20 A, 4 prises : refus sans boîtier possible', mat(5, { prises16: 4 }, vingt.elec, vingt.variante).refus,
+        'Il manque 2 prises 20 A sur l\'armoire (départs réglés à 20 A : les prises des boîtiers 32 A tri sont en 16 A).');
+      const mono = varianteConseil(calculs.mur(DALLE_CAS_13, 12, 6), DALLE_CAS_13, { depart: 'bas-gauche', arrivee: { type: 'mono', intensiteA: 32 } }, { depart: 'bas-gauche' });
+      v.egal('mono, 2 prises pour 4 lignes : refus', calculs.distributionElec(mono.m, mono.variante, mono.elec, { depart: 'bas-gauche', distanceArmoireM: 5, choix: 'materiel', materiel: { prises16: 2 } }).refus,
+        'Il manque 2 prises 16 A sur l\'armoire (arrivée monophasée : pas de boîtier 32 A tri).');
+    },
+  },
+  {
+    id: 'R310',
+    titre: 'Distribution (12a), câbles en nombre et en longueur : boîtier sur le bord de départ au milieu des têtes de ses lignes ; P17 32 A tri = (distance armoire–mur + trajet le long du bord jusqu\'au boîtier) × (1 + mou) ; câble de tête depuis le boîtier = trajet jusqu\'à la première dalle × (1 + mou), depuis l\'armoire comme aujourd\'hui ; sans distance, « à mesurer » (longueur nulle), le nombre reste',
+    etape: '12a',
+    verifier(v) {
+      const { m, elec, variante } = varianteConseil(calculs.mur(DALLE_CAS_13, 24, 6), DALLE_CAS_13, { depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+      const r = calculs.distributionElec(m, variante, elec, { depart: 'bas-gauche', distanceArmoireM: 20, mode: 'stack' });
+      v.egal('boîtiers au bas du mur, au milieu des têtes de leurs lignes', r.boitiers.map((b) => b.positionMm), [{ x: 4000, y: 3000 }, { x: 10250, y: 3000 }]);
+      v.proche('P17 du boîtier 1 : (20 m + 4 m) × 1,10', r.boitiers[0].p17M, 26.4, 0.001);
+      v.proche('P17 du boîtier 2 : (20 m + 10,25 m) × 1,10', r.boitiers[1].p17M, 33.275, 0.001);
+      v.proche('ligne 1, câble de tête depuis le boîtier 1 : (3,75 + 0,25 m) × 1,10', r.lignes[0].longueurTeteM, 4.4, 0.001);
+      v.proche('ligne 7, câble de tête depuis le boîtier 2 : (1 + 0,25 m) × 1,10', r.lignes[6].longueurTeteM, 1.375, 0.001);
+      v.egal('récapitulatif : 2 câbles P17 32 A tri, 9 câbles de tête 16 A', [r.cables.p17.nombre, r.cables.tete.nombre], [2, 9]);
+      v.proche('P17 : longueur totale', r.cables.p17.totalM, 59.675, 0.001);
+      v.proche('P17 : le plus long', r.cables.p17.maxM, 33.275, 0.001);
+      v.proche('câbles de tête : longueur totale', r.cables.tete.totalM, 19.525, 0.001);
+      const direct = calculs.distributionElec(m, variante, elec, { depart: 'bas-gauche', distanceArmoireM: 5 });
+      const reference = calculs.cablageElec(m, DALLE_CAS_13, elec, { depart: 'bas-gauche', distanceArmoireM: 5 }).variantes.find((x) => x.mode === variante.mode);
+      v.egal('ligne directe : même longueur de câble de tête que le Schéma d\'aujourd\'hui', direct.lignes.map((l) => l.longueurTeteM.toFixed(6)), reference.lignesDetail.map((l) => l.longueurTeteM.toFixed(6)));
+      const sans = calculs.distributionElec(m, variante, elec, { depart: 'bas-gauche' });
+      v.egal('sans distance : longueurs à mesurer, le nombre reste', [sans.lignes.every((l) => l.longueurTeteM === null), sans.cables.tete.nombre, sans.cables.tete.totalM, sans.cables.p17.nombre], [true, 9, null, 0]);
+      const melange = calculs.distributionElec(m, variante, elec, { depart: 'bas-gauche', choix: 'materiel', materiel: { prises16: 4, boitiers: 1 } });
+      v.egal('armoire non saisie, boîtier pour les lignes en trop : P17 à mesurer', [melange.boitiers.length, melange.boitiers[0].p17M, melange.cables.p17.totalM], [1, null, null]);
+      const mixte = calculs.distributionElec(m, variante, elec, { depart: 'bas-gauche', distanceArmoireM: 20, choix: 'materiel', materiel: { boitiers: 1 } });
+      v.proche('ligne 7 en direct : (20 m + 9,25 + 0,25 m) × 1,10', mixte.lignes[6].longueurTeteM, 32.45, 0.001);
+      const haut = varianteConseil(calculs.mur(DALLE_CAS_13, 24, 6), DALLE_CAS_13, { depart: 'haut-droite' }, { depart: 'haut-droite' });
+      const rh = calculs.distributionElec(haut.m, haut.variante, haut.elec, { depart: 'haut-droite', distanceArmoireM: 20, mode: 'accroche' });
+      v.egal('accroche, départ en haut à droite : boîtiers en haut du mur, sur le pont', [rh.pose, rh.boitiers.map((b) => b.positionMm)], ['sur le pont', [{ x: 8000, y: 0 }, { x: 1750, y: 0 }]]);
+      v.proche('accroche, P17 du boîtier 1 : (20 m + 4 m depuis le coin droit) × 1,10', rh.boitiers[0].p17M, 26.4, 0.001);
+      const rangees = calculs.cablageElec(m, DALLE_CAS_13, elec, { depart: 'bas-gauche' }).variantes.find((x) => x.mode === 'rangees');
+      const rr = calculs.distributionElec(m, rangees, elec, { depart: 'bas-gauche', distanceArmoireM: 20 });
+      v.vrai('câblage par rangées : boîtiers sur le côté de départ', rr.boitiers.length > 0 && rr.boitiers.every((b) => b.positionMm.x === 0), rr.boitiers.map((b) => b.positionMm));
+    },
+  },
+  {
+    id: 'R311',
+    titre: 'Distribution (12a) : chaque ligne du câblage élec garde le centre de sa première dalle (teteMm), pour placer les boîtiers ; distance armoire au-delà de 10 m : SEUIL_BOITIERS_M',
+    etape: '12a',
+    verifier(v) {
+      const { variante } = varianteConseil(calculs.mur(DALLE_CAS_13, 24, 6), DALLE_CAS_13, { depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+      v.egal('ligne 1 : C1 R6, centre à 250 mm du bord gauche et 2 750 mm du haut', [variante.lignesDetail[0].dalles[0], variante.lignesDetail[0].teteMm], ['C1 R6', { x: 250, y: 2750 }]);
+      v.egal('seuil des boîtiers : 10 m', calculs.SEUIL_BOITIERS_M, 10);
+      const z = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 2 }, { nom: 'B', colonnes: 4, rangees: 2 }], { ecarts: 'reel' });
+      const vz = varianteConseil(z, DALLE_CAS_13, { depart: 'haut-gauche' }, { depart: 'haut-gauche' });
+      v.vrai('mur en zones : têtes données aussi', vz.variante.lignesDetail.every((l) => Number.isFinite(l.teteMm?.x) && Number.isFinite(l.teteMm?.y)));
+    },
+  },
+  {
+    id: 'R312',
+    titre: 'Distribution (12b), textes : « Armoire : 2 câbles P17 32 A tri vers les boîtiers », « Boîtier 1, sur le pont : lignes 1 et 4 (L1), 2 et 5 (L2), 3 et 6 (L3) », « En direct sur l\'armoire : ligne 6 (L3) », câbles en nombre et en longueur (« à mesurer » sans distance) ; monophasé sans phase',
+    etape: '12b',
+    verifier(v) {
+      const { m, elec, variante } = varianteConseil(calculs.mur(DALLE_CAS_13, 24, 6), DALLE_CAS_13, { depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+      const dist = (options) => calculs.distributionElec(m, variante, elec, { depart: 'bas-gauche', mode: 'stack', ...options });
+      v.egal('une ligne, puis une ligne par phase', [resumes.texteLignesDistribution?.([{ numero: 6, phase: 3 }]), resumes.texteLignesDistribution?.([{ numero: 7, phase: 1 }, { numero: 8, phase: 2 }, { numero: 9, phase: 3 }])],
+        ['ligne 6 (L3)', 'lignes 7 (L1), 8 (L2), 9 (L3)']);
+      v.egal('trois lignes d\'une même phase, monophasé sans phase', [resumes.texteLignesDistribution?.([{ numero: 1, phase: 1 }, { numero: 4, phase: 1 }, { numero: 7, phase: 1 }]),
+        resumes.texteLignesDistribution?.([1, 2, 3, 4].map((numero) => ({ numero, phase: 1 })), { mono: true })], ['lignes 1, 4 et 7 (L1)', 'lignes 1, 2, 3 et 4']);
+      v.egal('longueur d\'un câble', [resumes.texteLongueurCable?.(26.4), resumes.texteLongueurCable?.(null)], ['26,4 m', 'à mesurer']);
+      v.egal('boîtiers, armoire à 20 m', resumes.lignesDistribution?.(dist({ distanceArmoireM: 20 })), [
+        'Armoire : 2 câbles P17 32 A tri vers les boîtiers',
+        'Boîtier 1, au sol derrière le mur : lignes 1 et 4 (L1), 2 et 5 (L2), 3 et 6 (L3)',
+        'Boîtier 2, au sol derrière le mur : lignes 7 (L1), 8 (L2), 9 (L3)',
+        'Câbles P17 32 A tri : 2, 59,7 m en tout, le plus long 33,3 m',
+        'Câbles de tête 16 A : 9, 19,5 m en tout, le plus long 4,4 m',
+      ]);
+      v.egal('un seul boîtier : « vers le boîtier »', resumes.lignesDistribution?.(dist({ distanceArmoireM: 20, choix: 'materiel', materiel: { boitiers: 1 } }))?.slice(0, 3), [
+        'Armoire : 1 câble P17 32 A tri vers le boîtier',
+        'Boîtier 1, au sol derrière le mur : lignes 1 et 4 (L1), 2 et 5 (L2), 3 et 6 (L3)',
+        'En direct sur l\'armoire : lignes 7 (L1), 8 (L2), 9 (L3)',
+      ]);
+      v.egal('sans distance : lignes directes, longueur à mesurer', resumes.lignesDistribution?.(dist({})), [
+        'En direct sur l\'armoire : lignes 1, 4 et 7 (L1), 2, 5 et 8 (L2), 3, 6 et 9 (L3)',
+        'Câbles de tête 16 A : 9, longueur à mesurer',
+      ]);
+      const mono = varianteConseil(calculs.mur(DALLE_CAS_13, 12, 6), DALLE_CAS_13, { depart: 'bas-gauche', arrivee: { type: 'mono', intensiteA: 32 } }, { depart: 'bas-gauche' });
+      v.egal('monophasé : lignes sans phase', resumes.lignesDistribution?.(calculs.distributionElec(mono.m, mono.variante, mono.elec, { depart: 'bas-gauche' }))?.[0],
+        'En direct sur l\'armoire : lignes 1, 2, 3 et 4');
+      const vingt = varianteConseil(calculs.mur(DALLE_CAS_13, 24, 6), DALLE_CAS_13, { depart: 'bas-gauche', departA: 20 }, { depart: 'bas-gauche' });
+      v.egal('départs de 20 A : câbles de tête de 20 A', resumes.lignesDistribution?.(calculs.distributionElec(vingt.m, vingt.variante, vingt.elec, { depart: 'bas-gauche' }))?.at(-1),
+        'Câbles de tête 20 A : 6, longueur à mesurer');
+    },
+  },
+  {
+    id: 'R313',
+    titre: 'Distribution (12c), guide de montage élec : la phrase de chaque ligne dit d\'où elle part (« Branche-la sur le boîtier 1, prise L2 », « sur l\'armoire, prise L3 », monophasé « sur l\'armoire ») ; sans prise (matériel insuffisant) : « Prise à trouver » ; signature inchangée (case gardée) ; sans distribution, phrase d\'avant',
+    etape: '12c',
+    verifier(v) {
+      const { m, elec, variante } = varianteConseil(calculs.mur(DALLE_CAS_13, 24, 6), DALLE_CAS_13, { depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+      const dist = (options) => calculs.distributionElec(m, variante, elec, { depart: 'bas-gauche', mode: 'stack', ...options });
+      const etapes = (d) => montage.etapesElec(variante, { depart: 'bas-gauche', distribution: d });
+      const avant = montage.etapesElec(variante, { depart: 'bas-gauche' });
+      const boites = etapes(dist({ distanceArmoireM: 20 }));
+      v.vrai('ligne 2 : boîtier 1, prise L2', boites[1].phrase.endsWith('Branche-la sur le boîtier 1, prise L2 : câble de tête jusqu\'à C4 R6, puis suis les numéros.'), boites[1].phrase);
+      v.egal('boîtier de chaque ligne', boites.map((x) => x.boitier), [1, 1, 1, 1, 1, 1, 2, 2, 2]);
+      const directe = etapes(dist({}));
+      v.vrai('ligne 1 directe : sur l\'armoire, prise L1', directe[0].phrase.endsWith('Branche-la sur l\'armoire, prise L1 : câble de tête jusqu\'à C1 R6, puis suis les numéros.'), directe[0].phrase);
+      v.egal('ligne directe : pas de boîtier', directe[0].boitier, null);
+      v.egal('signatures inchangées par la distribution (cases gardées)', [boites.map((x) => x.signature), directe.map((x) => x.signature)], [avant.map((x) => x.signature), avant.map((x) => x.signature)]);
+      v.vrai('sans distribution : phrase d\'avant', avant[0].phrase.endsWith('Câble de tête depuis l\'armoire jusqu\'à C1 R6, puis suis les numéros.'), avant[0].phrase);
+      const manque = etapes(dist({ distanceArmoireM: 20, choix: 'materiel', materiel: { boitiers: 1, prises16: 0 } }));
+      v.vrai('ligne sans prise : « Prise à trouver »', manque[6].phrase.endsWith('Prise à trouver : le matériel saisi dans Élec ne suffit pas. Câble de tête jusqu\'à C19 R6, puis suis les numéros.'), manque[6].phrase);
+      const mono = varianteConseil(calculs.mur(DALLE_CAS_13, 12, 6), DALLE_CAS_13, { depart: 'bas-gauche', arrivee: { type: 'mono', intensiteA: 32 } }, { depart: 'bas-gauche' });
+      const em = montage.etapesElec(mono.variante, { depart: 'bas-gauche', distribution: calculs.distributionElec(mono.m, mono.variante, mono.elec, { depart: 'bas-gauche' }) });
+      v.vrai('monophasé : sur l\'armoire, sans phase', em[0].phrase.endsWith('Branche-la sur l\'armoire : câble de tête jusqu\'à C1 R6, puis suis les numéros.'), em[0].phrase);
+    },
+  },
+  {
+    id: 'R314',
+    titre: 'Distribution (12c), textes copiés : Élec reprend la distribution (phrase, armoire, boîtiers, lignes directes, câbles, notes, refus, rappel de l\'électricien) ; le Schéma dit d\'où part chaque ligne et donne son câble de tête depuis le boîtier ; sans distribution, textes d\'avant',
+    etape: '12c',
+    verifier(v) {
+      const { m, elec, variante } = varianteConseil(calculs.mur(DALLE_CAS_13, 24, 6), DALLE_CAS_13, { depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+      const dist = (options) => calculs.distributionElec(m, variante, elec, { depart: 'bas-gauche', mode: 'stack', ...options });
+      const d = dist({ distanceArmoireM: 20 });
+      const texte = resumes.resumeElec(elec, { dalle: DALLE_CAS_13, mur: m, distribution: d }).split('\n');
+      const attendues = [
+        'Distribution : armoire à 20 m, boîtiers 32 A tri au sol derrière le mur',
+        'Armoire : 2 câbles P17 32 A tri vers les boîtiers',
+        'Boîtier 1, au sol derrière le mur : lignes 1 et 4 (L1), 2 et 5 (L2), 3 et 6 (L3)',
+        'Boîtier 2, au sol derrière le mur : lignes 7 (L1), 8 (L2), 9 (L3)',
+        'Câbles P17 32 A tri : 2, 59,7 m en tout, le plus long 33,3 m',
+        'Câbles de tête 16 A : 9, 19,5 m en tout, le plus long 4,4 m',
+        'Rappel : distribution indicative, à valider avec l\'électricien (différentiel 30 mA, protections, sections et longueurs des câbles)',
+      ];
+      const debut = texte.indexOf(attendues[0]);
+      v.egal('Élec : bloc de la distribution, dans l\'ordre', debut >= 0 ? texte.slice(debut, debut + attendues.length) : texte, attendues);
+      const sans = resumes.resumeElec(elec, { dalle: DALLE_CAS_13, mur: m }).split('\n');
+      v.vrai('Élec sans distribution : pas de bloc', !sans.some((l) => /^Distribution/.test(l)));
+      const refus = resumes.resumeElec(elec, { dalle: DALLE_CAS_13, mur: m, distribution: dist({ distanceArmoireM: 20, choix: 'materiel', materiel: { boitiers: 1, prises16: 2 } }) }).split('\n');
+      v.vrai('Élec, matériel : refus et notes', refus.includes('Distribution : armoire à 20 m, boîtiers 32 A tri au sol derrière le mur et lignes en direct, avec mon matériel')
+        && refus.includes('Refus : Il manque 1 prise 16 A : ajoute 1 boîtier 32 A tri, ou 1 prise 16 A sur l\'armoire.')
+        && refus.includes('Note : Sorties P17 32 A tri de l\'armoire : non précisées, supposées suffisantes.'), refus.filter((l) => /Distribution|Refus|Note/.test(l)).join(' / '));
+      v.vrai('Élec, armoire non mesurée : lignes directes', resumes.resumeElec(elec, { dalle: DALLE_CAS_13, mur: m, distribution: dist({}) }).split('\n').includes('Distribution : armoire non mesurée, lignes directes'));
+      const t = calculs.cablageElec(m, DALLE_CAS_13, elec, { depart: 'bas-gauche', distanceArmoireM: 20 });
+      const schema = resumes.resumeCablage({ elec: t, modeElec: variante.mode, distribution: d });
+      v.vrai('Schéma : ligne 1 depuis le boîtier 1, câble de tête depuis le boîtier', /^Ligne 1, phase L1 : .*, depuis le boîtier 1 \(L1\), câble de tête environ 5 m, /m.test(schema), schema.split('\n').find((l) => /^Ligne 1,/.test(l)));
+      const mixte = resumes.resumeCablage({ elec: t, modeElec: variante.mode, distribution: dist({ distanceArmoireM: 20, choix: 'materiel', materiel: { boitiers: 1 } }) });
+      v.vrai('Schéma : ligne 7 depuis l\'armoire', /^Ligne 7, phase L1 : .*, depuis l'armoire \(L1\), câble de tête environ 33 m, /m.test(mixte), mixte.split('\n').find((l) => /^Ligne 7,/.test(l)));
+      v.vrai('Schéma sans distribution : texte d\'avant', /^Ligne 1, phase L1 : .*, 2340 W, câble de tête environ 23 m, /m.test(resumes.resumeCablage({ elec: t, modeElec: variante.mode })));
+    },
+  },
 ];
+
+// Distribution (12a) : variante conseillée du câblage élec d'un mur, avec son calcul Élec.
+function varianteConseil(m, dalle, reglages = {}, options = {}) {
+  const elec = calculs.electricite(m, dalle, reglages);
+  const t = calculs.cablageElec(m, dalle, elec, options);
+  return { m, elec, variante: t.variantes.find((x) => x.mode === t.conseil) };
+}
+
+// Variante fictive : lignes dans l'ordre du câblage avec leur phase, têtes au bas d'un mur de 6 m sur 3 m.
+const MUR_FICTIF = { largeurMm: 6000, hauteurMm: 3000 };
+const ELEC_TRI_FICTIF = { reglages: { arrivee: { type: 'tri', intensiteA: 63 }, departA: 16, depart: 'bas-gauche' } };
+function varianteFictive(phases) {
+  return { mode: 'colonnes', orientation: 'colonnes', lignesDetail: phases.map((phase, i) => ({ numero: i + 1, phase, dalles: [], teteMm: { x: 250 + 500 * i, y: 2750 } })) };
+}
+
+// Lignes de chaque boîtier, « numéro + prise » : ['1L1 2L2', …].
+const contenuBoitiers = (d) => d.boitiers.map((b) => b.lignes.map((l) => `${l.numero}${l.prise}`).join(' '));
+
+// Chaque ligne une fois, phase inchangée, prise de sa phase, `parPhase` prises au plus par phase dans un boîtier.
+function distributionCoherente(d, variante, parPhase) {
+  const phaseDe = new Map(variante.lignesDetail.map((l) => [l.numero, l.phase]));
+  const vues = d.lignes.map((l) => l.numero);
+  return vues.length === phaseDe.size && new Set(vues).size === vues.length
+    && d.lignes.every((l) => l.phase === phaseDe.get(l.numero))
+    && d.boitiers.every((b) => b.lignes.every((l) => l.prise === `L${phaseDe.get(l.numero)}`)
+      && [1, 2, 3].every((k) => b.lignes.filter((l) => l.phase === k).length <= parPhase));
+}
 
 // Message de l'erreur levée par `f`, ou chaîne vide.
 function messageErreur(f) {

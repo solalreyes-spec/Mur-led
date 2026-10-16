@@ -7,7 +7,7 @@ import { lire, ecrire, stockageDisponible } from './stockage.js';
 import { initialiserMur, actualiserMur, signalerErreurMur } from './ecran-mur.js';
 import { initialiserData, actualiserData, murModifie, definirDepartData, processeurRetenu } from './ecran-data.js';
 import { initialiserCanvas, actualiserRegies, donneesModifiees } from './ecran-canvas.js';
-import { initialiserElec, murModifiePourElec, definirDepartElec } from './ecran-elec.js';
+import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec } from './ecran-elec.js';
 import {
   initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema,
   cablageRetenu, sortieModifieePourSchema, definirStockageMontage, rechargerMontage,
@@ -340,9 +340,9 @@ remplirParcs();
 // Chaîne des onglets : Mur → Data → Canvas et Schéma ; Mur → Élec → Schéma ; Mur → Poids.
 // Le Schéma renvoie le coin de départ du câblage aux onglets Data et Élec (serpentin au plus juste).
 initialiserSchema({
-  surDepart: ({ data, elec }) => {
+  surDepart: ({ data, elec, margeMou }) => {
     definirDepartData(data);
-    definirDepartElec(elec);
+    definirDepartElec(elec, { margeMou });
   },
 });
 if (connectique) {
@@ -369,7 +369,12 @@ initialiserBase({ base, depart, fusion: courant.fusion, parcActif, persistant },
 
 // Mode du mur (accroche ou stack, onglet Poids) : il décide du bord de départ des câbles dans le Schéma.
 const formPoids = document.getElementById('form-poids');
-const publierModeMur = () => definirModeMur(new FormData(formPoids).get('mode'));
+// Il décide aussi de la pose des boîtiers 32 A tri de la distribution (Élec) : sur le pont, ou au sol derrière le mur.
+const publierModeMur = () => {
+  const mode = new FormData(formPoids).get('mode');
+  definirModeMur(mode);
+  definirModeElec(mode);
+};
 formPoids.addEventListener('change', publierModeMur);
 publierModeMur();
 

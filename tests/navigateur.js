@@ -3574,6 +3574,93 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N79',
+    titre: 'Distribution dans Élec (12b) : section « Distribution » après les lignes et les phases (#resultats-elec), avant le courant d\'appel et les rappels (#resultats-elec-suite) ; son formulaire gardé avec le mur (form-distribution) : distance armoire–mur, choix « Conseil » ou « Avec mon matériel », champs du matériel (prises 16 A, sorties P17 32 A tri, boîtiers, prises par boîtier : non précisé, 6 ou 3) cachés en conseil ; un seul champ de distance armoire dans l\'appli, plus dans le Schéma',
+    etape: '12b',
+    async verifier(v) {
+      const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+      const q = (x) => page.querySelector(x);
+      const section = q('#elec #distribution-elec');
+      const form = q('#distribution-elec form#form-distribution');
+      v.vrai('section « Distribution » dans Élec, avec son titre et son formulaire', Boolean(section && form) && /^Distribution$/.test(section.querySelector('h3')?.textContent.trim() ?? ''));
+      const avant = (a, b) => Boolean(a && b) && Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      v.vrai('ordre : lignes et phases, Distribution, puis courant d\'appel et rappels', avant(q('#resultats-elec'), section) && avant(section, q('#resultats-elec-suite')));
+      v.vrai('résultats de la distribution sous son formulaire', Boolean(q('#distribution-elec #resultats-distribution')) && avant(form, q('#resultats-distribution')));
+      v.egal('un seul champ de distance armoire dans l\'appli, dans la Distribution', [page.querySelectorAll('[name=distanceArmoireM]').length, form?.querySelector('[name=distanceArmoireM]')?.id, q('#form-schema [name=distanceArmoireM]')], [1, 'distance-armoire', null]);
+      v.egal('choix « Conseil » (coché) ou « Avec mon matériel »', [...(form?.querySelectorAll('input[name=choixDistribution]') ?? [])].map((r) => `${r.value}${r.hasAttribute('checked') ? '*' : ''}`), ['conseil*', 'materiel']);
+      const bloc = q('#bloc-materiel');
+      v.vrai('champs du matériel cachés en conseil', Boolean(bloc) && bloc.hasAttribute('hidden') && form?.contains(bloc));
+      v.egal('champs du matériel', ['prises16', 'sortiesP17', 'boitiers', 'prisesParBoitier'].map((nom) => {
+        const champ = bloc?.querySelector(`[name=${nom}]`);
+        return champ ? `${nom}:${champ.tagName.toLowerCase()}:${page.querySelector(`label[for="${champ.id}"]`) ? 'libellé' : 'sans libellé'}` : `${nom}:absent`;
+      }), ['prises16:input:libellé', 'sortiesP17:input:libellé', 'boitiers:input:libellé', 'prisesParBoitier:select:libellé']);
+      v.egal('prises par boîtier : non précisé, 6 ou 3', [...(bloc?.querySelector('[name=prisesParBoitier]')?.options ?? [])].map((o) => o.value), ['', '6', '3']);
+      v.vrai('Schéma : la distance armoire renvoie à Élec', /Élec/.test(q('#form-schema #rappel-distance-armoire')?.textContent ?? '') && Boolean(q('#form-schema #rappel-distance-armoire a[href="#elec"]')));
+    },
+  },
+  {
+    id: 'N80',
+    titre: 'Distribution dans le Schéma (12c) : chaque boîtier dessiné en petit cadre « B1 » hors du mur, sur le bord de départ, au droit de ses lignes, plus loin du mur que leurs départs et sans les toucher ; chacune de ses lignes part de lui (trait vers son départ) ; câble P17 en tirets de l\'armoire aux boîtiers ; texte aux couleurs du repère ; sans boîtier, rien de plus',
+    etape: '12c',
+    async verifier(v, contexte) {
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const m = calculs.mur(bp2, 24, 6);
+      const elec = calculs.electricite(m, bp2, { depart: 'bas-gauche' });
+      const t = calculs.cablageElec(m, bp2, elec, { depart: 'bas-gauche' });
+      const ve = t.variantes.find((x) => x.mode === t.conseil);
+      const vue = { vue: 'physique', canvasVue: 'mur', cablage: 'elec' };
+      const dessiner = (boitiers) => {
+        const { svg } = construireSvg({
+          geo: geometrieSchema(vue, m, bp2, calculs.pixelMap(m, bp2, null)), trajets: trajetsSchema(vue, null, ve, null), coin: 'bas-gauche', blocs: [],
+          palette: PALETTE_EXPORT, largeurPx: 2000, repere: repereSchema('elec', { distanceM: 25 }), boitiers,
+        });
+        svg.style.position = 'absolute';
+        svg.style.left = '-5000px';
+        document.body.append(svg);
+        return svg;
+      };
+      const d = calculs.distributionElec(m, ve, elec, { depart: 'bas-gauche', distanceArmoireM: 25, mode: 'stack' });
+      const boitiers = d.boitiers.map((b) => ({ nom: b.nom, trajets: b.lignes.map((l) => `l${l.numero}`) }));
+      const svg = dessiner(boitiers);
+      try {
+        const cadres = [...svg.querySelectorAll('g.boitier')];
+        v.egal('2 boîtiers, « B1 » et « B2 »', cadres.map((g) => g.querySelector('text')?.textContent), ['B1', 'B2']);
+        const boite = (g) => {
+          const r = g.querySelector('rect');
+          return ['x', 'y', 'width', 'height'].map((a) => Number(r.getAttribute(a)));
+        };
+        const departs = (cles) => cles.map((cle) => svg.querySelector(`[data-trajet="${cle}"] circle.depart`)).map((c) => ['cx', 'cy', 'r'].map((a) => Number(c.getAttribute(a))));
+        const fautes = [];
+        cadres.forEach((g, i) => {
+          const [x, y, w, h] = boite(g);
+          const ds = departs(boitiers[i].trajets);
+          if (y <= m.hauteurMm) fautes.push(`${boitiers[i].nom} : pas sous le mur`);
+          if (!ds.every(([, cy, r]) => y > cy + r)) fautes.push(`${boitiers[i].nom} : pas plus loin du mur que ses départs`);
+          const cx = x + w / 2;
+          if (cx < Math.min(...ds.map((p) => p[0])) - 1 || cx > Math.max(...ds.map((p) => p[0])) + 1) fautes.push(`${boitiers[i].nom} : pas au droit de ses lignes`);
+          const tous = [...svg.querySelectorAll('circle.depart')].map((c) => ['cx', 'cy', 'r'].map((a) => Number(c.getAttribute(a))));
+          if (tous.some(([px, py, r]) => px + r > x && px - r < x + w && py + r > y && py - r < y + h)) fautes.push(`${boitiers[i].nom} : touche un départ`);
+        });
+        v.egal('boîtiers sous le mur en stack, au droit de leurs lignes, plus loin que les départs, sans les toucher', fautes, []);
+        const liens = boitiers.flatMap((b) => b.trajets).filter((cle) => svg.querySelector(`[data-trajet="${cle}"] .depuis-boitier`));
+        v.egal('chaque ligne d\'un boîtier part de lui', liens.length, 12);
+        const p17 = svg.querySelector('.repere .cable-p17');
+        v.vrai('câble P17 en tirets de l\'armoire aux boîtiers', Boolean(p17) && Boolean(p17.getAttribute('stroke-dasharray')));
+        const texteRepere = svg.querySelector('.repere text')?.getAttribute('style');
+        v.egal('texte du boîtier aux couleurs du repère', cadres[0]?.querySelector('text')?.getAttribute('style'), texteRepere);
+        v.egal('lignes d\'un boîtier : plus de chemin des câbles de tête depuis l\'armoire', svg.querySelectorAll('.chemin-tete').length, 0);
+      } finally {
+        svg.remove();
+      }
+      const sans = dessiner(undefined);
+      try {
+        v.egal('sans boîtier : ni cadre, ni câble P17, chemin des câbles de tête gardé', [sans.querySelectorAll('g.boitier').length, sans.querySelectorAll('.cable-p17').length, sans.querySelectorAll('.chemin-tete').length], [0, 0, 1]);
+      } finally {
+        sans.remove();
+      }
+    },
+  },
 ];
 
 // Contraste WCAG entre deux couleurs « #rrggbb ».

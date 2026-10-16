@@ -1,20 +1,27 @@
 // Onglet Élec : lignes, phases, arrivée, courant d'appel. Résultats indicatifs, à valider par l'électricien.
 // Aucune règle de calcul ici : tout passe par calculs.js.
 
-import { electricite, ARRIVEES, LIBELLES_COIN, ErreurSaisie } from './calculs.js';
+import { electricite, cablageElec, distributionElec, ARRIVEES, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie } from './calculs.js';
 import { nombre, nombreCourt, lireNombre, sourceCourte, mentionType } from './format.js';
 import { el, remplacer } from './dom.js';
 import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
-import { resumeElec, lignesParZone } from './resumes.js';
+import { resumeElec, lignesParZone, lignesDistribution, texteLongueurCable } from './resumes.js';
 
 const formulaire = document.getElementById('form-elec');
 const zone = document.getElementById('resultats-elec');
+// Distribution (étape 12b) : son formulaire, gardé avec le mur, ses résultats ; puis courant d'appel et rappels.
+const formDistribution = document.getElementById('form-distribution');
+const zoneDistribution = document.getElementById('resultats-distribution');
+const zoneSuite = document.getElementById('resultats-elec-suite');
 
 let etatMur = null;
 let typeAffiche = null;
 // Coin de départ du câblage élec, choisi dans l'onglet Schéma ; le résultat est publié pour ce même onglet.
 let departElec = 'haut-gauche';
+// Marge de mou (réglage du Schéma) et montage (onglet Poids : accroche ou stack), pour les câbles et la pose des boîtiers.
+let margeMou = MARGE_MOU_DEFAUT;
+let modeMur = 'accroche';
 let publier = () => {};
 
 const alerte = (texte, genre = '') => el('div', { class: `alerte ${genre}`.trim() }, texte);
@@ -54,6 +61,23 @@ function lireFormulaire() {
       arrivee: { type, intensiteA: choix === 'libre' ? lireNombre(d.get('arriveeLibre')) : Number(choix) },
       courbe: d.get('courbe') || null,
       depart: departElec,
+    },
+  };
+}
+
+// Saisies de la distribution : champ vide = non saisi (null) ; une saisie illisible reste NaN, refusée par le calcul.
+function lireDistribution() {
+  const d = new FormData(formDistribution);
+  const champ = (nom) => (String(d.get(nom) ?? '').trim() === '' ? null : lireNombre(d.get(nom)));
+  const choix = d.get('choixDistribution') === 'materiel' ? 'materiel' : 'conseil';
+  return {
+    distanceArmoireM: champ('distanceArmoireM'),
+    choix,
+    materiel: {
+      prises16: champ('prises16'),
+      sortiesP17: champ('sortiesP17'),
+      boitiers: champ('boitiers'),
+      prisesParBoitier: d.get('prisesParBoitier') ? Number(d.get('prisesParBoitier')) : null,
     },
   };
 }
@@ -146,6 +170,53 @@ function sectionAppel(r) {
       tuile('Bilan', a.ok ? 'passe' : 'dépasse', 'contrôle prudent')));
 }
 
+// Distribution : d'où part chaque ligne (armoire ou boîtier 32 A tri), câbles en nombre et en longueur (étape 12b).
+function phraseDistribution(dist) {
+  const distance = dist.distanceArmoireM === null ? 'Armoire non mesurée' : `Armoire à ${nombreCourt(dist.distanceArmoireM, 1)} m`;
+  if (dist.type === 'directe') return `${distance} : lignes directes, chacune sur une prise de l'armoire.`;
+  const boitiers = `boîtiers 32 A tri ${dist.pose}, chacun alimenté par un câble P17 32 A tri depuis l'armoire`;
+  return `${distance} : ${boitiers}${dist.type === 'mixte' ? ', et des lignes en direct sur l\'armoire' : ''}.`;
+}
+
+function sectionDistribution(dist, variante) {
+  const textes = lignesDistribution(dist);
+  const nb = dist.boitiers.length;
+  // Au-delà de 8 boîtiers, leur liste se replie entre la ligne de l'armoire et le reste.
+  const liste = (items) => (items.length ? el('ul', { class: 'liste-distribution' }, items.map((t) => el('li', {}, t))) : null);
+  const deBoitier = (t) => t.startsWith('Boîtier ');
+  const listes = nb > 8
+    ? [liste(textes.filter((t) => t.startsWith('Armoire :'))),
+      el('details', { class: 'fiche' }, el('summary', {}, `Les ${nombre(nb)} boîtiers`), liste(textes.filter(deBoitier))),
+      liste(textes.filter((t) => !deBoitier(t) && !t.startsWith('Armoire :')))]
+    : [liste(textes)];
+  const fournit = [
+    dist.armoire.sortiesP17 ? pluriel(dist.armoire.sortiesP17, 'sortie P17 32 A tri', 'sorties P17 32 A tri') : null,
+    dist.armoire.prises16 ? pluriel(dist.armoire.prises16, `prise ${nombreCourt(dist.departA)} A`, `prises ${nombreCourt(dist.departA)} A`) : null,
+  ].filter(Boolean).join(' et ');
+  const premiere = new Map(variante.lignesDetail.map((l) => [l.numero, l.dalles[0]]));
+  const cables = [
+    ...dist.boitiers.map((b) => ['P17 32 A tri', 'Armoire', `Boîtier ${b.numero}`, b.p17M]),
+    ...dist.lignes.filter((l) => l.depuis).map((l) => [`Tête ${nombreCourt(dist.departA)} A`, l.boitier ? `Boîtier ${l.boitier}${l.prise ? `, ${l.prise}` : ''}` : `Armoire${l.prise ? `, ${l.prise}` : ''}`,
+      `Ligne ${l.numero} (${premiere.get(l.numero)})`, l.longueurTeteM]),
+  ];
+  return [
+    dist.refus ? alerte(dist.refus, 'alerte-erreur') : null,
+    el('p', { class: 'source' }, phraseDistribution(dist)),
+    ...listes,
+    fournit ? el('p', { class: 'source' }, `${dist.choix === 'conseil' ? 'L\'armoire doit fournir' : 'Pris sur l\'armoire'} : ${fournit}.`) : null,
+    el('details', { class: 'fiche detail-cables' },
+      el('summary', {}, `Détail des câbles (${nombre(cables.length)})`),
+      el('div', { class: 'tableau-defilant' },
+        el('table', { class: 'table-donnees' },
+          el('thead', {}, el('tr', {}, el('th', {}, 'Câble'), el('th', {}, 'De'), el('th', {}, 'Vers'), el('th', {}, 'Longueur'))),
+          el('tbody', {}, cables.map(([type, de, vers, m]) => el('tr', {}, el('td', {}, type), el('td', {}, de), el('td', {}, vers), el('td', {}, texteLongueurCable(m)))))))),
+    dist.cables.tete.totalM === null || (nb && dist.cables.p17.totalM === null)
+      ? el('p', { class: 'source' }, 'Longueurs à mesurer : saisis la distance armoire–mur ; le nombre de câbles reste juste.') : null,
+    dist.notes.map((t) => alerte(t, 'alerte-info')),
+    alerte('Distribution indicative, à valider avec l\'électricien : différentiel 30 mA, protections, sections et longueurs des câbles.', 'alerte-info'),
+  ];
+}
+
 const RAPPELS = [
   'Allume ligne par ligne : le courant d\'appel dépend du nombre de dalles allumées en même temps.',
   'Un 30 mA par départ 16 A, un 300 mA sélectif en amont ; ne remplace jamais les 30 mA des départs par du 300 mA. À valider avec l\'électricien.',
@@ -169,7 +240,17 @@ function mettreAJour() {
     return;
   }
   document.getElementById('bloc-arrivee-libre').hidden = !e.arriveeLibre;
+  const saisie = lireDistribution();
+  document.getElementById('bloc-materiel').hidden = saisie.choix !== 'materiel';
+  // Distance publiée pour le Schéma (un seul champ, ici) ; une saisie illisible ne compte pas.
+  const reglagesDistribution = {
+    ...saisie,
+    distanceArmoireM: Number.isFinite(saisie.distanceArmoireM) && saisie.distanceArmoireM >= 0 ? saisie.distanceArmoireM : null,
+    mode: modeMur,
+  };
   publier(null);
+  remplacer(zoneDistribution);
+  remplacer(zoneSuite);
   if (!etatMur) return;
   if (!etatMur.mur) {
     remplacer(zone, alerte('Le mur n\'est pas valide : corrige-le dans l\'onglet Mur.', 'alerte-erreur'));
@@ -185,8 +266,23 @@ function mettreAJour() {
     return;
   }
 
-  dernier = { r, dalle, mur };
-  publier({ r, dalle, mur });
+  // Distribution des lignes retenues (variante conseillée du câblage élec, dans l'ordre du câblage).
+  let distribution = null;
+  let erreurDistribution = null;
+  try {
+    const t = cablageElec(mur, dalle, r, { depart: departElec, margeMou });
+    const variante = t.variantes.find((x) => x.mode === t.conseil);
+    distribution = {
+      d: distributionElec(mur, variante, r, { depart: departElec, distanceArmoireM: saisie.distanceArmoireM, margeMou, mode: modeMur, choix: saisie.choix, materiel: saisie.materiel }),
+      variante,
+    };
+  } catch (erreur) {
+    if (!(erreur instanceof ErreurSaisie)) throw erreur;
+    erreurDistribution = erreur.message;
+  }
+
+  dernier = { r, dalle, mur, distribution: distribution?.d ?? null };
+  publier({ r, dalle, mur, distribution: reglagesDistribution });
   const parZone = lignesParZone(r, mur);
   const recap = el('p', { class: 'recap-mur' },
     // Mur mixte (9b5) : la P max de la dalle de chaque zone.
@@ -253,16 +349,25 @@ function mettreAJour() {
           `dalles : ${r.lignes.auPlusJuste.lignes.map((l) => l.dalles).join(' + ')}`,
           ...r.lignes.minimum.raisons.map((raison) => `écart : ${raison}`)))),
     sectionZones(parZone),
-    sectionArrivee(r),
+    sectionArrivee(r));
+  remplacer(zoneDistribution, erreurDistribution ? alerte(erreurDistribution, 'alerte-erreur') : sectionDistribution(distribution.d, distribution.variante));
+  remplacer(zoneSuite,
     sectionAppel(r),
     el('section', { class: 'bloc-resultats' },
       el('h3', {}, 'Rappels terrain'),
       el('ul', { class: 'rappels' }, RAPPELS.map((texte) => el('li', {}, texte)))));
 }
 
-// Appelé par l'onglet Schéma quand le coin de départ du câblage élec change.
-export function definirDepartElec(depart) {
+// Appelé par l'onglet Schéma quand le coin de départ du câblage élec ou la marge de mou change.
+export function definirDepartElec(depart, { margeMou: mou = margeMou } = {}) {
   departElec = depart;
+  margeMou = mou;
+  mettreAJour();
+}
+
+// Appelé quand le montage change dans l'onglet Poids (accroche : boîtiers sur le pont ; stack : au sol derrière le mur).
+export function definirModeElec(mode) {
+  modeMur = mode === 'stack' ? 'stack' : 'accroche';
   mettreAJour();
 }
 
@@ -272,6 +377,9 @@ export function initialiserElec(rappel = () => {}) {
   formulaire.addEventListener('input', mettreAJour);
   formulaire.addEventListener('change', mettreAJour);
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());
+  formDistribution.addEventListener('input', mettreAJour);
+  formDistribution.addEventListener('change', mettreAJour);
+  formDistribution.addEventListener('submit', (evenement) => evenement.preventDefault());
   preparerArrivee(lireFormulaire().type);
 }
 

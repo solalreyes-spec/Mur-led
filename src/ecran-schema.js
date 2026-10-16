@@ -2,7 +2,7 @@
 // Tout est calculé par calculs.js (dallesDuMur, pixelMap, cablageData, cablageElec) : ici, seulement le dessin.
 
 import {
-  dallesDuMur, pixelMap, cablageData, cablageElec, tuilesImage, coinDepart, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie, pliageSortie, pixelMapPliee,
+  dallesDuMur, pixelMap, cablageData, cablageElec, distributionElec, tuilesImage, coinDepart, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie, pliageSortie, pixelMapPliee,
   positionsDalles, texteCSV, texteOBJ,
 } from './calculs.js';
 import { resumeCablage } from './resumes.js';
@@ -63,7 +63,8 @@ function lireFormulaire() {
     departData: coinDepart({ mode: modeMur, cote: d.get('coteData'), bord: d.get('bordData') }),
     departElec: coinDepart({ mode: modeMur, cote: d.get('coteElec'), bord: d.get('bordElec') }),
     distanceRegieM: facultatif('distanceRegieM'),
-    distanceArmoireM: facultatif('distanceArmoireM'),
+    // Distance armoire–mur : saisie dans la distribution d'Élec (étape 12b), un seul champ.
+    distanceArmoireM: etatElec?.distribution?.distanceArmoireM ?? null,
     margeMou: mou === null ? MARGE_MOU_DEFAUT : mou / 100,
     canvasVue: d.get('canvasVue') || 'mur',
     varianteData: d.get('varianteData') || null,
@@ -100,12 +101,29 @@ function calculer(e) {
 
 const varianteChoisie = (t, mode) => (t ? t.variantes.find((x) => x.mode === mode) ?? t.variantes.find((x) => x.mode === t.conseil) : null);
 
+// Distribution de la variante élec affichée (étape 12c) : réglages saisis dans Élec (distance, conseil ou matériel,
+// montage), coin et mou du Schéma. Matériel mal saisi : pas de distribution ici, Élec affiche l'erreur.
+function distributionDe(ve, elec, e) {
+  const reglages = etatElec?.distribution;
+  if (!ve || !elec || !reglages) return null;
+  try {
+    return distributionElec(etatElec.mur, ve, etatElec.r, {
+      depart: elec.depart, distanceArmoireM: e.distanceArmoireM, margeMou: e.margeMou, mode: reglages.mode, choix: reglages.choix, materiel: reglages.materiel,
+    });
+  } catch (erreur) {
+    if (!(erreur instanceof ErreurSaisie)) throw erreur;
+    return null;
+  }
+}
+// Boîtiers à dessiner : nom et trajets (lignes) de chacun.
+const boitiersDessin = (d) => (d?.boitiers.length ? d.boitiers.map((b) => ({ nom: b.nom, trajets: b.lignes.map((l) => `l${l.numero}`) })) : null);
+
 // Dessin à l'écran : couleurs du thème, cadrage courant (zoom), gestes branchés.
-function dessin(e, geo, trajets, coin, blocs, repere) {
+function dessin(e, geo, trajets, coin, blocs, repere, boitiers = null) {
   const cle = `${e.vue}|${e.canvasVue}|${geo.largeur}x${geo.hauteur}`;
   const { svg: racine, complet } = construireSvg({
     geo, trajets, coin, blocs, palette: PALETTE_ECRAN, cadrage: cle === cleDessin ? cadrage : null, selection, dalleChoisie, repere,
-    grand: grandAffichage(),
+    grand: grandAffichage(), boitiers,
   });
   if (cle !== cleDessin) {
     cadrage = { ...complet };
@@ -437,7 +455,7 @@ function afficherExports(contexte) {
 
 function exporterSchema() {
   if (!contexteExport) return;
-  const { e, geo, trajets, coin, blocs, repere, data, vd, elec, ve } = contexteExport;
+  const { e, geo, trajets, coin, blocs, repere, data, vd, elec, ve, boitiers, distribution } = contexteExport;
   const d = new Date();
   const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const nom = `mur-led-schema-${e.cablage === 'aucun' ? 'mur' : e.cablage}-${jour}.png`;
@@ -449,10 +467,10 @@ function exporterSchema() {
     produire(nom, async () => { throw erreur; });
     return;
   }
-  const { svg: image } = construireSvg({ geo, trajets, coin, blocs, repere, palette: PALETTE_EXPORT, largeurPx: 2000 });
+  const { svg: image } = construireSvg({ geo, trajets, coin, blocs, repere, palette: PALETTE_EXPORT, largeurPx: 2000, boitiers });
   const sujet = { data: vd ? `câblage data ${vd.libelle}, départ ${LIBELLES_COIN[data.depart]}` : null, elec: ve ? `câblage élec ${ve.libelle}, départ ${LIBELLES_COIN[elec.depart]}` : null }[e.cablage];
   const texte = e.cablage === 'data' && vd ? resumeCablage({ data, modeData: vd.mode })
-    : e.cablage === 'elec' && ve ? resumeCablage({ elec, modeElec: ve.mode }) : '';
+    : e.cablage === 'elec' && ve ? resumeCablage({ elec, modeElec: ve.mode, distribution }) : '';
   produire(nom, () => schemaEnPng(image, {
     largeurPx: 2000,
     titre: `Mur LED${sujet ? `, ${sujet}` : ''}`,
@@ -505,10 +523,11 @@ window.addEventListener('hashchange', () => {
   if (schemaAffiche() && dessinARefaire) mettreAJourMaintenant();
 });
 
+// Coins de départ et marge de mou : Data et Élec en dépendent (serpentin au plus juste, câbles de la distribution).
 function publierDepartsSiChanges(e) {
-  if (e.departData !== departsPublies.data || e.departElec !== departsPublies.elec) {
-    departsPublies = { data: e.departData, elec: e.departElec };
-    publierDeparts({ data: e.departData, elec: e.departElec });
+  if (e.departData !== departsPublies.data || e.departElec !== departsPublies.elec || e.margeMou !== departsPublies.margeMou) {
+    departsPublies = { data: e.departData, elec: e.departElec, margeMou: e.margeMou };
+    publierDeparts({ data: e.departData, elec: e.departElec, margeMou: e.margeMou });
   }
 }
 
@@ -527,7 +546,8 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
   const { data, elec, erreurs } = calculer(e);
   const vd = varianteChoisie(data, e.varianteData);
   const ve = varianteChoisie(elec, e.varianteElec);
-  dernier = { data, modeData: vd?.mode ?? null, elec, modeElec: ve?.mode ?? null };
+  const distribution = distributionDe(ve, elec, e);
+  dernier = { data, modeData: vd?.mode ?? null, elec, modeElec: ve?.mode ?? null, distribution };
 
   const evaluation = etatData?.mur === mur ? etatData.choisie : null;
   const pliage = formatSortie && evaluation?.groupes?.length ? pliageSortie(mur, dalle, evaluation, formatSortie, { depart: e.departData }) : null;
@@ -559,13 +579,15 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
     evaluation: etatData?.choisie ?? null,
     distanceM: e.cablage === 'elec' ? e.distanceArmoireM : e.distanceRegieM,
   });
-  afficherExports({ pm, e, geo, trajets, coin, blocs, repere, data, vd, elec, ve, mur, dalle, evaluation, pliage });
+  // Boîtiers de la distribution, sur la vue de tout le mur en câblage élec.
+  const boitiers = e.cablage === 'elec' && !vueCanvas ? boitiersDessin(distribution) : null;
+  afficherExports({ pm, e, geo, trajets, coin, blocs, repere, data, vd, elec, ve, mur, dalle, evaluation, pliage, boitiers, distribution });
   // Guide pas à pas : étapes du câblage affiché (data et élec), pour le bouton, le bandeau et le texte copié.
   etapesCourantes = {
     data: etapesData(vd, { depart: data?.depart ?? e.departData }),
-    elec: etapesElec(ve, { depart: elec?.depart ?? e.departElec }),
+    elec: etapesElec(ve, { depart: elec?.depart ?? e.departElec, distribution }),
   };
-  contexteGuide = { mur, dalle, pm, vd, ve, departData: data?.depart ?? e.departData, departElec: elec?.depart ?? e.departElec };
+  contexteGuide = { mur, dalle, pm, vd, ve, departData: data?.depart ?? e.departData, departElec: elec?.depart ?? e.departElec, boitiers: boitiersDessin(distribution) };
   if (!dessiner) return;
   const simplifie = geo.rects.size > SEUIL_DESSIN_SIMPLIFIE;
 
@@ -609,7 +631,7 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
     alertes.push(alerte(`Mur de ${nombreCourt(mur.dalles.total)} dalles : dessin simplifié au-delà de ${nombreCourt(SEUIL_DESSIN_SIMPLIFIE)} dalles, `
       + 'un rectangle par segment de port.', 'alerte-info'));
   }
-  const racine = dessin(eVue, geo, trajets, coin, blocs, repere);
+  const racine = dessin(eVue, geo, trajets, coin, blocs, repere, boitiers);
   const typeGuide = e.cablage === 'aucun' ? null : e.cablage;
   const etapesGuide = typeGuide ? etapesCourantes[typeGuide] : [];
   const rapprochement = typeGuide ? rapprocherMontage(montage[typeGuide], etapesGuide) : null;
@@ -789,7 +811,7 @@ function dessinerGuide(etape, { recentrer }) {
   afficherEncart(etape);
   const { svg: racine, complet } = construireSvg({
     geo, trajets, coin, blocs: [], palette: PALETTE_ECRAN, cadrage: cadrageGuide, selection: etape.cle, ordre: etape.cle, repere,
-    grand: grandAffichage(),
+    grand: grandAffichage(), boitiers: type === 'elec' ? contexteGuide.boitiers : null,
   });
   cadrageGuideComplet = complet;
   racine.style.aspectRatio = 'auto';
@@ -808,16 +830,18 @@ function afficherEncart(etape) {
   if (!affiche) return;
   encart.className = `bouton montage-encart coin-${e.coin.y} coin-${e.coin.x}`;
   const mot = guide.type === 'data' ? 'port' : 'ligne';
+  // Ligne qui part d'un boîtier de la distribution : « ← Boîtier 1, ligne 4 » (étape 12c).
+  const nomRepere = etape.boitier ? `Boîtier ${etape.boitier}` : e.repere ?? (guide.type === 'data' ? 'Processeur' : 'Armoire');
   // Un seul bloc en ligne : pas d'espace du bouton avant la virgule.
   remplacer(encart, el('span', { class: 'montage-encart-texte' },
     el('span', { class: 'montage-encart-fleche', 'aria-hidden': 'true' }, e.fleche), ' ',
-    el('span', { class: 'montage-encart-repere' }, e.repere ?? (guide.type === 'data' ? 'Processeur' : 'Armoire')),
+    el('span', { class: 'montage-encart-repere' }, nomRepere),
     `, ${mot} `,
     el('span', {
       class: 'montage-encart-numero',
       style: `background: var(--${etape.couleur.cle}); color: ${PALETTE_ECRAN.texteSur(etape.couleur)}${etape.couleur.lisere ? '; box-shadow: 0 0 0 2px var(--phase-lisere)' : ''}`,
     }, etape.numero)));
-  encart.setAttribute('aria-label', `Départ : ${e.repere ?? 'repère'}, ${mot} ${etape.numero}. Appuie pour le voir dans le dessin.`);
+  encart.setAttribute('aria-label', `Départ : ${etape.boitier ? nomRepere : e.repere ?? 'repère'}, ${mot} ${etape.numero}. Appuie pour le voir dans le dessin.`);
 }
 
 function allerA(cle) {
@@ -974,5 +998,14 @@ export function sortieModifieePourSchema(format) {
 
 export function elecModifiePourSchema(etat) {
   etatElec = etat;
+  afficherRappelDistance();
   mettreAJour();
+}
+
+// Rappel de la distance armoire–mur, saisie dans Élec : réglages du câblage, avec le lien vers Élec.
+function afficherRappelDistance() {
+  const distance = etatElec?.distribution?.distanceArmoireM ?? null;
+  remplacer(document.getElementById('rappel-distance-armoire'),
+    `Armoire élec à mur : ${distance === null ? 'non mesurée' : `${nombreCourt(distance, 1)} m`}, saisie dans la section Distribution d'Élec. `,
+    el('a', { href: '#elec', class: 'lien-discret' }, 'Modifier dans Élec'));
 }

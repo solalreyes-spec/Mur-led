@@ -408,7 +408,7 @@ export function lignesParZone(r, m) {
   });
 }
 
-export function resumeElec(r, { dalle, mur: m }) {
+export function resumeElec(r, { dalle, mur: m, distribution = null }) {
   const reg = r.reglages;
   const d = r.dallesParLigne;
   const lignes = [
@@ -460,9 +460,58 @@ export function resumeElec(r, { dalle, mur: m }) {
     lignes.push(`Courant d'appel d'une ligne : ${nombreCourt(r.appel.picLigneA, 1)} A, seuil ${nombreCourt(r.appel.seuilA)} A en courbe ${r.appel.courbe}, `
       + `${r.appel.ok ? 'passe' : 'dépasse'}`);
   }
+  // Distribution (étape 12c) : d'où part chaque ligne, câbles, notes et refus.
+  if (distribution) {
+    lignes.push(texteDistribution(distribution));
+    if (distribution.refus) lignes.push(`Refus : ${distribution.refus}`);
+    lignes.push(...lignesDistribution(distribution));
+    lignes.push(...distribution.notes.map((n) => `Note : ${n}`));
+    lignes.push(`Rappel : ${RAPPEL_DISTRIBUTION}`);
+  }
   lignes.push(...alertes(r.alertes));
   return texte(lignes);
 }
+
+// Distribution électrique (étape 12b) : lignes regroupées par phase, « lignes 1 et 4 (L1), 2 et 5 (L2), 3 et 6 (L3) »,
+// « ligne 6 (L3) » ; monophasé, sans phase : « lignes 1, 2, 3 et 4 ».
+const listeEt = (elements) => (elements.length > 1 ? `${elements.slice(0, -1).join(', ')} et ${elements.at(-1)}` : String(elements[0]));
+export function texteLignesDistribution(lignes, { mono = false } = {}) {
+  const tete = lignes.length > 1 ? 'lignes' : 'ligne';
+  if (mono) return `${tete} ${listeEt(lignes.map((l) => l.numero))}`;
+  const groupes = [1, 2, 3].map((k) => lignes.filter((l) => l.phase === k)).filter((g) => g.length);
+  return `${tete} ${groupes.map((g) => `${listeEt(g.map((l) => l.numero))} (L${g[0].phase})`).join(', ')}`;
+}
+
+// Longueur d'un câble, ou « à mesurer » sans distance armoire–mur.
+export const texteLongueurCable = (m) => (m === null || m === undefined ? 'à mesurer' : `${nombreCourt(m, 1)} m`);
+
+function texteCables(recap, nom) {
+  if (recap.totalM === null) return `${nom} : ${nombre(recap.nombre)}, longueur à mesurer`;
+  return `${nom} : ${nombre(recap.nombre)}, ${nombreCourt(recap.totalM, 1)} m en tout, le plus long ${nombreCourt(recap.maxM, 1)} m`;
+}
+
+// Lignes de texte d'une distribution (distributionElec) : armoire, chaque boîtier, lignes directes, câbles.
+export function lignesDistribution(d) {
+  const lignes = [];
+  const n = d.boitiers.length;
+  if (n) lignes.push(`Armoire : ${pluriel(n, 'câble P17 32 A tri vers le boîtier', 'câbles P17 32 A tri vers les boîtiers')}`);
+  for (const b of d.boitiers) lignes.push(`Boîtier ${b.numero}, ${d.pose} : ${texteLignesDistribution(b.lignes)}`);
+  const directes = d.lignes.filter((l) => l.depuis === 'armoire');
+  if (directes.length) lignes.push(`En direct sur l'armoire : ${texteLignesDistribution(directes, { mono: d.mono })}`);
+  if (n) lignes.push(texteCables(d.cables.p17, 'Câbles P17 32 A tri'));
+  if (d.cables.tete.nombre) lignes.push(texteCables(d.cables.tete, `Câbles de tête ${nombreCourt(d.departA)} A`));
+  return lignes;
+}
+
+// Phrase de tête d'une distribution : « Distribution : armoire à 20 m, boîtiers 32 A tri sur le pont ».
+export function texteDistribution(d) {
+  const armoire = d.distanceArmoireM === null ? 'armoire non mesurée' : `armoire à ${nombreCourt(d.distanceArmoireM, 1)} m`;
+  const forme = d.type === 'directe' ? 'lignes directes'
+    : `boîtiers 32 A tri ${d.pose}${d.type === 'mixte' ? ' et lignes en direct' : ''}`;
+  return `Distribution : ${armoire}, ${forme}${d.choix === 'materiel' ? ', avec mon matériel' : ''}`;
+}
+
+export const RAPPEL_DISTRIBUTION = 'distribution indicative, à valider avec l\'électricien (différentiel 30 mA, protections, sections et longueurs des câbles)';
 
 // Poids d'une colonne : un seul chiffre, ou de la plus légère à la plus lourde (zones de hauteurs différentes).
 export function texteParColonne(r) {
@@ -550,7 +599,7 @@ export function resumePoids(r, { dalle, mur: m }) {
 // Câblage data et élec d'une variante chacun (celle conseillée par défaut) : une ligne par port ou par ligne,
 // avec sa première et sa dernière dalle. L'élec est marquée indicative.
 // `montage` : état du guide pas à pas (« 1 port sur 2 branché (port 1) »), une ligne par câblage.
-export function resumeCablage({ data = null, modeData = null, elec = null, modeElec = null, montage = null }) {
+export function resumeCablage({ data = null, modeData = null, elec = null, modeElec = null, montage = null, distribution = null }) {
   const lignes = ['CÂBLAGE'];
   const choisir = (t, mode) => t?.variantes.find((x) => x.mode === (mode ?? t.conseil)) ?? null;
   const vd = choisir(data, modeData);
@@ -587,10 +636,17 @@ export function resumeCablage({ data = null, modeData = null, elec = null, modeE
     lignes.push(`Lignes : ${ve.lignes}, charge maxi ${nombre(ve.chargeMax * 100, 1)} %`);
     lignes.push(`Câbles : ${ve.cablesTete} câbles de tête, ${ve.liaisons} liaisons entre dalles`);
     const styles = stylesLignes(ve.lignesDetail.map((l) => ({ numero: l.numero, phase: l.phase })), { mono });
+    // Distribution (étape 12c) : d'où part la ligne, et son câble de tête depuis là (boîtier ou armoire).
+    const sources = new Map((distribution?.lignes ?? []).map((x) => [x.numero, x]));
     ve.lignesDetail.forEach((l, i) => {
+      const source = distribution ? sources.get(l.numero) : null;
+      const depuis = !source ? ''
+        : source.boitier ? `, depuis le boîtier ${source.boitier} (${source.prise})`
+          : source.depuis === 'armoire' ? `, depuis l'armoire${source.prise ? ` (${source.prise})` : ''}` : ', prise à trouver';
+      const longueur = distribution ? source?.longueurTeteM ?? null : l.longueurTeteM;
       lignes.push(`Ligne ${l.numero}, phase ${mono ? 'mono' : `L${l.phase}`} : ${pluriel(l.dalles.length, 'dalle', 'dalles')} `
-        + `de ${l.dalles[0]} à ${l.dalles[l.dalles.length - 1]}, ${watts(l.puissanceW)}`
-        + `${l.longueurTeteM !== null ? `, câble de tête environ ${Math.ceil(l.longueurTeteM)} m` : ''}`
+        + `de ${l.dalles[0]} à ${l.dalles[l.dalles.length - 1]}, ${watts(l.puissanceW)}${depuis}`
+        + `${longueur !== null ? `, câble de tête environ ${Math.ceil(longueur)} m` : ''}`
         + `, ${styles[i].nom}, ${styles[i].motif.nom}`);
     });
     if (!mono) for (const p of ve.phases) lignes.push(`Phase L${p.numero} : ${pluriel(p.lignes, 'ligne', 'lignes')}, ${watts(p.puissanceW)}, ${nombreCourt(p.intensiteA, 1)} A`);

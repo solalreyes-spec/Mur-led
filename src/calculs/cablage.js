@@ -127,6 +127,7 @@ function cheminSecours(m, coin, d, orientation) {
   const y0 = coin.startsWith('haut') ? 0 : m.hauteurMm;
   return orientation === 'rangees' ? [[xc, yc], [x0, yc], [x0, y0]] : [[xc, yc], [xc, y0], [x0, y0]];
 }
+const centreDalle = (d) => ({ x: d.mm.x + d.mm.largeur / 2, y: d.mm.y + d.mm.hauteur / 2 });
 const longueurCheminM = (chemin) => chemin.reduce((s, p, i) => (i === 0 ? 0 : s + Math.abs(p[0] - chemin[i - 1][0]) + Math.abs(p[1] - chemin[i - 1][1])), 0) / 1000;
 
 // Coin de départ selon le mode du mur : en bas pour un mur posé (stack), en haut pour un mur accroché ; le bord
@@ -512,6 +513,8 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
         puissanceW,
         taux: puissanceW / utileW,
         longueurTeteM: distanceArmoireM === null ? null : (distanceArmoireM + trajetDepuisCoin(m, depart, tuile(grp[0]))) * (1 + margeMou),
+        // Centre de la première dalle, en mm : place des boîtiers de la distribution (étape 12a).
+        teteMm: centreDalle(tuile(grp[0])),
       };
     });
     // Au plus juste équilibré et rangées : lignes à tour de rôle sur L1, L2 et L3 ; colonnes entières et au plus juste :
@@ -604,6 +607,8 @@ function cablageElecZones(m, dalle, elec, { depart, distanceArmoireM, margeMou, 
         puissanceW,
         taux: puissanceW / utileW,
         longueurTeteM: distanceArmoireM === null ? null : (distanceArmoireM + trajetDepuisCoin(m, depart, tuile(grp[0]))) * (1 + margeMou),
+        // Centre de la première dalle, en mm : place des boîtiers de la distribution (étape 12a).
+        teteMm: centreDalle(tuile(grp[0])),
       };
     });
     const { phases, ok } = phasesDesLignes(lignesDetail, { equilibre: mode === 'rangees', mono, tensionV, capacitePhaseW });

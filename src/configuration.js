@@ -10,7 +10,7 @@ const CLE = 'configuration';
 // Version 2 : défaut Brompton passé à 12 bits ; la profondeur réseau gardée par une version précédente (souvent
 // l'ancien défaut, 10 bits) n'est pas reprise.
 const VERSION = 2;
-const FORMULAIRES = ['form-mur', 'form-data', 'form-source', 'form-elec', 'form-poids', 'form-schema', 'form-mire'];
+const FORMULAIRES = ['form-mur', 'form-data', 'form-source', 'form-elec', 'form-distribution', 'form-poids', 'form-schema', 'form-mire'];
 const IGNORES = new Set(['parc']);
 // Champs de la source : restaurés seulement si la source a été modifiée à la main.
 const CHAMPS_SOURCE = new Set(['largeurPx', 'hauteurPx', 'frequenceHz', 'liaison']);
@@ -83,9 +83,15 @@ export function releverDefauts() {
 // Remet les saisies gardées, onglet par onglet dans l'ordre de la chaîne Mur → Data → Canvas → Élec → Poids.
 // Deux passes : certaines listes (processeurs, arrivées, bumpers) ne se remplissent qu'après le premier calcul.
 export async function restaurerConfiguration(donnee = undefined) {
-  const config = donnee === undefined ? await lire(CLE) : donnee;
+  let config = donnee === undefined ? await lire(CLE) : donnee;
   if (!config?.formulaires) return false;
   definirSourceModifiee(config.sourceModifiee);
+  // Étape 12b : la distance armoire–mur est passée du Schéma à la distribution d'Élec ; une saisie gardée avant
+  // (v27 et avant) la retrouve là.
+  const schema = config.formulaires['form-schema'];
+  if (schema?.distanceArmoireM && !config.formulaires['form-distribution']) {
+    config = { ...config, formulaires: { ...config.formulaires, 'form-distribution': { distanceArmoireM: schema.distanceArmoireM } } };
+  }
   for (let passe = 0; passe < 2; passe += 1) {
     for (const f of formulaires()) {
       const valeurs = config.formulaires[f.id];

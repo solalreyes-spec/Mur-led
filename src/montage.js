@@ -41,14 +41,29 @@ export function etapesData(variante, { depart = 'haut-gauche' } = {}) {
   }));
 }
 
+// D'où part une ligne (distribution de l'étape 12c) : boîtier et prise, armoire, ou prise à trouver ; sans distribution,
+// la phrase d'avant.
+function texteBranchement(source, premiere, mono) {
+  if (!source) return `Câble de tête depuis l'armoire jusqu'à ${premiere}, puis suis les numéros.`;
+  if (source.boitier) return `Branche-la sur le boîtier ${source.boitier}, prise ${source.prise} : câble de tête jusqu'à ${premiere}, puis suis les numéros.`;
+  if (source.depuis === 'armoire') {
+    return `Branche-la sur l'armoire${mono || !source.prise ? '' : `, prise ${source.prise}`} : câble de tête jusqu'à ${premiere}, puis suis les numéros.`;
+  }
+  return `Prise à trouver : le matériel saisi dans Élec ne suffit pas. Câble de tête jusqu'à ${premiere}, puis suis les numéros.`;
+}
+
 // Étapes élec : une par ligne de la variante affichée (calculs.cablageElec), avec la couleur de sa phase et son motif.
-export function etapesElec(variante, { depart = 'haut-gauche' } = {}) {
+// `distribution` (calculs.distributionElec de cette variante) : la phrase dit d'où part la ligne ; la signature, elle,
+// ne dépend que du câble (coin, phase, ligne, dalles).
+export function etapesElec(variante, { depart = 'haut-gauche', distribution = null } = {}) {
   if (!variante?.lignesDetail?.length) return [];
   const mono = variante.phases.length === 1;
   const styles = stylesLignes(variante.lignesDetail.map((l) => ({ numero: l.numero, phase: l.phase })), { mono });
+  const sources = new Map((distribution?.lignes ?? []).map((x) => [x.numero, x]));
   return variante.lignesDetail.map((l, i) => {
     const premiere = l.dalles[0];
     const derniere = l.dalles[l.dalles.length - 1];
+    const source = distribution ? sources.get(l.numero) ?? { depuis: null } : null;
     return {
       cle: `l${l.numero}`,
       type: 'elec',
@@ -59,7 +74,8 @@ export function etapesElec(variante, { depart = 'haut-gauche' } = {}) {
       premiere,
       derniere,
       phrase: `${majuscule(styles[i].nom)}, ${styles[i].motif.nom}. ${pluriel(l.dalles.length, 'dalle', 'dalles')}, ${nombreCourt(l.puissanceW)} W, `
-        + `de ${premiere} à ${derniere}. Câble de tête depuis l'armoire jusqu'à ${premiere}, puis suis les numéros.`,
+        + `de ${premiere} à ${derniere}. ${texteBranchement(source, premiere, mono)}`,
+      boitier: source?.boitier ?? null,
       signature: `${depart}|${mono ? 'mono' : `L${l.phase}`}|ligne ${l.numero}|${l.dalles.join(',')}`,
     };
   });

@@ -587,6 +587,53 @@
         <span class="etat-copie" aria-live="polite"></span>
       </div>
       <div id="resultats-elec" class="resultats" aria-live="polite"></div>
+
+      <section id="distribution-elec" class="carte formulaire" aria-labelledby="titre-distribution">
+        <h3 id="titre-distribution">Distribution</h3>
+        <form id="form-distribution" class="formulaire" novalidate>
+          <div class="champ">
+            <label for="distance-armoire">Armoire élec à mur (m), facultatif : au-delà de 10 m, boîtiers 32 A tri près du mur</label>
+            <input id="distance-armoire" name="distanceArmoireM" inputmode="decimal" autocomplete="off" placeholder="non mesurée">
+          </div>
+          <fieldset class="segmente">
+            <legend>Matériel</legend>
+            <div class="segments">
+              <label><input type="radio" name="choixDistribution" value="conseil" checked><span>Conseil</span></label>
+              <label><input type="radio" name="choixDistribution" value="materiel"><span>Avec mon matériel</span></label>
+            </div>
+          </fieldset>
+          <div id="bloc-materiel" class="formulaire" hidden>
+            <p class="note">Chaque champ est facultatif : vide, ce matériel est supposé suffisant.</p>
+            <div class="paire">
+              <div class="champ">
+                <label for="prises-16">Prises 16 A libres sur l'armoire</label>
+                <input id="prises-16" name="prises16" inputmode="numeric" autocomplete="off" placeholder="non précisé">
+              </div>
+              <div class="champ">
+                <label for="sorties-p17">Sorties P17 32 A tri libres sur l'armoire</label>
+                <input id="sorties-p17" name="sortiesP17" inputmode="numeric" autocomplete="off" placeholder="non précisé">
+              </div>
+            </div>
+            <div class="paire">
+              <div class="champ">
+                <label for="boitiers-dispo">Boîtiers 32 A tri disponibles</label>
+                <input id="boitiers-dispo" name="boitiers" inputmode="numeric" autocomplete="off" placeholder="non précisé">
+              </div>
+              <div class="champ">
+                <label for="prises-boitier">Prises 16 A par boîtier</label>
+                <select id="prises-boitier" name="prisesParBoitier">
+                  <option value="">Non précisé</option>
+                  <option value="6">6 (2 par phase)</option>
+                  <option value="3">3 (1 par phase)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </form>
+        <div id="resultats-distribution" class="resultats" aria-live="polite"></div>
+      </section>
+
+      <div id="resultats-elec-suite" class="resultats"></div>
     </section>
 
     <section id="poids" aria-labelledby="titre-poids" data-famille="accroche" hidden>
@@ -743,14 +790,11 @@
                   <input id="distance-regie" name="distanceRegieM" inputmode="decimal" autocomplete="off">
                 </div>
                 <div class="champ">
-                  <label for="distance-armoire">Armoire élec à mur (m)</label>
-                  <input id="distance-armoire" name="distanceArmoireM" inputmode="decimal" autocomplete="off">
+                  <label for="marge-mou">Marge de mou (%)</label>
+                  <input id="marge-mou" name="margeMouPourcent" inputmode="decimal" autocomplete="off" value="10">
                 </div>
               </div>
-              <div class="champ">
-                <label for="marge-mou">Marge de mou (%)</label>
-                <input id="marge-mou" name="margeMouPourcent" inputmode="decimal" autocomplete="off" value="10">
-              </div>
+              <p id="rappel-distance-armoire" class="note">Armoire élec à mur : saisie dans la section Distribution d'Élec. <a href="#elec" class="lien-discret">Modifier dans Élec</a></p>
               <p class="note">Estimation indicative : distance saisie, plus le trajet le long du mur depuis le coin de départ jusqu'à la première dalle, plus le mou.</p>
             </div>
           </details>
