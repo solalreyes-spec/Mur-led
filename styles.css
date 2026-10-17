@@ -1167,7 +1167,6 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .bouton[data-icone="fermer"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E"); }
 .bouton[data-icone="menu"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Ccircle cx='5' cy='12' r='2'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='19' cy='12' r='2'/%3E%3C/svg%3E"); }
 .bouton[data-icone="fiche"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h6'/%3E%3C/svg%3E"); }
-.bouton[data-icone="imprimer"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z'/%3E%3C/svg%3E"); }
 .bouton[data-icone="liste"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6l1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17M10 6h11M10 12h11M10 18h11'/%3E%3C/svg%3E"); }
 .bouton[data-icone="revenir"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9h11a5 5 0 0 1 0 10H8'/%3E%3Cpath d='M8 5 4 9l4 4'/%3E%3C/svg%3E"); }
 .bouton[data-icone="cadrer"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'/%3E%3C/svg%3E"); }
@@ -1506,7 +1505,7 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .pr-materiel { justify-self: stretch; }
 
 /* Fiches presta par métier (étape 14c) : écran plein « Fiches » au-dessus de Prestas ; la fiche en tableaux
-   « libellé : valeur », un bloc par mur ; page imprimée à part (#impression), cachée à l'écran. */
+   « libellé : valeur », un bloc par mur ; le PDF est fait par l'appli (src/pdf.js, lot 14d). */
 .fiches { z-index: 60; }
 .fi-fiche { display: grid; gap: 12px; min-width: 0; }
 .fi-titre { margin: 0; font-size: 1.2rem; }
@@ -1521,25 +1520,6 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .fi-table th[scope="row"] { width: 38%; padding-right: 10px; font-weight: 600; color: var(--texte-doux); }
 .fi-sous-titre th { padding-top: 12px; font-weight: 700; font-variant-caps: all-small-caps; letter-spacing: 0.06em; color: var(--famille); }
 .fi-actions { flex-wrap: wrap; align-items: center; }
-.impression { display: none; }
-@media print {
-  @page { size: A4 portrait; margin: 14mm; }
-  html, body { background: #fff !important; color: #000 !important; overflow: visible !important; }
-  body > *:not(#impression) { display: none !important; }
-  #impression { display: block !important; color: #000; font-size: 10.5pt; line-height: 1.35; }
-  #impression * { color: #000 !important; background: transparent !important; border-color: #000 !important; }
-  #impression .fi-fiche { display: block; }
-  #impression .fi-titre { margin: 0 0 2mm; font-size: 16pt; }
-  #impression .fi-rappel { margin: 0 0 3mm; font-size: 10pt; }
-  #impression .fi-mur { display: block; margin-top: 5mm; padding: 0; border: 0; border-radius: 0; }
-  #impression .fi-mur h4 { margin: 0 0 1mm; font-size: 13pt; border-bottom: 1.5pt solid #000; break-after: avoid; page-break-after: avoid; }
-  #impression .fi-date { margin: 0 0 1mm; font-size: 9pt; }
-  #impression .fi-table th, #impression .fi-table td { padding: 1mm 0; border-top: 0.5pt solid #000; }
-  #impression .fi-table tr { break-inside: avoid; page-break-inside: avoid; }
-  #impression .fi-sous-titre th { padding-top: 3mm; font-weight: 700; }
-  #impression .alerte { padding: 0; border: 0; }
-  #impression .alerte::before { display: none; }
-}
 
 /* Deux onglets de l'appli (lot du 17/10/2026) : écran qui couvre tout, au-dessus des écrans pleins. */
 .autre-onglet { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px; background: var(--fond); }

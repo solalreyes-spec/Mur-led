@@ -13,6 +13,7 @@ import * as entrainement from '../src/entrainement.js';
 import * as zones from '../src/zones.js';
 import * as prestas from '../src/prestas.js';
 import * as fichesMetier from '../src/fiches-metier.js';
+import * as pdf from '../src/pdf.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
@@ -7495,6 +7496,80 @@ export const REGLES = [
       ]);
       const f = fichesMetier.ficheMetier('rigger', { presta: { nom: 'Presta A' }, murs: [{ id: 'm-a', nom: 'Mur 1', fiche: null, materiel: null }], date: new Date(2026, 9, 17, 12) });
       v.egal('identifiant du mur dans son bloc', f.blocs[0].murId, 'm-a');
+    },
+  },
+  {
+    id: 'R337',
+    titre: 'Fiche en PDF (14d, § 10) : texte en WinAnsi (accents, œ, €, ×, ²), caractères absents remplacés (« → » devient « -> », « ≥ » devient « >= », espaces fines en espaces) ; largeurs Helvetica et Helvetica-Bold ; lignes coupées entre les mots, un mot trop long coupé ; fichier PDF 1.4 lisible : en-tête, objets à leur place dans la table xref, startxref, nombre de pages, polices standard en WinAnsiEncoding, fichier tout en ASCII (accents en octal)',
+    etape: '14d',
+    verifier(v, contexte) {
+      v.egal('WinAnsi', [...pdf.versWinAnsi('é à œ € × ² Ç')].map((c) => c.charCodeAt(0)), [0xe9, 0x20, 0xe0, 0x20, 0x9c, 0x20, 0x80, 0x20, 0xd7, 0x20, 0xb2, 0x20, 0xc7]);
+      v.egal('remplacements', pdf.versWinAnsi('a → b ≥ c\u202fd\u00a0e ≈ f − g ✓'), 'a -> b >= c d\u00a0e ~ f - g ?');
+      v.egal('largeurs (points)', [pdf.largeurTexte('Ab', { taille: 10 }), pdf.largeurTexte('Ab', { gras: true, taille: 10 }), pdf.largeurTexte('é', { taille: 10 })], [12.23, 13.33, 5.56]);
+      const largeur = pdf.largeurTexte('aaa bbb', { taille: 10 });
+      v.egal('coupure entre les mots', pdf.couperTexte('aaa bbb ccc', largeur, { taille: 10 }), ['aaa bbb', 'ccc']);
+      const long = pdf.couperTexte('x'.repeat(200), 100, { taille: 10 });
+      v.vrai('mot trop long : morceaux dans la largeur, rien de perdu', long.length > 1 && long.every((l) => pdf.largeurTexte(l, { taille: 10 }) <= 100) && long.join('') === 'x'.repeat(200));
+      v.egal('texte vide : une ligne vide', pdf.couperTexte('', 100, { taille: 10 }), ['']);
+      const fiche = fichesMetier.ficheMetier('electricien', { presta: { nom: 'Presta Été' }, murs: [{ id: 'm-1', nom: 'Mur 1', fiche: { textes: textesEssai(contexte), calculeeLe: '2026-10-17T10:00:00.000Z' }, materiel: { liste: listeEssai() } }], date: new Date(2026, 9, 17, 12) });
+      const f = pdf.pdfFiche(fiche);
+      v.egal('en-tête et fin', [f.slice(0, 9), f.endsWith('%%EOF\n')], ['%PDF-1.4\n', true]);
+      v.vrai('fichier tout en ASCII', [...f].every((c) => c.charCodeAt(0) < 128));
+      const debutXref = f.lastIndexOf('\nxref\n') + 1;
+      const xref = f.slice(debutXref);
+      const n = Number(xref.split('\n')[1].split(' ')[1]);
+      v.vrai(`table xref lue (${n} entrées)`, n > 5);
+      const decalages = xref.split('\n').slice(2, 2 + n).map((l) => Number(l.slice(0, 10)));
+      v.vrai(`table xref : ${n - 1} objets à leur place`, decalages.slice(1).every((d, i) => f.startsWith(`${i + 1} 0 obj`, d)));
+      v.egal('startxref', Number(f.match(/startxref\n(\d+)\n/)?.[1]), debutXref);
+      v.egal('pages : /Count égal aux pages', Number(f.match(/\/Count (\d+)/)?.[1]), (f.match(/\/Type \/Page\b/g) ?? []).length);
+      v.vrai('polices standard en WinAnsiEncoding', /\/BaseFont \/Helvetica \/Encoding \/WinAnsiEncoding/.test(f) && /\/BaseFont \/Helvetica-Bold \/Encoding \/WinAnsiEncoding/.test(f));
+      v.vrai('titre et accents encodés', f.includes('(Fiche \\351lectricien)') && f.includes('(Presta \\311t\\351)'));
+    },
+  },
+  {
+    id: 'R338',
+    titre: 'Fiche en PDF (14d, § 10) : mise en page A4 portrait (marges de 40 pt) ; tout le texte de la fiche, chaque ligne « libellé : valeur » dans ses deux colonnes ; pied « Fiche … · presta · page n sur N » sur chaque page ; une longue fiche sur plusieurs pages, rien hors des marges, une ligne jamais coupée entre deux pages, un titre de mur jamais seul en bas de page',
+    etape: '14d',
+    verifier(v, contexte) {
+      const textes = textesEssai(contexte);
+      const liste = listeEssai();
+      const murs = Array.from({ length: 12 }, (_, i) => ({ id: `m-${i}`, nom: `Mur ${i + 1}`, fiche: { textes, calculeeLe: '2026-10-17T10:00:00.000Z' }, materiel: { liste } }));
+      const fiche = fichesMetier.ficheMetier('chefProjet', { presta: { nom: 'Presta A', organisation: ORGANISATION_ESSAI }, murs, total: calculs.totalMateriel(murs.map((m) => ({ nom: m.nom, liste }))), date: new Date(2026, 9, 17, 12) });
+      const { pages } = pdf.mettreEnPage(fiche);
+      const { largeur, hauteur, marge } = pdf.A4;
+      v.egal('A4 portrait, marges de 40 pt', [largeur, hauteur, marge], [595.28, 841.89, 40]);
+      v.vrai(`plusieurs pages (${pages.length})`, pages.length > 2);
+      const tous = pages.flat();
+      const dehors = tous.filter((x) => x.x < marge - 0.01 || x.x + pdf.largeurTexte(x.texte, x) > largeur - marge + 0.01 || x.y < marge - 0.01 || x.y > hauteur - marge + 0.01);
+      v.egal('rien hors des marges', dehors.map((x) => x.texte), []);
+      v.egal('pied de chaque page', pages.map((p) => p.find((x) => x.role === 'pied')?.texte), pages.map((_, i) => `Fiche chef de projet · Presta A · page ${i + 1} sur ${pages.length}`));
+      const pageDe = new Map();
+      const coupees = [];
+      pages.forEach((p, i) => p.forEach((x) => {
+        if (!x.rangee) return;
+        if (pageDe.has(x.rangee) && pageDe.get(x.rangee) !== i) coupees.push(x.rangee);
+        pageDe.set(x.rangee, i);
+      }));
+      v.egal('aucune ligne coupée entre deux pages', coupees, []);
+      v.egal('aucun titre de mur seul en bas de page', pages.map((p) => p.filter((x) => x.role !== 'pied').at(-1)?.role).filter((r) => r === 'mur' || r === 'date'), []);
+      const texteDe = (rangee, role) => tous.filter((x) => x.rangee === rangee && x.role === role).map((x) => x.texte).join(' ');
+      const manquantes = [];
+      fiche.entete.forEach(([libelle, valeur], i) => { if (texteDe(`e${i}`, 'libelle') !== libelle || texteDe(`e${i}`, 'valeur') !== valeur) manquantes.push(libelle); });
+      fiche.blocs.forEach((b, i) => b.lignes.forEach((l, j) => {
+        const r = `b${i}-${j}`;
+        if (l.titre ? texteDe(r, 'sous-titre') !== l.titre : (texteDe(r, 'libelle') !== l.libelle || texteDe(r, 'valeur') !== l.valeur)) manquantes.push(`${b.titre} ${l.libelle ?? l.titre}`);
+      }));
+      fiche.fin.lignes.forEach((l, j) => {
+        const r = `f-${j}`;
+        if (l.titre ? texteDe(r, 'sous-titre') !== l.titre : (texteDe(r, 'libelle') !== l.libelle || texteDe(r, 'valeur') !== l.valeur)) manquantes.push(`fin ${l.libelle ?? l.titre}`);
+      });
+      v.egal('tout le texte de la fiche, chaque ligne dans ses deux colonnes', manquantes, []);
+      v.egal('titres des murs', tous.filter((x) => x.role === 'mur').map((x) => x.texte), [...murs.map((m) => m.nom), 'Matériel de la presta']);
+      const libelles = tous.filter((x) => x.role === 'libelle');
+      const valeurs = tous.filter((x) => x.role === 'valeur' && x.rangee?.startsWith('b') && tous.some((y) => y.rangee === x.rangee && y.role === 'libelle'));
+      v.vrai('deux colonnes : libellés à gauche, valeurs à droite (une ligne sans libellé prend toute la largeur)', libelles.every((x) => x.x === marge) && valeurs.every((x) => x.x > marge + 150));
+      v.vrai('titre et rappel en tête de la première page', pages[0][0].texte === 'Fiche chef de projet' && pages[0][0].gras && pages[0].some((x) => x.role === 'rappel'));
     },
   },
 ];

@@ -3916,7 +3916,7 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N85',
-    titre: 'Écran « Fiches » (14c, § 5) : choix segmenté des quatre métiers (le choisi coché, un choix appelle son action) ; aperçu : titre, rappel, en-tête et un tableau par mur (« libellé : valeur », sous-titres), mur jamais ouvert avec « Ouvrir ce mur » ; « Imprimer ou PDF », « Copier », « Partager » appellent leur action ; page imprimée sans bouton ; cibles de 48 px ; rien ne dépasse à 375 px, en sombre et en rouge',
+    titre: 'Écran « Fiches » (14c, § 5) : choix segmenté des quatre métiers (le choisi coché, un choix appelle son action) ; aperçu : titre, rappel, en-tête et un tableau par mur (« libellé : valeur », sous-titres), mur jamais ouvert avec « Ouvrir ce mur » ; « PDF » (lot 14d), « Copier », « Partager » appellent leur action ; fiche des tableaux sans bouton hors de l\'écran ; cibles de 48 px ; rien ne dépasse à 375 px, en sombre et en rouge',
     etape: '14c',
     async verifier(v) {
       const ef = await moduleAppli(v, '../src/ecran-fiches.js');
@@ -3930,7 +3930,7 @@ export const NAVIGATEUR = [
       const murs = [{ id: 'm-1', nom: 'Mur 1', fiche: { textes, calculeeLe: '2026-10-17T10:00:00.000Z' }, materiel: null }, { id: 'm-2', nom: 'Mur 2', fiche: null, materiel: null }];
       const fiche = (metier) => fm.ficheMetier(metier, { presta, murs, date: new Date(2026, 9, 17, 12) });
       const appels = [];
-      const actions = Object.fromEntries(['choisirMetier', 'ouvrirMur', 'imprimer', 'copier', 'partager'].map((nom) => [nom, async (...args) => { appels.push([nom, ...args]); return nom === 'copier' ? true : 'partage'; }]));
+      const actions = Object.fromEntries(['choisirMetier', 'ouvrirMur', 'pdf', 'copier', 'partager'].map((nom) => [nom, async (...args) => { appels.push([nom, ...args]); return nom === 'copier' ? true : 'partage'; }]));
       const retirer = await chargerStylesLook();
       const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
       document.body.append(racine);
@@ -3958,7 +3958,7 @@ export const NAVIGATEUR = [
         await attendre();
         v.egal('« Ouvrir ce mur »', appels.at(-1), ['ouvrirMur', 'p-a', 'm-2']);
         const boutons = [...racine.querySelectorAll('.fi-actions button')];
-        v.egal('boutons', boutons.map(texteDe), ['Imprimer ou PDF', 'Copier', 'Partager']);
+        v.egal('boutons', boutons.map(texteDe), ['PDF', 'Copier', 'Partager']);
         const notes = [];
         for (const b of boutons) {
           b.click();
@@ -3966,7 +3966,7 @@ export const NAVIGATEUR = [
           await attendre();
           notes.push(texteDe(racine.querySelector('.fi-note')));
         }
-        v.egal('chaque bouton appelle son action', appels.slice(-3).map((a) => a[0]), ['imprimer', 'copier', 'partager']);
+        v.egal('chaque bouton appelle son action', appels.slice(-3).map((a) => a[0]), ['pdf', 'copier', 'partager']);
         v.egal('notes : copie annoncée, partage sans note', notes.slice(1), ['Fiche copiée.', '']);
         const page = ef.elementFiche(fiche('regie'));
         v.egal('page imprimée : la fiche sans bouton ni choix', [page.querySelectorAll('button, input').length, texteDe(page.querySelector('.fi-titre'))], [0, 'Fiche régie vidéo']);

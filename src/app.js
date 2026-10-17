@@ -22,8 +22,9 @@ import * as prestas from './prestas.js';
 import { chargerPrestas, creerEnregistreur } from './prestas-appareil.js';
 import { monterPrestas, remplirBoutonPresta, fichierExportPresta } from './ecran-prestas.js';
 import { monterMateriel } from './ecran-materiel.js';
-import { monterFiches, elementFiche } from './ecran-fiches.js';
+import { monterFiches } from './ecran-fiches.js';
 import { METIERS, ficheMetier, texteFiche, nomFichierFiche } from './fiches-metier.js';
+import { pdfFiche } from './pdf.js';
 import { enregistrer, fichierTexte } from './export.js';
 import { initialiserCopie, copier } from './copie.js';
 import { resumeMateriel } from './resumes.js';
@@ -773,7 +774,6 @@ window.addEventListener('hashchange', fermerMateriel);
 // Écran Fiches (étape 14c) : au-dessus de Prestas, qui reste ouvert dessous ; « Fermer » ou Échap y revient. Le métier
 // choisi est gardé sur l'appareil (localStorage « mur-led-metier »), Rigger la première fois.
 const panneauFiches = document.getElementById('fiches');
-const zoneImpression = document.getElementById('impression');
 const CLE_METIER = 'mur-led-metier';
 let vueFiches = null;
 function metierGarde() {
@@ -812,7 +812,6 @@ function fermerFiches() {
   if (panneauFiches.hidden) return false;
   panneauFiches.hidden = true;
   vueFiches = null;
-  remplacer(zoneImpression);
   if (panneauPrestas.hidden) document.body.classList.remove('montage-ouvert');
   return true;
 }
@@ -832,11 +831,13 @@ const ecranFiches = monterFiches(document.getElementById('ecran-fiches'), {
       garderListeMurOuvert();
       afficherFiches();
     },
-    // Impression : la fiche choisie dans la page imprimée, puis la feuille d'impression, sans attente avant (Safari ne
-    // l'ouvre qu'en réponse directe à un appui) ; d'où « Enregistrer en PDF » ou AirDrop.
-    imprimer: async () => {
-      remplacer(zoneImpression, elementFiche(contenuFiches().fiche));
-      window.print();
+    // PDF fait par l'appli (lot 14d : l'impression du navigateur ne marche pas dans l'appli installée sur l'iPhone), puis
+    // la feuille de partage, d'où Imprimer, Enregistrer dans Fichiers ou AirDrop ; sans attente avant (Safari n'ouvre
+    // la feuille qu'en réponse directe à un appui) ; téléchargé sur ordinateur.
+    pdf: async () => {
+      const c = contenuFiches();
+      const nom = nomFichierFiche(c.presta.nom, c.metier).replace(/\.txt$/, '.pdf');
+      return enregistrer(new File([pdfFiche(c.fiche)], nom, { type: 'application/pdf' }), nom);
     },
     copier: async () => copier(texteFiche(contenuFiches().fiche)),
     partager: async () => {

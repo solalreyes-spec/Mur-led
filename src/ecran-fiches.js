@@ -1,7 +1,7 @@
 // Écran plein « Fiches » (étape 14c) : fiche presta par métier (rigger, électricien, régie vidéo, chef de projet),
-// ouverte depuis la carte de la presta dans Prestas. Choix du métier, aperçu, « Imprimer ou PDF », « Copier »,
-// « Partager ». L'écran affiche la fiche que l'appli lui donne (fiches-metier.js) et appelle ses actions ; il ne calcule
-// rien et ne touche ni au stockage ni aux saisies. `elementFiche` sert aussi à la page imprimée (sans bouton).
+// ouverte depuis la carte de la presta dans Prestas. Choix du métier, aperçu, « PDF » (lot 14d : fichier fait par
+// l'appli, feuille de partage d'où Imprimer), « Copier », « Partager ». L'écran affiche la fiche que l'appli lui donne
+// (fiches-metier.js) et appelle ses actions ; il ne calcule rien et ne touche ni au stockage ni aux saisies.
 
 import { el, remplacer } from './dom.js';
 import { METIERS } from './fiches-metier.js';
@@ -17,7 +17,7 @@ function ligneTableau(l) {
 const tableau = (lignes, classe = 'fi-table') => el('table', { class: classe }, el('tbody', {}, lignes.map(ligneTableau)));
 
 // La fiche en tableaux : titre, rappel, en-tête, un bloc par mur, total de matériel (chef de projet). `ouvrirMur(murId)`
-// ajoute « Ouvrir ce mur » sous un mur jamais ouvert ; sans elle (page imprimée), aucun bouton.
+// ajoute « Ouvrir ce mur » sous un mur jamais ouvert ; sans elle, aucun bouton.
 export function elementFiche(fiche, { ouvrirMur = null } = {}) {
   return el('article', { class: 'fi-fiche' },
     el('h3', { class: 'fi-titre' }, fiche.titre),
@@ -37,8 +37,8 @@ function boutonSimple(texte, surClic, attributs = {}) {
   return b;
 }
 
-// `actions` : choisirMetier(metier), ouvrirMur(prestaId, murId), imprimer(), copier() (renvoie true si copié),
-// partager() (renvoie 'partage', 'annule' ou 'telechargement') ; chacune peut lever une erreur, affichée dans l'écran.
+// `actions` : choisirMetier(metier), ouvrirMur(prestaId, murId), pdf() et partager() (renvoient 'partage', 'annule' ou
+// 'telechargement'), copier() (renvoie true si copié) ; chacune peut lever une erreur, affichée dans l'écran.
 export function monterFiches(racine, { actions }) {
   let vue = null;
   const zoneErreur = el('div', { class: 'fi-erreur', 'aria-live': 'polite' });
@@ -72,7 +72,10 @@ export function monterFiches(racine, { actions }) {
       el('div', { class: 'mat-tete' }, el('p', { class: 'pr-sur-titre' }, 'Fiche presta'), el('h3', { class: 'mat-nom-mur' }, presta.nom)),
       choixMetier(),
       el('div', { class: 'pr-boutons fi-actions' },
-        boutonSimple('Imprimer ou PDF', () => executer(() => actions.imprimer()), { class: 'bouton bouton-principal', 'data-icone': 'imprimer' }),
+        boutonSimple('PDF', () => executer(async () => {
+          const mode = await actions.pdf();
+          note.textContent = mode === 'telechargement' ? 'PDF enregistré dans Fichiers (Téléchargements).' : '';
+        }), { class: 'bouton bouton-principal', 'data-icone': 'fiche' }),
         boutonSimple('Copier', () => executer(async () => {
           note.textContent = (await actions.copier()) ? 'Fiche copiée.' : 'Copie impossible sur cet appareil.';
         }), { 'data-icone': 'copier' }),
