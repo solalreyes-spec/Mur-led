@@ -6885,6 +6885,367 @@ export const REGLES = [
       v.vrai('Schéma sans distribution : texte d\'avant', /^Ligne 1, phase L1 : .*, 2340 W, câble de tête environ 23 m, /m.test(resumes.resumeCablage({ elec: t, modeElec: variante.mode })));
     },
   },
+  {
+    id: 'R315',
+    titre: 'Liste de matériel (13a), spares et longueurs du stock : 5 % arrondi au-dessus, au moins 1 dès qu\'il y a une dalle, 0 % réglable ; chaque câble dans la plus petite longueur du stock qui suffit, au-delà de la plus longue autant de plus longues que nécessaire puis la plus courte qui couvre le reste (raccords à prévoir) ; longueur inconnue « à mesurer » ; longueurs par défaut de la spec',
+    etape: '13a',
+    verifier(v) {
+      v.egal('spares : 144 → 8, 100 → 5, 101 → 6, 20 → 1, 1 → 1, 0 → 0',
+        [144, 100, 101, 20, 1, 0].map((n) => calculs.spares(n)), [8, 5, 6, 1, 1, 0]);
+      v.egal('spares réglables : 10 % de 144 → 15, 0 % → 0', [calculs.spares(144, 10), calculs.spares(144, 0)], [15, 0]);
+      v.egal('pourcentage par défaut', calculs.SPARES_POURCENT_DEFAUT, 5);
+      v.egal('longueurs du stock par défaut (spec § 4)', calculs.LONGUEURS_STOCK, {
+        data: [1, 2, 5, 10, 20, 30, 50, 75, 100],
+        multipaire: [25, 50, 75, 100],
+        fibre: [50, 100, 150, 300],
+        p16: [1, 2, 5, 10, 20, 25, 50],
+        p17: [5, 10, 20, 25, 50],
+      });
+      const p16 = calculs.LONGUEURS_STOCK.p16;
+      v.egal('plus petite longueur qui suffit : 0,3 → 1 ; 4,4 → 5 ; 5 → 5 ; 5,01 → 10',
+        [0.3, 4.4, 5, 5.01].map((x) => calculs.longueurStock(x, p16).morceaux), [[1], [5], [5], [10]]);
+      v.egal('une seule longueur : pas de raccord', calculs.longueurStock(4.4, p16).raccords, false);
+      v.egal('115 m avec 50 m au plus : 2 × 50 m + 20 m, raccords à prévoir', calculs.longueurStock(115, p16), { morceaux: [50, 50, 20], raccords: true });
+      v.egal('100 m avec 50 m au plus : 2 × 50 m', calculs.longueurStock(100, p16).morceaux, [50, 50]);
+      v.egal('distance non saisie : à mesurer', calculs.longueurStock(null, p16), null);
+      const g = calculs.grouperLongueurs([4.4, 4.4, 9.9, 15, null, 115], p16);
+      v.egal('regroupées par longueur, à mesurer et raccords comptés', g, {
+        parLongueur: [{ longueurM: 5, nombre: 2 }, { longueurM: 10, nombre: 1 }, { longueurM: 20, nombre: 2 }, { longueurM: 50, nombre: 2 }],
+        aMesurer: 1,
+        raccords: 1,
+      });
+      v.egal('texte groupé : « 6 × 10 m, 2 × 20 m »', calculs.texteLongueurs({ parLongueur: [{ longueurM: 10, nombre: 6 }, { longueurM: 20, nombre: 2 }], aMesurer: 0, raccords: 0 }), '6 × 10 m, 2 × 20 m');
+      v.egal('texte groupé avec longueurs à mesurer', calculs.texteLongueurs({ parLongueur: [{ longueurM: 10, nombre: 1 }], aMesurer: 2, raccords: 0 }), '1 × 10 m, 2 longueurs à mesurer');
+      v.egal('texte groupé : tout à mesurer', calculs.texteLongueurs({ parLongueur: [], aMesurer: 1, raccords: 0 }), '1 longueur à mesurer');
+    },
+  },
+  {
+    id: 'R316',
+    titre: 'Liste de matériel (13a), dalles : fiche par fiche, demi-dalles sur leur propre fiche, spares de chaque fiche (5 % arrondi au-dessus, au moins 1) ; mur mixte : chaque fiche à part ; pourcentage réglable ; rappel « Liste indicative, à vérifier avant le chargement. »',
+    etape: '13a',
+    verifier(v) {
+      const dalles = (liste) => liste.sections.find((s) => s.id === 'dalles').lignes.map((l) => [l.designation, l.quantite, l.auMur, l.spares]);
+      const m = calculs.mur(DALLE_CAS_13, 12, 12);
+      v.egal('144 dalles : 152 avec 8 spares', dalles(calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13 })), [['Dalle du cas 13', 152, 144, 8]]);
+      const l = calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13 }).sections[0].lignes[0];
+      v.egal('détail : d\'où vient le nombre', l.detail, '144 au mur + 8 de spare (5 %, arrondi au-dessus)');
+      v.egal('10 % de spare', dalles(calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, sparesPourcent: 10 })), [['Dalle du cas 13', 159, 144, 15]]);
+      const md = calculs.mur(CB5, 10, 2, { demi: CB5_DEMI, rangeeDemi: true });
+      v.egal('demi-dalles : leur fiche, leurs spares (au moins 1)', dalles(calculs.listeMateriel({ mur: md, dalle: CB5 })),
+        [['CB5 MKII (copie de test)', 21, 20, 1], ['CB5 MKII demi-dalle (copie de test)', 11, 10, 1]]);
+      const mixte = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 1, dalle: CB5 }], { ecarts: 'colles' });
+      v.egal('mur mixte : chaque fiche à part', dalles(calculs.listeMateriel({ mur: mixte, dalle: DALLE_CAS_13 })),
+        [['Dalle du cas 13', 9, 8, 1], ['CB5 MKII (copie de test)', 3, 2, 1]]);
+      v.egal('pourcentage gardé dans la liste', calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, sparesPourcent: 10 }).sparesPourcent, 10);
+      v.egal('rappel de la liste', [calculs.RAPPEL_LISTE, calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13 }).indicatif], ['Liste indicative, à vérifier avant le chargement.', true]);
+      v.vrai('chaque ligne a une clé, la même d\'un calcul à l\'autre', calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13 }).sections[0].lignes[0].cle === calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, sparesPourcent: 10 }).sections[0].lignes[0].cle);
+    },
+  },
+  {
+    id: 'R317',
+    titre: 'Liste de matériel (13a), data en cuivre : processeurs retenus, câbles de tête RJ45 à leur longueur du stock (un par port, retours de secours à part en redondance) ; régie à plus de 10 m : multipaires de 8 RJ45 dont 1 de secours, 1 pour 7 câbles (secours compris) à la longueur régie–mur mou compris, un câble court par câble au mur, cordons côté régie à mesurer ; à 10 m au plus ou non saisie : câbles directs ; liaisons entre dalles en nombre ; longueurs du parc',
+    etape: '13a',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const mctrl = processeurDeBase(contexte, 'novastar-mctrl660');
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_13, mctrl, NOVASTAR_60_8);
+      const data = (distanceRegieM, evaluation = e) => {
+        const t = calculs.cablageData(m, DALLE_CAS_13, evaluation, { depart: 'haut-gauche', distanceRegieM });
+        return { evaluation, variante: t.variantes.find((x) => x.mode === t.conseil), distanceRegieM };
+      };
+      const lignes = (d, parc) => calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, data: d, parc }).sections.find((s) => s.id === 'data').lignes
+        .map((l) => `${l.quantite} ${l.designation}${l.longueurM ? ` ${l.longueurM} m` : ''}${l.aMesurer ? ' (à mesurer)' : ''}`);
+      v.egal('régie à 20 m : 2 processeurs, 1 multipaire de 25 m, câbles au mur, cordons côté régie, liaisons', lignes(data(20)), [
+        `2 ${mctrl.nom}`,
+        '1 Multipaire 8 RJ45 25 m',
+        '1 Câble RJ45 au mur, du multipaire à la dalle 1 m',
+        '1 Câble RJ45 au mur, du multipaire à la dalle 2 m',
+        '3 Câble RJ45 au mur, du multipaire à la dalle 5 m',
+        '1 Câble RJ45 au mur, du multipaire à la dalle 10 m',
+        '6 Cordon RJ45 côté régie, du processeur au multipaire (à mesurer)',
+        '66 Liaison RJ45 entre dalles',
+      ]);
+      v.egal('régie à 8 m : câbles de tête directs, 1 × 10 m et 5 × 20 m', lignes(data(8)), [
+        `2 ${mctrl.nom}`, '1 Câble de tête RJ45 10 m', '5 Câble de tête RJ45 20 m', '66 Liaison RJ45 entre dalles',
+      ]);
+      v.egal('régie à 10 m : pas de multipaire', lignes(data(10)).some((l) => /Multipaire/.test(l)), false);
+      v.egal('régie non saisie : 6 câbles de tête à mesurer', lignes(data(null)), [`2 ${mctrl.nom}`, '6 Câble de tête RJ45 (à mesurer)', '66 Liaison RJ45 entre dalles']);
+      v.egal('longueurs du parc : 5, 15 et 25 m', lignes(data(8), { longueurs: { data: [5, 15, 25] } }).filter((l) => /tête/.test(l)), ['6 Câble de tête RJ45 15 m']);
+      const liste = calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, data: data(20) });
+      const mp = liste.sections.find((s) => s.id === 'data').lignes.find((l) => /Multipaire/.test(l.designation));
+      v.egal('multipaire : détail', mp.detail, '8 RJ45 dont 1 de secours, 1 pour 7 câbles (6 câbles), régie à 20 m, mou compris (22 m)');
+      v.egal('liaisons : à vérifier', liste.sections.find((s) => s.id === 'data').lignes.at(-1).detail, 'fournies avec les dalles, à vérifier');
+      // Redondance : MCTRL4K (secours du port p sur le port p + 8), 6 ports et 6 retours de secours.
+      const e4k = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl4k'), { ...NOVASTAR_60_8, redondance: true });
+      const d4k = data(20, e4k);
+      const l4k = calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, data: d4k }).sections.find((s) => s.id === 'data').lignes;
+      const somme = (re) => l4k.filter((l) => re.test(l.designation)).reduce((s, l) => s + l.quantite, 0);
+      v.egal('redondance à 20 m : 12 câbles, 2 multipaires, 12 câbles au mur, 12 cordons', [somme(/^Multipaire/), somme(/au mur/), somme(/côté régie/)], [2, 12, 12]);
+      const ports = d4k.variante.processeurs.flatMap((p) => p.ports);
+      const attendu = calculs.grouperLongueurs([...ports.map((p) => p.longueurCuivreM - 22), ...ports.map((p) => p.secours.retourM)], calculs.LONGUEURS_STOCK.data).parLongueur;
+      v.egal('redondance : au mur, la longueur de chaque câble et de chaque retour de secours', l4k.filter((l) => /au mur/.test(l.designation)).map((l) => ({ longueurM: l.longueurM, nombre: l.quantite })), attendu);
+      const l4kPres = calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, data: data(8, e4k) }).sections.find((s) => s.id === 'data').lignes;
+      v.egal('redondance à 8 m : 6 câbles de tête et 6 retours de secours directs', [
+        l4kPres.filter((l) => l.designation === 'Câble de tête RJ45').reduce((s, l) => s + l.quantite, 0),
+        l4kPres.filter((l) => l.designation === 'Retour de secours RJ45').reduce((s, l) => s + l.quantite, 0),
+      ], [6, 6]);
+      v.vrai('sans Data : la section le dit', calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13 }).sections.find((s) => s.id === 'data').notes.some((n) => /Data/.test(n)));
+    },
+  },
+  {
+    id: 'R318',
+    titre: 'Liste de matériel (13a), data en fibre : XD ou CVT comptés dans Data (miroirs compris en redondance), une fibre par distributeur à la longueur régie–mur mou compris, longueur du stock fibre ; cuivre du distributeur à la dalle ; pas de multipaire',
+    etape: '13a',
+    verifier(v, contexte) {
+      const m7 = calculs.mur(DALLE_CAS_7, 44, 10);
+      const sx40 = processeurDeBase(contexte, 'brompton-sx40');
+      const lignes = (reglages, distanceRegieM) => {
+        const e = calculs.evaluerProcesseur(m7, DALLE_CAS_7, sx40, reglages);
+        const t = calculs.cablageData(m7, DALLE_CAS_7, e, { depart: 'bas-gauche', distanceRegieM });
+        const variante = t.variantes.find((x) => x.mode === t.conseil);
+        const l = calculs.listeMateriel({ mur: m7, dalle: DALLE_CAS_7, data: { evaluation: e, variante, distanceRegieM } }).sections.find((s) => s.id === 'data').lignes;
+        return { e, variante, l, n: (re) => l.filter((x) => re.test(x.designation)).reduce((s, x) => s + x.quantite, 0) };
+      };
+      const r = lignes(BROMPTON_60_10, 150);
+      const xd = r.e.totaux.distributeurs.colonnes;
+      v.egal('XD comptés comme Data, une fibre de 300 m par XD (165 m mou compris)', [r.n(/^XD$/), r.l.filter((x) => /^Fibre/.test(x.designation)).map((x) => [x.quantite, x.longueurM])], [xd, [[xd, 300]]]);
+      v.egal('fibre : désignation', r.l.find((x) => /^Fibre/.test(x.designation)).designation, 'Fibre jusqu\'au XD');
+      v.egal('pas de multipaire en fibre', r.n(/Multipaire/), 0);
+      v.egal('câbles de tête depuis le XD : un par port', r.n(/^Câble de tête RJ45$/), r.variante.ports);
+      v.egal('SX40 compté', r.l[0].designation, sx40.nom);
+      const red = lignes({ ...BROMPTON_60_10, redondance: true }, 150);
+      v.egal('redondance : XD miroirs compris, une fibre par XD', [red.n(/^XD$/), red.n(/^Fibre/)], [red.e.totaux.distributeurs.redondance, red.e.totaux.distributeurs.redondance]);
+      v.egal('redondance : retours de secours', red.n(/^Retour de secours RJ45$/), red.variante.portsSecours);
+      const sans = lignes(BROMPTON_60_10, null);
+      v.egal('régie non saisie : fibres à mesurer', sans.l.filter((x) => /^Fibre/.test(x.designation)).map((x) => [x.quantite, x.aMesurer]), [[xd, true]]);
+    },
+  },
+  {
+    id: 'R319',
+    titre: 'Liste de matériel (13a), élec : boîtiers 32 A tri, câbles P17 32 A tri et câbles de tête 16 A de la distribution (étape 12) à leurs longueurs du stock ; armoire non mesurée : câbles à mesurer, pas de boîtier ; liaisons power entre dalles en nombre ; refus de la distribution repris',
+    etape: '13a',
+    verifier(v) {
+      const { m, elec, variante } = varianteConseil(calculs.mur(DALLE_CAS_13, 24, 6), DALLE_CAS_13, { depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+      const dist = (options) => calculs.distributionElec(m, variante, elec, { depart: 'bas-gauche', mode: 'stack', ...options });
+      const section = (distribution) => calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, elec: { variante, distribution } }).sections.find((s) => s.id === 'elec');
+      const lignes = (distribution) => section(distribution).lignes.map((l) => `${l.quantite} ${l.designation}${l.longueurM ? ` ${l.longueurM} m` : ''}${l.aMesurer ? ' (à mesurer)' : ''}`);
+      v.egal('armoire à 20 m : 2 boîtiers, 2 P17 de 50 m, 9 câbles de tête 16 A, liaisons', lignes(dist({ distanceArmoireM: 20 })), [
+        '2 Boîtier 32 A tri',
+        '2 Câble P17 32 A tri 50 m',
+        '1 Câble de tête 16 A 1 m',
+        '4 Câble de tête 16 A 2 m',
+        '4 Câble de tête 16 A 5 m',
+        '135 Liaison power entre dalles',
+      ]);
+      v.egal('boîtier : détail (prises, pose)', section(dist({ distanceArmoireM: 20 })).lignes[0].detail, '6 prises 16 A (2 par phase), au sol derrière le mur');
+      v.egal('armoire non mesurée : 9 câbles de tête à mesurer', lignes(dist({})), ['9 Câble de tête 16 A (à mesurer)', '135 Liaison power entre dalles']);
+      const refus = dist({ distanceArmoireM: 20, choix: 'materiel', materiel: { boitiers: 1, prises16: 2 } });
+      v.vrai('refus de la distribution repris en note', section(refus).notes.includes(`Distribution : ${refus.refus}`), section(refus).notes);
+      v.egal('sans distribution : têtes de la variante, à mesurer', calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, elec: { variante } }).sections.find((s) => s.id === 'elec').lignes.map((l) => [l.quantite, l.designation, l.aMesurer]),
+        [[9, 'Câble de tête 16 A', true], [135, 'Liaison power entre dalles', false]]);
+    },
+  },
+  {
+    id: 'R320',
+    titre: 'Liste de matériel (13a), accroche : bumpers (nombre et modèle) et moteurs (points d\'accroche de Poids) ; pont au-delà de 4 points : moteurs à voir avec le rigger ; stack : pieds et structure au rigger ; rappel « élingues, manilles et pieds de stack : à voir avec le rigger »',
+    etape: '13a',
+    verifier(v) {
+      const m = calculs.mur(CB5, 10, 2);
+      const section = (resultat, bumper = null) => calculs.listeMateriel({ mur: m, dalle: CB5, poids: { resultat, bumper } }).sections.find((s) => s.id === 'accroche');
+      const lignes = (s) => s.lignes.map((l) => `${l.quantite} ${l.designation}`);
+      const b = calculs.poids(m, CB5, { bumper: { poidsKg: 8.95, colonnes: 2 } });
+      v.egal('5 bumpers de 2 colonnes, un moteur par bumper', lignes(section(b, { nom: 'Bumper CB5' })), ['5 Bumper CB5', '5 Moteur (point d\'accroche)']);
+      v.egal('bumper sans nom', lignes(section(b)), ['5 Bumper', '5 Moteur (point d\'accroche)']);
+      v.egal('pont sur 3 points : 3 moteurs', lignes(section(calculs.poids(m, CB5, { accroche: { type: 'pont', points: 3 } }))), ['3 Moteur (point d\'accroche)']);
+      const cinq = section(calculs.poids(m, CB5, { accroche: { type: 'pont', points: 5 } }));
+      v.egal('pont sur 5 points : moteurs à voir avec le rigger', [lignes(cinq), cinq.notes.includes('Moteurs : nombre et répartition à établir par le rigger (pont sur plus de 4 points, à portées inégales ou en porte-à-faux).')], [[], true]);
+      const stack = section(calculs.poids(m, CB5, { mode: 'stack' }));
+      v.egal('stack : rien à accrocher, pieds et structure au rigger', [lignes(stack), stack.notes.includes('Stack : pieds et structure à voir avec le rigger.')], [[], true]);
+      v.egal('rappel du rigger', [calculs.RAPPEL_RIGGER, section(b).notes.includes(calculs.RAPPEL_RIGGER)], ['Élingues, manilles et pieds de stack : à voir avec le rigger.', true]);
+      v.vrai('sans Poids : la section le dit', calculs.listeMateriel({ mur: m, dalle: CB5 }).sections.find((s) => s.id === 'accroche').notes.some((n) => /Poids/.test(n)));
+    },
+  },
+  {
+    id: 'R321',
+    titre: 'Liste de matériel (13a), flight cases et poids transporté : cases = (dalles + spares) ÷ dalles par case du parc, arrondi au-dessus, fiche par fiche ; demi-dalles à part si le parc le précise, sinon « à préciser dans le parc » ; poids des cases pleines et volume quand le parc les donne ; sans saisie, « à préciser dans le parc » ; poids transporté (dalles, spares, cases) indicatif, le reste non compté',
+    etape: '13a',
+    verifier(v) {
+      const m = calculs.mur(DALLE_CAS_13, 12, 12);
+      const parc = { nom: 'Parc test', cases: { 'fictive-cas-13': { dallesParCase: 8, poidsCaseKg: 20, dimensionsCm: { largeur: 60, profondeur: 60, hauteur: 120 } } } };
+      const liste = calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, parc });
+      const cases = liste.sections.find((s) => s.id === 'cases');
+      v.egal('152 dalles à 8 par case : 19 cases', cases.lignes.map((l) => [l.quantite, l.designation, l.detail]), [[19, 'Flight case Dalle du cas 13', '152 dalles (spares compris), 8 par case, Parc test']]);
+      v.proche('poids des cases pleines : 152 × 7,5 + 19 × 20 kg', cases.lignes[0].poidsPleinesKg, 1520, 0.001);
+      v.proche('volume : 19 × 0,6 × 0,6 × 1,2 m', cases.lignes[0].volumeM3, 8.208, 0.0001);
+      v.egal('6 par case : 26 cases (25,3 arrondi au-dessus)', calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, parc: { cases: { 'fictive-cas-13': { dallesParCase: 6 } } } }).sections.find((s) => s.id === 'cases').lignes[0].quantite, 26);
+      const sans = calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13 }).sections.find((s) => s.id === 'cases');
+      v.egal('sans saisie : à préciser dans le parc', [sans.lignes, sans.notes], [[], ['Cases de Dalle du cas 13 : à préciser dans le parc.']]);
+      const md = calculs.mur(CB5, 10, 2, { demi: CB5_DEMI, rangeeDemi: true });
+      const cb = (c) => calculs.listeMateriel({ mur: md, dalle: CB5, parc: { cases: { 'test-cb5': c } } }).sections.find((s) => s.id === 'cases');
+      const sansDemi = cb({ dallesParCase: 4 });
+      v.egal('demi-dalles non précisées : à préciser', [sansDemi.lignes.map((l) => l.quantite), sansDemi.notes], [[6], ['Cases des demi-dalles CB5 MKII demi-dalle (copie de test) : à préciser dans le parc.']]);
+      v.egal('demi-dalles à part : 11 à 6 par case, 2 cases', cb({ dallesParCase: 4, demiParCase: 6 }).lignes.map((l) => [l.quantite, l.designation]),
+        [[6, 'Flight case CB5 MKII (copie de test)'], [2, 'Flight case CB5 MKII demi-dalle (copie de test)']]);
+      v.egal('case sans poids : poids des cases pleines inconnu', cb({ dallesParCase: 4 }).lignes[0].poidsPleinesKg, null);
+      v.proche('poids transporté : dalles et spares, cases vides', liste.poidsTransporte.kg, 1520, 0.001);
+      v.egal('poids transporté : indicatif, ce qui n\'est pas compté', [liste.poidsTransporte.indicatif, liste.poidsTransporte.nonCompte], [true, 'processeurs, câbles et accroche non comptés']);
+      const sansCase = calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13 }).poidsTransporte;
+      v.egal('sans case : dalles seules, cases non comptées', [sansCase.kg, sansCase.nonCompte], [1140, 'cases, processeurs, câbles et accroche non comptés']);
+      const sansPoids = calculs.listeMateriel({ mur: calculs.mur(DALLE_CAS_7, 2, 2), dalle: DALLE_CAS_7 }).poidsTransporte;
+      v.egal('dalle sans poids : poids transporté inconnu', sansPoids.kg, null);
+    },
+  },
+  {
+    id: 'R322',
+    titre: 'Liste de matériel (13b), réglages du parc : longueurs du stock par famille de câble (lues, triées, sans doublon ; vide = défaut ; refus avec la raison), flight case de chaque dalle (dalles et demi-dalles par case entiers, poids et dimensions positifs, tout facultatif ; vide = retiré) ; la liste lit le parc ; une fiche retirée de la base perd aussi son case',
+    etape: '13b',
+    verifier(v) {
+      v.egal('lecture des longueurs : « 10, 2, 5 m, 2 » → 2, 5, 10', fiches.lireLongueurs('10, 2, 5 m, 2'), [2, 5, 10]);
+      v.egal('espaces et virgule décimale avec point-virgule', [fiches.lireLongueurs('1 2 5'), fiches.lireLongueurs('1,5; 3')], [[1, 2, 5], [1.5, 3]]);
+      v.egal('vide : longueurs par défaut', fiches.lireLongueurs('  '), null);
+      let refus = null;
+      try { fiches.lireLongueurs('5, -2'); } catch (e) { refus = e.message; }
+      v.egal('longueur impossible : refus', refus, 'Longueurs du stock : des nombres de mètres, plus de 0 et 1000 au plus, séparés par des virgules (1, 2, 5, 10).');
+      let base = fiches.creerParc(fiches.baseVide(), 'Parc A');
+      const id = base.parcs[0].id;
+      base = fiches.reglerLongueursParc(base, id, 'data', '5, 15, 25');
+      v.egal('longueurs data du parc', base.parcs[0].longueurs, { data: [5, 15, 25] });
+      v.egal('familles réglables', fiches.FAMILLES_LONGUEURS, ['data', 'multipaire', 'fibre', 'p16', 'p17']);
+      v.egal('vide : retour au défaut, champ retiré', 'longueurs' in fiches.reglerLongueursParc(base, id, 'data', '').parcs[0], false);
+      base = fiches.reglerCaseParc(base, id, 'fictive-cas-13', { dallesParCase: '8', demiParCase: '', poidsCaseKg: '20,5', largeurCm: '60', profondeurCm: '60', hauteurCm: '120' });
+      v.egal('flight case de la dalle', base.parcs[0].cases['fictive-cas-13'], { dallesParCase: 8, poidsCaseKg: 20.5, dimensionsCm: { largeur: 60, profondeur: 60, hauteur: 120 } });
+      let refusCase = null;
+      try { fiches.reglerCaseParc(base, id, 'fictive-cas-13', { dallesParCase: '2,5' }); } catch (e) { refusCase = e.message; }
+      v.egal('dalles par case non entier : refus', refusCase, 'Dalles par case : un nombre entier, 1 ou plus.');
+      v.egal('saisie vide : case retiré', 'cases' in fiches.reglerCaseParc(base, id, 'fictive-cas-13', {}).parcs[0], false);
+      v.egal('ce que la liste lit du parc', fiches.materielParc(base, id), { nom: 'Parc A', longueurs: { data: [5, 15, 25] }, cases: { 'fictive-cas-13': { dallesParCase: 8, poidsCaseKg: 20.5, dimensionsCm: { largeur: 60, profondeur: 60, hauteur: 120 } } } });
+      v.egal('« Tous » : rien', fiches.materielParc(base, null), null);
+      const liste = calculs.listeMateriel({ mur: calculs.mur(DALLE_CAS_13, 12, 12), dalle: DALLE_CAS_13, parc: fiches.materielParc(base, id) });
+      v.egal('la liste compte les cases du parc', liste.sections.find((s) => s.id === 'cases').lignes[0].quantite, 19);
+      v.egal('fiche retirée de la base : son case retiré aussi', 'cases' in fiches.retirerFicheRetiree(base, id, 'dalle', 'fictive-cas-13').parcs[0], false);
+    },
+  },
+  {
+    id: 'R323',
+    titre: 'Liste de matériel (13b), gardée avec le mur : liste et date enregistrées avec le mur sans marquer la presta modifiée, liste identique non réécrite ; jamais dans le fichier exporté (comme le suivi du montage) ; pourcentage de spare gardé avec la presta (5 % par défaut, de 0 à 100 %)',
+    etape: '13b',
+    verifier(v) {
+      const o = optionsPresta();
+      let e = prestas.migrer({ configuration: configurationEssai(12) }, o);
+      const p = e.index.prestas[0];
+      const murId = p.murs[0].id;
+      const liste = calculs.listeMateriel({ mur: calculs.mur(DALLE_CAS_13, 12, 12), dalle: DALLE_CAS_13 });
+      const gardee = prestas.enregistrerListeMur(e, murId, liste, horloge(o, '2026-10-13T15:00:00Z'));
+      v.egal('liste et date gardées avec le mur', [gardee.murs[murId].materiel.liste, gardee.murs[murId].materiel.calculeeLe], [liste, '2026-10-13T15:00:00.000Z']);
+      v.egal('presta pas marquée modifiée', gardee.index.prestas[0].modifieeLe, p.modifieeLe);
+      v.vrai('même liste plus tard : rien de réécrit', prestas.enregistrerListeMur(gardee, murId, JSON.parse(JSON.stringify(liste)), horloge(o, '2026-10-13T16:00:00Z')) === gardee);
+      v.egal('liste gardée d\'un mur', prestas.listeGardee(gardee, murId)?.calculeeLe, '2026-10-13T15:00:00.000Z');
+      v.egal('mur sans liste : null', prestas.listeGardee(e, murId), null);
+      const { donnees } = prestas.exporterPresta(gardee, p.id, fiches.baseVide(), o);
+      v.egal('fichier exporté : pas de liste', 'materiel' in donnees.murs[0], false);
+      v.egal('spare par défaut', prestas.materielPresta(p), { sparesPourcent: 5 });
+      e = prestas.reglerMaterielPresta(gardee, p.id, { sparesPourcent: 10 }, o);
+      v.egal('spare gardé avec la presta', prestas.materielPresta(e.index.prestas[0]).sparesPourcent, 10);
+      const refus = (x) => {
+        try { prestas.reglerMaterielPresta(gardee, p.id, { sparesPourcent: x }, o); return null; } catch (err) { return err.message; }
+      };
+      v.egal('spare impossible : refus', [refus(-1), refus(101), refus('a')], Array(3).fill('Spare : un pourcentage de 0 à 100.'));
+      v.egal('0 % permis', prestas.materielPresta(prestas.reglerMaterielPresta(gardee, p.id, { sparesPourcent: 0 }, o).index.prestas[0]).sparesPourcent, 0);
+    },
+  },
+  {
+    id: 'R324',
+    titre: 'Liste de matériel (13c), total de la presta : mêmes lignes additionnées (même clé : même désignation, même longueur), dans l\'ordre des sections, avec le détail par mur ; notes de chaque mur nommées ; mur jamais ouvert depuis l\'étape 13 : « ouvre ce mur une fois pour compter son matériel » ; ajouts à la main en dernière section ; poids transporté additionné ; origine des longueurs du stock',
+    etape: '13c',
+    verifier(v, contexte) {
+      const liste = (colonnes, parc = null) => calculs.listeMateriel({ mur: calculs.mur(DALLE_CAS_13, colonnes, 6), dalle: DALLE_CAS_13, parc });
+      const t = calculs.totalMateriel([{ nom: 'Mur 1', liste: liste(12) }, { nom: 'Mur 2', liste: liste(4) }, { nom: 'Mur 3', liste: null }],
+        { ajouts: [{ id: 'a1', libelle: 'Socapex 19 broches', quantite: 2 }] });
+      const dalles = t.sections.find((s) => s.id === 'dalles').lignes;
+      v.egal('dalles additionnées : 76 + 26', dalles.map((l) => [l.quantite, l.designation]), [[102, 'Dalle du cas 13']]);
+      v.egal('détail par mur', [dalles[0].parMur, dalles[0].detail], [[{ nom: 'Mur 1', nombre: 76 }, { nom: 'Mur 2', nombre: 26 }], 'Mur 1 : 76 ; Mur 2 : 26']);
+      v.egal('mur sans liste', [t.murs, t.manquants], [3, ['Mur 3']]);
+      v.vrai('mur sans liste : le dire', t.notes.includes('Mur 3 : ouvre ce mur une fois pour compter son matériel.'), t.notes);
+      v.egal('ordre des sections, ajouts à la fin', t.sections.map((s) => s.id), ['dalles', 'data', 'elec', 'accroche', 'cases', 'ajouts']);
+      v.egal('ajouts à la main', t.sections.at(-1).lignes.map((l) => [l.cle, l.quantite, l.designation]), [['ajout|a1', 2, 'Socapex 19 broches']]);
+      v.vrai('notes nommées par mur, regroupées quand elles sont les mêmes', t.sections.find((s) => s.id === 'cases').notes.includes('Mur 1, Mur 2 : Cases de Dalle du cas 13 : à préciser dans le parc.'),
+        t.sections.find((s) => s.id === 'cases').notes);
+      v.proche('poids transporté additionné : 102 × 7,5 kg', t.poidsTransporte.kg, 765, 0.001);
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      const cab = (d) => calculs.cablageData(m, DALLE_CAS_13, e, { depart: 'haut-gauche', distanceRegieM: d });
+      const avecData = (d) => calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, data: { evaluation: e, variante: cab(d).variantes.find((x) => x.mode === 'colonnes'), distanceRegieM: d } });
+      const deux = calculs.totalMateriel([{ nom: 'A', liste: avecData(8) }, { nom: 'B', liste: avecData(8) }]);
+      v.egal('mêmes câbles de même longueur additionnés', deux.sections.find((s) => s.id === 'data').lignes.filter((l) => l.designation === 'Câble de tête RJ45').map((l) => [l.quantite, l.longueurM]), [[2, 10], [10, 20]]);
+      v.egal('origine des longueurs : par défaut', calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13 }).origineStock, { parc: null, familles: [] });
+      v.egal('origine des longueurs : parc', calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, parc: { nom: 'Parc A', longueurs: { data: [5, 15] } } }).origineStock, { parc: 'Parc A', familles: ['data'] });
+      v.egal('libellé d\'une ligne', [calculs.libelleLigne({ designation: 'Câble de tête RJ45', longueurM: 10 }), calculs.libelleLigne({ designation: 'Câble de tête RJ45', longueurM: null, aMesurer: true })],
+        ['Câble de tête RJ45, 10 m', 'Câble de tête RJ45, longueur à mesurer']);
+    },
+  },
+  {
+    id: 'R325',
+    titre: 'Liste de matériel (13c), check-list et ajouts à la main gardés avec la presta : une ligne cochée vaut pour sa quantité ; quantité changée ou ligne disparue : décochée avec la raison (« … : 6 au lieu de 4, décoché »), jamais en silence, oubliée sur « Compris » ; « Tout décocher » ; cocher ne marque pas la presta modifiée ; ajout (libellé et quantité vérifiés), retrait',
+    etape: '13c',
+    verifier(v) {
+      const o = optionsPresta();
+      let e = prestas.migrer({ configuration: configurationEssai(12) }, o);
+      const p = e.index.prestas[0];
+      const ligne = (cle, quantite, designation, longueurM = null) => ({ cle, quantite, designation, longueurM, aMesurer: false });
+      const total = (q) => ({ sections: [{ id: 'data', titre: 'Data', notes: [], lignes: [ligne('cable|Câble de tête RJ45|10', q, 'Câble de tête RJ45', 10), ligne('liaison|data', 66, 'Liaison RJ45 entre dalles')] }] });
+      e = prestas.cocherLigne(e, p.id, 'cable|Câble de tête RJ45|10', 4, o);
+      e = prestas.cocherLigne(e, p.id, 'liaison|data', 66, o);
+      v.egal('cocher ne marque pas la presta modifiée', e.index.prestas[0].modifieeLe, p.modifieeLe);
+      v.egal('lignes cochées', [...prestas.rapprocherCoches(e.index.prestas[0], total(4)).cochees].sort(), ['cable|Câble de tête RJ45|10', 'liaison|data']);
+      const r = prestas.rapprocherCoches(e.index.prestas[0], total(6));
+      v.egal('quantité changée : décochée avec la raison', [[...r.cochees], r.changees.map((x) => x.texte)], [['liaison|data'], ['Câble de tête RJ45, 10 m : 6 au lieu de 4, décoché']]);
+      const sans = { sections: [{ id: 'data', titre: 'Data', notes: [], lignes: [ligne('liaison|data', 66, 'Liaison RJ45 entre dalles')] }] };
+      v.egal('ligne disparue : décochée avec la raison', prestas.rapprocherCoches(e.index.prestas[0], sans).changees.map((x) => x.texte), ['Câble de tête RJ45, 10 m : plus dans la liste, décoché']);
+      const compris = prestas.oublierCochesChangees(e, p.id, total(6), o);
+      v.egal('« Compris » : la coche changée est oubliée, les autres restent', Object.keys(prestas.cochesPresta(compris.index.prestas[0])), ['liaison|data']);
+      v.egal('décocher une ligne', Object.keys(prestas.cochesPresta(prestas.cocherLigne(e, p.id, 'liaison|data', null, o).index.prestas[0])), ['cable|Câble de tête RJ45|10']);
+      v.egal('tout décocher', prestas.cochesPresta(prestas.toutDecocher(e, p.id, o).index.prestas[0]), {});
+      let a = prestas.ajouterAjout(e, p.id, { libelle: ' Socapex 19 broches ', quantite: '2' }, o);
+      v.egal('ajout à la main', prestas.ajoutsPresta(a.index.prestas[0]).map((x) => [x.libelle, x.quantite]), [['Socapex 19 broches', 2]]);
+      a = prestas.ajouterAjout(a, p.id, { libelle: 'Gaffer', quantite: 6 }, o);
+      const premier = prestas.ajoutsPresta(a.index.prestas[0])[0].id;
+      v.egal('retrait d\'un ajout', prestas.ajoutsPresta(prestas.retirerAjout(a, p.id, premier, o).index.prestas[0]).map((x) => x.libelle), ['Gaffer']);
+      const refus = (x) => {
+        try { prestas.ajouterAjout(e, p.id, x, o); return null; } catch (err) { return err.message; }
+      };
+      v.egal('ajout impossible : refus', [refus({ libelle: '', quantite: 1 }), refus({ libelle: 'Harting', quantite: 0 }), refus({ libelle: 'Harting', quantite: '1,5' }), refus({ libelle: 'x'.repeat(81), quantite: 1 })],
+        ['Donne le nom du matériel ajouté.', 'Quantité : un nombre entier, de 1 à 9999.', 'Quantité : un nombre entier, de 1 à 9999.', 'Nom du matériel ajouté trop long : 80 caractères au plus.']);
+      v.vrai('fichier exporté : ni coches ni ajouts (presta)', !('materiel' in prestas.exporterPresta(a, p.id, fiches.baseVide(), o).donnees.presta));
+    },
+  },
+  {
+    id: 'R326',
+    titre: 'Liste de matériel (13c), texte copié et fichier partagé : texte simple, une information par ligne, sans tiret de liste ; marqué indicatif ; spare, longueurs du stock et cases avec leur origine ; chaque ligne « quantité × désignation : détail », « , chargé » si elle est cochée ; murs sans liste ; poids transporté indicatif ; compte des lignes cochées ; nom du fichier',
+    etape: '13c',
+    verifier(v) {
+      const parc = { nom: 'Parc A', longueurs: { data: [5, 15] }, cases: { 'fictive-cas-13': { dallesParCase: 8, poidsCaseKg: 20 } } };
+      const l1 = calculs.listeMateriel({ mur: calculs.mur(DALLE_CAS_13, 12, 12), dalle: DALLE_CAS_13, parc });
+      const total = calculs.totalMateriel([{ nom: 'Mur 1', liste: l1 }, { nom: 'Mur 2', liste: null }], { ajouts: [{ id: 'a1', libelle: 'Socapex', quantite: 2 }] });
+      const t = resumes.resumeMateriel({ titre: 'Presta A, total de 2 murs', total, sparesPourcent: 5, coches: new Set(['dalle|fictive-cas-13']) }).split('\n');
+      v.egal('en-tête', t.slice(0, 5), [
+        'MATÉRIEL',
+        'Presta A, total de 2 murs',
+        'Liste indicative, à vérifier avant le chargement.',
+        'Spare des dalles : 5 % par fiche, arrondi au-dessus, au moins 1',
+        'Longueurs du stock : Parc A (Câbles RJ45), par défaut pour les autres',
+      ]);
+      v.vrai('mur sans liste', t.includes('Mur 2 : ouvre ce mur une fois pour compter son matériel.'), t.join(' / '));
+      v.vrai('ligne cochée', t.includes('152 × Dalle du cas 13 : 144 au mur + 8 de spare (5 %, arrondi au-dessus), chargé'), t.join(' / '));
+      v.vrai('cases avec leur origine', t.includes('19 × Flight case Dalle du cas 13 : 152 dalles (spares compris), 8 par case, Parc A'), t.join(' / '));
+      v.vrai('ajouts à la main', t.includes('AJOUTS À LA MAIN') && t.includes('2 × Socapex'), t.join(' / '));
+      v.vrai('poids transporté indicatif', t.includes('POIDS TRANSPORTÉ') && t.includes('1520 kg, indicatif ; processeurs, câbles et accroche non comptés'), t.join(' / '));
+      v.vrai('compte des lignes cochées', t.at(-1) === `Chargement : 1 ligne cochée sur ${total.sections.reduce((s, x) => s + x.lignes.length, 0)}`, t.at(-1));
+      v.vrai('texte simple : aucune ligne ne commence par un tiret ou une puce', t.every((l) => !/^[\s•*-]/.test(l) && !/[—–]/.test(l)));
+      const mur = resumes.resumeMateriel({ titre: 'Presta A · Mur 1', liste: l1, sparesPourcent: 5 }).split('\n');
+      v.egal('liste d\'un mur : sans compte de chargement', [mur[1], mur.some((l) => /^Chargement/.test(l))], ['Presta A · Mur 1', false]);
+      v.egal('nom du fichier', prestas.nomFichierMateriel('Presta A', new Date('2026-10-17T10:00:00Z')), 'mur-led-materiel-presta-a-2026-10-17.txt');
+    },
+  },
 ];
 
 // Distribution (12a) : variante conseillée du câblage élec d'un mur, avec son calcul Élec.

@@ -2829,9 +2829,9 @@ export const NAVIGATEUR = [
         const dansMenu = (b, texte) => menuDe(b).find((x) => texteDe(x) === texte);
         v.egal('carte d\'un mur : appui sur la carte (sauf le mur ouvert) et bouton « ⋯ »', murs.map((m) => [Boolean(m.querySelector('.pr-mur-ouvrir')), m.querySelector('.pr-menu-bouton')?.getAttribute('aria-label')]),
           [[false, 'Actions de Mur 1'], [true, `Actions de ${murLong}`]]);
-        v.egal('menu d\'un mur', murs.map((m) => menuDe(m.querySelector('.pr-menu-bouton')).map(texteDe)), [['Renommer', 'Dupliquer', 'Supprimer'], ['Renommer', 'Dupliquer', 'Supprimer']]);
+        v.egal('menu d\'un mur', murs.map((m) => menuDe(m.querySelector('.pr-menu-bouton')).map(texteDe)), [['Matériel', 'Renommer', 'Dupliquer', 'Supprimer'], ['Matériel', 'Renommer', 'Dupliquer', 'Supprimer']]);
         const plus = [...racine.querySelectorAll('.pr-actions-presta button')].find((x) => texteDe(x) === 'Plus');
-        v.egal('boutons de la presta', [...racine.querySelectorAll('.pr-actions-presta button')].map(texteDe), ['Ajouter un mur', 'Exporter', 'Plus']);
+        v.egal('boutons de la presta', [...racine.querySelectorAll('.pr-actions-presta button')].map(texteDe), ['Ajouter un mur', 'Matériel', 'Exporter', 'Plus']);
         v.egal('menu « Plus » de la presta', menuDe(plus).map(texteDe), ['Modifier', 'Dupliquer', 'Archiver', 'Supprimer la presta']);
         plus.click();
         v.egal('autres prestas, la dernière modifiée en tête, avec le nombre de murs', [...racine.querySelectorAll('.pr-autres .pr-presta')].map((p) => [texteDe(p.querySelector('.pr-nom')), texteDe(p.querySelector('.pr-infos'))]),
@@ -3658,6 +3658,156 @@ export const NAVIGATEUR = [
         v.egal('sans boîtier : ni cadre, ni câble P17, chemin des câbles de tête gardé', [sans.querySelectorAll('g.boitier').length, sans.querySelectorAll('.cable-p17').length, sans.querySelectorAll('.chemin-tete').length], [0, 0, 1]);
       } finally {
         sans.remove();
+      }
+    },
+  },
+  {
+    id: 'N81',
+    titre: 'Écran Matériel d\'un mur (13b) : presta et mur en tête, rappel « Liste indicative… », spare de la presta réglable (erreur affichée, valeur remise), une section par famille de matériel dans l\'ordre (Dalles, Data, Élec, Accroche, Flight cases), chaque ligne avec sa quantité, sa désignation, sa longueur et son détail, notes, poids transporté ; liste calculée avec un autre spare signalée ; mur jamais ouvert : « Ouvre ce mur une fois pour compter son matériel. » et « Ouvrir ce mur » ; cibles de 48 px, rien ne dépasse à 375 px',
+    etape: '13b',
+    async verifier(v, contexte) {
+      const em = await moduleAppli(v, '../src/ecran-materiel.js');
+      if (!em) return;
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), { frequenceHz: 60, bits: 8 });
+      const t = calculs.cablageData(m, DALLE_CAS_13, e, { depart: 'haut-gauche', distanceRegieM: 20 });
+      const liste = calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, data: { evaluation: e, variante: t.variantes.find((x) => x.mode === t.conseil), distanceRegieM: 20 } });
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px', class: 'pr mat', 'data-famille': 'presta' });
+      document.body.append(racine);
+      const appels = [];
+      let refuser = false;
+      const actions = {
+        reglerSpares: async (id, valeur) => {
+          appels.push(['spares', id, valeur]);
+          if (refuser) throw new Error('Spare : un pourcentage de 0 à 100.');
+        },
+        ouvrirMur: async (id, murId) => appels.push(['ouvrir', id, murId]),
+      };
+      const texte = (x) => (x?.textContent ?? '').replace(/\s+/g, ' ').trim();
+      try {
+        const ecran = em.monterMateriel(racine, { actions });
+        const presta = { id: 'p1', nom: 'Presta A' };
+        const mur = { id: 'm1', nom: 'Mur 1' };
+        ecran.afficherMur({ presta, mur, gardee: { liste, calculeeLe: '2026-10-17T08:00:00Z' }, ouvert: true, pourcent: 5 });
+        v.egal('presta et mur en tête', [texte(racine.querySelector('.pr-sur-titre')), texte(racine.querySelector('.mat-nom-mur'))], ['Presta A', 'Mur 1']);
+        v.vrai('rappel indicatif', texte(racine).includes('Liste indicative, à vérifier avant le chargement.'));
+        v.egal('sections dans l\'ordre', [...racine.querySelectorAll('.mat-titre')].map(texte), ['Dalles', 'Data', 'Élec', 'Accroche', 'Flight cases', 'Poids transporté']);
+        const lignes = [...racine.querySelectorAll('.mat-ligne')].map((l) => `${texte(l.querySelector('.mat-qte'))} ${texte(l.querySelector('.mat-nom'))}`);
+        v.vrai('lignes : quantité, désignation, longueur', lignes.includes('76 Dalle du cas 13') && lignes.includes('1 Multipaire 8 RJ45, 25 m')
+          && lignes.includes('3 Câble RJ45 au mur, du multipaire à la dalle, 5 m') && lignes.includes('6 Cordon RJ45 côté régie, du processeur au multipaire, longueur à mesurer'), lignes.join(' / '));
+        v.vrai('détail sous la ligne', texte(racine.querySelector('.mat-ligne .mat-detail')) === '72 au mur + 4 de spare (5 %, arrondi au-dessus)', texte(racine.querySelector('.mat-ligne .mat-detail')));
+        v.vrai('notes des sections', texte(racine).includes('Élec : non calculé, ouvre l\'onglet Élec.') && texte(racine).includes('Cases de Dalle du cas 13 : à préciser dans le parc.'));
+        v.vrai('poids transporté indicatif (76 dalles × 7,5 kg)', /570 kg/.test(texte(racine)) && /indicatif/.test(texte(racine.querySelector('.mat-poids'))), texte(racine.querySelector('.mat-poids')));
+        const champ = racine.querySelector('#mat-spares');
+        champ.value = '10';
+        champ.dispatchEvent(new Event('change'));
+        await new Promise((r) => setTimeout(r, 20));
+        v.egal('spare : action appelée', appels.at(-1), ['spares', 'p1', '10']);
+        refuser = true;
+        champ.value = '200';
+        champ.dispatchEvent(new Event('change'));
+        await new Promise((r) => setTimeout(r, 20));
+        v.vrai('spare refusé : erreur affichée, valeur remise', texte(racine.querySelector('.mat-erreur')).includes('Spare : un pourcentage de 0 à 100.') && champ.value === '5');
+        const cibles = [...racine.querySelectorAll('button, input')].filter((x) => x.getBoundingClientRect().width > 0);
+        v.vrai('cibles de 48 px', cibles.every((x) => x.getBoundingClientRect().height >= 47.5), cibles.map((x) => Math.round(x.getBoundingClientRect().height)).join(', '));
+        const bord = racine.getBoundingClientRect().right;
+        v.vrai('rien ne dépasse à 375 px', [...racine.querySelectorAll('*')].every((x) => x.getBoundingClientRect().right <= bord + 0.5));
+        ecran.afficherMur({ presta, mur: { id: 'm2', nom: 'Mur 2' }, gardee: { liste, calculeeLe: '2026-10-17T08:00:00Z' }, ouvert: false, pourcent: 10 });
+        v.vrai('autre spare : liste à recalculer', texte(racine).includes('Liste calculée avec 5 % de spare : ouvre ce mur pour la recalculer à 10 %.') && /Liste calculée le 17\/10\/2026/.test(texte(racine)));
+        ecran.afficherMur({ presta, mur: { id: 'm3', nom: 'Mur 3' }, gardee: null, ouvert: false, pourcent: 5 });
+        v.vrai('mur jamais ouvert : le dire', texte(racine).includes('Ouvre ce mur une fois pour compter son matériel.'));
+        const ouvrir = [...racine.querySelectorAll('button')].find((b) => texte(b) === 'Ouvrir ce mur');
+        ouvrir?.click();
+        await new Promise((r) => setTimeout(r, 20));
+        v.egal('« Ouvrir ce mur »', appels.at(-1), ['ouvrir', 'p1', 'm3']);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N82',
+    titre: 'Écran Matériel, total de la presta (13c) : nombre de murs et lignes cochées en tête, rappel, murs sans liste, chaque ligne avec sa case à cocher (48 px) qui appelle « cocher » avec sa quantité, ligne cochée marquée ; bandeau des lignes décochées avec la raison et « Compris » ; ajouts à la main (formulaire, erreur affichée, « Retirer ») ; « Tout décocher » avec confirmation, grisé sans coche ; « Copier la liste » et « Partager » ; rien ne dépasse à 375 px',
+    etape: '13c',
+    async verifier(v) {
+      const em = await moduleAppli(v, '../src/ecran-materiel.js');
+      if (!em) return;
+      const liste = calculs.listeMateriel({ mur: calculs.mur(DALLE_CAS_13, 12, 6), dalle: DALLE_CAS_13 });
+      const total = calculs.totalMateriel([{ nom: 'Mur 1', liste }, { nom: 'Mur 2', liste: null }], { ajouts: [{ id: 'a1', libelle: 'Socapex 19 broches', quantite: 2 }] });
+      const retirerStyles = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px', class: 'pr mat', 'data-famille': 'presta' });
+      document.body.append(racine);
+      const appels = [];
+      let refuser = null;
+      const confirmations = [];
+      const action = (nom) => async (...x) => {
+        appels.push([nom, ...x]);
+        if (refuser) throw new Error(refuser);
+        return nom === 'copier' ? true : (nom === 'partager' ? 'partage' : undefined);
+      };
+      const actions = Object.fromEntries(['reglerSpares', 'ouvrirMur', 'cocher', 'toutDecocher', 'compris', 'ajouter', 'retirerAjout', 'copier', 'partager'].map((n) => [n, action(n)]));
+      const texte = (x) => (x?.textContent ?? '').replace(/\s+/g, ' ').trim();
+      const attendre = () => new Promise((r) => setTimeout(r, 20));
+      const boutonDe = (libelle) => [...racine.querySelectorAll('button')].find((b) => texte(b) === libelle);
+      try {
+        const ecran = em.monterMateriel(racine, { actions, confirmer: (t) => { confirmations.push(t); return true; } });
+        const presta = { id: 'p1', nom: 'Presta A' };
+        ecran.afficherPresta({ presta, total, coches: new Set(['dalle|fictive-cas-13']), changees: [], pourcent: 5 });
+        v.vrai('en tête : murs et lignes cochées', texte(racine.querySelector('.mat-date')) === `2 murs ; chargement : 1 ligne cochée sur ${total.sections.reduce((s, x) => s + x.lignes.length, 0)}.`, texte(racine.querySelector('.mat-date')));
+        v.vrai('rappel et mur sans liste', texte(racine).includes('Liste indicative, à vérifier avant le chargement.') && texte(racine).includes('Mur 2 : ouvre ce mur une fois pour compter son matériel.'));
+        const cases = [...racine.querySelectorAll('input.mat-case')];
+        v.egal('une case par ligne', cases.length, total.sections.reduce((s, x) => s + x.lignes.length, 0));
+        v.vrai('ligne cochée marquée', cases[0].checked && racine.querySelector('.mat-ligne').classList.contains('mat-cochee'));
+        const cible = (x) => x.closest('label').getBoundingClientRect().height;
+        v.vrai('cases de 48 px (toute la ligne)', cases.every((c) => cible(c) >= 47.5), cases.map((c) => Math.round(cible(c))).join(', '));
+        cases[1].click();
+        await attendre();
+        const l1 = total.sections.flatMap((s) => s.lignes)[1];
+        v.egal('cocher : clé et quantité', appels.at(-1), ['cocher', 'p1', l1.cle, l1.quantite]);
+        cases[0].click();
+        await attendre();
+        v.egal('décocher : quantité nulle', appels.at(-1), ['cocher', 'p1', 'dalle|fictive-cas-13', null]);
+        ecran.afficherPresta({ presta, total, coches: new Set(), changees: [{ cle: 'x', texte: 'Câble de tête RJ45, 10 m : 6 au lieu de 4, décoché' }], pourcent: 5 });
+        v.vrai('bandeau des lignes décochées', texte(racine.querySelector('.mat-bandeau')).includes('Câble de tête RJ45, 10 m : 6 au lieu de 4, décoché'));
+        boutonDe('Compris').click();
+        await attendre();
+        v.egal('« Compris »', appels.at(-1), ['compris', 'p1']);
+        v.vrai('« Tout décocher » grisé sans coche', boutonDe('Tout décocher').disabled);
+        const ajouts = racine.querySelector('[data-section="ajouts"]');
+        v.vrai('ajout à la main listé, avec « Retirer »', texte(ajouts).includes('Socapex 19 broches') && Boolean(boutonDe('Retirer')));
+        const form = ajouts.querySelector('form.mat-ajout');
+        form.elements.libelle.value = 'Harting 16';
+        form.elements.quantite.value = '3';
+        form.requestSubmit();
+        await attendre();
+        v.egal('ajouter', appels.at(-1), ['ajouter', 'p1', { libelle: 'Harting 16', quantite: '3' }]);
+        refuser = 'Quantité : un nombre entier, de 1 à 9999.';
+        form.requestSubmit();
+        await attendre();
+        v.vrai('ajout refusé : erreur affichée', texte(racine.querySelector('.mat-erreur')).includes('Quantité : un nombre entier'));
+        refuser = null;
+        boutonDe('Retirer').click();
+        await attendre();
+        v.egal('retirer', appels.at(-1), ['retirerAjout', 'p1', 'a1']);
+        ecran.afficherPresta({ presta, total, coches: new Set(['dalle|fictive-cas-13']), changees: [], pourcent: 5 });
+        boutonDe('Tout décocher').click();
+        await attendre();
+        v.vrai('« Tout décocher » : confirmation, puis action', confirmations.at(-1) === 'Décocher la ligne cochée de Presta A ?' && appels.at(-1)[0] === 'toutDecocher', confirmations.at(-1));
+        boutonDe('Copier la liste').click();
+        await attendre();
+        v.vrai('« Copier la liste »', appels.at(-1)[0] === 'copier' && texte(racine.querySelector('.mat-note-partage')) === 'Liste copiée.');
+        boutonDe('Partager').click();
+        await attendre();
+        v.egal('« Partager »', appels.at(-1), ['partager']);
+        const bord = racine.getBoundingClientRect().right;
+        v.vrai('rien ne dépasse à 375 px', [...racine.querySelectorAll('*')].every((x) => x.getBoundingClientRect().right <= bord + 0.5));
+        const petits = [...racine.querySelectorAll('button, input:not(.mat-case)')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().height < 47.5);
+        v.vrai('cibles de 48 px', petits.length === 0, petits.map((x) => texte(x) || x.name).join(', '));
+      } finally {
+        racine.remove();
+        retirerStyles();
       }
     },
   },

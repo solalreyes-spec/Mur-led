@@ -5,10 +5,13 @@
 // État : { index, murs }
 //   index : { version, ouverte: { presta, mur }, prestas: [{ id, nom, debut, fin, lieu, notes, creeeLe, modifieeLe,
 //             exporteeLe, archivee, murs: [{ id, nom }] }] }
-//   murs : { [id du mur]: { version, parc, configuration, montage } }, une clé de stockage par mur.
+//   murs : { [id du mur]: { version, parc, configuration, montage, materiel } }, une clé de stockage par mur ;
+//   `materiel` (étape 13b) : { liste, calculeeLe }, la liste de matériel du mur, jamais exportée. Presta : `materiel`
+//   { sparesPourcent, coches { [clé]: quantité cochée }, ajouts [{ id, libelle, quantite }] } facultatif (13c), jamais
+//   exporté.
 // `configuration` a la forme des saisies gardées (configuration.js) ; null : réglages par défaut.
 
-import { ErreurSaisie } from './calculs.js';
+import { ErreurSaisie, libelleLigne } from './calculs.js';
 import { enregistrerFiche, fusionner, baseVide, nettoyerFiche, validerImport, fichiersJoints, tailleFichiersJoints } from './fiches.js';
 
 export const VERSION_PRESTAS = 1;
@@ -236,6 +239,114 @@ export function enregistrerMur(etat, murId, champs, opts) {
   return presta ? toucher(e, presta.id, opts) : e;
 }
 
+// Liste de matériel d'un mur (étape 13b), calculée quand il est ouvert et gardée avec lui, avec sa date. Elle ne marque
+// pas la presta modifiée (rien n'a été saisi) ; une liste identique n'est pas réécrite. Jamais dans le fichier exporté.
+export function enregistrerListeMur(etat, murId, liste, opts) {
+  const actuel = etat.murs[murId];
+  if (!actuel) throw new ErreurSaisie('Mur introuvable.');
+  if (JSON.stringify(actuel.materiel?.liste ?? null) === JSON.stringify(liste)) return etat;
+  const o = options(opts);
+  return { ...etat, murs: { ...etat.murs, [murId]: { ...actuel, materiel: { liste: copie(liste), calculeeLe: o.iso } } } };
+}
+
+export const listeGardee = (etat, murId) => etat.murs[murId]?.materiel ?? null;
+
+// Réglages de la liste de matériel gardés avec la presta : pourcentage de spare (5 % par défaut).
+export const SPARES_DEFAUT_PRESTA = 5;
+export const materielPresta = (presta) => ({ sparesPourcent: presta?.materiel?.sparesPourcent ?? SPARES_DEFAUT_PRESTA });
+export function reglerMaterielPresta(etat, prestaId, { sparesPourcent }, opts) {
+  const o = options(opts);
+  trouverPresta(etat, prestaId);
+  const n = typeof sparesPourcent === 'number' ? sparesPourcent : Number(String(sparesPourcent).replace(',', '.'));
+  if (!Number.isFinite(n) || n < 0 || n > 100 || String(sparesPourcent).trim() === '') throw new ErreurSaisie('Spare : un pourcentage de 0 à 100.');
+  return avecPresta(etat, prestaId, (p) => ({ ...p, materiel: { ...(p.materiel ?? {}), sparesPourcent: n }, modifieeLe: o.iso }));
+}
+
+// Check-list de chargement (étape 13c), gardée avec la presta : une ligne du total cochée vaut pour sa quantité.
+// Cocher ne marque pas la presta modifiée (rien n'a été saisi). `quantite` null : décochée.
+export const cochesPresta = (presta) => presta?.materiel?.coches ?? {};
+const avecMateriel = (etat, prestaId, f) => avecPresta(etat, prestaId, (p) => {
+  const materiel = f({ ...(p.materiel ?? {}) });
+  for (const cle of ['coches', 'ajouts']) {
+    if (materiel[cle] && !Object.keys(materiel[cle]).length) delete materiel[cle];
+  }
+  const copieP = { ...p, materiel };
+  if (!Object.keys(materiel).length) delete copieP.materiel;
+  return copieP;
+});
+export function cocherLigne(etat, prestaId, cle, quantite) {
+  trouverPresta(etat, prestaId);
+  return avecMateriel(etat, prestaId, (m) => {
+    const coches = { ...(m.coches ?? {}) };
+    if (quantite === null || quantite === undefined) delete coches[cle];
+    else coches[cle] = quantite;
+    return { ...m, coches };
+  });
+}
+export function toutDecocher(etat, prestaId) {
+  trouverPresta(etat, prestaId);
+  return avecMateriel(etat, prestaId, (m) => ({ ...m, coches: {} }));
+}
+
+// Coches face au total : lignes cochées (même quantité) ; coches dont la quantité a changé ou dont la ligne a disparu,
+// avec la raison, jamais en silence (« Câble de tête RJ45, 10 m : 6 au lieu de 4, décoché »).
+export function rapprocherCoches(presta, total) {
+  const coches = cochesPresta(presta);
+  const lignes = new Map(total.sections.flatMap((s) => s.lignes).map((l) => [l.cle, l]));
+  const cochees = new Set();
+  const changees = [];
+  for (const [cle, quantite] of Object.entries(coches)) {
+    const l = lignes.get(cle);
+    if (l && l.quantite === quantite) cochees.add(cle);
+    else if (l) changees.push({ cle, texte: `${libelleLigne(l)} : ${l.quantite} au lieu de ${quantite}, décoché` });
+    else changees.push({ cle, texte: `${libelleDeCle(cle)} : plus dans la liste, décoché` });
+  }
+  return { cochees, changees };
+}
+// Désignation lue dans la clé d'une ligne disparue : « cable|Câble de tête RJ45|10 » → « Câble de tête RJ45, 10 m ».
+function libelleDeCle(cle) {
+  const [sorte, nom, longueur] = cle.split('|');
+  if (sorte === 'cable') return libelleLigne({ designation: nom, longueurM: Number(longueur) || null, aMesurer: longueur === 'a-mesurer' });
+  return nom ?? cle;
+}
+// « Compris » : les coches changées sont oubliées, les autres restent.
+export function oublierCochesChangees(etat, prestaId, total) {
+  const p = trouverPresta(etat, prestaId);
+  const { changees } = rapprocherCoches(p, total);
+  if (!changees.length) return etat;
+  return avecMateriel(etat, prestaId, (m) => {
+    const coches = { ...(m.coches ?? {}) };
+    for (const c of changees) delete coches[c.cle];
+    return { ...m, coches };
+  });
+}
+
+// Ajouts à la main (Socapex, Harting, rallonges, gaffer…), gardés avec la presta.
+export const LIMITE_AJOUT = 80;
+export const ajoutsPresta = (presta) => presta?.materiel?.ajouts ?? [];
+export function ajouterAjout(etat, prestaId, { libelle, quantite }, opts) {
+  const o = options(opts);
+  const p = trouverPresta(etat, prestaId);
+  const l = String(libelle ?? '').trim().replace(/\s+/g, ' ');
+  if (!l) throw new ErreurSaisie('Donne le nom du matériel ajouté.');
+  if (l.length > LIMITE_AJOUT) throw new ErreurSaisie(`Nom du matériel ajouté trop long : ${LIMITE_AJOUT} caractères au plus.`);
+  const q = typeof quantite === 'number' ? quantite : Number(String(quantite ?? '').trim().replace(',', '.'));
+  if (!Number.isInteger(q) || q < 1 || q > 9999) throw new ErreurSaisie('Quantité : un nombre entier, de 1 à 9999.');
+  const id = nouvelId('a', o.alea, new Set(ajoutsPresta(p).map((x) => x.id)));
+  const e = avecMateriel(etat, prestaId, (m) => ({ ...m, ajouts: [...(m.ajouts ?? []), { id, libelle: l, quantite: q }] }));
+  return toucher(e, prestaId, opts);
+}
+export function retirerAjout(etat, prestaId, ajoutId, opts) {
+  trouverPresta(etat, prestaId);
+  const e = avecMateriel(etat, prestaId, (m) => {
+    const ajouts = (m.ajouts ?? []).filter((x) => x.id !== ajoutId);
+    const copieM = { ...m, ajouts };
+    if (!ajouts.length) delete copieM.ajouts;
+    return copieM;
+  });
+  return toucher(e, prestaId, opts);
+}
+
 // Copie d'un mur, ouverte : mêmes saisies et même parc, suivi de montage vide.
 export function dupliquerMur(etat, prestaId, murId, opts) {
   const o = options(opts);
@@ -390,6 +501,9 @@ export function exporterPresta(etat, prestaId, base, opts = {}) {
   };
   return { donnees, etat: avecPresta(etat, prestaId, (x) => ({ ...x, exporteeLe: o.iso })) };
 }
+
+// Liste de matériel partagée : « mur-led-materiel-<nom simplifié>-<AAAA-MM-JJ>.txt ».
+export const nomFichierMateriel = (nom, maintenant = new Date()) => nomFichierPresta(nom, maintenant).replace(/^mur-led-presta-/, 'mur-led-materiel-').replace(/\.json$/, '.txt');
 
 // « mur-led-presta-<nom simplifié>-<AAAA-MM-JJ>.json ».
 export function nomFichierPresta(nom, maintenant = new Date()) {

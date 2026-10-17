@@ -1166,6 +1166,7 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .bouton[data-icone="enregistrer"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E"); }
 .bouton[data-icone="fermer"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E"); }
 .bouton[data-icone="menu"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Ccircle cx='5' cy='12' r='2'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='19' cy='12' r='2'/%3E%3C/svg%3E"); }
+.bouton[data-icone="liste"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6l1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17M10 6h11M10 12h11M10 18h11'/%3E%3C/svg%3E"); }
 .bouton[data-icone="revenir"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9h11a5 5 0 0 1 0 10H8'/%3E%3Cpath d='M8 5 4 9l4 4'/%3E%3C/svg%3E"); }
 .bouton[data-icone="cadrer"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'/%3E%3C/svg%3E"); }
 .bouton-principal { background: var(--famille); border-color: var(--famille); color: var(--sur-famille); }
@@ -1465,3 +1466,33 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 /* Écran Prestas : mini-aperçu de chaque mur, à gauche de son nom. */
 .pr-mur-textes { flex: 1 1 auto; }
 .pr-vignette { flex: none; display: block; width: min(44px, calc(28px * var(--rapport))); aspect-ratio: var(--rapport); border: 1.5px solid var(--famille); border-radius: 3px; background: var(--famille-bord); }
+
+/* Liste de matériel (étape 13b) : écran plein « Matériel » au-dessus de Prestas, une section par famille de matériel,
+   une ligne par matériel (quantité en chasse fixe, désignation, détail), texte qui passe à la ligne. */
+.materiel { z-index: 60; }
+.mat-tete { display: grid; gap: 4px; }
+.mat-nom-mur { font-size: 1.375rem; }
+.mat-date, .mat-note, .mat-detail { color: var(--texte-doux); font-size: 0.9rem; overflow-wrap: anywhere; }
+.mat-section { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--bordure); border-top-color: var(--lisere); border-radius: 14px; background: var(--surface); min-width: 0; }
+.mat-titre { margin: 0; font-size: 0.95rem; font-weight: 700; font-variant-caps: all-small-caps; letter-spacing: 0.06em; color: var(--famille); }
+.mat-ligne { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); gap: 10px; align-items: baseline; min-height: var(--cible); padding: 6px 0; border-top: 1px solid var(--bordure); }
+.mat-ligne:first-child { border-top: 0; }
+.mat-qte { font-size: 1.15rem; font-weight: 700; text-align: right; }
+.mat-texte { display: grid; gap: 2px; min-width: 0; }
+.mat-nom { font-weight: 600; overflow-wrap: anywhere; }
+.mat-poids { display: grid; gap: 2px; }
+.mat-poids .chiffres { font-size: 1.15rem; font-weight: 700; }
+.mat-spares { display: grid; gap: 6px; }
+.mat-spares input { max-width: 8rem; }
+.mat .chiffres { font-family: var(--police-chiffres); }
+/* Check-list de chargement (étape 13c) : toute la ligne est la zone à toucher de sa case (48 px, 60 en grand affichage). */
+.mat-ligne-coche { grid-template-columns: minmax(0, 1fr) auto; padding: 0; }
+.mat-coche { display: grid; grid-template-columns: 28px 3rem minmax(0, 1fr); gap: 10px; align-items: center; min-height: var(--cible); padding: 6px 0; cursor: pointer; }
+.mat-case { width: 24px; height: 24px; margin: 0; accent-color: var(--famille); }
+.mat-cochee .mat-nom, .mat-cochee .mat-qte { color: var(--texte-doux); text-decoration: line-through; }
+.mat-retirer { align-self: center; }
+.mat-bandeau { display: grid; gap: 8px; }
+.mat-ajout { display: grid; grid-template-columns: minmax(0, 1fr) 6rem; gap: 8px; align-items: end; padding-top: 8px; border-top: 1px solid var(--bordure); }
+.mat-ajout .bouton { grid-column: 1 / -1; justify-self: start; }
+.mat-partage { flex-wrap: wrap; align-items: center; }
+.pr-materiel { justify-self: stretch; }

@@ -41,7 +41,7 @@ export function remplirBoutonPresta(bouton, { presta, mur }) {
 
 // `actions` : ouvrir(prestaId, murId?), creerPresta(), modifierPresta(id, infos), ajouterMur(id), renommerMur(id, murId,
 // nom), dupliquerMur(id, murId), supprimerMur(id, murId), dupliquerPresta(id), archiverPresta(id, archivee),
-// supprimerPresta(id) ; exporter(id) (renvoie 'partage', 'annule' ou 'telechargement'), verifierImport(texte) et
+// supprimerPresta(id), materielMur(id, murId), materielPresta(id) ; exporter(id) (renvoie 'partage', 'annule' ou 'telechargement'), verifierImport(texte) et
 // importer(texte, choix) (renvoie le rapport) ; chacune peut lever une erreur, affichée dans l'écran.
 // `resumeMur(mur)` : ligne sous le nom.
 export function monterPrestas(racine, { actions, resumeMur = () => '', proportionsMur = () => null, confirmer = (texte) => window.confirm(texte) }) {
@@ -192,6 +192,7 @@ export function monterPrestas(racine, { actions, resumeMur = () => '', proportio
     const ligne = el('li', { class: 'pr-mur', 'aria-current': ouvert ? 'true' : null }, el('div', { class: 'pr-mur-carte' }, tete, plus));
     ligne.append(menu(plus,
       el('div', { class: 'pr-boutons' },
+        bouton('Matériel', () => executer(() => actions.materielMur(presta.id, mur.id)), { 'data-icone': 'liste' }),
         bouton('Renommer', () => formulaireRenommer(presta, mur, ligne), { 'data-icone': 'modifier' }),
         bouton('Dupliquer', () => executer(() => actions.dupliquerMur(presta.id, mur.id)), { 'data-icone': 'dupliquer' })),
       el('div', { class: 'pr-boutons pr-boutons-danger' },
@@ -227,6 +228,7 @@ export function monterPrestas(racine, { actions, resumeMur = () => '', proportio
       el('ul', { class: 'pr-murs', role: 'list' }, p.murs.map((m) => ligneMur(p, m))),
       el('div', { class: 'pr-actions-presta' },
         bouton('Ajouter un mur', () => executer(() => actions.ajouterMur(p.id)), { class: 'bouton pr-ajouter-mur', 'data-icone': 'ajouter' }),
+        bouton('Matériel', () => executer(() => actions.materielPresta(p.id)), { class: 'bouton pr-materiel', 'data-icone': 'liste' }),
         el('div', { class: 'pr-export-bloc' },
           bouton('Exporter', () => executer(async () => {
             const mode = await actions.exporter(p.id);

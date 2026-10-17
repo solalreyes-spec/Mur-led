@@ -19,7 +19,8 @@ const RESUMES = {
   depart: resumeOngletDepart,
 };
 
-async function copier(texte) {
+// Copie dans le presse-papiers (aussi pour la liste de matériel) ; renvoie true si le texte est parti.
+export async function copier(texte) {
   try {
     await navigator.clipboard.writeText(texte);
     return true;

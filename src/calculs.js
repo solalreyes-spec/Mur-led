@@ -6,7 +6,7 @@
 // Point d'entrée : le code est réparti en modules par domaine dans src/calculs/ (étape 10a). Ce fichier réexporte
 // tout ce que les écrans et les tests utilisent. Couches, de la plus basse à la plus haute : commun, valeurs-sourcees,
 // mur, morceaux, forme-reelle, mur-zones, capacites, ports, decoupage, processeur, elec, poids, pixel-map, cablage,
-// distribution, canvas, regies. Un module n'importe que des couches plus basses et ne lit au chargement aucune valeur
+// distribution, materiel, canvas, regies. Un module n'importe que des couches plus basses et ne lit au chargement aucune valeur
 // d'un autre module, sauf de commun.js : pas d'import circulaire.
 
 export { ErreurSaisie, COINS, LIBELLES_COIN } from './calculs/commun.js';
@@ -29,6 +29,8 @@ export { SURFACE_MAX_IMAGE, idDalle, idDalleZone, dallesDuMur, pixelMap, positio
   texteCSV, texteOBJ, pixelMapPliee, dalleTournee, tuilesImage, motifPixelMap } from './calculs/pixel-map.js';
 export { MARGE_MOU_DEFAUT, coinDepart, MENTION_AU_PLUS_JUSTE, cablageData, cablageElec } from './calculs/cablage.js';
 export { SEUIL_BOITIERS_M, PRISES_BOITIER_DEFAUT, PRISES_BOITIER, distributionElec } from './calculs/distribution.js';
+export { SPARES_POURCENT_DEFAUT, SEUIL_MULTIPAIRE_M, CABLES_PAR_MULTIPAIRE, LONGUEURS_STOCK, RAPPEL_LISTE, RAPPEL_RIGGER, spares,
+  longueurStock, grouperLongueurs, texteLongueurs, listeMateriel, libelleLigne, totalMateriel } from './calculs/materiel.js';
 export { RESOLUTIONS_STANDARD, frequencePixel, controleLiaison, controleEntree, controleSource, meilleureEntree,
   sourceConseillee, plierBloc, pliageSortie, pliagePropose } from './calculs/canvas.js';
 export { modesSortieRegie, budgetRegie, uniteCouche, sortiesTypesRegie, champsManquantsRegie, controleRegie,

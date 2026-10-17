@@ -1,7 +1,7 @@
 // Onglet Base : ma base locale (fiches ajoutées, versions modifiées, parcs), saisie guidée ou JSON vérifié,
 // consigne pour Claude, export et import. Aucune règle de validation ici : tout passe par fiches.js.
 
-import { resoudreFiche, ErreurSaisie } from './calculs.js';
+import { resoudreFiche, ErreurSaisie, LONGUEURS_STOCK } from './calculs.js';
 import {
   TYPES, LIBELLES_TYPE, CHAMPS, CONFIANCES, TYPES_VALEUR, libelleChamp, champsManquantsFiche, validerImport, importer,
   supprimerFiche, exporter, creerParc, renommerParc, supprimerParc, estMembre, basculerMembre,
@@ -10,6 +10,7 @@ import {
   supprimerLot, reglerConfigLot, configLot, supprimerConfigLot, verifierFichierJoint, joindreFichier, detacherFichier,
   fichiersJoints, tailleFichiersJoints, alerteTailleFichier, migrerFichiersConfig, logicielDuProcesseur, reglerLogicielParc,
   logicielParc, fichesRetirees, retirerFicheRetiree, arbreDalles,
+  FAMILLES_LONGUEURS, LIBELLES_LONGUEURS, reglerLongueursParc, reglerCaseParc,
 } from './fiches.js';
 import { stockageDisponible, ecrireFichier, lireFichier, supprimerFichier, listerFichiers } from './stockage.js';
 import { choixPartageFichier, partagerFichier, telecharger, NOTE_TELECHARGEMENT_CONFIG } from './export.js';
@@ -199,8 +200,70 @@ function afficherParcs() {
       return el('li', {}, champ,
         el('span', { class: 'compte' }, `${compterMembres(parc)}${parc.id === parcActif ? ' · parc actif' : ''}`),
         bits,
+        longueursParc(parc),
         bouton);
     }));
+}
+
+// Longueurs du stock de ce prestataire, par famille de câble (liste de matériel, étape 13b) ; vide = longueurs par défaut.
+function longueursParc(parc) {
+  const cle = `longueurs:${parc.id}`;
+  const erreur = el('div', { 'aria-live': 'polite' });
+  const champs = FAMILLES_LONGUEURS.map((famille) => {
+    const id = `longueurs-${parc.id}-${famille}`;
+    const champ = el('input', {
+      id, type: 'text', inputmode: 'decimal', autocomplete: 'off', value: parc.longueurs?.[famille]?.map((x) => nombreCourt(x)).join(', ') ?? null,
+      placeholder: `défaut : ${LONGUEURS_STOCK[famille].join(', ')}`,
+    });
+    champ.addEventListener('change', () => {
+      remplacer(erreur);
+      try {
+        enregistrer(reglerLongueursParc(ctx.base, parc.id, famille, champ.value));
+      } catch (e) {
+        if (!(e instanceof ErreurSaisie)) throw e;
+        remplacer(erreur, el('div', { class: 'alerte alerte-erreur', role: 'alert' }, e.message));
+      }
+    });
+    return el('div', { class: 'champ' }, el('label', { for: id }, `${LIBELLES_LONGUEURS[famille]} (m)`), champ);
+  });
+  const details = el('details', { class: 'longueurs-parc', open: ouvertes.has(cle) ? '' : null },
+    el('summary', {}, 'Longueurs du stock (liste de matériel)'),
+    el('p', { class: 'compte' }, 'Longueurs de câble de ce parc, en mètres, séparées par des virgules. Vide : longueurs par défaut.'),
+    champs, erreur);
+  details.addEventListener('toggle', () => (details.open ? ouvertes.add(cle) : ouvertes.delete(cle)));
+  return details;
+}
+
+// Flight case de cette dalle chez ce prestataire (liste de matériel, étape 13b), tous les champs facultatifs.
+const CHAMPS_FORMULAIRE_CASE = [
+  ['dallesParCase', 'Dalles par case', 'numeric'], ['demiParCase', 'Demi-dalles par case (si leur case est à part)', 'numeric'],
+  ['poidsCaseKg', 'Poids du case vide (kg)', 'decimal'], ['largeurCm', 'Largeur du case (cm)', 'decimal'],
+  ['profondeurCm', 'Profondeur du case (cm)', 'decimal'], ['hauteurCm', 'Hauteur du case (cm)', 'decimal'],
+];
+function formulaireCase(parc, brute) {
+  const actuel = parc.cases?.[brute.id] ?? {};
+  const valeurs = { ...actuel, largeurCm: actuel.dimensionsCm?.largeur, profondeurCm: actuel.dimensionsCm?.profondeur, hauteurCm: actuel.dimensionsCm?.hauteur };
+  const erreur = el('div', { 'aria-live': 'polite' });
+  const formulaire = el('form', { class: 'formulaire case-parc', novalidate: '' },
+    el('p', { class: 'compte' }, 'Flight case de cette dalle dans ce parc, pour la liste de matériel. Tout est facultatif.'),
+    CHAMPS_FORMULAIRE_CASE.map(([nom, libelle, mode]) => {
+      const id = `case-${parc.id}-${brute.id}-${nom}`;
+      return el('div', { class: 'champ' }, el('label', { for: id }, libelle),
+        el('input', { id, name: nom, type: 'text', inputmode: mode, autocomplete: 'off', value: valeurs[nom] === undefined || valeurs[nom] === null ? null : nombreCourt(valeurs[nom]) }));
+    }),
+    erreur,
+    el('button', { class: 'bouton', type: 'submit', 'data-icone': 'enregistrer' }, 'Enregistrer le flight case'));
+  formulaire.addEventListener('submit', (evenement) => {
+    evenement.preventDefault();
+    remplacer(erreur);
+    try {
+      enregistrer(reglerCaseParc(ctx.base, parc.id, brute.id, Object.fromEntries(new FormData(formulaire))));
+    } catch (e) {
+      if (!(e instanceof ErreurSaisie)) throw e;
+      remplacer(erreur, el('div', { class: 'alerte alerte-erreur', role: 'alert' }, e.message));
+    }
+  });
+  return formulaire;
 }
 
 // ---------------------------------------------------------------------------
@@ -609,7 +672,7 @@ function elementFiche(type, { brute, resolue }) {
     const caseParc = el('input', { type: 'checkbox', checked: membre ? '' : null });
     caseParc.addEventListener('change', () => enregistrer(basculerMembre(ctx.base, parc.id, type, brute.id)));
     return el('div', {}, el('label', { class: 'case' }, caseParc, el('span', {}, parc.nom)),
-      type === 'dalle' && membre ? [formulaireReglage(parc, brute, resolue), sectionLots(parc, brute, resolue)] : null,
+      type === 'dalle' && membre ? [formulaireReglage(parc, brute, resolue), formulaireCase(parc, brute), sectionLots(parc, brute, resolue)] : null,
       type === 'processeur' && membre ? formulaireLogiciel(parc, brute, resolue) : null);
   });
 

@@ -1,8 +1,8 @@
 // Point d'entrée de l'appli : charge la base de départ et ma base locale, lance les onglets et gère la navigation.
 
-import { resoudreFiche } from './calculs.js';
+import { resoudreFiche, listeMateriel, totalMateriel, ErreurSaisie } from './calculs.js';
 import { el, remplacer } from './dom.js';
-import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig } from './fiches.js';
+import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc } from './fiches.js';
 import { lire, ecrire, stockageDisponible } from './stockage.js';
 import { initialiserMur, actualiserMur, signalerErreurMur } from './ecran-mur.js';
 import { initialiserData, actualiserData, murModifie, definirDepartData, processeurRetenu } from './ecran-data.js';
@@ -10,9 +10,9 @@ import { initialiserCanvas, actualiserRegies, donneesModifiees } from './ecran-c
 import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec } from './ecran-elec.js';
 import {
   initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema,
-  cablageRetenu, sortieModifieePourSchema, definirStockageMontage, rechargerMontage,
+  cablageRetenu, sortieModifieePourSchema, definirStockageMontage, rechargerMontage, entreesMateriel,
 } from './ecran-schema.js';
-import { initialiserPoids, actualiserBumpers, murModifiePourPoids } from './ecran-poids.js';
+import { initialiserPoids, actualiserBumpers, murModifiePourPoids, poidsRetenu } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
 import {
   restaurerConfiguration, suivreConfiguration, reglagesParDefaut, definirSauvegarde, sauverMaintenant, releverDefauts, appliquerConfiguration,
@@ -20,8 +20,10 @@ import {
 import * as prestas from './prestas.js';
 import { chargerPrestas, creerEnregistreur } from './prestas-appareil.js';
 import { monterPrestas, remplirBoutonPresta, fichierExportPresta } from './ecran-prestas.js';
-import { enregistrer } from './export.js';
-import { initialiserCopie } from './copie.js';
+import { monterMateriel } from './ecran-materiel.js';
+import { enregistrer, fichierTexte } from './export.js';
+import { initialiserCopie, copier } from './copie.js';
+import { resumeMateriel } from './resumes.js';
 import { monterDepannage, marqueDuProcesseur } from './ecran-depannage.js';
 import { monterMireFiche } from './ecran-mire.js';
 import { monterPourquoi, relierPourquoi } from './pourquoi.js';
@@ -550,10 +552,36 @@ async function ouvrirMurCourant() {
   await rechargerMontage();
   alertesMurOuvert();
 }
+// Liste de matériel du mur ouvert (étape 13b) : calculée sur les résultats affichés (Mur, Data, câblage retenu du
+// Schéma, distribution d'Élec, Poids) et gardée avec lui. Calculée à l'ouverture de Prestas ou de Matériel et avant de
+// changer de mur, jamais pendant la frappe. Mur invalide : rien de changé.
+function garderListeMurOuvert() {
+  const mur = prestas.murOuvert(etatPrestas);
+  if (!mur) return;
+  let liste = null;
+  try {
+    const entrees = entreesMateriel();
+    if (entrees) {
+      liste = listeMateriel({
+        ...entrees, poids: poidsRetenu(), parc: materielParc(base, parcActif),
+        sparesPourcent: prestas.materielPresta(prestas.prestaOuverte(etatPrestas)).sparesPourcent,
+      });
+    }
+  } catch (erreur) {
+    if (!(erreur instanceof ErreurSaisie)) throw erreur;
+  }
+  if (!liste) return;
+  const apres = prestas.enregistrerListeMur(etatPrestas, mur.id, liste);
+  if (apres !== etatPrestas) {
+    etatPrestas = apres;
+    enregistrerPrestas(etatPrestas);
+  }
+}
 // Opération sur les prestas (prestas.js) : les saisies en attente vont d'abord au mur ouvert ; une erreur de saisie
 // remonte à l'écran Prestas, qui l'affiche.
 async function operationPrestas(calcul) {
   sauverMaintenant();
+  garderListeMurOuvert();
   const avant = etatPrestas;
   etatPrestas = calcul(avant);
   enregistrerPrestas(etatPrestas);
@@ -569,6 +597,7 @@ function fermerPrestas() {
 }
 function ouvrirPrestas() {
   sauverMaintenant();
+  garderListeMurOuvert();
   ecranPrestas.afficher(etatPrestas, { persistant, ouverture: true });
   panneauPrestas.hidden = false;
   document.body.classList.add('montage-ouvert');
@@ -595,6 +624,8 @@ ecranPrestas = monterPrestas(document.getElementById('ecran-prestas'), {
     dupliquerPresta: (id) => operationPrestas((e) => prestas.dupliquerPresta(e, id)),
     archiverPresta: (id, archivee) => operationPrestas((e) => prestas.archiverPresta(e, id, archivee)),
     supprimerPresta: (id) => operationPrestas((e) => prestas.supprimerPresta(e, id)),
+    materielMur: async (id, murId) => ouvrirMateriel(id, murId),
+    materielPresta: async (id) => ouvrirMateriel(id, null),
     // Export : feuille de partage ou téléchargement, sans attente avant (Safari n'ouvre la feuille qu'en réponse
     // directe à un appui) ; la date d'export n'est gardée que si le fichier est parti.
     exporter: async (id) => {
@@ -620,6 +651,100 @@ ecranPrestas = monterPrestas(document.getElementById('ecran-prestas'), {
     },
   },
 });
+// Écran Matériel (étape 13b) : au-dessus de Prestas, qui reste ouvert dessous ; « Fermer » ou Échap y revient.
+const panneauMateriel = document.getElementById('materiel');
+let vueMateriel = null;
+// Total de la presta (étape 13c) : les listes gardées de ses murs, ses ajouts à la main.
+const totalDe = (presta) => totalMateriel(presta.murs.map((m) => ({ nom: m.nom, liste: prestas.listeGardee(etatPrestas, m.id)?.liste ?? null })),
+  { ajouts: prestas.ajoutsPresta(presta) });
+// Ce que montre l'écran Matériel : un mur, ou le total de la presta (murId null), et son texte copié.
+function contenuMateriel() {
+  const presta = etatPrestas.index.prestas.find((p) => p.id === vueMateriel?.prestaId);
+  if (!presta) return null;
+  const pourcent = prestas.materielPresta(presta).sparesPourcent;
+  if (vueMateriel.murId === null) {
+    const total = totalDe(presta);
+    const { cochees, changees } = prestas.rapprocherCoches(presta, total);
+    return {
+      presta, total, coches: cochees, changees, pourcent,
+      texte: () => resumeMateriel({ titre: `${presta.nom}, total de ${presta.murs.length > 1 ? `${presta.murs.length} murs` : '1 mur'}`, total, sparesPourcent: pourcent, coches: cochees }),
+    };
+  }
+  const mur = presta.murs.find((m) => m.id === vueMateriel.murId);
+  if (!mur) return null;
+  const gardee = prestas.listeGardee(etatPrestas, mur.id);
+  return {
+    presta, mur, gardee, pourcent, ouvert: etatPrestas.index.ouverte?.mur === mur.id,
+    texte: () => (gardee ? resumeMateriel({ titre: `${presta.nom} · ${mur.nom}`, liste: gardee.liste, sparesPourcent: pourcent }) : ''),
+  };
+}
+function afficherMateriel() {
+  if (!vueMateriel) return;
+  const c = contenuMateriel();
+  if (!c) {
+    fermerMateriel();
+    return;
+  }
+  if (c.total) ecranMateriel.afficherPresta(c);
+  else ecranMateriel.afficherMur(c);
+}
+// Check-list et ajouts : enregistrés tout de suite, l'écran Prestas suit.
+function majMateriel(calcul) {
+  etatPrestas = calcul(etatPrestas);
+  enregistrerPrestas(etatPrestas);
+  ecranPrestas?.afficher(etatPrestas, { persistant });
+  afficherMateriel();
+}
+function ouvrirMateriel(prestaId, murId = null) {
+  sauverMaintenant();
+  const ouverte = etatPrestas.index.ouverte;
+  if (ouverte?.mur === murId || (murId === null && ouverte?.presta === prestaId)) garderListeMurOuvert();
+  vueMateriel = { prestaId, murId };
+  afficherMateriel();
+  panneauMateriel.hidden = false;
+  document.body.classList.add('montage-ouvert');
+  document.getElementById('ecran-materiel').scrollTop = 0;
+}
+function fermerMateriel() {
+  if (panneauMateriel.hidden) return false;
+  panneauMateriel.hidden = true;
+  vueMateriel = null;
+  if (panneauPrestas.hidden) document.body.classList.remove('montage-ouvert');
+  return true;
+}
+const ecranMateriel = monterMateriel(document.getElementById('ecran-materiel'), {
+  actions: {
+    reglerSpares: async (prestaId, valeur) => {
+      await operationPrestas((e) => prestas.reglerMaterielPresta(e, prestaId, { sparesPourcent: valeur }));
+      if (etatPrestas.index.ouverte?.presta === prestaId) garderListeMurOuvert();
+      afficherMateriel();
+    },
+    ouvrirMur: async (prestaId, murId) => {
+      await operationPrestas((e) => prestas.ouvrir(e, prestaId, murId));
+      garderListeMurOuvert();
+      afficherMateriel();
+    },
+    cocher: async (prestaId, cle, quantite) => majMateriel((e) => prestas.cocherLigne(e, prestaId, cle, quantite)),
+    toutDecocher: async (prestaId) => majMateriel((e) => prestas.toutDecocher(e, prestaId)),
+    compris: async (prestaId) => majMateriel((e) => prestas.oublierCochesChangees(e, prestaId, totalDe(e.index.prestas.find((p) => p.id === prestaId)))),
+    ajouter: async (prestaId, ajout) => majMateriel((e) => prestas.ajouterAjout(e, prestaId, ajout)),
+    retirerAjout: async (prestaId, id) => majMateriel((e) => prestas.retirerAjout(e, prestaId, id)),
+    copier: async () => copier(contenuMateriel()?.texte() ?? ''),
+    // Partage : feuille de partage ou téléchargement, sans attente avant (Safari n'ouvre la feuille qu'en réponse directe
+    // à un appui).
+    partager: async () => {
+      const c = contenuMateriel();
+      const nom = prestas.nomFichierMateriel(c.mur ? `${c.presta.nom} ${c.mur.nom}` : c.presta.nom);
+      return enregistrer(fichierTexte(c.texte(), nom, 'text/plain'), nom);
+    },
+  },
+});
+document.getElementById('materiel-fermer').addEventListener('click', fermerMateriel);
+// Échap ferme d'abord Matériel, sans fermer Prestas dessous.
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && fermerMateriel()) e.stopPropagation();
+}, true);
+window.addEventListener('hashchange', fermerMateriel);
 boutonPresta.addEventListener('click', ouvrirPrestas);
 document.getElementById('prestas-fermer').addEventListener('click', fermerPrestas);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerPrestas(); });

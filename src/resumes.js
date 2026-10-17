@@ -2,7 +2,7 @@
 // sans tirets de liste ni tirets longs (le texte part chez des chefs de projet). Fonctions pures :
 // elles mettent en forme les résultats de calculs.js, sans rien recalculer.
 
-import { pitchCalculeMm, entierInferieur, LIBELLES_COIN, formeReelle, aFormeReelle } from './calculs.js';
+import { pitchCalculeMm, entierInferieur, LIBELLES_COIN, formeReelle, aFormeReelle, libelleLigne } from './calculs.js';
 import { nombre, nombreCourt, sourceCourte, mentionType } from './format.js';
 import { portsEnCouleurs, stylesLignes } from './couleurs.js';
 
@@ -668,4 +668,37 @@ export function resumeAvantDePartir(liste) {
 export function toutResumer(resumes, date = new Date(), lignePresta = null) {
   const jour = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
   return [`Mur LED, calcul du ${jour}${lignePresta ? `\n${lignePresta}` : ''}`, ...resumes.filter(Boolean)].join('\n\n');
+}
+
+// Liste de matériel (étape 13c) d'un mur (`liste`) ou de la presta (`total`), en texte simple : marquée indicative,
+// spare, longueurs du stock et cases avec leur origine, une ligne par matériel (« , chargé » si elle est cochée),
+// notes, poids transporté ; pour le total, le compte des lignes cochées.
+const NOMS_FAMILLES = { data: 'Câbles RJ45', multipaire: 'Multipaires', fibre: 'Fibres', p16: 'Câbles 16 A', p17: 'Câbles P17' };
+function texteOrigineStock(origines) {
+  const parcs = origines.filter((o) => o.parc);
+  if (!parcs.length) return 'par défaut';
+  return parcs.map((o) => `${o.parc} (${o.familles.map((f) => NOMS_FAMILLES[f] ?? f).join(', ')})`)
+    .filter((x, i, tous) => tous.indexOf(x) === i).join(' ; ') + ', par défaut pour les autres';
+}
+export function resumeMateriel({ titre, liste = null, total = null, sparesPourcent, coches = null }) {
+  const source = total ?? liste;
+  const lignes = ['MATÉRIEL', titre, source.rappel, `Spare des dalles : ${nombreCourt(sparesPourcent)} % par fiche, arrondi au-dessus, au moins 1`,
+    `Longueurs du stock : ${texteOrigineStock(total ? total.origineStock : [liste.origineStock].filter(Boolean))}`];
+  if (total) lignes.push(...total.notes);
+  for (const s of source.sections) {
+    if (!s.lignes.length && !s.notes.length) continue;
+    lignes.push(s.titre.toUpperCase());
+    for (const l of s.lignes) {
+      lignes.push(`${nombreCourt(l.quantite)} × ${libelleLigne(l)}${l.detail ? ` : ${l.detail}` : ''}${coches?.has(l.cle) ? ', chargé' : ''}`);
+    }
+    lignes.push(...s.notes.map((n) => `Note : ${n}`));
+  }
+  const p = source.poidsTransporte;
+  lignes.push('POIDS TRANSPORTÉ', p.kg === null ? `Non calculé (poids de dalle absent) ; ${p.nonCompte}` : `${nombreCourt(p.kg, 1)} kg, indicatif ; ${p.nonCompte}`);
+  if (total) {
+    const n = source.sections.reduce((s, x) => s + x.lignes.length, 0);
+    const c = source.sections.reduce((s, x) => s + x.lignes.filter((l) => coches?.has(l.cle)).length, 0);
+    lignes.push(`Chargement : ${pluriel(c, 'ligne cochée', 'lignes cochées')} sur ${nombre(n)}`);
+  }
+  return texte(lignes);
 }

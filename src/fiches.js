@@ -549,6 +549,81 @@ export function bitsReseauParc(base, parcId, famille) {
 }
 
 // ---------------------------------------------------------------------------
+// Matériel du parc (étape 13b) : longueurs du stock par famille de câble, flight case de chaque dalle
+// ---------------------------------------------------------------------------
+
+export const FAMILLES_LONGUEURS = ['data', 'multipaire', 'fibre', 'p16', 'p17'];
+export const LIBELLES_LONGUEURS = {
+  data: 'Câbles RJ45', multipaire: 'Multipaires 8 RJ45', fibre: 'Fibres', p16: 'Câbles 16 A', p17: 'Câbles P17 32 A tri',
+};
+const lireDecimal = (x) => Number(String(x).trim().replace(',', '.'));
+
+// « 1, 2, 5, 10 » ou « 1 2 5 10 » (virgule décimale permise avec un point-virgule ou des espaces) : longueurs en mètres,
+// triées, sans doublon ; vide = null (longueurs par défaut).
+export function lireLongueurs(texte) {
+  const brut = String(texte ?? '').trim();
+  if (!brut) return null;
+  const morceaux = brut.includes(';') ? brut.split(';') : brut.split(/[\s,]+/);
+  const valeurs = morceaux.map((x) => x.trim().replace(/\s*m$/i, '')).filter(Boolean).map(lireDecimal);
+  if (!valeurs.length || valeurs.some((x) => !Number.isFinite(x) || x <= 0 || x > 1000)) {
+    throw new ErreurSaisie('Longueurs du stock : des nombres de mètres, plus de 0 et 1000 au plus, séparés par des virgules (1, 2, 5, 10).');
+  }
+  return [...new Set(valeurs)].sort((a, b) => a - b);
+}
+
+// Longueurs d'une famille dans un parc ; texte vide : retour aux longueurs par défaut.
+export function reglerLongueursParc(base, parcId, famille, texte) {
+  if (!FAMILLES_LONGUEURS.includes(famille)) throw new ErreurSaisie('Famille de câble inconnue.');
+  const longueurs = lireLongueurs(texte);
+  return modifierParc(base, parcId, (p) => {
+    const toutes = { ...(p.longueurs ?? {}) };
+    if (longueurs) toutes[famille] = longueurs;
+    else delete toutes[famille];
+    const copie = { ...p, longueurs: toutes };
+    if (Object.keys(toutes).length === 0) delete copie.longueurs;
+    return copie;
+  });
+}
+
+// Flight case d'une dalle dans un parc, tous champs facultatifs : dalles et demi-dalles par case (entiers),
+// poids du case vide (kg) et dimensions (cm) ; une saisie vide disparaît.
+export const CHAMPS_CASE = ['dallesParCase', 'demiParCase', 'poidsCaseKg', 'largeurCm', 'profondeurCm', 'hauteurCm'];
+export function reglerCaseParc(base, parcId, dalleId, saisie) {
+  const lu = {};
+  for (const nom of CHAMPS_CASE) {
+    const brut = saisie?.[nom];
+    if (brut === null || brut === undefined || String(brut).trim() === '') continue;
+    const n = lireDecimal(brut);
+    const entier = nom === 'dallesParCase' || nom === 'demiParCase';
+    if (!Number.isFinite(n) || n <= 0 || (entier && !Number.isInteger(n))) {
+      throw new ErreurSaisie(entier ? 'Dalles par case : un nombre entier, 1 ou plus.' : 'Poids et dimensions du case : des nombres positifs.');
+    }
+    lu[nom] = n;
+  }
+  const reglage = {};
+  if (lu.dallesParCase) reglage.dallesParCase = lu.dallesParCase;
+  if (lu.demiParCase) reglage.demiParCase = lu.demiParCase;
+  if (lu.poidsCaseKg) reglage.poidsCaseKg = lu.poidsCaseKg;
+  if (lu.largeurCm || lu.profondeurCm || lu.hauteurCm) {
+    reglage.dimensionsCm = { largeur: lu.largeurCm ?? null, profondeur: lu.profondeurCm ?? null, hauteur: lu.hauteurCm ?? null };
+  }
+  return modifierParc(base, parcId, (p) => {
+    const cases = { ...(p.cases ?? {}) };
+    if (Object.keys(reglage).length) cases[dalleId] = reglage;
+    else delete cases[dalleId];
+    const copie = { ...p, cases };
+    if (Object.keys(cases).length === 0) delete copie.cases;
+    return copie;
+  });
+}
+
+// Ce que la liste de matériel lit du parc : nom, longueurs et cases ; null en « Tous ».
+export function materielParc(base, parcId) {
+  const parc = parcId ? base.parcs.find((p) => p.id === parcId) : null;
+  return parc ? { nom: parc.nom, longueurs: parc.longueurs ?? {}, cases: parc.cases ?? {} } : null;
+}
+
+// ---------------------------------------------------------------------------
 // Lots de fabrication, configs par logiciel, fichiers joints et logiciels des processeurs, par parc
 // ---------------------------------------------------------------------------
 
@@ -1148,6 +1223,7 @@ export function fichesRetirees(base, depart) {
       ...(parc.membres ?? []).map((m) => [m.type, m.id]),
       ...Object.keys(parc.reglages ?? {}).map((id) => ['dalle', id]),
       ...Object.keys(parc.lots ?? {}).map((id) => ['dalle', id]),
+      ...Object.keys(parc.cases ?? {}).map((id) => ['dalle', id]),
       ...Object.keys(parc.logiciels ?? {}).map((id) => ['processeur', id]),
     ];
     const vus = new Set();
@@ -1169,7 +1245,7 @@ export function fichesRetirees(base, depart) {
 export function retirerFicheRetiree(base, parcId, type, id) {
   return modifierParc(base, parcId, (p) => {
     const copie = { ...p, membres: (p.membres ?? []).filter((m) => !(m.type === type && m.id === id)) };
-    for (const cle of ['reglages', 'lots', 'logiciels']) {
+    for (const cle of ['reglages', 'lots', 'logiciels', 'cases']) {
       if (!copie[cle]?.[id]) continue;
       const reste = { ...copie[cle] };
       delete reste[id];

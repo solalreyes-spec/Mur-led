@@ -147,6 +147,11 @@ export function resumeOngletPoids() {
   return dernier ? resumePoids(dernier.r, dernier) : null;
 }
 
+// Bumpers et moteurs pour la liste de matériel (étape 13b) : dernier calcul valide, nom du bumper de la base.
+export function poidsRetenu() {
+  return dernier ? { resultat: dernier.r, bumper: dernier.bumperNom ? { nom: dernier.bumperNom } : null } : null;
+}
+
 function mettreAJour() {
   dernier = null;
   if (!etatMur) return;
@@ -172,7 +177,7 @@ function mettreAJour() {
     return;
   }
 
-  dernier = { r, dalle, mur };
+  dernier = { r, dalle, mur, bumperNom: e.bumperBase?.nom ?? null };
   const sourceDe = (f) => [...(f.sources?.poidsKg?.sources ?? []).map(sourceCourte), mentionType(f.sources?.poidsKg)].filter(Boolean).join(', ');
   const sourcePoids = sourceDe(dalle);
   const recap = el('p', { class: 'recap-mur' },

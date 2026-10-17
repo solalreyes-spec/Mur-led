@@ -487,6 +487,27 @@ export function cablageRetenu() {
   return variante ? { mur: etatData.mur, dalle: etatData.dalle, evaluation: etatData.choisie ?? null, variante, pliage: dernier.pliage ?? null } : null;
 }
 
+// Entrées de la liste de matériel (étape 13b) : le mur, le câblage data et élec retenus dans le Schéma (variantes
+// choisies), la distribution d'Élec sur la variante élec retenue, la distance régie–mur et le mou.
+export function entreesMateriel() {
+  assurerCalcul();
+  if (!etatMur?.mur || !dernier) return null;
+  const e = lireFormulaire();
+  const vd = dernier.data?.variantes.find((x) => x.mode === dernier.modeData) ?? null;
+  const ve = dernier.elec?.variantes.find((x) => x.mode === dernier.modeElec) ?? null;
+  const reglagesElec = etatElec?.distribution;
+  const prises = reglagesElec?.choix === 'materiel' ? Number(reglagesElec.materiel?.prisesParBoitier) : NaN;
+  return {
+    mur: etatMur.mur,
+    dalle: etatMur.dalle,
+    data: etatData?.choisie ? { evaluation: etatData.choisie, variante: vd, distanceRegieM: e.distanceRegieM, margeMou: e.margeMou } : null,
+    elec: ve ? {
+      variante: ve, distribution: dernier.distribution ?? null, departA: etatElec?.r?.reglages?.departA ?? null,
+      prisesParBoitier: Number.isFinite(prises) && prises > 0 ? prises : null,
+    } : null,
+  };
+}
+
 export function resumeOngletSchema() {
   assurerCalcul();
   if (!dernier) return null;
