@@ -1166,6 +1166,8 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .bouton[data-icone="enregistrer"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E"); }
 .bouton[data-icone="fermer"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E"); }
 .bouton[data-icone="menu"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Ccircle cx='5' cy='12' r='2'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='19' cy='12' r='2'/%3E%3C/svg%3E"); }
+.bouton[data-icone="fiche"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h6'/%3E%3C/svg%3E"); }
+.bouton[data-icone="imprimer"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z'/%3E%3C/svg%3E"); }
 .bouton[data-icone="liste"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6l1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17M10 6h11M10 12h11M10 18h11'/%3E%3C/svg%3E"); }
 .bouton[data-icone="revenir"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9h11a5 5 0 0 1 0 10H8'/%3E%3Cpath d='M8 5 4 9l4 4'/%3E%3C/svg%3E"); }
 .bouton[data-icone="cadrer"] { --icone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'/%3E%3C/svg%3E"); }
@@ -1358,6 +1360,12 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .pr-champ { display: grid; gap: 4px; min-width: 0; }
 .pr-champ input, .pr-champ textarea { width: 100%; min-width: 0; min-height: var(--cible); padding: 8px 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface-2); color: var(--texte); font: inherit; }
 .pr-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+/* Horaires, accès et contacts de la presta (14a) : partie repliable du formulaire « Modifier ». */
+.pr-organisation { display: grid; gap: 10px; min-width: 0; }
+.pr-organisation > summary { cursor: pointer; min-height: var(--cible); display: flex; align-items: center; color: var(--lien); }
+.pr-organisation[open] > summary { margin-bottom: 2px; }
+.pr-groupe { display: grid; gap: 8px; min-width: 0; margin: 0 0 10px; padding: 10px 12px 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); }
+.pr-groupe > legend { padding: 0 6px; font-weight: 700; }
 .pr-erreur:empty, .pr-erreur-formulaire:empty { display: none; }
 .alertes-mur-ouvert:empty { display: none; }
 .alertes-mur-ouvert { display: grid; gap: 8px; }
@@ -1496,3 +1504,48 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .mat-ajout .bouton { grid-column: 1 / -1; justify-self: start; }
 .mat-partage { flex-wrap: wrap; align-items: center; }
 .pr-materiel { justify-self: stretch; }
+
+/* Fiches presta par métier (étape 14c) : écran plein « Fiches » au-dessus de Prestas ; la fiche en tableaux
+   « libellé : valeur », un bloc par mur ; page imprimée à part (#impression), cachée à l'écran. */
+.fiches { z-index: 60; }
+.fi-fiche { display: grid; gap: 12px; min-width: 0; }
+.fi-titre { margin: 0; font-size: 1.2rem; }
+.fi-rappel, .fi-date { margin: 0; color: var(--texte-doux); font-size: 0.9rem; overflow-wrap: anywhere; }
+:root[data-mode="rouge"] :is(.fi-rappel, .fi-date, .fi-table th[scope="row"]) { color: var(--texte); }
+.fi-mur { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--bordure); border-top-color: var(--lisere); border-radius: 14px; background: var(--surface); min-width: 0; }
+.fi-mur h4 { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+.fi-mur > .bouton { justify-self: start; }
+.fi-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.fi-table th, .fi-table td { padding: 6px 0; vertical-align: top; text-align: left; overflow-wrap: anywhere; border-top: 1px solid var(--bordure); }
+.fi-table tr:first-child > * { border-top: 0; }
+.fi-table th[scope="row"] { width: 38%; padding-right: 10px; font-weight: 600; color: var(--texte-doux); }
+.fi-sous-titre th { padding-top: 12px; font-weight: 700; font-variant-caps: all-small-caps; letter-spacing: 0.06em; color: var(--famille); }
+.fi-actions { flex-wrap: wrap; align-items: center; }
+.impression { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 14mm; }
+  html, body { background: #fff !important; color: #000 !important; overflow: visible !important; }
+  body > *:not(#impression) { display: none !important; }
+  #impression { display: block !important; color: #000; font-size: 10.5pt; line-height: 1.35; }
+  #impression * { color: #000 !important; background: transparent !important; border-color: #000 !important; }
+  #impression .fi-fiche { display: block; }
+  #impression .fi-titre { margin: 0 0 2mm; font-size: 16pt; }
+  #impression .fi-rappel { margin: 0 0 3mm; font-size: 10pt; }
+  #impression .fi-mur { display: block; margin-top: 5mm; padding: 0; border: 0; border-radius: 0; }
+  #impression .fi-mur h4 { margin: 0 0 1mm; font-size: 13pt; border-bottom: 1.5pt solid #000; break-after: avoid; page-break-after: avoid; }
+  #impression .fi-date { margin: 0 0 1mm; font-size: 9pt; }
+  #impression .fi-table th, #impression .fi-table td { padding: 1mm 0; border-top: 0.5pt solid #000; }
+  #impression .fi-table tr { break-inside: avoid; page-break-inside: avoid; }
+  #impression .fi-sous-titre th { padding-top: 3mm; font-weight: 700; }
+  #impression .alerte { padding: 0; border: 0; }
+  #impression .alerte::before { display: none; }
+}
+
+/* Deux onglets de l'appli (lot du 17/10/2026) : écran qui couvre tout, au-dessus des écrans pleins. */
+.autre-onglet { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px; background: var(--fond); }
+.autre-onglet[hidden] { display: none; }
+.autre-onglet-carte { display: grid; gap: 12px; max-width: 28rem; padding: 16px; border: 1px solid var(--bordure); border-radius: 14px; background: var(--surface); }
+.autre-onglet-carte h2 { margin: 0; font-size: 1.25rem; line-height: 1.25; }
+.autre-onglet-carte p { margin: 0; }
+.autre-onglet-carte .bouton { min-height: var(--cible); }
+.autre-onglet-note { color: var(--texte-doux); font-size: 0.9rem; }

@@ -43,6 +43,16 @@
     <button id="recharger" class="bouton bouton-petit bouton-principal" type="button">Recharger</button>
   </div>
 
+  <!-- Deux onglets de l'appli : le dernier ouvert prend la main, celui-ci n'enregistre plus rien. -->
+  <div id="autre-onglet" class="autre-onglet" role="alertdialog" aria-modal="true" aria-labelledby="autre-onglet-titre" hidden>
+    <div class="autre-onglet-carte">
+      <h2 id="autre-onglet-titre">L'appli est ouverte dans un autre onglet</h2>
+      <p>Tes saisies continuent là-bas. Ici, plus rien n'est enregistré, pour ne rien écraser.</p>
+      <button id="autre-onglet-recharger" class="bouton bouton-principal" type="button">Recharger ici</button>
+      <p class="autre-onglet-note">Recharger ici donne la main à cet onglet : l'autre s'arrête à son tour.</p>
+    </div>
+  </div>
+
   <nav class="onglets" aria-label="Modules">
     <a class="onglet" href="#mur" data-famille="image" aria-current="page"><svg class="icone-onglet" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14M15 5v14M3 12h18"/></svg><span class="onglet-libelle">Mur</span></a>
     <a class="onglet" href="#data" data-famille="donnees"><svg class="icone-onglet" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h11M4 12h16M4 17h8"/><circle cx="18" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg><span class="onglet-libelle">Data</span></a>
@@ -1001,6 +1011,15 @@
     <div id="ecran-materiel" class="mf-defilant pr mat"></div>
   </div>
 
+  <!-- Fiches presta par métier (étape 14c) : écran plein au-dessus de Prestas, ouvert depuis la carte de la presta. -->
+  <div id="fiches" class="montage prestas fiches" data-famille="presta" role="dialog" aria-modal="true" aria-labelledby="fiches-titre" hidden>
+    <header class="montage-haut">
+      <h2 id="fiches-titre" class="prestas-titre">Fiches</h2>
+      <button id="fiches-fermer" class="bouton" type="button" data-icone="fermer">Fermer</button>
+    </header>
+    <div id="ecran-fiches" class="mf-defilant pr mat fi"></div>
+  </div>
+
   <!-- Guide de câblage pas à pas (option 1, port par port), ouvert depuis le Schéma : un port ou une ligne à la fois,
        dalles numérotées dans l'ordre du câble, case « branché » enregistrée sur l'appareil. -->
   <div id="montage" class="montage" data-famille="schema" role="dialog" aria-modal="true" aria-labelledby="montage-titre" hidden>
@@ -1099,5 +1118,7 @@
     });
   </script>
   <script type="module" src="src/app.js" onerror="signalerChargement('Impossible de charger l\'appli : un fichier manque ou la page n\'est pas servie par lancer.command.')"></script>
+  <!-- Page imprimée (étape 14c) : la fiche choisie, seule à l'impression, cachée à l'écran. -->
+  <div id="impression" class="impression"></div>
 </body>
 </html>

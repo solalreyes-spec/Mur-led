@@ -2831,7 +2831,7 @@ export const NAVIGATEUR = [
           [[false, 'Actions de Mur 1'], [true, `Actions de ${murLong}`]]);
         v.egal('menu d\'un mur', murs.map((m) => menuDe(m.querySelector('.pr-menu-bouton')).map(texteDe)), [['Matériel', 'Renommer', 'Dupliquer', 'Supprimer'], ['Matériel', 'Renommer', 'Dupliquer', 'Supprimer']]);
         const plus = [...racine.querySelectorAll('.pr-actions-presta button')].find((x) => texteDe(x) === 'Plus');
-        v.egal('boutons de la presta', [...racine.querySelectorAll('.pr-actions-presta button')].map(texteDe), ['Ajouter un mur', 'Matériel', 'Exporter', 'Plus']);
+        v.egal('boutons de la presta', [...racine.querySelectorAll('.pr-actions-presta button')].map(texteDe), ['Ajouter un mur', 'Matériel', 'Fiches', 'Exporter', 'Plus']);
         v.egal('menu « Plus » de la presta', menuDe(plus).map(texteDe), ['Modifier', 'Dupliquer', 'Archiver', 'Supprimer la presta']);
         plus.click();
         v.egal('autres prestas, la dernière modifiée en tête, avec le nombre de murs', [...racine.querySelectorAll('.pr-autres .pr-presta')].map((p) => [texteDe(p.querySelector('.pr-nom')), texteDe(p.querySelector('.pr-infos'))]),
@@ -2867,7 +2867,7 @@ export const NAVIGATEUR = [
         form.requestSubmit();
         await attendre();
         v.egal('enregistré : infos envoyées, formulaire fermé', [appels.at(-1)?.[2], racine.querySelector('.pr-formulaire')],
-          [{ nom: 'Presta A', debut: '2026-10-17', fin: '2026-10-19', lieu: 'Lieu B', notes: '' }, null]);
+          [{ nom: 'Presta A', debut: '2026-10-17', fin: '2026-10-19', lieu: 'Lieu B', notes: '', organisation: pr.organisationVide?.() }, null]);
         dansMenu(murs[1].querySelector('.pr-menu-bouton'), 'Renommer').click();
         const renommer = racine.querySelector('.pr-renommer');
         v.egal('« Renommer » : champ dans la ligne du mur, nom actuel', [renommer?.closest('.pr-mur') === murs[1], renommer?.elements.nom.value], [true, murLong]);
@@ -3808,6 +3808,179 @@ export const NAVIGATEUR = [
       } finally {
         racine.remove();
         retirerStyles();
+      }
+    },
+  },
+  {
+    id: 'N83',
+    titre: 'Deux onglets de l\'appli (lot du 17/10/2026) : le dernier ouvert prend la main, l\'ancien est prévenu une fois (canal entre onglets) ; écritures suspendues : rien n\'est plus écrit sur l\'appareil (base de test séparée), la lecture reste',
+    etape: '13d',
+    async verifier(v) {
+      const mo = await moduleAppli(v, '../src/onglets.js');
+      if (!mo) return;
+      const nom = 'appli-mur-led-tests';
+      const st = creerStockage(nom);
+      await st.ecrire('essai', 1);
+      st.suspendre();
+      v.egal('écriture suspendue : refusée', [await st.ecrire('essai', 2), await st.effacer('essai'), st.suspendu()], [false, false, true]);
+      v.egal('la valeur sur l\'appareil reste', await creerStockage(nom).lire('essai'), 1);
+      await new Promise((r) => { const q = indexedDB.deleteDatabase(nom); q.onsuccess = r; q.onerror = r; q.onblocked = r; });
+      const canal = `mur-led-onglets-test-${Date.now()}`;
+      const prevenus = [];
+      const a = mo.surveillerOnglets({ canal, id: 'a', surRemplace: () => prevenus.push('a') });
+      await new Promise((r) => setTimeout(r, 50));
+      const b = mo.surveillerOnglets({ canal, id: 'b', surRemplace: () => prevenus.push('b') });
+      await new Promise((r) => setTimeout(r, 100));
+      v.egal('le premier onglet est prévenu, pas le dernier', prevenus, ['a']);
+      a.arreter();
+      b.arreter();
+    },
+  },
+  {
+    id: 'N84',
+    titre: 'Écran Prestas, « Modifier » (14a) : partie repliable « Horaires, accès et contacts » sous les notes, fermée quand tout est vide, ouverte quand quelque chose est rempli ; horaires, accès, puis un groupe par contact (nom, téléphone en champ « tel ») ; champs remplis ; envoyée avec les infos (`organisation`) ; erreur affichée, partie ouverte ; cibles de 48 px, rien ne dépasse à 375 px',
+    etape: '14a',
+    async verifier(v) {
+      const ep = await moduleAppli(v, '../src/ecran-prestas.js');
+      const pr = await moduleAppli(v, '../src/prestas.js');
+      if (!ep || !pr) return;
+      let n = 0;
+      const o = () => ({ maintenant: new Date('2026-10-17T08:00:00Z'), alea: () => `n${(n += 1)}` });
+      let etat = pr.migrer({}, o());
+      const a = etat.index.ouverte.presta;
+      const appels = [];
+      const actions = Object.fromEntries(['ouvrir', 'creerPresta', 'ajouterMur', 'dupliquerMur', 'supprimerMur', 'dupliquerPresta', 'archiverPresta', 'supprimerPresta', 'renommerMur', 'exporter']
+        .map((nom) => [nom, async () => {}]));
+      // Comme l'appli : la presta est vérifiée par prestas.js, une saisie refusée lève son erreur.
+      actions.modifierPresta = async (id, infos) => {
+        appels.push(infos);
+        etat = pr.modifierPresta(etat, id, infos, o());
+      };
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      const modifier = () => {
+        const plus = [...racine.querySelectorAll('.pr-actions-presta button')].find((x) => texteDe(x) === 'Plus');
+        if (plus.getAttribute('aria-expanded') !== 'true') plus.click();
+        [...document.getElementById(plus.getAttribute('aria-controls'))?.querySelectorAll('button') ?? []].find((x) => texteDe(x) === 'Modifier')?.click();
+        return racine.querySelector('.pr-formulaire');
+      };
+      const NOMS = ['horaires-montage', 'horaires-show', 'horaires-demontage', 'acces-quai', 'acces-ascenseur', 'acces-chargeMaxi',
+        ...['chefProjet', 'regie', 'electricien', 'rigger'].flatMap((c) => [`contacts-${c}-nom`, `contacts-${c}-telephone`])].map((x) => `org-${x}`);
+      try {
+        const ecran = ep.monterPrestas(racine, { actions, confirmer: () => true });
+        ecran.afficher(etat, { persistant: true });
+        let form = modifier();
+        const partie = form?.querySelector('details.pr-organisation');
+        v.egal('partie repliable sous les notes, fermée quand tout est vide', [texteDe(partie?.querySelector('summary')), partie?.previousElementSibling?.querySelector('textarea')?.name, partie?.open],
+          ['Horaires, accès et contacts', 'notes', false]);
+        v.egal('groupes : horaires, accès, un par contact', [...(partie?.querySelectorAll('fieldset > legend') ?? [])].map(texteDe), ['Horaires', 'Accès', 'Chef de projet', 'Régie', 'Électricien', 'Rigger']);
+        v.egal('champs dans l\'ordre, avec leur libellé', [...(partie?.querySelectorAll('label') ?? [])].map((l) => [texteDe(l.querySelector('span')), l.querySelector('input')?.name]),
+          [['Montage', NOMS[0]], ['Show', NOMS[1]], ['Démontage', NOMS[2]], ['Quai', NOMS[3]], ['Ascenseur', NOMS[4]], ['Charge maxi', NOMS[5]],
+            ...[6, 8, 10, 12].flatMap((i) => [['Nom', NOMS[i]], ['Téléphone', NOMS[i + 1]]])]);
+        v.egal('téléphones en champ « tel », longueurs maxi', NOMS.map((x) => [form.elements[x]?.type, form.elements[x]?.maxLength]),
+          NOMS.map((x) => (x.endsWith('telephone') ? ['tel', 30] : x.endsWith('nom') ? ['text', 60] : ['text', 80])));
+        partie.open = true;
+        await attendre();
+        const cibles = [partie.querySelector('summary'), ...NOMS.map((x) => form.elements[x])].map((x) => x?.getBoundingClientRect());
+        const bord = racine.getBoundingClientRect();
+        v.vrai(`cibles de 48 px au moins (${Math.round(Math.min(...cibles.map((r) => r?.height ?? 0)))} px)`, cibles.every((r) => r && r.height >= 47.5));
+        v.vrai('rien ne dépasse à 375 px', racine.scrollWidth <= 375 && cibles.every((r) => r.left >= bord.left - 0.5 && r.right <= bord.right + 0.5));
+        form.elements['org-horaires-montage'].value = ' jeudi 8 h à 18 h ';
+        form.elements['org-acces-quai'].value = 'Quai B';
+        form.elements['org-contacts-rigger-nom'].value = 'Contact D';
+        form.elements['org-contacts-rigger-telephone'].value = '0'.repeat(31);
+        form.requestSubmit();
+        await attendre();
+        v.egal('erreur affichée, partie ouverte', [texteDe(form.querySelector('.alerte')), partie.open, racine.contains(form)],
+          ['Téléphone du contact rigger trop long : 30 caractères au plus.', true, true]);
+        form.elements['org-contacts-rigger-telephone'].value = '00 00 00 00 04';
+        form.requestSubmit();
+        await attendre();
+        const vide = pr.organisationVide();
+        v.egal('enregistrée : envoyée avec les infos, telle que saisie', appels.at(-1)?.organisation, {
+          ...vide, horaires: { ...vide.horaires, montage: ' jeudi 8 h à 18 h ' }, acces: { ...vide.acces, quai: 'Quai B' },
+          contacts: { ...vide.contacts, rigger: { nom: 'Contact D', telephone: '00 00 00 00 04' } },
+        });
+        v.egal('formulaire fermé', racine.querySelector('.pr-formulaire'), null);
+        ecran.afficher(etat, { persistant: true });
+        form = modifier();
+        v.egal('rouvert : partie ouverte, champs remplis', [form?.querySelector('details.pr-organisation')?.open, ...['org-horaires-montage', 'org-acces-quai', 'org-contacts-rigger-nom', 'org-contacts-rigger-telephone', 'org-horaires-show'].map((x) => form?.elements[x]?.value)],
+          [true, 'jeudi 8 h à 18 h', 'Quai B', 'Contact D', '00 00 00 00 04', '']);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N85',
+    titre: 'Écran « Fiches » (14c, § 5) : choix segmenté des quatre métiers (le choisi coché, un choix appelle son action) ; aperçu : titre, rappel, en-tête et un tableau par mur (« libellé : valeur », sous-titres), mur jamais ouvert avec « Ouvrir ce mur » ; « Imprimer ou PDF », « Copier », « Partager » appellent leur action ; page imprimée sans bouton ; cibles de 48 px ; rien ne dépasse à 375 px, en sombre et en rouge',
+    etape: '14c',
+    async verifier(v) {
+      const ef = await moduleAppli(v, '../src/ecran-fiches.js');
+      const fm = await moduleAppli(v, '../src/fiches-metier.js');
+      if (!ef || !fm) return;
+      const textes = {
+        mur: 'MUR\nDalles : 10 × 5 = 50 (colonnes × lignes)', data: 'DATA\nProcesseur : 1 × Brompton S8', canvas: 'CANVAS ET SOURCE\nSource : 1920 × 1080 px à 60 Hz en HDMI 2.0',
+        elec: 'ÉLECTRICITÉ : indicatif, à valider par l\'électricien\nPuissance totale : 4,5 kW', poids: 'POIDS : indicatif, à valider par le rigger\nMode : accroche\nTotal suspendu : 420 kg',
+      };
+      const presta = { id: 'p-a', nom: 'Presta-de-nom-tres-long-sans-espace-pour-voir-le-retour-ligne', debut: '2026-10-17', fin: '2026-10-19', lieu: 'Lieu B' };
+      const murs = [{ id: 'm-1', nom: 'Mur 1', fiche: { textes, calculeeLe: '2026-10-17T10:00:00.000Z' }, materiel: null }, { id: 'm-2', nom: 'Mur 2', fiche: null, materiel: null }];
+      const fiche = (metier) => fm.ficheMetier(metier, { presta, murs, date: new Date(2026, 9, 17, 12) });
+      const appels = [];
+      const actions = Object.fromEntries(['choisirMetier', 'ouvrirMur', 'imprimer', 'copier', 'partager'].map((nom) => [nom, async (...args) => { appels.push([nom, ...args]); return nom === 'copier' ? true : 'partage'; }]));
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      try {
+        const ecran = ef.monterFiches(racine, { actions });
+        ecran.afficher({ presta, fiche: fiche('chefProjet'), metier: 'chefProjet' });
+        const choix = [...racine.querySelectorAll('.segments input[name=metier]')];
+        v.egal('choix segmenté : quatre métiers, le choisi coché', [choix.map((x) => texteDe(x.closest('label'))), choix.map((x) => x.checked)],
+          [['Rigger', 'Électricien', 'Régie', 'Chef de projet'], [false, false, false, true]]);
+        choix[0].click();
+        await attendre();
+        v.egal('un choix appelle son action', appels.at(-1), ['choisirMetier', 'rigger']);
+        ecran.afficher({ presta, fiche: fiche('rigger'), metier: 'rigger' });
+        const apercu = racine.querySelector('.fi-fiche');
+        v.egal('aperçu : titre et rappel', [texteDe(apercu?.querySelector('.fi-titre')), texteDe(apercu?.querySelector('.fi-rappel'))], ['Fiche rigger', 'Fiche indicative, à valider par le rigger.']);
+        v.egal('en-tête en tableau', [...(apercu?.querySelectorAll('.fi-entete tr') ?? [])].map((tr) => [texteDe(tr.querySelector('th')), texteDe(tr.querySelector('td'))]),
+          [['Presta', presta.nom], ['Dates', 'du 17 au 19/10/2026'], ['Lieu', 'Lieu B'], ['Date de la fiche', '17/10/2026']]);
+        const blocs = [...(apercu?.querySelectorAll('.fi-mur') ?? [])];
+        v.egal('un bloc par mur, titre et date', blocs.map((b) => [texteDe(b.querySelector('h4')), texteDe(b.querySelector('.fi-date'))]), [['Mur 1', 'Textes du 17/10/2026'], ['Mur 2', '']]);
+        v.egal('lignes du mur 1 : « libellé : valeur » et sous-titre', [...blocs[0].querySelectorAll('tr')].map((tr) => (tr.classList.contains('fi-sous-titre') ? `[${texteDe(tr)}]` : `${texteDe(tr.querySelector('th'))} : ${texteDe(tr.querySelector('td'))}`)),
+          ['Mode : accroche', 'Total suspendu : 420 kg', 'Matériel : ouvre ce mur une fois pour compter son matériel']);
+        v.egal('mur jamais ouvert : message', texteDe(blocs[1].querySelector('.alerte')), 'Ouvre ce mur une fois pour sa fiche.');
+        [...blocs[1].querySelectorAll('button')].find((b) => texteDe(b) === 'Ouvrir ce mur')?.click();
+        await attendre();
+        v.egal('« Ouvrir ce mur »', appels.at(-1), ['ouvrirMur', 'p-a', 'm-2']);
+        const boutons = [...racine.querySelectorAll('.fi-actions button')];
+        v.egal('boutons', boutons.map(texteDe), ['Imprimer ou PDF', 'Copier', 'Partager']);
+        const notes = [];
+        for (const b of boutons) {
+          b.click();
+          await attendre();
+          await attendre();
+          notes.push(texteDe(racine.querySelector('.fi-note')));
+        }
+        v.egal('chaque bouton appelle son action', appels.slice(-3).map((a) => a[0]), ['imprimer', 'copier', 'partager']);
+        v.egal('notes : copie annoncée, partage sans note', notes.slice(1), ['Fiche copiée.', '']);
+        const page = ef.elementFiche(fiche('regie'));
+        v.egal('page imprimée : la fiche sans bouton ni choix', [page.querySelectorAll('button, input').length, texteDe(page.querySelector('.fi-titre'))], [0, 'Fiche régie vidéo']);
+        const cibles = [...racine.querySelectorAll('button, .segments label')].map((x) => x.getBoundingClientRect());
+        v.vrai(`cibles de 48 px au moins (${Math.round(Math.min(...cibles.map((r) => r.height)))} px)`, cibles.every((r) => r.height >= 47.5));
+        const bord = racine.getBoundingClientRect();
+        const deborde = () => [...racine.querySelectorAll('*')].filter((x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.right > bord.right + 0.5; }).map((x) => x.className || x.tagName);
+        v.egal('375 px, sombre : rien ne dépasse', deborde(), []);
+        document.documentElement.dataset.mode = 'rouge';
+        v.egal('375 px, rouge : rien ne dépasse', deborde(), []);
+      } finally {
+        delete document.documentElement.dataset.mode;
+        racine.remove();
+        retirer();
       }
     },
   },

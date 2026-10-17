@@ -3,16 +3,17 @@
 import { resoudreFiche, listeMateriel, totalMateriel, ErreurSaisie } from './calculs.js';
 import { el, remplacer } from './dom.js';
 import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc } from './fiches.js';
-import { lire, ecrire, stockageDisponible } from './stockage.js';
-import { initialiserMur, actualiserMur, signalerErreurMur } from './ecran-mur.js';
-import { initialiserData, actualiserData, murModifie, definirDepartData, processeurRetenu } from './ecran-data.js';
-import { initialiserCanvas, actualiserRegies, donneesModifiees } from './ecran-canvas.js';
-import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec } from './ecran-elec.js';
+import { lire, ecrire, stockageDisponible, suspendreEcritures } from './stockage.js';
+import { surveillerOnglets } from './onglets.js';
+import { initialiserMur, actualiserMur, signalerErreurMur, resumeOngletMur } from './ecran-mur.js';
+import { initialiserData, actualiserData, murModifie, definirDepartData, processeurRetenu, resumeOngletData } from './ecran-data.js';
+import { initialiserCanvas, actualiserRegies, donneesModifiees, resumeOngletCanvas } from './ecran-canvas.js';
+import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec, resumeOngletElec } from './ecran-elec.js';
 import {
   initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema,
   cablageRetenu, sortieModifieePourSchema, definirStockageMontage, rechargerMontage, entreesMateriel,
 } from './ecran-schema.js';
-import { initialiserPoids, actualiserBumpers, murModifiePourPoids, poidsRetenu } from './ecran-poids.js';
+import { initialiserPoids, actualiserBumpers, murModifiePourPoids, poidsRetenu, resumeOngletPoids } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
 import {
   restaurerConfiguration, suivreConfiguration, reglagesParDefaut, definirSauvegarde, sauverMaintenant, releverDefauts, appliquerConfiguration,
@@ -21,6 +22,8 @@ import * as prestas from './prestas.js';
 import { chargerPrestas, creerEnregistreur } from './prestas-appareil.js';
 import { monterPrestas, remplirBoutonPresta, fichierExportPresta } from './ecran-prestas.js';
 import { monterMateriel } from './ecran-materiel.js';
+import { monterFiches, elementFiche } from './ecran-fiches.js';
+import { METIERS, ficheMetier, texteFiche, nomFichierFiche } from './fiches-metier.js';
 import { enregistrer, fichierTexte } from './export.js';
 import { initialiserCopie, copier } from './copie.js';
 import { resumeMateriel } from './resumes.js';
@@ -40,6 +43,20 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   });
 }
 document.getElementById('recharger').addEventListener('click', () => location.reload());
+
+// Deux onglets de l'appli (lot du 17/10/2026) : le dernier ouvert prend la main ; celui-ci cesse d'écrire sur
+// l'appareil (rien d'écrasé) et le dit, avec « Recharger ici ». Fenêtre principale seulement : une copie dans un
+// cadre (bancs qui simulent un rechargement) n'est pas un onglet.
+if (window.top === window) {
+  surveillerOnglets({
+    surRemplace: () => {
+      suspendreEcritures();
+      document.getElementById('autre-onglet').hidden = false;
+      document.body.classList.add('montage-ouvert');
+    },
+  });
+}
+document.getElementById('autre-onglet-recharger').addEventListener('click', () => location.reload());
 
 // Mode rouge : toute l'appli en rouge sur noir, gardé pour la prochaine ouverture.
 const boutonRouge = document.getElementById('mode-rouge');
@@ -554,10 +571,17 @@ async function ouvrirMurCourant() {
 }
 // Liste de matériel du mur ouvert (étape 13b) : calculée sur les résultats affichés (Mur, Data, câblage retenu du
 // Schéma, distribution d'Élec, Poids) et gardée avec lui. Calculée à l'ouverture de Prestas ou de Matériel et avant de
-// changer de mur, jamais pendant la frappe. Mur invalide : rien de changé.
+// changer de mur, jamais pendant la frappe. Mur invalide : rien de changé. Aux mêmes moments, les textes copiés des
+// onglets pour les fiches par métier (étape 14b) ; un onglet au calcul non valide garde null (la fiche le dit).
 function garderListeMurOuvert() {
   const mur = prestas.murOuvert(etatPrestas);
   if (!mur) return;
+  const textes = { mur: resumeOngletMur(), data: resumeOngletData(), canvas: resumeOngletCanvas(), elec: resumeOngletElec(), poids: resumeOngletPoids() };
+  const avecTextes = prestas.enregistrerFicheMur(etatPrestas, mur.id, textes);
+  if (avecTextes !== etatPrestas) {
+    etatPrestas = avecTextes;
+    enregistrerPrestas(etatPrestas);
+  }
   let liste = null;
   try {
     const entrees = entreesMateriel();
@@ -626,6 +650,7 @@ ecranPrestas = monterPrestas(document.getElementById('ecran-prestas'), {
     supprimerPresta: (id) => operationPrestas((e) => prestas.supprimerPresta(e, id)),
     materielMur: async (id, murId) => ouvrirMateriel(id, murId),
     materielPresta: async (id) => ouvrirMateriel(id, null),
+    fichesPresta: async (id) => ouvrirFiches(id),
     // Export : feuille de partage ou téléchargement, sans attente avant (Safari n'ouvre la feuille qu'en réponse
     // directe à un appui) ; la date d'export n'est gardée que si le fichier est parti.
     exporter: async (id) => {
@@ -745,6 +770,88 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && fermerMateriel()) e.stopPropagation();
 }, true);
 window.addEventListener('hashchange', fermerMateriel);
+// Écran Fiches (étape 14c) : au-dessus de Prestas, qui reste ouvert dessous ; « Fermer » ou Échap y revient. Le métier
+// choisi est gardé sur l'appareil (localStorage « mur-led-metier »), Rigger la première fois.
+const panneauFiches = document.getElementById('fiches');
+const zoneImpression = document.getElementById('impression');
+const CLE_METIER = 'mur-led-metier';
+let vueFiches = null;
+function metierGarde() {
+  try {
+    const m = localStorage.getItem(CLE_METIER);
+    return METIERS.some((x) => x.id === m) ? m : METIERS[0].id;
+  } catch (erreur) {
+    return METIERS[0].id;
+  }
+}
+// Fiche du métier choisi : textes et listes gardés de chaque mur de la presta, total de matériel.
+function contenuFiches() {
+  const presta = etatPrestas.index.prestas.find((p) => p.id === vueFiches?.prestaId);
+  if (!presta) return null;
+  const murs = presta.murs.map((m) => ({ id: m.id, nom: m.nom, fiche: prestas.ficheGardee(etatPrestas, m.id), materiel: prestas.listeGardee(etatPrestas, m.id) }));
+  return { presta, metier: vueFiches.metier, fiche: ficheMetier(vueFiches.metier, { presta, murs, total: totalDe(presta) }) };
+}
+function afficherFiches() {
+  const c = contenuFiches();
+  if (!c) {
+    fermerFiches();
+    return;
+  }
+  ecranFiches.afficher(c);
+}
+function ouvrirFiches(prestaId) {
+  sauverMaintenant();
+  if (etatPrestas.index.ouverte?.presta === prestaId) garderListeMurOuvert();
+  vueFiches = { prestaId, metier: metierGarde() };
+  afficherFiches();
+  panneauFiches.hidden = false;
+  document.body.classList.add('montage-ouvert');
+  document.getElementById('ecran-fiches').scrollTop = 0;
+}
+function fermerFiches() {
+  if (panneauFiches.hidden) return false;
+  panneauFiches.hidden = true;
+  vueFiches = null;
+  remplacer(zoneImpression);
+  if (panneauPrestas.hidden) document.body.classList.remove('montage-ouvert');
+  return true;
+}
+const ecranFiches = monterFiches(document.getElementById('ecran-fiches'), {
+  actions: {
+    choisirMetier: async (metier) => {
+      vueFiches.metier = metier;
+      try {
+        localStorage.setItem(CLE_METIER, metier);
+      } catch (erreur) {
+        // Stockage du navigateur refusé : le choix vaut pour cette ouverture.
+      }
+      afficherFiches();
+    },
+    ouvrirMur: async (prestaId, murId) => {
+      await operationPrestas((e) => prestas.ouvrir(e, prestaId, murId));
+      garderListeMurOuvert();
+      afficherFiches();
+    },
+    // Impression : la fiche choisie dans la page imprimée, puis la feuille d'impression, sans attente avant (Safari ne
+    // l'ouvre qu'en réponse directe à un appui) ; d'où « Enregistrer en PDF » ou AirDrop.
+    imprimer: async () => {
+      remplacer(zoneImpression, elementFiche(contenuFiches().fiche));
+      window.print();
+    },
+    copier: async () => copier(texteFiche(contenuFiches().fiche)),
+    partager: async () => {
+      const c = contenuFiches();
+      const nom = nomFichierFiche(c.presta.nom, c.metier);
+      return enregistrer(fichierTexte(texteFiche(c.fiche), nom, 'text/plain'), nom);
+    },
+  },
+});
+document.getElementById('fiches-fermer').addEventListener('click', fermerFiches);
+// Échap ferme d'abord Fiches, sans fermer Prestas dessous.
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && fermerFiches()) e.stopPropagation();
+}, true);
+window.addEventListener('hashchange', fermerFiches);
 boutonPresta.addEventListener('click', ouvrirPrestas);
 document.getElementById('prestas-fermer').addEventListener('click', fermerPrestas);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerPrestas(); });

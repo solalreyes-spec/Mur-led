@@ -12,6 +12,7 @@ import * as contenu from '../src/contenu.js';
 import * as entrainement from '../src/entrainement.js';
 import * as zones from '../src/zones.js';
 import * as prestas from '../src/prestas.js';
+import * as fichesMetier from '../src/fiches-metier.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
@@ -7246,7 +7247,302 @@ export const REGLES = [
       v.egal('nom du fichier', prestas.nomFichierMateriel('Presta A', new Date('2026-10-17T10:00:00Z')), 'mur-led-materiel-presta-a-2026-10-17.txt');
     },
   },
+  {
+    id: 'R327',
+    titre: 'Nom du fichier exporté (lot du 17/10/2026) : lettres liées remplacées avant la simplification (œ → oe, æ → ae, ß → ss) ; « Cœur de scène » ne devient plus « c-ur-de-scene » ; liste de matériel aussi',
+    etape: '13d',
+    verifier(v) {
+      v.egal('lettres liées', [prestas.nomFichierPresta('Cœur de scène', MAINTENANT_PRESTA), prestas.nomFichierPresta('ŒUVRE Æsir Straße', MAINTENANT_PRESTA)],
+        ['mur-led-presta-coeur-de-scene-2026-10-13.json', 'mur-led-presta-oeuvre-aesir-strasse-2026-10-13.json']);
+      v.egal('liste de matériel', prestas.nomFichierMateriel('Cœur', MAINTENANT_PRESTA), 'mur-led-materiel-coeur-2026-10-13.txt');
+    },
+  },
+  {
+    id: 'R328',
+    titre: 'Suivi du montage (lot du 17/10/2026) : enregistré avec le mur sans marquer la presta modifiée (ouvrir le guide, cocher un port) ; une saisie la marque toujours',
+    etape: '13d',
+    verifier(v) {
+      const o = optionsPresta();
+      const e = prestas.migrer({ configuration: configurationEssai(12) }, o);
+      const p = e.index.prestas[0];
+      const murId = p.murs[0].id;
+      const suivi = prestas.enregistrerMur(e, murId, { montage: { data: { coches: ['x'], courant: null, avis: null } } }, horloge(o, '2026-10-13T15:00:00Z'));
+      v.egal('suivi enregistré, presta pas marquée modifiée', [suivi.murs[murId].montage.data.coches, suivi.index.prestas[0].modifieeLe], [['x'], p.modifieeLe]);
+      const saisie = prestas.enregistrerMur(e, murId, { configuration: configurationEssai(8), montage: null }, horloge(o, '2026-10-13T15:00:00Z'));
+      v.egal('saisie : presta marquée modifiée', saisie.index.prestas[0].modifieeLe, '2026-10-13T15:00:00.000Z');
+    },
+  },
+  {
+    id: 'R329',
+    titre: 'Fiches par métier (14a, § 3) : horaires (montage, show, démontage), accès (quai, ascenseur, charge maxi) et contacts (chef de projet, régie, électricien, rigger : nom et téléphone) de la presta, tous facultatifs ; 80 caractères par horaire et par accès, 60 par nom, 30 par téléphone en texte libre ; espaces de bord retirés ; une saisie refusée donne sa raison ; presta d\'avant l\'étape 14 : organisation vide ; « Modifier » sans organisation la garde ; tout vidé : plus rien d\'écrit',
+    etape: '14a',
+    verifier(v) {
+      const o = optionsPresta();
+      const etat = prestas.migrer({}, o);
+      const id = etat.index.prestas[0].id;
+      const vide = prestas.organisationVide();
+      const contact = { nom: '', telephone: '' };
+      v.egal('organisation vide', vide, {
+        horaires: { montage: '', show: '', demontage: '' }, acces: { quai: '', ascenseur: '', chargeMaxi: '' },
+        contacts: { chefProjet: contact, regie: contact, electricien: contact, rigger: contact },
+      });
+      v.egal('presta d\'avant l\'étape 14 : organisation vide, rien d\'écrit', [prestas.organisationPresta(etat.index.prestas[0]), 'organisation' in etat.index.prestas[0]], [vide, false]);
+      const infos = { nom: 'Presta A', debut: null, fin: null, lieu: '', notes: '' };
+      const e = prestas.modifierPresta(etat, id, { ...infos, organisation: ORGANISATION_SAISIE }, horloge(o, '2026-10-14T12:00:00Z'));
+      const p = e.index.prestas[0];
+      v.egal('enregistrée, espaces de bord retirés', prestas.organisationPresta(p), ORGANISATION_ESSAI);
+      v.egal('date de modification ; état de départ inchangé', [p.modifieeLe, 'organisation' in etat.index.prestas[0]], ['2026-10-14T12:00:00.000Z', false]);
+      v.egal('« Modifier » sans organisation : elle est gardée', prestas.organisationPresta(prestas.modifierPresta(e, id, { ...infos, nom: 'Presta B' }, o).index.prestas[0]), ORGANISATION_ESSAI);
+      v.egal('saisie partielle : le reste vide', prestas.organisationPresta(prestas.modifierPresta(etat, id, { ...infos, organisation: { acces: { quai: 'Quai C' } } }, o).index.prestas[0]),
+        { ...vide, acces: { ...vide.acces, quai: 'Quai C' } });
+      const videe = prestas.modifierPresta(e, id, { ...infos, organisation: { ...vide, acces: { quai: '   ', ascenseur: '', chargeMaxi: '' } } }, o).index.prestas[0];
+      v.egal('tout vidé (espaces seuls compris) : plus rien d\'écrit', ['organisation' in videe, prestas.organisationPresta(videe)], [false, vide]);
+      const essai = (org) => messageErreur(() => prestas.modifierPresta(e, id, { ...infos, organisation: org }, o));
+      v.egal('refus, avec leur raison', [
+        essai({ horaires: { montage: 'x'.repeat(81) } }), essai({ horaires: { show: 'x'.repeat(81) } }), essai({ horaires: { demontage: 'x'.repeat(81) } }),
+        essai({ acces: { quai: 'x'.repeat(81) } }), essai({ acces: { ascenseur: 'x'.repeat(81) } }), essai({ acces: { chargeMaxi: 'x'.repeat(81) } }),
+        essai({ contacts: { rigger: { nom: 'x'.repeat(61) } } }), essai({ contacts: { chefProjet: { telephone: '0'.repeat(31) } } }),
+        essai('texte'), essai({ contacts: { regie: { nom: 12 } } }), essai({ horaires: ['jeudi'] }),
+      ], [
+        'Horaire du montage trop long : 80 caractères au plus.', 'Horaire du show trop long : 80 caractères au plus.', 'Horaire du démontage trop long : 80 caractères au plus.',
+        'Quai trop long : 80 caractères au plus.', 'Ascenseur trop long : 80 caractères au plus.', 'Charge maxi trop longue : 80 caractères au plus.',
+        'Nom du contact rigger trop long : 60 caractères au plus.', 'Téléphone du contact chef de projet trop long : 30 caractères au plus.',
+        'Horaires, accès et contacts illisibles.', 'Horaires, accès et contacts illisibles.', 'Horaires, accès et contacts illisibles.',
+      ]);
+      v.egal('acceptés : 80, 60 et 30 caractères, téléphone en texte libre', [
+        essai({ horaires: { montage: 'x'.repeat(80) }, acces: { chargeMaxi: 'x'.repeat(80) } }), essai({ contacts: { electricien: { nom: 'x'.repeat(60), telephone: '+33 0 00 00 00 00 (perso)' } } }),
+        essai({ contacts: { regie: { telephone: '0'.repeat(30) } } }), essai(null), essai(undefined),
+      ], ['', '', '', '', '']);
+    },
+  },
+  {
+    id: 'R330',
+    titre: 'Fiches par métier (14a, § 3) : horaires, accès et contacts exportés avec la presta (rien quand tout est vide : en-tête identique à celui d\'avant), importés avec elle (fichier d\'avant l\'étape 14 : organisation vide ; « Remplacer la mienne » prend celle du fichier ; trop longue : fichier refusé avec la raison), recopiés par « Dupliquer »',
+    etape: '14a',
+    verifier(v, contexte) {
+      const o = optionsPresta();
+      const { etat: avant, presta, base, depart } = prestaEssai(o, contexte);
+      const etat = prestas.modifierPresta(avant, presta.id, { ...presta, organisation: ORGANISATION_SAISIE }, o);
+      const { donnees } = prestas.exporterPresta(etat, presta.id, base, o);
+      v.egal('exportée avec la presta', donnees.presta.organisation, ORGANISATION_ESSAI);
+      const ancien = prestas.exporterPresta(avant, presta.id, base, o).donnees;
+      v.egal('vide : rien dans le fichier', Object.keys(ancien.presta), ['id', 'nom', 'debut', 'fin', 'lieu', 'notes']);
+      const neuf = prestas.migrer({}, o);
+      const r1 = prestas.importerPresta(neuf, base, depart, JSON.stringify(donnees), {}, o);
+      v.egal('importée avec la presta', [r1.erreurs, prestas.organisationPresta(prestas.prestaOuverte(r1.etat))], [[], ORGANISATION_ESSAI]);
+      const r2 = prestas.importerPresta(neuf, base, depart, JSON.stringify(ancien), {}, o);
+      v.egal('fichier d\'avant l\'étape 14 : organisation vide', [r2.erreurs, prestas.organisationPresta(prestas.prestaOuverte(r2.etat))], [[], prestas.organisationVide()]);
+      const r3 = prestas.importerPresta(etat, base, depart, JSON.stringify(ancien), { presta: 'remplacer' }, o);
+      v.egal('« Remplacer la mienne » : celle du fichier', [r3.rapport.presta, prestas.organisationPresta(r3.etat.index.prestas.find((p) => p.id === presta.id))], ['remplacee', prestas.organisationVide()]);
+      const trop = { ...donnees, presta: { ...donnees.presta, organisation: { contacts: { rigger: { telephone: '0'.repeat(31) } } } } };
+      v.egal('trop longue : fichier refusé avec la raison', prestas.verifierImportPresta(JSON.stringify(trop), neuf, base, depart).erreurs,
+        ['Téléphone du contact rigger trop long : 30 caractères au plus.']);
+      const copieP = prestas.prestaOuverte(prestas.dupliquerPresta(etat, presta.id, o));
+      v.egal('« Dupliquer » la recopie', [copieP.nom, prestas.organisationPresta(copieP)], ['Presta A (copie)', ORGANISATION_ESSAI]);
+    },
+  },
+  {
+    id: 'R331',
+    titre: 'Fiches par métier (14b, § 4) : textes des onglets Mur, Data, Canvas, Élec et Poids gardés avec le mur, avec leur date, sans marquer la presta modifiée ; textes identiques non réécrits ; onglet au calcul non valide gardé à null ; jamais dans le fichier exporté ; recopiés par « Dupliquer »',
+    etape: '14b',
+    verifier(v, contexte) {
+      const o = optionsPresta();
+      const { etat, presta, base } = prestaEssai(o, contexte);
+      const murId = presta.murs[0].id;
+      const textes = { ...textesEssai(contexte), canvas: null };
+      const gardee = prestas.enregistrerFicheMur(etat, murId, textes, horloge(o, '2026-10-17T15:00:00Z'));
+      v.egal('textes et date gardés avec le mur', prestas.ficheGardee(gardee, murId), { textes, calculeeLe: '2026-10-17T15:00:00.000Z' });
+      v.egal('presta pas marquée modifiée', gardee.index.prestas.find((p) => p.id === presta.id).modifieeLe, presta.modifieeLe);
+      v.vrai('textes identiques : état inchangé', prestas.enregistrerFicheMur(gardee, murId, textes, horloge(o, '2026-10-17T16:00:00Z')) === gardee);
+      v.egal('mur jamais gardé : rien', prestas.ficheGardee(gardee, presta.murs[1].id), null);
+      v.vrai('jamais dans le fichier exporté', !JSON.stringify(prestas.exporterPresta(gardee, presta.id, base, o).donnees).includes('CANVAS') && !JSON.stringify(prestas.exporterPresta(gardee, presta.id, base, o).donnees).includes('calculeeLe'));
+      const copieP = prestas.prestaOuverte(prestas.dupliquerPresta(gardee, presta.id, o));
+      const dup = prestas.dupliquerPresta(gardee, presta.id, o);
+      v.egal('« Dupliquer » recopie les textes', prestas.ficheGardee(dup, prestas.prestaOuverte(dup).murs[0].id)?.textes, textes);
+      v.egal('mur introuvable : refus', messageErreur(() => prestas.enregistrerFicheMur(gardee, 'm-absent', textes, o)), 'Mur introuvable.');
+      v.egal('copie nommée', copieP.nom, 'Presta A (copie)');
+    },
+  },
+  {
+    id: 'R332',
+    titre: 'Fiches par métier (14b, § 4) : quatre métiers (rigger, électricien, régie, chef de projet) ; en-tête : presta, dates, lieu, horaires et accès remplis, contacts du métier puis du chef de projet (tous pour le chef de projet, contacts vides omis), date de la fiche ; rappel « Fiche indicative, à valider par … » selon le métier',
+    etape: '14b',
+    verifier(v) {
+      v.egal('métiers', fichesMetier.METIERS.map((m) => [m.id, m.nom, m.titre]),
+        [['rigger', 'Rigger', 'Fiche rigger'], ['electricien', 'Électricien', 'Fiche électricien'], ['regie', 'Régie', 'Fiche régie vidéo'], ['chefProjet', 'Chef de projet', 'Fiche chef de projet']]);
+      const presta = { nom: 'Presta A', debut: '2026-10-17', fin: '2026-10-19', lieu: 'Lieu B', notes: '', organisation: ORGANISATION_ESSAI, murs: [] };
+      const fiche = (metier) => fichesMetier.ficheMetier(metier, { presta, murs: [], date: new Date(2026, 9, 17, 12) });
+      const tete = [['Presta', 'Presta A'], ['Dates', 'du 17 au 19/10/2026'], ['Lieu', 'Lieu B'], ['Montage', 'jeudi 8 h à 18 h'], ['Show', 'vendredi 20 h'], ['Quai', 'Quai B'], ['Charge maxi', '2 t']];
+      const date = ['Date de la fiche', '17/10/2026'];
+      v.egal('rigger : son contact (téléphone seul) et le chef de projet', fiche('rigger').entete, [...tete, ['Rigger', '00 00 00 00 04 (portable)'], ['Chef de projet', 'Contact A, 00 00 00 00 01'], date]);
+      v.egal('électricien : contact vide omis, le chef de projet', fiche('electricien').entete, [...tete, ['Chef de projet', 'Contact A, 00 00 00 00 01'], date]);
+      v.egal('régie : son contact (nom seul) et le chef de projet', fiche('regie').entete, [...tete, ['Régie', 'Contact B'], ['Chef de projet', 'Contact A, 00 00 00 00 01'], date]);
+      v.egal('chef de projet : tous les contacts remplis', fiche('chefProjet').entete, [...tete, ['Chef de projet', 'Contact A, 00 00 00 00 01'], ['Régie', 'Contact B'], ['Rigger', '00 00 00 00 04 (portable)'], date]);
+      v.egal('rappels', fichesMetier.METIERS.map((m) => fiche(m.id).rappel), [
+        'Fiche indicative, à valider par le rigger.', 'Fiche indicative, à valider par l\'électricien.', 'Fiche indicative, à valider par la régie.',
+        'Fiche indicative : accroche à valider par le rigger, électricité par l\'électricien, vidéo par la régie.',
+      ]);
+      v.egal('presta sans dates, lieu ni organisation : le nom et la date seulement', fichesMetier.ficheMetier('rigger', { presta: { nom: 'Presta C', murs: [] }, murs: [], date: new Date(2026, 9, 17, 12) }).entete,
+        [['Presta', 'Presta C'], date]);
+      v.egal('titre', fiche('regie').titre, 'Fiche régie vidéo');
+      v.egal('métier inconnu : refus', messageErreur(() => fiche('cariste')), 'Métier inconnu : cariste.');
+    },
+  },
+  {
+    id: 'R333',
+    titre: 'Fiches par métier (14b, § 4) : un bloc par mur ; rigger, le texte de Poids (sans son titre) en lignes « libellé : valeur », puis l\'accroche de la liste de matériel ; électricien, le texte d\'Élec puis la section Élec de la liste ; onglet au calcul non valide : « calcul non valide, corrige ce mur » ; mur jamais ouvert depuis l\'étape 14 : « Ouvre ce mur une fois pour sa fiche. »',
+    etape: '14b',
+    verifier(v, contexte) {
+      const textes = textesEssai(contexte);
+      const liste = listeEssai();
+      const presta = { nom: 'Presta A', murs: [] };
+      const murs = [{ nom: 'Mur 1', fiche: { textes, calculeeLe: '2026-10-17T10:00:00.000Z' }, materiel: { liste } }, { nom: 'Mur 2', fiche: null, materiel: null }];
+      const f = (metier, m = murs) => fichesMetier.ficheMetier(metier, { presta, murs: m, date: new Date(2026, 9, 17, 12) });
+      const enLignes = (t) => t.split('\n').slice(1).map((l) => { const i = l.indexOf(' : '); return i < 0 ? { libelle: '', valeur: l } : { libelle: l.slice(0, i), valeur: l.slice(i + 3) }; });
+      const materiel = (id) => {
+        const s = liste.sections.find((x) => x.id === id);
+        return [...s.lignes.map((l) => ({ libelle: `${l.quantite} × ${calculs.libelleLigne(l)}`, valeur: l.detail ?? '' })), ...s.notes.map((n) => ({ libelle: 'Note', valeur: n }))];
+      };
+      const rigger = f('rigger');
+      v.egal('un bloc par mur, avec la date des textes', rigger.blocs.map((b) => [b.titre, b.date]), [['Mur 1', '17/10/2026'], ['Mur 2', null]]);
+      v.egal('rigger : texte de Poids, puis le matériel d\'accroche', rigger.blocs[0].lignes, [...enLignes(textes.poids), { titre: 'Matériel d\'accroche' }, ...materiel('accroche')]);
+      v.vrai('rigger : poids et rappel du rigger repris', rigger.blocs[0].lignes.some((l) => l.libelle === 'Total suspendu' && l.valeur === '540 kg')
+        && rigger.blocs[0].lignes.some((l) => l.valeur === calculs.RAPPEL_RIGGER));
+      v.egal('électricien : texte d\'Élec, puis le matériel électrique', f('electricien').blocs[0].lignes, [...enLignes(textes.elec), { titre: 'Matériel électrique' }, ...materiel('elec')]);
+      v.vrai('électricien : boîtiers de la liste repris', f('electricien').blocs[0].lignes.some((l) => l.libelle === '2 × Boîtier 32 A tri'));
+      v.egal('mur jamais ouvert depuis l\'étape 14', [rigger.blocs[1].lignes, rigger.blocs[1].manque], [[], 'Ouvre ce mur une fois pour sa fiche.']);
+      const invalide = f('electricien', [{ nom: 'Mur 1', fiche: { textes: { ...textes, elec: null }, calculeeLe: '2026-10-17T10:00:00.000Z' }, materiel: { liste } }]);
+      v.egal('onglet au calcul non valide', invalide.blocs[0].lignes[0], { libelle: 'Élec', valeur: 'calcul non valide, corrige ce mur' });
+      const sansListe = f('rigger', [{ nom: 'Mur 1', fiche: { textes, calculeeLe: '2026-10-17T10:00:00.000Z' }, materiel: null }]);
+      v.egal('liste de matériel absente : dit', sansListe.blocs[0].lignes.at(-1), { libelle: 'Matériel', valeur: 'ouvre ce mur une fois pour compter son matériel' });
+    },
+  },
+  {
+    id: 'R334',
+    titre: 'Fiches par métier (14b, § 4) : régie vidéo, le texte de Canvas, puis les lignes de Data utiles à la régie (processeurs, réglages, processeur n° i, mapping, découpage, zones ; ni capacités, ni ports et couleurs du câblage), puis les exports à demander dans le Schéma (pixel map PNG, positions CSV, modèle 3D OBJ)',
+    etape: '14b',
+    verifier(v, contexte) {
+      const textes = textesEssai(contexte);
+      const f = fichesMetier.ficheMetier('regie', { presta: { nom: 'Presta A', murs: [] }, murs: [{ nom: 'Mur 1', fiche: { textes, calculeeLe: '2026-10-17T10:00:00.000Z' }, materiel: null }], date: new Date(2026, 9, 17, 12) });
+      const lignes = f.blocs[0].lignes;
+      const iData = lignes.findIndex((l) => l.titre === 'Data');
+      const iExports = lignes.findIndex((l) => l.titre === 'Exports à demander dans le Schéma');
+      v.vrai('texte de Canvas d\'abord', lignes[0].libelle === 'Source' && lignes.slice(0, iData).filter((l) => /^Processeur n° \d+, bloc$/.test(l.libelle)).length === 2);
+      v.egal('lignes de Data utiles à la régie', lignes.slice(iData + 1, iExports).map((l) => `${l.libelle} : ${l.valeur}`), [
+        'Processeur : 2 × Novastar MCTRL660', 'Réglages : 60 Hz, 8 bits réseau, sans redondance',
+        ...textes.data.split('\n').filter((l) => /^MCTRL660 n° \d+ : /.test(l)),
+      ]);
+      v.vrai('processeur n° i présent (deux)', lignes.slice(iData + 1, iExports).filter((l) => /^MCTRL660 n° \d+$/.test(l.libelle)).length === 2);
+      v.egal('exports à demander', lignes.slice(iExports + 1), [
+        { libelle: 'Pixel map', valeur: 'PNG à la taille exacte du mur ou du canvas de chaque processeur' },
+        { libelle: 'Positions des dalles', valeur: 'CSV' }, { libelle: 'Modèle 3D', valeur: 'OBJ' },
+      ]);
+      const filtre = fichesMetier.lignesDataRegie([
+        'DATA', 'Processeur : 2 × S8', 'Capacité par port : 525 000 px', 'S8 n° 1 : colonnes 1 à 6 (36 dalles, 3 ports)',
+        'S8 n° 1, port 1 : 12 dalles de C1 R1 à C2 R6, couleur bleu', 'Mapping : 1:1 ; pixels comptés par dalle : A 20 736', 'Découpage : zones entières (variante retenue), 2 × S8',
+        'S8 n° 1, sortie dans la pixel map du mur : x 0 à 1151, y 0 à 575', 'Réglage des zones : groupes dans Tessera', 'Alerte : quelque chose',
+      ].join('\n'));
+      v.egal('filtre des lignes de Data', filtre.map((l) => l.libelle), ['Processeur', 'S8 n° 1', 'Mapping', 'Découpage', 'S8 n° 1, sortie dans la pixel map du mur', 'Réglage des zones']);
+    },
+  },
+  {
+    id: 'R335',
+    titre: 'Fiches par métier (14b, § 4) : chef de projet, synthèse courte par mur (taille, dalles et spares, résolution, processeurs et ports, puissance, lignes et arrivée, mode et poids suspendu, alertes graves : refus, impossible, lignes de résultat à l\'état « dépasse », « dépassé » ou « ne passe pas », sans les alertes ordinaires ni doublon), puis le total de matériel de la presta sans les coches ; texte copié (titre, rappel, en-tête, un bloc par mur, une information par ligne, sans tiret)',
+    etape: '14b',
+    verifier(v, contexte) {
+      const textes = textesEssai(contexte);
+      const liste = listeEssai();
+      const graves = {
+        ...textes, elec: `${textes.elec}\nPhase L1 : 2 lignes, 7 000 W, 31,8 A, dépasse\nAlerte : une alerte ordinaire qui dépasse`,
+        canvas: `${textes.canvas}\nRefus : liaison trop longue\nRefus : liaison trop longue`, poids: `${textes.poids}\nMaximum en accroche : 7 pour 6 dalles en hauteur, dépassé (essai)`,
+      };
+      const murs = [{ nom: 'Mur 1', fiche: { textes: graves, calculeeLe: '2026-10-17T10:00:00.000Z' }, materiel: { liste } }, { nom: 'Mur 2', fiche: null, materiel: null }];
+      const total = calculs.totalMateriel([{ nom: 'Mur 1', liste }, { nom: 'Mur 2', liste: null }]);
+      const presta = { nom: 'Presta A', debut: '2026-10-17', fin: '2026-10-19', lieu: 'Lieu B', organisation: ORGANISATION_ESSAI, murs: [] };
+      const f = fichesMetier.ficheMetier('chefProjet', { presta, murs, total, date: new Date(2026, 9, 17, 12) });
+      const dalles = liste.sections[0].lignes[0];
+      v.egal('synthèse du mur', f.blocs[0].lignes.map((l) => (l.titre ? `[${l.titre}]` : `${l.libelle} : ${l.valeur}`)), [
+        ligneDe(textes.mur, 'Dalle'), 'Dalles : 12 × 6 = 72 (colonnes × lignes)', ligneDe(textes.mur, 'Taille'), ligneDe(textes.mur, 'Résolution'),
+        `Dalles et spares : ${dalles.quantite} × ${calculs.libelleLigne(dalles)}, ${dalles.detail}`,
+        'Processeur : 2 × Novastar MCTRL660', ligneDe(textes.data, 'Ports en colonnes entières'),
+        'Puissance totale : 9,36 kW', ligneDe(textes.elec, 'Lignes en colonnes entières'), ligneDe(textes.elec, 'Arrivée'),
+        'Mode : accroche', 'Total suspendu : 540 kg',
+        '[Alertes graves]', 'Refus : liaison trop longue', 'Phase L1 : 2 lignes, 7 000 W, 31,8 A, dépasse', 'Maximum en accroche : 7 pour 6 dalles en hauteur, dépassé (essai)',
+      ]);
+      const sansAlerte = fichesMetier.ficheMetier('chefProjet', { presta, murs: [{ ...murs[0], fiche: { textes, calculeeLe: '2026-10-17T10:00:00.000Z' } }], total, date: new Date(2026, 9, 17, 12) });
+      v.egal('sans alerte grave', sansAlerte.blocs[0].lignes.at(-1), { libelle: 'Alertes graves', valeur: 'aucune' });
+      v.egal('mur jamais ouvert', f.blocs[1].manque, 'Ouvre ce mur une fois pour sa fiche.');
+      v.egal('total de matériel : titre et sections de la liste', [f.fin.titre, f.fin.lignes.filter((l) => l.titre).map((l) => l.titre)],
+        ['Matériel de la presta', total.sections.filter((s) => s.lignes.length || s.notes.length).map((s) => s.titre)]);
+      v.vrai('total : quantités additionnées, mur sans liste signalé', f.fin.lignes.some((l) => l.libelle === `${dalles.quantite} × ${calculs.libelleLigne(dalles)}`)
+        && f.fin.lignes.some((l) => /Mur 2/.test(l.valeur) && /ouvre ce mur/.test(l.valeur)));
+      v.vrai('pas de coche dans la fiche', !JSON.stringify(f).includes('chargé'));
+      const t = fichesMetier.texteFiche(f).split('\n');
+      v.egal('texte copié : début', t.slice(0, 4), ['FICHE CHEF DE PROJET', 'Fiche indicative : accroche à valider par le rigger, électricité par l\'électricien, vidéo par la régie.', 'Presta : Presta A', 'Dates : du 17 au 19/10/2026']);
+      v.vrai('texte copié : un titre par mur, date des textes, lignes « libellé : valeur »', t.includes('MUR 1') && t.includes('Textes du : 17/10/2026') && t.includes('Total suspendu : 540 kg')
+        && t.includes('ALERTES GRAVES') && t.includes('MUR 2') && t.includes('Ouvre ce mur une fois pour sa fiche.') && t.includes('MATÉRIEL DE LA PRESTA'));
+      v.egal('texte copié : sans tiret ni ligne vide ni puce', [/[—–]/.test(t.join('\n')), t.filter((l) => !l.trim() || /^\s*[-•*]/.test(l)).length], [false, 0]);
+    },
+  },
+  {
+    id: 'R336',
+    titre: 'Fiches par métier (14c, § 5) : fichier partagé « mur-led-fiche-<métier>-<nom simplifié>-<AAAA-MM-JJ>.txt » ; chaque bloc garde l\'identifiant de son mur (« Ouvrir ce mur »)',
+    etape: '14c',
+    verifier(v) {
+      v.egal('noms de fichier', fichesMetier.METIERS.map((m) => fichesMetier.nomFichierFiche('Presta Été / Cœur', m.id, MAINTENANT_PRESTA)), [
+        'mur-led-fiche-rigger-presta-ete-coeur-2026-10-13.txt', 'mur-led-fiche-electricien-presta-ete-coeur-2026-10-13.txt',
+        'mur-led-fiche-regie-presta-ete-coeur-2026-10-13.txt', 'mur-led-fiche-chef-de-projet-presta-ete-coeur-2026-10-13.txt',
+      ]);
+      const f = fichesMetier.ficheMetier('rigger', { presta: { nom: 'Presta A' }, murs: [{ id: 'm-a', nom: 'Mur 1', fiche: null, materiel: null }], date: new Date(2026, 9, 17, 12) });
+      v.egal('identifiant du mur dans son bloc', f.blocs[0].murId, 'm-a');
+    },
+  },
 ];
+
+// Ligne « libellé : … » d'un texte copié.
+const ligneDe = (texte, libelle) => texte.split('\n').find((l) => l.startsWith(`${libelle} : `)) ?? `${libelle} : absente`;
+
+// Textes copiés d'un mur d'essai (14b) : dalle du cas 13 en 12 × 6 sur MCTRL660, comme les onglets les copient.
+function textesEssai(contexte) {
+  const m = calculs.mur(DALLE_CAS_13, 12, 6);
+  const r = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+  const liaisons = liaisonsDeBase(contexte);
+  const source = { ...calculs.sourceConseillee(r, liaisons, 60), bits: 8, espace: 'RGB', plage: 'Full' };
+  const c = calculs.controleSource(source, r, liaisons, { famille: 'novastar', bitsReseau: 8, frequenceHz: 60 });
+  return {
+    mur: resumes.resumeMur({ dalle: DALLE_CAS_13, mur: m }),
+    data: resumes.resumeData(r, {}),
+    canvas: resumes.resumeCanvas(c, { evaluation: r, source }),
+    elec: resumes.resumeElec(calculs.electricite(m, DALLE_CAS_13, {}), { dalle: DALLE_CAS_13, mur: m }),
+    poids: resumes.resumePoids(calculs.poids(m, DALLE_CAS_13, {}), { dalle: DALLE_CAS_13, mur: m }),
+  };
+}
+// Liste de matériel du même mur, avec deux boîtiers dans la section Élec (la distribution n'est pas calculée ici).
+function listeEssai() {
+  const m = calculs.mur(DALLE_CAS_13, 12, 6);
+  const liste = calculs.listeMateriel({ mur: m, dalle: DALLE_CAS_13, poids: { resultat: calculs.poids(m, DALLE_CAS_13, {}), bumper: null } });
+  const boitiers = { cle: 'boitier', quantite: 2, designation: 'Boîtier 32 A tri', longueurM: null, aMesurer: false, detail: '6 prises 16 A, comme Élec' };
+  return { ...liste, sections: liste.sections.map((s) => (s.id === 'elec' ? { ...s, lignes: [boitiers, ...s.lignes] } : s)) };
+}
+
+// Horaires, accès et contacts d'essai (14a) : noms neutres et faux numéros, jamais un vrai contact. Saisie avec des
+// espaces de bord ; ORGANISATION_ESSAI, la même enregistrée.
+const ORGANISATION_SAISIE = {
+  horaires: { montage: ' jeudi 8 h à 18 h ', show: 'vendredi 20 h', demontage: '' },
+  acces: { quai: 'Quai B', ascenseur: '', chargeMaxi: ' 2 t ' },
+  contacts: {
+    chefProjet: { nom: ' Contact A ', telephone: ' 00 00 00 00 01 ' }, regie: { nom: 'Contact B', telephone: '' },
+    electricien: { nom: '', telephone: '' }, rigger: { nom: '', telephone: '00 00 00 00 04 (portable)' },
+  },
+};
+const ORGANISATION_ESSAI = {
+  horaires: { montage: 'jeudi 8 h à 18 h', show: 'vendredi 20 h', demontage: '' },
+  acces: { quai: 'Quai B', ascenseur: '', chargeMaxi: '2 t' },
+  contacts: {
+    chefProjet: { nom: 'Contact A', telephone: '00 00 00 00 01' }, regie: { nom: 'Contact B', telephone: '' },
+    electricien: { nom: '', telephone: '' }, rigger: { nom: '', telephone: '00 00 00 00 04 (portable)' },
+  },
+};
 
 // Distribution (12a) : variante conseillée du câblage élec d'un mur, avec son calcul Élec.
 function varianteConseil(m, dalle, reglages = {}, options = {}) {

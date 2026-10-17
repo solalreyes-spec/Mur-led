@@ -4,7 +4,7 @@
 // ferment sur place. Un appui sur la carte d'un mur ou d'une presta l'ouvre ; les actions rares sont dans les menus.
 
 import { el, remplacer } from './dom.js';
-import { listePrestas, texteDates, prestaOuverte, LIMITES, nomFichierPresta, texteRapportImport } from './prestas.js';
+import { listePrestas, texteDates, prestaOuverte, LIMITES, nomFichierPresta, texteRapportImport, HORAIRES, ACCES, CONTACTS, organisationPresta } from './prestas.js';
 
 const deux = (n) => String(n).padStart(2, '0');
 const jourLocal = (iso) => {
@@ -14,6 +14,22 @@ const jourLocal = (iso) => {
 const nombreMurs = (n) => `${n} mur${n > 1 ? 's' : ''}`;
 const alerte = (texte, genre = '') => el('div', { class: `alerte ${genre}`.trim(), role: genre === 'alerte-erreur' ? 'alert' : null }, texte);
 const CHEVRON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg>';
+
+// Champs de l'organisation dans le formulaire « Modifier » : [nom du champ, lecture dans l'organisation].
+const champsOrganisation = () => [
+  ...HORAIRES.map(([c]) => [`org-horaires-${c}`, (o) => o.horaires[c]]),
+  ...ACCES.map(([c]) => [`org-acces-${c}`, (o) => o.acces[c]]),
+  ...CONTACTS.flatMap(([c]) => ['nom', 'telephone'].map((x) => [`org-contacts-${c}-${x}`, (o) => o.contacts[c][x]])),
+];
+// Organisation telle que saisie (vérifiée par prestas.js).
+function organisationSaisie(form) {
+  const e = form.elements;
+  return {
+    horaires: Object.fromEntries(HORAIRES.map(([c]) => [c, e[`org-horaires-${c}`].value])),
+    acces: Object.fromEntries(ACCES.map(([c]) => [c, e[`org-acces-${c}`].value])),
+    contacts: Object.fromEntries(CONTACTS.map(([c]) => [c, { nom: e[`org-contacts-${c}-nom`].value, telephone: e[`org-contacts-${c}-telephone`].value }])),
+  };
+}
 
 // Fichier d'une presta exportée (prestas.js, exporterPresta) : JSON lisible, « mur-led-presta-<nom>-<date>.json ».
 export function fichierExportPresta(donnees, maintenant = new Date()) {
@@ -41,7 +57,7 @@ export function remplirBoutonPresta(bouton, { presta, mur }) {
 
 // `actions` : ouvrir(prestaId, murId?), creerPresta(), modifierPresta(id, infos), ajouterMur(id), renommerMur(id, murId,
 // nom), dupliquerMur(id, murId), supprimerMur(id, murId), dupliquerPresta(id), archiverPresta(id, archivee),
-// supprimerPresta(id), materielMur(id, murId), materielPresta(id) ; exporter(id) (renvoie 'partage', 'annule' ou 'telechargement'), verifierImport(texte) et
+// supprimerPresta(id), materielMur(id, murId), materielPresta(id), fichesPresta(id) ; exporter(id) (renvoie 'partage', 'annule' ou 'telechargement'), verifierImport(texte) et
 // importer(texte, choix) (renvoie le rapport) ; chacune peut lever une erreur, affichée dans l'écran.
 // `resumeMur(mur)` : ligne sous le nom.
 export function monterPrestas(racine, { actions, resumeMur = () => '', proportionsMur = () => null, confirmer = (texte) => window.confirm(texte) }) {
@@ -133,6 +149,7 @@ export function monterPrestas(racine, { actions, resumeMur = () => '', proportio
         champ('fin', 'Fin', el('input', { name: 'fin', type: 'date' }))),
       champ('lieu', 'Lieu', el('input', { name: 'lieu', type: 'text', maxlength: String(LIMITES.lieu), autocomplete: 'off' })),
       champ('notes', 'Notes', el('textarea', { name: 'notes', rows: '3', maxlength: String(LIMITES.notes) })),
+      partieOrganisation(champ),
       el('div', { class: 'pr-erreur-formulaire' }),
       el('div', { class: 'pr-boutons' },
         el('button', { type: 'submit', class: 'bouton bouton-principal', 'data-icone': 'enregistrer' }, 'Enregistrer'),
@@ -142,16 +159,34 @@ export function monterPrestas(racine, { actions, resumeMur = () => '', proportio
     form.elements.fin.value = presta.fin ?? '';
     form.elements.lieu.value = presta.lieu ?? '';
     form.elements.notes.value = presta.notes ?? '';
+    // Horaires, accès et contacts (14a) : partie ouverte dès que quelque chose est rempli.
+    const organisation = organisationPresta(presta);
+    for (const [nom, lire] of champsOrganisation()) form.elements[nom].value = lire(organisation);
+    const partie = form.querySelector('.pr-organisation');
+    partie.open = champsOrganisation().some(([nom]) => form.elements[nom].value !== '');
     form.addEventListener('submit', async (evenement) => {
       evenement.preventDefault();
       const e = form.elements;
-      const infos = { nom: e.nom.value, debut: e.debut.value || null, fin: e.fin.value || null, lieu: e.lieu.value, notes: e.notes.value };
+      const infos = { nom: e.nom.value, debut: e.debut.value || null, fin: e.fin.value || null, lieu: e.lieu.value, notes: e.notes.value, organisation: organisationSaisie(form) };
       if (await executer(() => actions.modifierPresta(presta.id, infos), form.querySelector('.pr-erreur-formulaire'))) form.remove();
     });
     // Sous les infos de la presta, avant ses murs : visible tout de suite.
     conteneur.querySelector('.pr-murs').before(form);
     form.scrollIntoView?.({ block: 'nearest' });
     form.elements.nom.focus();
+  }
+
+  // Horaires, accès et contacts (14a) : un groupe par sujet, puis un par contact (nom et téléphone).
+  function partieOrganisation(champ) {
+    const texte = (nom, max) => el('input', { name: nom, type: 'text', maxlength: String(max), autocomplete: 'off' });
+    const groupe = (titre, ...champs) => el('fieldset', { class: 'pr-groupe' }, el('legend', {}, titre), ...champs);
+    return el('details', { class: 'pr-organisation' },
+      el('summary', {}, 'Horaires, accès et contacts'),
+      groupe('Horaires', ...HORAIRES.map(([c, libelle]) => champ(c, libelle, texte(`org-horaires-${c}`, LIMITES.horaire)))),
+      groupe('Accès', ...ACCES.map(([c, libelle]) => champ(c, libelle, texte(`org-acces-${c}`, LIMITES.acces)))),
+      ...CONTACTS.map(([c, libelle]) => groupe(libelle,
+        champ('nom', 'Nom', texte(`org-contacts-${c}-nom`, LIMITES.nomContact)),
+        champ('telephone', 'Téléphone', el('input', { name: `org-contacts-${c}-telephone`, type: 'tel', maxlength: String(LIMITES.telephone), autocomplete: 'off' })))));
   }
 
   function formulaireRenommer(presta, mur, ligne) {
@@ -229,6 +264,7 @@ export function monterPrestas(racine, { actions, resumeMur = () => '', proportio
       el('div', { class: 'pr-actions-presta' },
         bouton('Ajouter un mur', () => executer(() => actions.ajouterMur(p.id)), { class: 'bouton pr-ajouter-mur', 'data-icone': 'ajouter' }),
         bouton('Matériel', () => executer(() => actions.materielPresta(p.id)), { class: 'bouton pr-materiel', 'data-icone': 'liste' }),
+        bouton('Fiches', () => executer(() => actions.fichesPresta(p.id)), { class: 'bouton pr-fiches', 'data-icone': 'fiche' }),
         el('div', { class: 'pr-export-bloc' },
           bouton('Exporter', () => executer(async () => {
             const mode = await actions.exporter(p.id);

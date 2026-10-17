@@ -3,10 +3,13 @@
 // (`maintenant`) et le tirage des identifiants (`alea`) peuvent être donnés par l'appelant (tests reproductibles).
 //
 // État : { index, murs }
-//   index : { version, ouverte: { presta, mur }, prestas: [{ id, nom, debut, fin, lieu, notes, creeeLe, modifieeLe,
-//             exporteeLe, archivee, murs: [{ id, nom }] }] }
+//   index : { version, ouverte: { presta, mur }, prestas: [{ id, nom, debut, fin, lieu, notes, organisation, creeeLe,
+//             modifieeLe, exporteeLe, archivee, murs: [{ id, nom }] }] }
+//   `organisation` (étape 14a) : horaires, accès et contacts, facultative, absente quand tout est vide
+//   (`organisationPresta` la lit toujours entière) ; exportée et importée avec la presta.
 //   murs : { [id du mur]: { version, parc, configuration, montage, materiel } }, une clé de stockage par mur ;
-//   `materiel` (étape 13b) : { liste, calculeeLe }, la liste de matériel du mur, jamais exportée. Presta : `materiel`
+//   `materiel` (étape 13b) : { liste, calculeeLe }, la liste de matériel du mur, jamais exportée ; `fiche` (étape 14b) :
+//   { textes, calculeeLe }, les textes des onglets pour les fiches par métier, jamais exportés. Presta : `materiel`
 //   { sparesPourcent, coches { [clé]: quantité cochée }, ajouts [{ id, libelle, quantite }] } facultatif (13c), jamais
 //   exporté.
 // `configuration` a la forme des saisies gardées (configuration.js) ; null : réglages par défaut.
@@ -18,7 +21,7 @@ export const VERSION_PRESTAS = 1;
 export const FORMAT_PRESTA = 'appli-mur-led/presta';
 // Formulaires dont les saisies sont gardées avec chaque mur (ceux de configuration.js).
 export const FORMULAIRES_SAISIES = ['form-mur', 'form-data', 'form-source', 'form-elec', 'form-poids', 'form-schema', 'form-mire'];
-export const LIMITES = { nomPresta: 60, nomMur: 40, lieu: 80, notes: 2000 };
+export const LIMITES = { nomPresta: 60, nomMur: 40, lieu: 80, notes: 2000, horaire: 80, acces: 80, nomContact: 60, telephone: 30 };
 const SANS_NOM = 'Presta sans nom';
 
 // ---------------------------------------------------------------------------
@@ -83,8 +86,59 @@ function dateValide(x) {
   return x;
 }
 
-// Infos d'une presta : nom obligatoire, dates AAAA-MM-JJ (fin jamais avant le début), lieu et notes libres.
-function infosValides({ nom, debut, fin, lieu, notes } = {}) {
+// Horaires, accès et contacts (étape 14a) : champs, libellés et longueur maxi ; tout facultatif, en texte libre.
+export const HORAIRES = [['montage', 'Montage', 'du montage'], ['show', 'Show', 'du show'], ['demontage', 'Démontage', 'du démontage']];
+export const ACCES = [['quai', 'Quai', 'Quai trop long'], ['ascenseur', 'Ascenseur', 'Ascenseur trop long'], ['chargeMaxi', 'Charge maxi', 'Charge maxi trop longue']];
+export const CONTACTS = [['chefProjet', 'Chef de projet', 'chef de projet'], ['regie', 'Régie', 'régie'], ['electricien', 'Électricien', 'électricien'], ['rigger', 'Rigger', 'rigger']];
+
+export function organisationVide() {
+  return {
+    horaires: Object.fromEntries(HORAIRES.map(([c]) => [c, ''])),
+    acces: Object.fromEntries(ACCES.map(([c]) => [c, ''])),
+    contacts: Object.fromEntries(CONTACTS.map(([c]) => [c, { nom: '', telephone: '' }])),
+  };
+}
+const valeursOrganisation = (org) => [...Object.values(org.horaires), ...Object.values(org.acces), ...Object.values(org.contacts).flatMap((c) => [c.nom, c.telephone])];
+const organisationRemplie = (org) => valeursOrganisation(org).some(Boolean);
+
+// Organisation lue dans une saisie ou un fichier : groupes et champs connus seulement, texte, espaces de bord retirés.
+function organisationValide(org) {
+  const illisible = () => new ErreurSaisie('Horaires, accès et contacts illisibles.');
+  const objet = (x) => x === undefined || x === null || (typeof x === 'object' && !Array.isArray(x));
+  const texte = (x, max, message) => {
+    if (x === undefined || x === null) return '';
+    if (typeof x !== 'string') throw illisible();
+    const t = x.trim();
+    if (t.length > max) throw new ErreurSaisie(`${message} : ${max} caractères au plus.`);
+    return t;
+  };
+  if (!objet(org) || !objet(org?.horaires) || !objet(org?.acces) || !objet(org?.contacts)) throw illisible();
+  const { horaires = {}, acces = {}, contacts = {} } = org ?? {};
+  return {
+    horaires: Object.fromEntries(HORAIRES.map(([c, , de]) => [c, texte(horaires?.[c], LIMITES.horaire, `Horaire ${de} trop long`)])),
+    acces: Object.fromEntries(ACCES.map(([c, , message]) => [c, texte(acces?.[c], LIMITES.acces, message)])),
+    contacts: Object.fromEntries(CONTACTS.map(([c, , nom]) => {
+      if (!objet(contacts?.[c])) throw illisible();
+      return [c, {
+        nom: texte(contacts?.[c]?.nom, LIMITES.nomContact, `Nom du contact ${nom} trop long`),
+        telephone: texte(contacts?.[c]?.telephone, LIMITES.telephone, `Téléphone du contact ${nom} trop long`),
+      }];
+    })),
+  };
+}
+
+// Organisation d'une presta, toujours entière (vide pour une presta d'avant l'étape 14).
+export function organisationPresta(presta) {
+  try {
+    return organisationValide(presta?.organisation ?? null);
+  } catch (erreur) {
+    return organisationVide();
+  }
+}
+
+// Infos d'une presta : nom obligatoire, dates AAAA-MM-JJ (fin jamais avant le début), lieu et notes libres ;
+// organisation facultative (non donnée : `organisation` absent du résultat, celle de la presta reste).
+function infosValides({ nom, debut, fin, lieu, notes, organisation } = {}) {
   const n = String(nom ?? '').trim();
   if (!n) throw new ErreurSaisie('Donne un nom à la presta.');
   if (n.length > LIMITES.nomPresta) throw new ErreurSaisie(`Nom de presta trop long : ${LIMITES.nomPresta} caractères au plus.`);
@@ -96,7 +150,18 @@ function infosValides({ nom, debut, fin, lieu, notes } = {}) {
   if (l.length > LIMITES.lieu) throw new ErreurSaisie(`Lieu trop long : ${LIMITES.lieu} caractères au plus.`);
   const no = String(notes ?? '').trim();
   if (no.length > LIMITES.notes) throw new ErreurSaisie('Notes trop longues : 2 000 caractères au plus.');
-  return { nom: n, debut: d, fin: f, lieu: l, notes: no };
+  const infos = { nom: n, debut: d, fin: f, lieu: l, notes: no };
+  if (organisation !== undefined && organisation !== null) infos.organisation = organisationValide(organisation);
+  return infos;
+}
+
+// Infos enregistrées sur la presta : une organisation vide n'est pas écrite.
+function avecInfos(p, infos) {
+  const { organisation, ...reste } = infos;
+  const suite = { ...p, ...reste };
+  if (organisation === undefined) return suite;
+  delete suite.organisation;
+  return organisationRemplie(organisation) ? { ...suite, organisation } : suite;
 }
 
 // Nom de mur : obligatoire, unique dans sa presta (le mur `murId` peut garder le sien).
@@ -183,7 +248,7 @@ export function modifierPresta(etat, prestaId, infos, opts) {
   const o = options(opts);
   trouverPresta(etat, prestaId);
   const v = infosValides(infos);
-  return avecPresta(etat, prestaId, (p) => ({ ...p, ...v, modifieeLe: o.iso }));
+  return avecPresta(etat, prestaId, (p) => ({ ...avecInfos(p, v), modifieeLe: o.iso }));
 }
 
 // Parc d'un nouveau mur : celui que donne l'appli (`parc`, le parc actif, null si celui du mur a disparu), sinon celui
@@ -235,8 +300,10 @@ export function enregistrerMur(etat, murId, champs, opts) {
   // Rien de changé : la presta n'est pas marquée modifiée (ouvrir le guide de montage, relire les saisies).
   if (JSON.stringify(maj) === JSON.stringify(actuel)) return etat;
   const e = { ...etat, murs: { ...etat.murs, [murId]: maj } };
+  // Le suivi du montage seul (ouvrir le guide, cocher un port) ne marque pas la presta modifiée : rien n'a été saisi.
+  const saisi = JSON.stringify({ ...maj, montage: null }) !== JSON.stringify({ ...actuel, montage: null });
   const presta = etat.index.prestas.find((p) => p.murs.some((m) => m.id === murId));
-  return presta ? toucher(e, presta.id, opts) : e;
+  return presta && saisi ? toucher(e, presta.id, opts) : e;
 }
 
 // Liste de matériel d'un mur (étape 13b), calculée quand il est ouvert et gardée avec lui, avec sa date. Elle ne marque
@@ -250,6 +317,19 @@ export function enregistrerListeMur(etat, murId, liste, opts) {
 }
 
 export const listeGardee = (etat, murId) => etat.murs[murId]?.materiel ?? null;
+
+// Textes des onglets d'un mur pour les fiches par métier (étape 14b) : { mur, data, canvas, elec, poids }, chacun le
+// texte copié de l'onglet ou null (calcul non valide), gardés avec le mur et leur date comme la liste de matériel :
+// sans marquer la presta modifiée, jamais exportés, non réécrits s'ils n'ont pas changé.
+export function enregistrerFicheMur(etat, murId, textes, opts) {
+  const actuel = etat.murs[murId];
+  if (!actuel) throw new ErreurSaisie('Mur introuvable.');
+  if (JSON.stringify(actuel.fiche?.textes ?? null) === JSON.stringify(textes)) return etat;
+  const o = options(opts);
+  return { ...etat, murs: { ...etat.murs, [murId]: { ...actuel, fiche: { textes: copie(textes), calculeeLe: o.iso } } } };
+}
+
+export const ficheGardee = (etat, murId) => etat.murs[murId]?.fiche ?? null;
 
 // Réglages de la liste de matériel gardés avec la presta : pourcentage de spare (5 % par défaut).
 export const SPARES_DEFAUT_PRESTA = 5;
@@ -492,7 +572,7 @@ export function exporterPresta(etat, prestaId, base, opts = {}) {
     version: VERSION_PRESTAS,
     exporteLe: o.iso,
     versionAppli: opts.versionAppli ?? null,
-    presta: { id: p.id, nom: p.nom, debut: p.debut, fin: p.fin, lieu: p.lieu, notes: p.notes },
+    presta: { id: p.id, nom: p.nom, debut: p.debut, fin: p.fin, lieu: p.lieu, notes: p.notes, ...(p.organisation ? { organisation: copie(p.organisation) } : {}) },
     murs: p.murs.map((m) => ({ id: m.id, nom: m.nom, parc: etat.murs[m.id]?.parc ?? null, configuration: copie(etat.murs[m.id]?.configuration) })),
     fiches,
     sources: Object.fromEntries(Object.entries(base.sources ?? {}).filter(([id]) => citees.has(id)).map(([id, s]) => [id, copie(s)])),
@@ -507,7 +587,8 @@ export const nomFichierMateriel = (nom, maintenant = new Date()) => nomFichierPr
 
 // « mur-led-presta-<nom simplifié>-<AAAA-MM-JJ>.json ».
 export function nomFichierPresta(nom, maintenant = new Date()) {
-  const simple = String(nom ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  // Lettres liées remplacées avant la simplification (« Cœur » → « coeur », pas « c-ur »).
+  const simple = String(nom ?? '').replace(/[œŒ]/g, 'oe').replace(/[æÆ]/g, 'ae').replace(/ß/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '') || 'sans-nom';
   return `mur-led-presta-${simple}-${jourIso(maintenant)}.json`;
 }
@@ -691,7 +772,7 @@ export function importerPresta(etat, base, depart, texte, choix = {}, opts) {
     return { id, nom: m.nom, parc: m.parc, configuration: m.configuration };
   });
   const presta = {
-    id: pid, ...infos, nom, creeeLe: mode === 'remplacee' ? existante.creeeLe : o.iso, modifieeLe: o.iso, exporteeLe: null, archivee: false,
+    id: pid, ...avecInfos({}, infos), nom, creeeLe: mode === 'remplacee' ? existante.creeeLe : o.iso, modifieeLe: o.iso, exporteeLe: null, archivee: false,
     murs: murs.map(({ id, nom: n }) => ({ id, nom: n })),
   };
   const donneesMurs = { ...etat.murs };

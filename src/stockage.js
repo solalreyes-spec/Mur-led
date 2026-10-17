@@ -11,6 +11,9 @@ const PREFIXE_INFOS = 'infos-fichier:';
 export function creerStockage(nomBase) {
   const memoire = new Map();
   let disponible = typeof indexedDB !== 'undefined';
+  // Écritures suspendues (l'appli est ouverte dans un autre onglet, qui a la main) : plus rien n'est écrit sur
+  // l'appareil ; la lecture reste.
+  let suspendu = false;
 
   function ouvrir() {
     return new Promise((resoudre, rejeter) => {
@@ -48,6 +51,7 @@ export function creerStockage(nomBase) {
   }
 
   async function ecrire(cle, valeur) {
+    if (suspendu) return false;
     memoire.set(cle, valeur);
     if (!disponible) return false;
     try {
@@ -60,6 +64,7 @@ export function creerStockage(nomBase) {
   }
 
   async function effacer(cle) {
+    if (suspendu) return false;
     memoire.delete(cle);
     if (!disponible) return false;
     try {
@@ -111,6 +116,8 @@ export function creerStockage(nomBase) {
   return {
     lire, ecrire, effacer, ecrireFichier, lireFichier, supprimerFichier, listerFichiers,
     disponible: () => disponible,
+    suspendre: () => { suspendu = true; },
+    suspendu: () => suspendu,
   };
 }
 
@@ -123,6 +130,7 @@ export const ecrireFichier = appli.ecrireFichier;
 export const lireFichier = appli.lireFichier;
 export const supprimerFichier = appli.supprimerFichier;
 export const listerFichiers = appli.listerFichiers;
+export const suspendreEcritures = appli.suspendre;
 
 export function stockageDisponible() {
   return appli.disponible();
