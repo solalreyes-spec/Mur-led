@@ -60,9 +60,10 @@ const materielOuManque = (materiel, titre, id) => (materiel?.liste
   : [{ libelle: 'Matériel', valeur: 'ouvre ce mur une fois pour compter son matériel' }]);
 
 // Alertes graves (chef de projet) : refus, impossibilités, et lignes de résultat dont l'état est « dépasse », « dépassé »
-// ou « ne passe pas » (phase, maximum en accroche, liaison, charge, courant d'appel) ; les alertes, notes et rappels
+// ou « ne passe pas » (phase, maximum en accroche, liaison, charge, courant d'appel), manques de stock du parc (15b ; les
+// spares incomplets restent une alerte du Mur) ; les alertes, notes et rappels
 // restent sur la fiche de leur métier. Une même ligne une fois.
-const estGrave = (l) => ['Refus', 'Impossible'].includes(l.libelle)
+const estGrave = (l) => ['Refus', 'Impossible', 'Manque de stock'].includes(l.libelle)
   || (!['Alerte', 'Note', 'Rappel'].includes(l.libelle) && /(^|, )(dépasse|dépassé|ne passe pas)(?=$|[ ,(])/.test(l.valeur));
 
 // Synthèse du chef de projet : quelques lignes de chaque onglet, les dalles et spares de la liste, les alertes graves.
@@ -122,8 +123,9 @@ function entete(metier, presta, date) {
 }
 
 // Fiche d'un métier pour toute la presta. `murs` : [{ id, nom, fiche (textes gardés) ou null, materiel (liste gardée) ou
-// null }] dans l'ordre de la presta ; `total` : total de matériel de la presta (chef de projet).
-export function ficheMetier(metier, { presta, murs = [], total = null, date = new Date() }) {
+// null }] dans l'ordre de la presta ; `total` : total de matériel de la presta (chef de projet) ; `stock` : stockPresta
+// (étape 15b), manques en alertes graves de la presta, stock des parcs après les dalles.
+export function ficheMetier(metier, { presta, murs = [], total = null, stock = null, date = new Date() }) {
   const m = METIERS.find((x) => x.id === metier);
   if (!m) throw new ErreurSaisie(`Métier inconnu : ${metier}.`);
   const blocs = murs.map((mur) => (mur.fiche
@@ -132,10 +134,17 @@ export function ficheMetier(metier, { presta, murs = [], total = null, date = ne
   let fin = null;
   if (metier === 'chefProjet' && total) {
     const lignes = [];
+    if (stock?.manques.length) lignes.push({ titre: 'Alertes graves de la presta' }, ...stock.manques.map((m) => ({ libelle: 'Manque de stock', valeur: m })));
     for (const s of total.sections) {
       if (!s.lignes.length && !s.notes.length) continue;
       lignes.push({ titre: s.titre }, ...s.lignes.map((l) => ({ libelle: `${l.quantite} × ${libelleLigne(l)}`, valeur: l.detail ?? '' })),
         ...s.notes.map((n) => ({ libelle: 'Note', valeur: n })));
+      if (s.id === 'dalles' && stock?.lignes.length) {
+        lignes.push({ titre: 'Stock des parcs' }, ...stock.lignes.map((l) => {
+          const i = l.texte.indexOf(' : ');
+          return { libelle: l.texte.slice(0, i), valeur: l.texte.slice(i + 3) };
+        }));
+      }
     }
     lignes.push(...total.notes.map((n) => ({ libelle: 'Note', valeur: n })));
     fin = { titre: 'Matériel de la presta', lignes };

@@ -74,7 +74,7 @@ function lignesFormeReelle(dalle, m) {
   ];
 }
 
-function resumeMurZones(dalle, m) {
+function resumeMurZones(dalle, m, stock = null) {
   const sources = sourcesDimensions(dalle);
   const saisies = m.saisie?.zones ?? [];
   const placees = saisies.some((z) => z.placement && z.placement.type !== 'droite');
@@ -109,6 +109,7 @@ function resumeMurZones(dalle, m) {
     m.mixte ? `Pas de référence : ${nombreCourt(m.pas.mm, 3)} mm (le plus fin des dalles du mur)` : `Pitch : ${nombreCourt(pitchCalculeMm(dalle), 3)} mm`,
     sources ? `Dimensions et pixels : ${sources}` : null,
     dalle.gabarit ? 'Alerte : gabarit générique non sourcé, pour une estimation seulement' : null,
+    ...lignesStock(stock),
   );
   return texte(lignes);
 }
@@ -129,8 +130,24 @@ const textePorts = (premier, dernier) => {
   return `ports ${premier} ${dernier === premier + 1 ? 'et' : 'à'} ${dernier}`;
 };
 
-export function resumeMur({ dalle, mur: m }) {
-  if ((m.zones?.length ?? 0) > 1 || m.zones?.[0]?.forme || m.mixte) return resumeMurZones(dalle, m);
+// Stock du parc (étape 15b) : lignes de chaque fiche, manque en « Manque de stock » (alerte grave de la fiche du chef de
+// projet), spares incomplets en « Alerte », murs jamais ouverts en note, plus grand mur et ses variantes. `stock` :
+// { controle (controleStock), grand (plusGrandMur) } ou null (« Tous » : rien).
+export function lignesStock(stock) {
+  if (!stock?.controle) return [];
+  const lignes = stock.controle.fiches.flatMap((f) => f.lignes.map((l) => {
+    if (l !== f.alerte) return l;
+    return `${f.etat === 'manque' ? 'Manque de stock' : 'Alerte'} : ${l}`;
+  }));
+  lignes.push(...stock.controle.notes.map((n) => `Note : ${n}`));
+  const g = stock.grand;
+  if (g?.refus) lignes.push(`Plus grand mur avec ton stock : ${g.refus}`);
+  else if (g?.mur) lignes.push(`Plus grand mur avec ton stock : ${g.mur.texte}`, ...g.variantes.map((x) => `Variante ${x.libelle} : ${x.texte}`));
+  return lignes;
+}
+
+export function resumeMur({ dalle, mur: m, stock = null }) {
+  if ((m.zones?.length ?? 0) > 1 || m.zones?.[0]?.forme || m.mixte) return resumeMurZones(dalle, m, stock);
   const sources = sourcesDimensions(dalle, m.demi);
   return texte([
     'MUR',
@@ -147,6 +164,7 @@ export function resumeMur({ dalle, mur: m }) {
     `Pitch : ${nombreCourt(pitchCalculeMm(dalle), 3)} mm`,
     sources ? `Dimensions et pixels : ${sources}` : null,
     dalle.gabarit ? 'Alerte : gabarit générique non sourcé, pour une estimation seulement' : null,
+    ...lignesStock(stock),
   ]);
 }
 
@@ -212,6 +230,7 @@ export function resumeData(r, {
   conseille = false, distributeur = null, distributeurFiche = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null, configs = null, reseau = null,
   alternative = null,
   ports = [],
+  quantiteParc = null,
 } = {}) {
   const proc = r.processeur;
   if (!r.groupes?.length) {
@@ -224,6 +243,9 @@ export function resumeData(r, {
   const lignes = [
     'DATA',
     `Processeur : ${r.nombre} × ${proc.nom}${conseille ? ', conseillé' : ''}`,
+    // Nombre dans le parc (étape 15c) ; le manque est une alerte grave de la fiche du chef de projet.
+    quantiteParc ? `Nombre dans le parc ${quantiteParc.parcNom} : ${nombre(quantiteParc.quantite)}` : null,
+    quantiteParc?.alerte ? `Manque de stock : ${quantiteParc.alerte}` : null,
     r.configuration ? `Configuration : ${r.configuration}` : null,
     `Réglages : ${nombreCourt(reg.frequenceHz)} Hz, ${reg.bits} bits réseau${reg.ull ? ', ULL' : ''}, `
       + `${reg.redondance ? 'avec redondance' : 'sans redondance'}${reg.modeOptique ? ', mode optique' : ''}`,
@@ -680,11 +702,13 @@ function texteOrigineStock(origines) {
   return parcs.map((o) => `${o.parc} (${o.familles.map((f) => NOMS_FAMILLES[f] ?? f).join(', ')})`)
     .filter((x, i, tous) => tous.indexOf(x) === i).join(' ; ') + ', par défaut pour les autres';
 }
-export function resumeMateriel({ titre, liste = null, total = null, sparesPourcent, coches = null }) {
+// `stock` (étape 15b, total de la presta) : stockPresta ; manques en tête, section « STOCK DES PARCS » après les dalles.
+export function resumeMateriel({ titre, liste = null, total = null, sparesPourcent, coches = null, stock = null }) {
   const source = total ?? liste;
   const lignes = ['MATÉRIEL', titre, source.rappel, `Spare des dalles : ${nombreCourt(sparesPourcent)} % par fiche, arrondi au-dessus, au moins 1`,
     `Longueurs du stock : ${texteOrigineStock(total ? total.origineStock : [liste.origineStock].filter(Boolean))}`];
   if (total) lignes.push(...total.notes);
+  if (stock) lignes.push(...stock.manques.map((m) => `Manque de stock : ${m}`));
   for (const s of source.sections) {
     if (!s.lignes.length && !s.notes.length) continue;
     lignes.push(s.titre.toUpperCase());
@@ -692,6 +716,7 @@ export function resumeMateriel({ titre, liste = null, total = null, sparesPource
       lignes.push(`${nombreCourt(l.quantite)} × ${libelleLigne(l)}${l.detail ? ` : ${l.detail}` : ''}${coches?.has(l.cle) ? ', chargé' : ''}`);
     }
     lignes.push(...s.notes.map((n) => `Note : ${n}`));
+    if (s.id === 'dalles' && stock?.lignes.length) lignes.push('STOCK DES PARCS', ...stock.lignes.map((l) => l.texte));
   }
   const p = source.poidsTransporte;
   lignes.push('POIDS TRANSPORTÉ', p.kg === null ? `Non calculé (poids de dalle absent) ; ${p.nonCompte}` : `${nombreCourt(p.kg, 1)} kg, indicatif ; ${p.nonCompte}`);

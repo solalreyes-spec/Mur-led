@@ -136,7 +136,7 @@ function texteDimension(valeur, unite) {
   return unite === 'px' ? `${nombreCourt(valeur)} px` : `${nombreCourt(valeur / 1000, 3)} m`;
 }
 
-const VARIANTES = [
+export const VARIANTES = [
   { libelle: '−1 colonne', dc: -1, dl: 0 },
   { libelle: '+1 colonne', dc: 1, dl: 0 },
   { libelle: '−1 ligne', dc: 0, dl: -1 },

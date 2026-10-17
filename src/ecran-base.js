@@ -9,7 +9,7 @@ import {
   LOGICIELS, EXTENSIONS_CONFIG, CALIBRATIONS_TESSERA, FIRMWARES, ROLES_FICHIER, lotsDalleParc, ajouterLot, modifierLot,
   supprimerLot, reglerConfigLot, configLot, supprimerConfigLot, verifierFichierJoint, joindreFichier, detacherFichier,
   fichiersJoints, tailleFichiersJoints, alerteTailleFichier, migrerFichiersConfig, logicielDuProcesseur, reglerLogicielParc,
-  logicielParc, fichesRetirees, retirerFicheRetiree, arbreDalles,
+  logicielParc, fichesRetirees, retirerFicheRetiree, arbreDalles, reglerQuantiteParc, quantitesParc,
   FAMILLES_LONGUEURS, LIBELLES_LONGUEURS, reglerLongueursParc, reglerCaseParc,
 } from './fiches.js';
 import { stockageDisponible, ecrireFichier, lireFichier, supprimerFichier, listerFichiers } from './stockage.js';
@@ -643,20 +643,32 @@ function sectionLots(parc, brute, resolue) {
     ajout);
 }
 
-// Version du logiciel ou du firmware d'un processeur du parc, et date du relevé.
+// Nombre du processeur dans le parc (étape 15c, facultatif), version du logiciel ou du firmware et date du relevé.
 function formulaireLogiciel(parc, brute, resolue) {
   const logiciel = logicielDuProcesseur(resolue);
   const actuel = logicielParc(ctx.base, parc.id, brute.id) ?? {};
+  const quantite = quantitesParc(ctx.base, parc.id)[brute.id];
   const prefixe = `logiciel-${parc.id}-${brute.id}`;
+  const erreur = el('div', { 'aria-live': 'polite' });
   const formulaire = el('form', { class: 'formulaire reglage-parc', novalidate: '' },
+    champTexte(`${prefixe}-quantite`, 'quantite', 'Nombre dans le parc', quantite === undefined ? '' : String(quantite), { placeholder: 'non saisi', inputmode: 'numeric' }),
+    el('p', { class: 'compte' }, 'De 1 à 99 ; vide : pas de contrôle du nombre.'),
     champTexte(`${prefixe}-version`, 'version', `Version de ${logiciel} ou du firmware, dans ce parc`, actuel.version, { placeholder: 'non relevée' }),
     champTexte(`${prefixe}-date`, 'dateReleve', 'Date du relevé', actuel.dateReleve, { type: 'date' }),
     el('p', { class: 'compte' }, 'Laisse la version vide pour retirer le relevé.'),
+    erreur,
     el('button', { class: 'bouton bouton-principal', type: 'submit', 'data-icone': 'enregistrer' }, 'Enregistrer pour ce parc'));
   formulaire.addEventListener('submit', (evenement) => {
     evenement.preventDefault();
+    remplacer(erreur);
     const donnees = new FormData(formulaire);
-    enregistrer(reglerLogicielParc(ctx.base, parc.id, resolue, { version: donnees.get('version'), dateReleve: donnees.get('dateReleve') }));
+    try {
+      const avecNombre = reglerQuantiteParc(ctx.base, parc.id, brute.id, donnees.get('quantite'));
+      enregistrer(reglerLogicielParc(avecNombre, parc.id, resolue, { version: donnees.get('version'), dateReleve: donnees.get('dateReleve') }));
+    } catch (e) {
+      if (!(e instanceof ErreurSaisie)) throw e;
+      remplacer(erreur, el('div', { class: 'alerte alerte-erreur', role: 'alert' }, e.message));
+    }
   });
   return formulaire;
 }

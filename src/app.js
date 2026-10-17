@@ -1,8 +1,8 @@
 // Point d'entrée de l'appli : charge la base de départ et ma base locale, lance les onglets et gère la navigation.
 
-import { resoudreFiche, listeMateriel, totalMateriel, ErreurSaisie } from './calculs.js';
+import { resoudreFiche, listeMateriel, totalMateriel, stockPresta, ErreurSaisie } from './calculs.js';
 import { el, remplacer } from './dom.js';
-import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc } from './fiches.js';
+import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc, quantitesParc } from './fiches.js';
 import { lire, ecrire, stockageDisponible, suspendreEcritures } from './stockage.js';
 import { surveillerOnglets } from './onglets.js';
 import { initialiserMur, actualiserMur, signalerErreurMur, resumeOngletMur } from './ecran-mur.js';
@@ -299,8 +299,20 @@ const pourMur = () => {
     dalles, gabarits: courant.gabarits, informations: courant.informations, visibles: filtrerParParc(dalles, base, parcActif, 'dalle'), nomParc: nomParc(),
     // Lots et configs des dalles dans le parc actif.
     lots: { base, parcId: parcActif },
+    stock: stockDuMur(),
   };
 };
+// Stock du parc actif pour le mur ouvert (étape 15b) : lots du parc, listes gardées des autres murs de la presta du même
+// parc, spare de la presta ; null en « Tous ».
+function stockDuMur() {
+  const parc = base.parcs.find((p) => p.id === parcActif);
+  const presta = prestas.prestaOuverte(etatPrestas);
+  if (!parc || !presta) return null;
+  const ouvert = etatPrestas.index.ouverte?.mur;
+  const autres = presta.murs.filter((m) => m.id !== ouvert && etatPrestas.murs[m.id]?.parc === parcActif)
+    .map((m) => ({ nom: m.nom, liste: prestas.listeGardee(etatPrestas, m.id)?.liste ?? null }));
+  return { parc: { nom: parc.nom, lots: parc.lots ?? {} }, autres, sparesPourcent: prestas.materielPresta(presta).sparesPourcent };
+}
 const pourData = () => ({
   processeurs: filtrerParParc(courant.processeurs, base, parcActif, 'processeur'),
   // Fiches d'information (VX4, MCTRL610) : visibles et grisées dans le choix du processeur, hors parc actif.
@@ -317,6 +329,8 @@ const pourData = () => ({
   bitsParDefaut: Object.fromEntries(['brompton', 'novastar', 'colorlight', 'megapixel', 'linsn', 'kystar', 'mooncell'].map((f) => [f, bitsReseauParc(base, parcActif, f)])),
   // Lots et configs des dalles, version des logiciels relevée dans le parc actif.
   lots: { base, parcId: parcActif },
+  // Nombre de chaque processeur dans le parc actif (étape 15c).
+  quantites: quantitesParc(base, parcActif),
 });
 
 // Après chaque changement de ma base ou du parc actif : tous les onglets suivent.
@@ -683,6 +697,9 @@ let vueMateriel = null;
 // Total de la presta (étape 13c) : les listes gardées de ses murs, ses ajouts à la main.
 const totalDe = (presta) => totalMateriel(presta.murs.map((m) => ({ nom: m.nom, liste: prestas.listeGardee(etatPrestas, m.id)?.liste ?? null })),
   { ajouts: prestas.ajoutsPresta(presta) });
+// Total de la presta contre le stock de chaque parc (étape 15b).
+const stockDe = (presta) => stockPresta(presta.murs.map((m) => ({ nom: m.nom, parc: etatPrestas.murs[m.id]?.parc ?? null, liste: prestas.listeGardee(etatPrestas, m.id)?.liste ?? null })),
+  base.parcs);
 // Ce que montre l'écran Matériel : un mur, ou le total de la presta (murId null), et son texte copié.
 function contenuMateriel() {
   const presta = etatPrestas.index.prestas.find((p) => p.id === vueMateriel?.prestaId);
@@ -690,10 +707,11 @@ function contenuMateriel() {
   const pourcent = prestas.materielPresta(presta).sparesPourcent;
   if (vueMateriel.murId === null) {
     const total = totalDe(presta);
+    const stock = stockDe(presta);
     const { cochees, changees } = prestas.rapprocherCoches(presta, total);
     return {
-      presta, total, coches: cochees, changees, pourcent,
-      texte: () => resumeMateriel({ titre: `${presta.nom}, total de ${presta.murs.length > 1 ? `${presta.murs.length} murs` : '1 mur'}`, total, sparesPourcent: pourcent, coches: cochees }),
+      presta, total, stock, coches: cochees, changees, pourcent,
+      texte: () => resumeMateriel({ titre: `${presta.nom}, total de ${presta.murs.length > 1 ? `${presta.murs.length} murs` : '1 mur'}`, total, sparesPourcent: pourcent, coches: cochees, stock }),
     };
   }
   const mur = presta.murs.find((m) => m.id === vueMateriel.murId);
@@ -742,7 +760,11 @@ const ecranMateriel = monterMateriel(document.getElementById('ecran-materiel'), 
   actions: {
     reglerSpares: async (prestaId, valeur) => {
       await operationPrestas((e) => prestas.reglerMaterielPresta(e, prestaId, { sparesPourcent: valeur }));
-      if (etatPrestas.index.ouverte?.presta === prestaId) garderListeMurOuvert();
+      if (etatPrestas.index.ouverte?.presta === prestaId) {
+        garderListeMurOuvert();
+        // Stock du Mur : besoin recompté avec le nouveau spare.
+        if (depart.dalles) actualiserMur(pourMur());
+      }
       afficherMateriel();
     },
     ouvrirMur: async (prestaId, murId) => {
@@ -789,7 +811,7 @@ function contenuFiches() {
   const presta = etatPrestas.index.prestas.find((p) => p.id === vueFiches?.prestaId);
   if (!presta) return null;
   const murs = presta.murs.map((m) => ({ id: m.id, nom: m.nom, fiche: prestas.ficheGardee(etatPrestas, m.id), materiel: prestas.listeGardee(etatPrestas, m.id) }));
-  return { presta, metier: vueFiches.metier, fiche: ficheMetier(vueFiches.metier, { presta, murs, total: totalDe(presta) }) };
+  return { presta, metier: vueFiches.metier, fiche: ficheMetier(vueFiches.metier, { presta, murs, total: totalDe(presta), stock: stockDe(presta) }) };
 }
 function afficherFiches() {
   const c = contenuFiches();

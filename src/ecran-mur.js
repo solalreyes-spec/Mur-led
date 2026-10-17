@@ -1,7 +1,7 @@
 // Onglet Mur (dimensionnement). Aucune règle de calcul ici : tout passe par calculs.js,
 // et chaque résultat affiche la valeur utilisée et sa source.
 
-import { dimensionner, densite, pitchCalculeMm, dalleTournee, murZones, ErreurSaisie, formeReelle, aFormeReelle } from './calculs.js';
+import { dimensionner, densite, pitchCalculeMm, dalleTournee, murZones, ErreurSaisie, formeReelle, aFormeReelle, controleStock, plusGrandMur } from './calculs.js';
 import { nombre, nombreCourt, signe, sourceCourte, dateCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
 import { apercuMur, vueDessus } from './look.js';
@@ -360,6 +360,74 @@ function sectionLots(groupes) {
 
 const pluriel = (n, singulier, plurielForme) => `${nombre(n)} ${n > 1 ? plurielForme : singulier}`;
 
+// ---------------------------------------------------------------------------
+// Stock du parc (étape 15b) : carte « Stock du parc », plus grand mur avec le stock, « Prendre ce mur »
+// ---------------------------------------------------------------------------
+
+// { parc: { nom, lots }, autres: [{ nom, liste }], sparesPourcent } pour le parc actif, null en « Tous ».
+let contexteStock = null;
+// Saisie d'avant « Prendre ce mur » (mode et champs de taille), le temps de la reprendre ; oubliée au changement de mur.
+let saisieAvant = null;
+const CHAMPS_SAISIE = ['colonnes', 'lignes', 'largeurM', 'hauteurM', 'largeurPx', 'hauteurPx'];
+
+function calculStock(dalle, m, demande) {
+  if (!contexteStock?.parc || !m) return null;
+  const { parc, autres, sparesPourcent } = contexteStock;
+  const controle = controleStock({ mur: m, dalle, parc, autres, sparesPourcent });
+  return { controle, grand: plusGrandMur({ mur: m, dalle, demande, controle }) };
+}
+
+function prendreMur(m) {
+  const mode = formulaire.querySelector('input[name=mode]:checked')?.value;
+  saisieAvant = { mode, valeurs: Object.fromEntries(CHAMPS_SAISIE.map((c) => [c, formulaire.elements[c].value])) };
+  formulaire.querySelector('input[name=mode][value=dalles]').checked = true;
+  formulaire.elements.colonnes.value = String(m.colonnes);
+  formulaire.elements.lignes.value = String(m.lignes);
+  formulaire.dispatchEvent(new Event('change'));
+}
+
+function reprendreSaisie() {
+  const s = saisieAvant;
+  saisieAvant = null;
+  if (!s) return;
+  const radio = formulaire.querySelector(`input[name=mode][value="${s.mode}"]`);
+  if (radio) radio.checked = true;
+  for (const c of CHAMPS_SAISIE) formulaire.elements[c].value = s.valeurs[c];
+  formulaire.dispatchEvent(new Event('change'));
+}
+
+const PROPORTIONS = { cible: 'de la cible', saisie: 'du mur saisi', défaut: '16:9 par défaut' };
+
+function cartesStock(stock) {
+  let reprise = null;
+  if (saisieAvant) {
+    const bouton = el('button', { type: 'button', class: 'bouton bouton-discret', 'data-icone': 'revenir' }, 'Reprendre ma saisie d\'avant');
+    bouton.addEventListener('click', reprendreSaisie);
+    reprise = el('div', { class: 'reprise-saisie' }, el('p', { class: 'note' }, 'Mur pris avec ton stock.'), bouton);
+  }
+  if (!stock) return [reprise];
+  const { controle, grand } = stock;
+  const carte = el('section', { class: 'carte stock-parc', 'aria-labelledby': 'titre-stock-parc' },
+    el('h3', { id: 'titre-stock-parc' }, `Stock du parc ${controle.parcNom}`),
+    controle.fiches.map((f) => el('div', { class: 'stock-fiche' },
+      f.lignes.filter((l) => l !== f.alerte).map((l) => el('p', { class: 'ligne-stock' }, l)),
+      f.alerte ? el('div', { class: f.etat === 'manque' ? 'alerte alerte-erreur' : 'alerte' }, f.alerte) : null)),
+    controle.notes.map((n) => el('div', { class: 'alerte alerte-info' }, n)),
+    grand?.refus ? el('div', { class: 'alerte alerte-info' }, grand.refus) : null);
+  let carteGrand = null;
+  if (grand?.mur) {
+    const prendre = el('button', { type: 'button', class: 'bouton' }, 'Prendre ce mur');
+    prendre.addEventListener('click', () => prendreMur(grand.mur.mur));
+    carteGrand = el('section', { class: 'carte plus-grand', 'aria-labelledby': 'titre-plus-grand' },
+      el('h3', { id: 'titre-plus-grand' }, 'Plus grand mur avec ton stock'),
+      el('p', { class: 'pg-mur' }, grand.mur.texte),
+      el('p', { class: 'source' }, `Proportions ${PROPORTIONS[grand.proportion.origine]}, spares compris.`),
+      grand.variantes.length ? el('ul', { class: 'pg-variantes' }, grand.variantes.map((x) => el('li', {}, `${x.libelle} : ${x.texte}`))) : null,
+      prendre);
+  }
+  return [reprise, carte, carteGrand];
+}
+
 let dernier = null;
 
 // Résumé texte du dernier calcul valide, pour « Copier les résultats ».
@@ -383,8 +451,8 @@ function signalerSaisie(erreurs, { marquer = true } = {}) {
   if (note) note.hidden = erreurs.length === 0;
 }
 
-function afficherResultats(dalle, r, groupes = []) {
-  dernier = r.erreurs.length > 0 ? null : { dalle, mur: r.mur };
+function afficherResultats(dalle, r, groupes = [], stock = null) {
+  dernier = r.erreurs.length > 0 ? null : { dalle, mur: r.mur, stock };
   signalerSaisie(r.erreurs);
   if (r.erreurs.length > 0) {
     remplacer(zoneResultats);
@@ -438,7 +506,7 @@ function afficherResultats(dalle, r, groupes = []) {
   const source = el('p', { class: 'source' },
     `Dimensions et pixels : ${sourcesDimensions(dalle, m.demi)}.`);
 
-  remplacer(zoneResultats, principal, tuiles, source, sectionLots(groupes), tableauVariantes(r));
+  remplacer(zoneResultats, principal, cartesStock(stock), tuiles, source, sectionLots(groupes), tableauVariantes(r));
 }
 
 // Placement d'une zone empilée ou libre (9b2), en quelques mots.
@@ -467,8 +535,8 @@ function texteFormeZone(f, i, saisie) {
 }
 
 // Mur en plusieurs zones (étape 9a) : chiffres clés, mur en petits carrés à sa place réelle, tuiles et tableau des zones.
-function afficherResultatsZones(dalle, r, groupes = []) {
-  dernier = r.erreurs.length > 0 ? null : { dalle, mur: r.mur };
+function afficherResultatsZones(dalle, r, groupes = [], stock = null) {
+  dernier = r.erreurs.length > 0 ? null : { dalle, mur: r.mur, stock };
   signalerSaisie(r.erreurs, { marquer: false });
   if (r.erreurs.length > 0) {
     remplacer(zoneResultats);
@@ -530,7 +598,7 @@ function afficherResultatsZones(dalle, r, groupes = []) {
         el('tbody', {}, lignes))),
     el('p', { class: 'source' }, 'Position : coin haut gauche de la zone dans la pixel map du mur, en pixels, de 0 à largeur − 1.'));
   const source = el('p', { class: 'source' }, `Dimensions et pixels : ${sourcesDimensions(dalle)}.`);
-  remplacer(zoneResultats, principal, ...alertesForme, tuiles, tableau, source, sectionLots(groupes));
+  remplacer(zoneResultats, principal, ...alertesForme, cartesStock(stock), tuiles, tableau, source, sectionLots(groupes));
 }
 
 // Éditeur des zones : monté au premier calcul en mode Zones, remonté quand la liste gardée change hors de l'éditeur
@@ -629,7 +697,7 @@ function mettreAJour(fiches, surChangement, { repousser = false } = {}) {
     }
     dernierMurZones = resultat.mur;
     const groupes = resultat.erreurs.length ? [] : groupesLots(fiche, resultat.mur);
-    afficherResultatsZones(dalle, resultat, groupes);
+    afficherResultatsZones(dalle, resultat, groupes, calculStock(dalle, resultat.mur, { mode: 'zones' }));
     propager(surChangement, { dalle, mur: resultat.mur, erreurs: resultat.erreurs, lots: groupes }, repousser);
     return;
   }
@@ -652,7 +720,7 @@ function mettreAJour(fiches, surChangement, { repousser = false } = {}) {
   const resultat = dimensionner(dalle, demande, options);
   // Lots : ceux de la fiche d'origine (une dalle tournée garde ses lots).
   const groupes = resultat.erreurs.length ? [] : groupesLots(fiche, resultat.mur);
-  afficherResultats(dalle, resultat, groupes);
+  afficherResultats(dalle, resultat, groupes, calculStock(dalle, resultat.mur, demande));
   propager(surChangement, { dalle, mur: resultat.mur, erreurs: resultat.erreurs, lots: groupes }, repousser);
 }
 
@@ -718,6 +786,8 @@ export function actualiserMur(base) {
   vueInformation = false;
   fichesMur = new Map([...base.dalles, ...base.gabarits].map((d) => [d.id, d]));
   contexteLots = base.lots ?? { base: null, parcId: null };
+  contexteStock = base.stock ?? null;
+  saisieAvant = null;
   choix = {
     dalles: base.dalles, gabarits: base.gabarits, informations: base.informations ?? [],
     parc: base.nomParc ? new Set(base.visibles.map((d) => d.id)) : null, nomParc: base.nomParc ?? null,

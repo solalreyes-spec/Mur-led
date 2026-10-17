@@ -4,6 +4,7 @@
 import {
   evaluerProcesseur, evaluerToutesMarques, processeurConseille, entierInferieur,
   BIT_DEPTH_PAR_DEFAUT, rappelTessera, gainDixBits, LIBELLES_COIN, ErreurSaisie, reseauBrompton, alternativeSX40, cablageData,
+  controleQuantiteProcesseur,
 } from './calculs.js';
 import { portsEnCouleurs } from './couleurs.js';
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
@@ -34,6 +35,8 @@ let etatMur = null;
 let familleAffichee = null;
 let surChangement = () => {};
 let nomParc = null;
+// Nombre de chaque processeur dans le parc actif (étape 15c) : { identifiant: nombre }, {} en « Tous ».
+let quantites = {};
 // Profondeur réseau par défaut de chaque marque dans le parc actif : { bits, source } (réglage du parc ou défaut).
 let bitsParDefaut = {};
 // Cartes de réception de la base, pour le contrôle d'une carte face à la dalle.
@@ -647,6 +650,8 @@ function sectionAutres(e, evaluations, choisie) {
     else if (r.nombre === null) resultat = [el('strong', {}, 'impossible'), el('span', { class: 'source-ligne' }, r.impossible)];
     else if (r.nombre === 1) resultat = '1 suffit';
     else resultat = `${r.nombre} nécessaires (${r.limites.map((l) => LIBELLES_CONTROLE[l].toLowerCase()).join(', ')})`;
+    // Nombre dans le parc (étape 15c), quand il est saisi.
+    if (Number.isInteger(quantites[p.id])) resultat = [...[resultat].flat(), el('span', { class: 'source-ligne' }, `${nombre(quantites[p.id])} dans le parc`)];
     return el('tr', { class: r === choisie ? 'choisi' : (r.aCompleter?.length ? 'a-completer' : null) },
       el('th', { scope: 'row' }, e.processeur === 'conseille-tout' ? p.nom : p.modele),
       el('td', {}, p.pixelsGamme ?? (p.pixelsMax ? millions(p.pixelsMax) : '—')),
@@ -719,7 +724,7 @@ function calculer(e) {
     remplacer(zone, alerte(erreur.message, 'alerte-erreur'));
     return null;
   }
-  const conseil = processeurConseille(evaluations);
+  const conseil = processeurConseille(evaluations, { quantites });
   const choisie = estConseil(e.processeur) ? conseil : evaluations.find((r) => r.processeur.id === e.processeur);
 
   const alertes = [];
@@ -751,6 +756,9 @@ function calculer(e) {
       sectionAutres(e, evaluations, null));
     return null;
   }
+  // Nombre dans le parc (étape 15c), conseillé ou choisi à la main.
+  const quantiteParc = nomParc ? controleQuantiteProcesseur(choisie, quantites[choisie.processeur.id], nomParc) : null;
+  if (quantiteParc) alertes.push(quantiteParc.alerte ? alerte(quantiteParc.alerte, 'alerte-erreur') : alerte(`${quantiteParc.ligne}.`, 'alerte-info'));
   if (choisie.global) {
     const { colonnes } = choisie.global.chargeMax;
     const serpentin = choisie.global.serpentin.chargeMax;
@@ -803,6 +811,7 @@ function calculer(e) {
     gainDixBits: gain,
     configs,
     reseau,
+    quantiteParc,
   };
   remplacer(zone, recap,
     ...alertes,
@@ -865,6 +874,7 @@ export function actualiserData(base, premiereFois = false) {
   distributeurs = new Map(base.distributeurs.map((d) => [d.id, d]));
   sources = base.sources;
   nomParc = base.nomParc ?? null;
+  quantites = base.quantites ?? {};
   cartesReception = base.cartesReception ?? [];
   contexteLots = base.lots ?? { base: null, parcId: null };
   rafraichirPresents();

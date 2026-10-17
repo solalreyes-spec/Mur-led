@@ -834,6 +834,29 @@ export function reglerLogicielParc(base, parcId, proc, { version = '', dateRelev
   });
 }
 
+// Nombre d'un processeur dans le parc (étape 15c) : entier de 1 à 99, facultatif ; vide : retiré (pas de contrôle).
+export const QUANTITE_PROCESSEUR_MAX = 99;
+const quantiteValable = (n) => Number.isInteger(n) && n >= 1 && n <= QUANTITE_PROCESSEUR_MAX;
+export function reglerQuantiteParc(base, parcId, processeurId, valeur) {
+  const brut = valeur === null || valeur === undefined ? '' : String(valeur).trim();
+  const n = brut === '' ? null : Number(brut);
+  if (n !== null && !quantiteValable(n)) throw new ErreurSaisie(`Nombre dans le parc : un nombre entier de 1 à ${QUANTITE_PROCESSEUR_MAX}, ou vide.`);
+  return modifierParc(base, parcId, (p) => {
+    const quantites = { ...(p.quantites ?? {}) };
+    if (n === null) delete quantites[processeurId];
+    else quantites[processeurId] = n;
+    const copie = { ...p, quantites };
+    if (Object.keys(quantites).length === 0) delete copie.quantites;
+    return copie;
+  });
+}
+
+// Nombres des processeurs du parc ({ identifiant: nombre }), valeurs illisibles d'un fichier ignorées ; {} en « Tous ».
+export function quantitesParc(base, parcId) {
+  const parc = parcId ? base.parcs.find((p) => p.id === parcId) : null;
+  return Object.fromEntries(Object.entries(parc?.quantites ?? {}).filter(([, n]) => quantiteValable(n)));
+}
+
 export function logicielParc(base, parcId, processeurId) {
   if (!parcId) return null;
   return base.parcs.find((p) => p.id === parcId)?.logiciels?.[processeurId] ?? null;
@@ -1225,6 +1248,7 @@ export function fichesRetirees(base, depart) {
       ...Object.keys(parc.lots ?? {}).map((id) => ['dalle', id]),
       ...Object.keys(parc.cases ?? {}).map((id) => ['dalle', id]),
       ...Object.keys(parc.logiciels ?? {}).map((id) => ['processeur', id]),
+      ...Object.keys(parc.quantites ?? {}).map((id) => ['processeur', id]),
     ];
     const vus = new Set();
     for (const [type, id] of cites) {
@@ -1233,19 +1257,19 @@ export function fichesRetirees(base, depart) {
       vus.add(cle);
       liste.push({
         parcId: parc.id, parcNom: parc.nom, type, id,
-        reglage: Boolean(parc.reglages?.[id] || parc.logiciels?.[id]), lots: (parc.lots?.[id] ?? []).length,
+        reglage: Boolean(parc.reglages?.[id] || parc.logiciels?.[id] || parc.quantites?.[id]), lots: (parc.lots?.[id] ?? []).length,
       });
     }
   }
   return liste;
 }
 
-// Retire du parc une fiche qui n'existe plus : membre, réglage, lots et logiciel. Les fichiers joints de ses lots
+// Retire du parc une fiche qui n'existe plus : membre, réglage, lots, logiciel et nombre dans le parc. Les fichiers joints de ses lots
 // sont à effacer de l'appareil par l'appelant (fichiersJoints avant l'appel).
 export function retirerFicheRetiree(base, parcId, type, id) {
   return modifierParc(base, parcId, (p) => {
     const copie = { ...p, membres: (p.membres ?? []).filter((m) => !(m.type === type && m.id === id)) };
-    for (const cle of ['reglages', 'lots', 'logiciels', 'cases']) {
+    for (const cle of ['reglages', 'lots', 'logiciels', 'cases', 'quantites']) {
       if (!copie[cle]?.[id]) continue;
       const reste = { ...copie[cle] };
       delete reste[id];

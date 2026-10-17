@@ -709,11 +709,13 @@ export function evaluerToutesMarques(m, dalle, processeurs, reglages, { famille 
   });
 }
 
-// Processeur conseillé par défaut : le moins de processeurs, puis la plus petite capacité en pixels.
-// Les évaluations portent déjà les réglages (redondance, mode optique) : le conseil en tient compte.
-export function processeurConseille(evaluations) {
+// Processeur conseillé par défaut : ceux dont le parc a assez en tête (étape 15c ; `quantites` : nombre de chaque
+// processeur dans le parc, sans nombre : assez), puis le moins de processeurs, puis la plus petite capacité en pixels.
+// Aucun n'a assez : le conseil d'avant. Les évaluations portent déjà les réglages (redondance, mode optique).
+export function processeurConseille(evaluations, { quantites = null } = {}) {
   const possibles = evaluations.filter((e) => e.nombre !== null);
-  possibles.sort((a, b) => a.nombre - b.nombre || a.processeur.pixelsMax - b.processeur.pixelsMax);
+  const manque = (e) => Number(Number.isInteger(quantites?.[e.processeur.id]) && e.nombre > quantites[e.processeur.id]);
+  possibles.sort((a, b) => manque(a) - manque(b) || a.nombre - b.nombre || a.processeur.pixelsMax - b.processeur.pixelsMax);
   return possibles[0] ?? null;
 }
 

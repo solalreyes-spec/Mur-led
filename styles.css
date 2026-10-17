@@ -296,6 +296,17 @@ details.manques p { margin: 0 14px 10px; }
 .cases-lots { display: grid; gap: 4px; }
 .ligne-config { margin: 6px 0; overflow-wrap: anywhere; }
 .lots-groupe + .lots-groupe { margin-top: 12px; }
+/* Stock du parc (étape 15b) : carte « Stock du parc », plus grand mur avec le stock, reprise de la saisie */
+.stock-parc, .plus-grand { display: grid; gap: 8px; }
+.stock-parc h3, .plus-grand h3 { margin: 0; }
+.stock-fiche { display: grid; gap: 4px; }
+.stock-fiche + .stock-fiche { padding-top: 8px; border-top: 1px solid var(--bordure); }
+.ligne-stock, .pg-mur { margin: 0; overflow-wrap: anywhere; }
+.pg-mur { font-weight: 600; }
+.pg-variantes { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.plus-grand > .bouton { justify-self: start; }
+.reprise-saisie { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.reprise-saisie .note { margin: 0; }
 .rappels-config > summary { cursor: pointer; min-height: var(--cible); display: flex; align-items: center; color: var(--lien); }
 .rappel-texte { margin: 4px 0 0; }
 .rappel-texte .citation { font-style: italic; }
@@ -1498,7 +1509,11 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .mat-case { width: 24px; height: 24px; margin: 0; accent-color: var(--famille); }
 .mat-cochee .mat-nom, .mat-cochee .mat-qte { color: var(--texte-doux); text-decoration: line-through; }
 .mat-retirer { align-self: center; }
-.mat-bandeau { display: grid; gap: 8px; }
+.mat-bandeau, .mat-stock-bandeau { display: grid; gap: 8px; }
+.mat-stock { margin: 0; padding: 0; list-style: none; display: grid; }
+.mat-stock li { padding: 6px 0; border-top: 1px solid var(--bordure); overflow-wrap: anywhere; }
+.mat-stock li:first-child { border-top: 0; }
+.mat-stock-manque { color: var(--echec); font-weight: 600; }
 .mat-ajout { display: grid; grid-template-columns: minmax(0, 1fr) 6rem; gap: 8px; align-items: end; padding-top: 8px; border-top: 1px solid var(--bordure); }
 .mat-ajout .bouton { grid-column: 1 / -1; justify-self: start; }
 .mat-partage { flex-wrap: wrap; align-items: center; }

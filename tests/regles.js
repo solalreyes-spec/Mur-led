@@ -7572,6 +7572,346 @@ export const REGLES = [
       v.vrai('titre et rappel en tête de la première page', pages[0][0].texte === 'Fiche chef de projet' && pages[0][0].gras && pages[0].some((x) => x.role === 'rappel'));
     },
   },
+  {
+    id: 'R339',
+    titre: 'Mon parc suffit-il ? (15a, § 3) : stock d\'une fiche = somme des quantités de ses lots dans le parc ; un lot sans quantité : stock « au moins » (inconnu) ; aucun lot : stock non saisi',
+    etape: '15a',
+    verifier(v) {
+      v.egal('deux lots', calculs.stockFiche([{ identifiant: 'A', quantite: 100 }, { identifiant: 'B', quantite: 50 }]),
+        { saisi: true, quantite: 150, sansQuantite: 0, connu: true });
+      v.egal('un lot sans quantité : au moins 100', calculs.stockFiche([{ identifiant: 'A', quantite: 100 }, { identifiant: 'B', quantite: null }]),
+        { saisi: true, quantite: 100, sansQuantite: 1, connu: false });
+      v.egal('aucun lot', [calculs.stockFiche([]), calculs.stockFiche(undefined)],
+        [{ saisi: false, quantite: 0, sansQuantite: 0, connu: false }, { saisi: false, quantite: 0, sansQuantite: 0, connu: false }]);
+    },
+  },
+  {
+    id: 'R340',
+    titre: 'Mon parc suffit-il ? (15a, § 3) : besoin de chaque fiche = dalles du mur + spares (5 % par défaut, arrondi au-dessus, au moins 1, 0 % réglable) ; demi-dalles sur leur propre fiche ; mur mixte : chaque fiche à part',
+    etape: '15a',
+    verifier(v) {
+      const m = calculs.mur(DALLE_CAS_13, 16, 9);
+      v.egal('16 × 9 : 144 + 8', calculs.besoinDalles(m, DALLE_CAS_13),
+        [{ ficheId: 'fictive-cas-13', nom: 'Dalle du cas 13', demi: false, auMur: 144, spares: 8, besoin: 152 }]);
+      v.egal('0 % : sans spare', calculs.besoinDalles(m, DALLE_CAS_13, 0).map((b) => [b.spares, b.besoin]), [[0, 144]]);
+      const demi = calculs.mur(CB5, 8, 3, { demi: CB5_DEMI, rangeeDemi: true });
+      v.egal('demi-dalles sur leur fiche', calculs.besoinDalles(demi, CB5).map((b) => [b.ficheId, b.demi, b.auMur, b.spares]),
+        [['test-cb5', false, 24, 2], ['test-cb5-demi', true, 8, 1]]);
+      const mixte = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 2 }, { nom: 'B', colonnes: 2, rangees: 1, dalle: CB5 }], { ecarts: 'colles' });
+      v.egal('mur mixte : chaque fiche à part', calculs.besoinDalles(mixte, DALLE_CAS_13).map((b) => [b.ficheId, b.auMur, b.besoin]),
+        [['fictive-cas-13', 8, 9], ['test-cb5', 2, 3]]);
+    },
+  },
+  {
+    id: 'R341',
+    titre: 'Mon parc suffit-il ? (15a, § 3, point 1 validé) : les autres murs de la presta du même parc prennent leur part du stock (dalles et spares de leur liste gardée) ; un mur jamais ouvert depuis l\'étape 13 compte zéro, avec la note « ouvre ce mur une fois »',
+    etape: '15a',
+    verifier(v) {
+      const liste = (n) => calculs.listeMateriel({ mur: calculs.mur(DALLE_CAS_13, n, 1), dalle: DALLE_CAS_13 });
+      const autres = [{ nom: 'Mur 2', liste: liste(76) }, { nom: 'Mur 3', liste: null }, { nom: 'Mur 4', liste: liste(19) }];
+      v.egal('pris par les autres murs', calculs.prisAutresMurs(autres, 'fictive-cas-13'),
+        { nombre: 100, parMur: [{ nom: 'Mur 2', nombre: 80 }, { nom: 'Mur 4', nombre: 20 }], nonComptes: ['Mur 3'] });
+      v.egal('autre fiche : rien de pris', calculs.prisAutresMurs(autres, 'test-cb5').nombre, 0);
+      const c = calculs.controleStock({ mur: calculs.mur(DALLE_CAS_13, 10, 8), dalle: DALLE_CAS_13, parc: { nom: 'Parc A', lots: { 'fictive-cas-13': [{ identifiant: 'L1', quantite: 150 }] } },
+        autres: autres.slice(0, 2) });
+      const f = c.fiches[0];
+      v.egal('disponible : 150 − 80', [f.pris.nombre, f.disponible, f.etat], [80, 70, 'manque']);
+      v.egal('lignes', f.lignes, [
+        'Stock Dalle du cas 13 : 150 dans le parc Parc A, dont 80 pris par Mur 2',
+        'À sortir : 84, 80 au mur + 4 de spare',
+        'Il en manque 14 × Dalle du cas 13 : 70 disponibles pour 84, 80 au mur + 4 de spare.',
+      ]);
+      v.egal('note du mur jamais ouvert', c.notes, ['Mur 3 : ouvre ce mur une fois pour compter son matériel.']);
+      const deux = calculs.controleStock({ mur: calculs.mur(DALLE_CAS_13, 1, 1), dalle: DALLE_CAS_13, parc: { nom: 'Parc A', lots: { 'fictive-cas-13': [{ identifiant: 'L1', quantite: 150 }] } }, autres });
+      v.egal('plusieurs murs', deux.fiches[0].lignes[0], 'Stock Dalle du cas 13 : 150 dans le parc Parc A, dont 100 pris par les autres murs (Mur 2 : 80 ; Mur 4 : 20)');
+    },
+  },
+  {
+    id: 'R342',
+    titre: 'Mon parc suffit-il ? (15a, § 3) : résultat par fiche, suffit, spares incomplets (« 6 sur 8 »), manque (« il en manque 12 »), inconnu (lot sans quantité, sans alerte devinée ; au moins X qui couvre déjà le besoin : suffit), non saisi ; pas de parc : rien ; l\'alerte « Lots trop petits » de R140 inchangée',
+    etape: '15a',
+    verifier(v) {
+      const parc = (lots) => ({ nom: 'Parc A', lots: { 'fictive-cas-13': lots } });
+      const essai = (c, l, lots, sparesPourcent) => calculs.controleStock({ mur: calculs.mur(DALLE_CAS_13, c, l), dalle: DALLE_CAS_13, parc: parc(lots), sparesPourcent }).fiches[0];
+      const suffit = essai(16, 9, [{ identifiant: 'L1', quantite: 160 }]);
+      v.egal('suffit', [suffit.etat, suffit.alerte, suffit.lignes], ['suffit', null, [
+        'Stock Dalle du cas 13 : 160 dans le parc Parc A', 'À sortir : 152, 144 au mur + 8 de spare', 'Stock suffisant : 160 en stock pour 152.']]);
+      const sp = essai(16, 9, [{ identifiant: 'L1', quantite: 150 }]);
+      v.egal('spares incomplets', [sp.etat, sp.manque, sp.alerte], ['spares-incomplets', 2,
+        'Spares incomplets, Dalle du cas 13 : 6 sur 8 (150 en stock pour 144 au mur + 8 de spare).']);
+      const manque = essai(11, 14, [{ identifiant: 'L1', quantite: 150 }]);
+      v.egal('il en manque 12', [manque.etat, manque.manque, manque.alerte], ['manque', 12,
+        'Il en manque 12 × Dalle du cas 13 : 150 en stock pour 162, 154 au mur + 8 de spare.']);
+      const inconnu = essai(16, 9, [{ identifiant: 'L1', quantite: 100 }, { identifiant: 'L2', quantite: null }]);
+      v.egal('inconnu, sans alerte', [inconnu.etat, inconnu.alerte, inconnu.lignes], ['inconnu', null, [
+        'Stock Dalle du cas 13 : au moins 100 dans le parc Parc A, un lot sans quantité, à préciser dans le parc',
+        'À sortir : 152, 144 au mur + 8 de spare', 'Stock à préciser : au moins 100 connus pour 152.']]);
+      const deuxSans = essai(16, 9, [{ identifiant: 'L1', quantite: 100 }, { identifiant: 'L2', quantite: null }, { identifiant: 'L3', quantite: null }]);
+      v.vrai('deux lots sans quantité', deuxSans.lignes[0].endsWith(', 2 lots sans quantité, à préciser dans le parc'), deuxSans.lignes[0]);
+      const auMoins = essai(16, 9, [{ identifiant: 'L1', quantite: 200 }, { identifiant: 'L2', quantite: null }]);
+      v.egal('au moins 200 pour 152 : suffit', [auMoins.etat, auMoins.lignes[2]], ['suffit', 'Stock suffisant : au moins 200 en stock pour 152.']);
+      const non = essai(16, 9, []);
+      v.egal('non saisi', [non.etat, non.alerte, non.lignes], ['non-saisi', null, ['Stock Dalle du cas 13 non saisi dans le parc Parc A']]);
+      const sansSpare = essai(16, 9, [{ identifiant: 'L1', quantite: 144 }], 0);
+      v.egal('0 % de spare : 144 suffisent', [sansSpare.etat, sansSpare.lignes[1]], ['suffit', 'À sortir : 144 au mur, sans spare']);
+      v.egal('pas de parc : rien', calculs.controleStock({ mur: calculs.mur(DALLE_CAS_13, 16, 9), dalle: DALLE_CAS_13, parc: null }), null);
+      const tout = calculs.controleStock({ mur: calculs.mur(DALLE_CAS_13, 11, 14), dalle: DALLE_CAS_13, parc: parc([{ identifiant: 'L1', quantite: 150 }]) });
+      v.egal('en tête : manque et alertes', [tout.manque, tout.alertes, tout.parcNom], [true, [manque.alerte], 'Parc A']);
+      const lots = [{ id: 'l1', identifiant: 'L1', quantite: 150 }];
+      v.egal('« Lots trop petits » inchangé', fiches.lotsDuMur(lots, 162).alertes, ['Lots trop petits : 150 dalles dans les lots pour 162 dans le mur.']);
+    },
+  },
+  {
+    id: 'R343',
+    titre: 'Mon parc suffit-il ? (15a, § 4 et 11) : plus grand mur avec le stock, à la forme du mur (proportions de la cible en Taille ou Résolution, du mur saisi en Dalles, 16:9 sans saisie) : le plus de dalles parmi les murs à moins d\'une dalle de la proportion ; variantes à ±1 colonne ou ligne qui tiennent ; demi-dalles contre leur stock ; seulement quand le stock connu manque ; mur en zones refusé',
+    etape: '15a',
+    verifier(v) {
+      const parc = (q, qDemi = null) => ({ nom: 'Parc A', lots: { 'fictive-cas-13': [{ identifiant: 'L1', quantite: q }], 'test-cb5': [{ identifiant: 'L1', quantite: q }],
+        ...(qDemi === null ? {} : { 'test-cb5-demi': [{ identifiant: 'D1', quantite: qDemi }] }) } });
+      const grand = (m, dalle, demande, p, options = {}) => calculs.plusGrandMur({ mur: m, dalle, demande, controle: calculs.controleStock({ mur: m, dalle, parc: p }), ...options });
+      const dalles16x9 = calculs.mur(DALLE_CAS_13, 16, 9);
+      const r = grand(dalles16x9, DALLE_CAS_13, { mode: 'dalles', colonnes: 16, lignes: 9 }, parc(150));
+      v.egal('Dalles 16 × 9, 150 en stock : 15 × 9', [r.proportion.origine, r.mur.mur.colonnes, r.mur.mur.lignes, r.mur.spares, r.mur.besoin, r.mur.ecart],
+        ['saisie', 15, 9, 7, 142, { colonnes: -1, lignes: 0, dalles: -9 }]);
+      v.egal('texte', r.mur.texte, '15 × 9 dalles, 7,5 × 4,5 m, 2880 × 1728 px : 135 + 7 de spare (−1 colonne)');
+      v.egal('variantes qui tiennent', r.variantes.map((x) => [x.libelle, x.mur.colonnes, x.mur.lignes, x.besoin]), [['−1 colonne', 14, 9, 133], ['−1 ligne', 15, 8, 126]]);
+      v.egal('stock suffisant : pas de plus grand mur', grand(dalles16x9, DALLE_CAS_13, { mode: 'dalles', colonnes: 16, lignes: 9 }, parc(152)), null);
+      v.egal('stock inconnu : pas de plus grand mur', grand(dalles16x9, DALLE_CAS_13, { mode: 'dalles', colonnes: 16, lignes: 9 },
+        { nom: 'Parc A', lots: { 'fictive-cas-13': [{ identifiant: 'L1', quantite: 100 }, { identifiant: 'L2', quantite: null }] } }), null);
+      const taille = calculs.dimensionner(DALLE_CAS_13, { mode: 'taille', largeurMm: 6000, hauteurMm: 3000 }).mur;
+      const t = grand(taille, DALLE_CAS_13, { mode: 'taille', largeurMm: 6000, hauteurMm: 3000 }, parc(50));
+      v.egal('Taille 6 × 3 m, 50 en stock : 9 × 5 (2:1 de la cible)', [t.proportion.origine, t.mur.mur.colonnes, t.mur.mur.lignes, t.mur.besoin, t.mur.ecart],
+        ['cible', 9, 5, 48, { colonnes: -3, lignes: -1, dalles: -27 }]);
+      const res = calculs.dimensionner(DALLE_CAS_13, { mode: 'resolution', largeurPx: 3840, hauteurPx: 2160 }).mur;
+      const rr = grand(res, DALLE_CAS_13, { mode: 'resolution', largeurPx: 3840, hauteurPx: 2160 }, parc(150));
+      v.egal('Résolution 3840 × 2160, 150 en stock : 15 × 9', [rr.proportion.origine, rr.proportion.unite, rr.mur.mur.colonnes, rr.mur.mur.lignes], ['cible', 'px', 15, 9]);
+      const d = grand(dalles16x9, DALLE_CAS_13, null, parc(150));
+      v.egal('sans saisie : 16:9', [d.proportion.origine, d.proportion.largeur / d.proportion.hauteur, d.mur.mur.colonnes, d.mur.mur.lignes], ['défaut', 16 / 9, 15, 9]);
+      const m = calculs.mur(CB5, 8, 3, { demi: CB5_DEMI, rangeeDemi: true, positionDemi: 'bas' });
+      const dm = grand(m, CB5, { mode: 'dalles', colonnes: 8, lignes: 3, rangeeDemi: true }, parc(20, 6), { demi: CB5_DEMI, positionDemi: 'bas' });
+      v.egal('demi-dalles contre leur stock : 5 × 2 + 5 demi', [dm.mur.mur.colonnes, dm.mur.mur.lignes, dm.mur.mur.dalles, dm.mur.mur.positionDemi, dm.mur.spares, dm.mur.sparesDemi],
+        [5, 2, { entieres: 10, demi: 5, total: 15 }, 'bas', 1, 1]);
+      v.egal('variantes avec demi-dalles', dm.variantes.map((x) => x.libelle), ['−1 colonne', '−1 ligne', '+1 ligne']);
+      const demiInconnue = grand(m, CB5, { mode: 'dalles', colonnes: 8, lignes: 3, rangeeDemi: true }, parc(20), { demi: CB5_DEMI, positionDemi: 'bas' });
+      v.vrai('stock de demi-dalles non saisi : ne limite pas', demiInconnue.mur.mur.colonnes > 5, JSON.stringify(demiInconnue.mur.mur.dalles));
+      const zones = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 10, rangees: 6 }, { nom: 'B', colonnes: 10, rangees: 6 }], { ecarts: 'colles' });
+      v.egal('mur en zones : refusé', grand(zones, DALLE_CAS_13, { mode: 'zones' }, parc(50)), { refus: 'Mur en zones : réduis une zone à la main.' });
+      v.egal('stock trop petit pour une dalle et son spare', grand(dalles16x9, DALLE_CAS_13, { mode: 'dalles', colonnes: 16, lignes: 9 }, parc(1)),
+        { refus: 'Stock trop petit pour une seule dalle et son spare.' });
+    },
+  },
+  {
+    id: 'R344',
+    titre: 'Mon parc suffit-il ? (15a, § 5) : total de la presta, chaque fiche contre le stock de son parc (« 152 × … : stock 150 dans le parc A, il en manque 2 ») ; murs de parcs différents à part ; mur sans parc : « pas de parc, stock non contrôlé » ; liste des manques pour le bandeau',
+    etape: '15a',
+    verifier(v) {
+      const liste = (n, dalle = DALLE_CAS_13) => calculs.listeMateriel({ mur: calculs.mur(dalle, n, 8), dalle });
+      const parcs = [
+        { id: 'parc-a', nom: 'Parc A', lots: { 'fictive-cas-13': [{ identifiant: 'L1', quantite: 150 }], 'test-cb5': [{ identifiant: 'C1', quantite: 10 }, { identifiant: 'C2', quantite: null }] } },
+        { id: 'parc-b', nom: 'Parc B', lots: {} },
+      ];
+      const murs = [
+        { nom: 'Mur 1', parc: 'parc-a', liste: liste(9) },
+        { nom: 'Mur 2', parc: 'parc-a', liste: liste(9) },
+        { nom: 'Mur 3', parc: 'parc-a', liste: liste(2, CB5) },
+        { nom: 'Mur 4', parc: 'parc-b', liste: liste(5) },
+        { nom: 'Mur 5', parc: null, liste: liste(1) },
+        { nom: 'Mur 6', parc: 'parc-a', liste: null },
+      ];
+      const s = calculs.stockPresta(murs, parcs);
+      v.egal('une ligne par parc et par fiche', s.lignes.map((l) => l.texte), [
+        '152 × Dalle du cas 13 : stock 150 dans le parc Parc A, il en manque 2',
+        '17 × CB5 MKII (copie de test) : stock au moins 10 dans le parc Parc A, un lot sans quantité, à préciser',
+        '42 × Dalle du cas 13 : stock non saisi dans le parc Parc B',
+        '9 × Dalle du cas 13 : pas de parc, stock non contrôlé',
+      ]);
+      v.egal('manques pour le bandeau', s.manques, ['Il en manque 2 × Dalle du cas 13 dans le parc Parc A (stock 150 pour 152).']);
+      const assez = calculs.stockPresta(murs.slice(0, 1), parcs);
+      v.egal('suffit', [assez.lignes[0].texte, assez.lignes[0].etat, assez.manques], ['76 × Dalle du cas 13 : stock 150 dans le parc Parc A, suffit', 'suffit', []]);
+    },
+  },
+  {
+    id: 'R345',
+    titre: 'Mon parc suffit-il ? (15b, § 7) : texte copié du Mur, lignes de stock de chaque fiche, « Manque de stock : … » (spares incomplets en « Alerte »), murs jamais ouverts en note, plus grand mur et ses variantes ; mur en zones : la raison ; sans parc : texte inchangé',
+    etape: '15b',
+    verifier(v) {
+      const parc = { nom: 'Parc A', lots: { 'fictive-cas-13': [{ identifiant: 'L1', quantite: 150 }] } };
+      const m = calculs.mur(DALLE_CAS_13, 16, 9);
+      const controle = calculs.controleStock({ mur: m, dalle: DALLE_CAS_13, parc });
+      const grand = calculs.plusGrandMur({ mur: m, dalle: DALLE_CAS_13, demande: { mode: 'dalles', colonnes: 16, lignes: 9 }, controle });
+      const sans = resumes.resumeMur({ dalle: DALLE_CAS_13, mur: m }).split('\n');
+      v.egal('sans stock : inchangé', resumes.resumeMur({ dalle: DALLE_CAS_13, mur: m, stock: null }).split('\n'), sans);
+      const t = resumes.resumeMur({ dalle: DALLE_CAS_13, mur: m, stock: { controle, grand } }).split('\n');
+      v.egal('début inchangé', t.slice(0, sans.length), sans);
+      v.egal('lignes de stock à la fin', t.slice(sans.length), [
+        'Stock Dalle du cas 13 : 150 dans le parc Parc A',
+        'À sortir : 152, 144 au mur + 8 de spare',
+        'Alerte : Spares incomplets, Dalle du cas 13 : 6 sur 8 (150 en stock pour 144 au mur + 8 de spare).',
+        'Plus grand mur avec ton stock : 15 × 9 dalles, 7,5 × 4,5 m, 2880 × 1728 px : 135 + 7 de spare (−1 colonne)',
+        'Variante −1 colonne : 14 × 9 dalles, 7 × 4,5 m, 2688 × 1728 px : 126 + 7 de spare (−2 colonnes)',
+        'Variante −1 ligne : 15 × 8 dalles, 7,5 × 4 m, 2880 × 1536 px : 120 + 6 de spare (−1 colonne, −1 ligne)',
+      ]);
+      const m2 = calculs.mur(DALLE_CAS_13, 11, 14);
+      const c2 = calculs.controleStock({ mur: m2, dalle: DALLE_CAS_13, parc, autres: [{ nom: 'Mur 3', liste: null }] });
+      const t2 = resumes.resumeMur({ dalle: DALLE_CAS_13, mur: m2, stock: { controle: c2, grand: null } }).split('\n');
+      v.vrai('manque : « Manque de stock »', t2.includes('Manque de stock : Il en manque 12 × Dalle du cas 13 : 150 en stock pour 162, 154 au mur + 8 de spare.'), t2.slice(-4).join(' / '));
+      v.vrai('mur jamais ouvert en note', t2.includes('Note : Mur 3 : ouvre ce mur une fois pour compter son matériel.'), t2.slice(-4).join(' / '));
+      const zones = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 10, rangees: 8 }, { nom: 'B', colonnes: 10, rangees: 8 }], { ecarts: 'colles' });
+      const cz = calculs.controleStock({ mur: zones, dalle: DALLE_CAS_13, parc });
+      const tz = resumes.resumeMur({ dalle: DALLE_CAS_13, mur: zones, stock: { controle: cz, grand: calculs.plusGrandMur({ mur: zones, dalle: DALLE_CAS_13, demande: { mode: 'zones' }, controle: cz }) } }).split('\n');
+      v.egal('mur en zones : stock et raison', tz.slice(-3), [
+        'À sortir : 168, 160 au mur + 8 de spare',
+        'Manque de stock : Il en manque 18 × Dalle du cas 13 : 150 en stock pour 168, 160 au mur + 8 de spare.',
+        'Plus grand mur avec ton stock : Mur en zones : réduis une zone à la main.',
+      ]);
+    },
+  },
+  {
+    id: 'R346',
+    titre: 'Mon parc suffit-il ? (15b, § 5) : texte copié et partagé du total de la presta, manques de stock en tête (« Manque de stock : … »), section « STOCK DES PARCS » après les dalles ; sans stock : texte inchangé',
+    etape: '15b',
+    verifier(v) {
+      const liste = (n) => calculs.listeMateriel({ mur: calculs.mur(DALLE_CAS_13, n, 8), dalle: DALLE_CAS_13 });
+      const murs = [{ nom: 'Mur 1', parc: 'parc-a', liste: liste(9) }, { nom: 'Mur 2', parc: 'parc-a', liste: liste(9) }];
+      const parcs = [{ id: 'parc-a', nom: 'Parc A', lots: { 'fictive-cas-13': [{ identifiant: 'L1', quantite: 150 }] } }];
+      const total = calculs.totalMateriel(murs);
+      const sans = resumes.resumeMateriel({ titre: 'Presta A, total de 2 murs', total, sparesPourcent: 5 }).split('\n');
+      v.egal('sans stock : inchangé', resumes.resumeMateriel({ titre: 'Presta A, total de 2 murs', total, sparesPourcent: 5, stock: null }).split('\n'), sans);
+      const t = resumes.resumeMateriel({ titre: 'Presta A, total de 2 murs', total, sparesPourcent: 5, stock: calculs.stockPresta(murs, parcs) }).split('\n');
+      const i = t.indexOf('Manque de stock : Il en manque 2 × Dalle du cas 13 dans le parc Parc A (stock 150 pour 152).');
+      v.vrai('manque en tête, avant les dalles', i > 0 && i < t.indexOf('DALLES'), t.slice(0, 8).join(' / '));
+      const s = t.indexOf('STOCK DES PARCS');
+      v.vrai('section après les dalles, avant Data', s > t.indexOf('DALLES') && s < t.indexOf('DATA'), t.join(' / '));
+      v.egal('ligne du stock', t[s + 1], '152 × Dalle du cas 13 : stock 150 dans le parc Parc A, il en manque 2');
+    },
+  },
+  {
+    id: 'R347',
+    titre: 'Mon parc suffit-il ? (15b, point 3 validé) : fiche du chef de projet, « Manque de stock » de chaque mur dans ses alertes graves (spares incomplets : non) ; total de la presta : « Alertes graves de la presta » en tête, puis « Stock des parcs » après les dalles',
+    etape: '15b',
+    verifier(v, contexte) {
+      const textes = textesEssai(contexte);
+      const parc = { nom: 'Parc A', lots: { 'fictive-cas-13': [{ identifiant: 'L1', quantite: 150 }] } };
+      const texteMur = (m) => resumes.resumeMur({ dalle: DALLE_CAS_13, mur: m, stock: { controle: calculs.controleStock({ mur: m, dalle: DALLE_CAS_13, parc }), grand: null } });
+      const m1 = calculs.mur(DALLE_CAS_13, 11, 14);
+      const m2 = calculs.mur(DALLE_CAS_13, 16, 9);
+      const l1 = calculs.listeMateriel({ mur: m1, dalle: DALLE_CAS_13 });
+      const l2 = calculs.listeMateriel({ mur: m2, dalle: DALLE_CAS_13 });
+      const calculeeLe = '2026-10-17T10:00:00.000Z';
+      const murs = [
+        { id: 'm-1', nom: 'Mur 1', fiche: { textes: { ...textes, mur: texteMur(m1) }, calculeeLe }, materiel: { liste: l1 } },
+        { id: 'm-2', nom: 'Mur 2', fiche: { textes: { ...textes, mur: texteMur(m2) }, calculeeLe }, materiel: { liste: l2 } },
+      ];
+      const total = calculs.totalMateriel(murs.map((m) => ({ nom: m.nom, liste: m.materiel.liste })));
+      const stock = calculs.stockPresta(murs.map((m) => ({ nom: m.nom, parc: 'parc-a', liste: m.materiel.liste })), [{ id: 'parc-a', ...parc }]);
+      const fiche = fichesMetier.ficheMetier('chefProjet', { presta: { nom: 'Presta A' }, murs, total, stock, date: new Date(2026, 9, 17, 12) });
+      const graves = (b) => b.lignes.slice(b.lignes.findIndex((l) => l.titre === 'Alertes graves') + 1);
+      v.vrai('mur 1 : manque en alerte grave', graves(fiche.blocs[0]).some((l) => l.libelle === 'Manque de stock'
+        && l.valeur === 'Il en manque 12 × Dalle du cas 13 : 150 en stock pour 162, 154 au mur + 8 de spare.'), JSON.stringify(graves(fiche.blocs[0])));
+      v.vrai('mur 2 : spares incomplets hors des alertes graves', !fiche.blocs[1].lignes.some((l) => /Spares incomplets/.test(l.valeur ?? '')), JSON.stringify(fiche.blocs[1].lignes.slice(-3)));
+      v.egal('total : alertes graves de la presta en tête', fiche.fin.lignes.slice(0, 2), [
+        { titre: 'Alertes graves de la presta' },
+        { libelle: 'Manque de stock', valeur: 'Il en manque 164 × Dalle du cas 13 dans le parc Parc A (stock 150 pour 314).' },
+      ]);
+      const s = fiche.fin.lignes.findIndex((l) => l.titre === 'Stock des parcs');
+      v.vrai('« Stock des parcs » après les dalles', s > fiche.fin.lignes.findIndex((l) => l.titre === 'Dalles'), JSON.stringify(fiche.fin.lignes.map((l) => l.titre).filter(Boolean)));
+      v.egal('ligne du stock', fiche.fin.lignes[s + 1], { libelle: '314 × Dalle du cas 13', valeur: 'stock 150 dans le parc Parc A, il en manque 164' });
+      const sansStock = fichesMetier.ficheMetier('chefProjet', { presta: { nom: 'Presta A' }, murs, total, date: new Date(2026, 9, 17, 12) });
+      v.vrai('sans stock : ni alertes de la presta ni stock', !sansStock.fin.lignes.some((l) => l.titre === 'Alertes graves de la presta' || l.titre === 'Stock des parcs'));
+    },
+  },
+  {
+    id: 'R348',
+    titre: 'Mon parc suffit-il ? (15b) : une dalle tournée (identifiant « …-tournee ») garde les lots et le stock de sa fiche, dans le Mur, dans la part des autres murs et dans le total de la presta',
+    etape: '15b',
+    verifier(v) {
+      const tournee = calculs.dalleTournee({ ...DALLE_CAS_13, rotationPossible: true });
+      const parc = { nom: 'Parc A', lots: { 'fictive-cas-13': [{ identifiant: 'L1', quantite: 160 }] } };
+      const c = calculs.controleStock({ mur: calculs.mur(tournee, 16, 9), dalle: tournee, parc });
+      v.egal('stock de la fiche', [tournee.id, c.fiches[0].stock.quantite, c.fiches[0].etat], ['fictive-cas-13-tournee', 160, 'suffit']);
+      const droite = calculs.listeMateriel({ mur: calculs.mur(DALLE_CAS_13, 76, 1), dalle: DALLE_CAS_13 });
+      const tourneeListe = calculs.listeMateriel({ mur: calculs.mur(tournee, 76, 1), dalle: tournee });
+      v.egal('part d\'un autre mur, droite ou tournée', [calculs.prisAutresMurs([{ nom: 'Mur 2', liste: droite }], tournee.id).nombre,
+        calculs.prisAutresMurs([{ nom: 'Mur 2', liste: tourneeListe }], DALLE_CAS_13.id).nombre], [80, 80]);
+      const s = calculs.stockPresta([{ nom: 'Mur 1', parc: 'parc-a', liste: droite }, { nom: 'Mur 2', parc: 'parc-a', liste: tourneeListe }], [{ id: 'parc-a', ...parc }]);
+      v.egal('total : une seule ligne pour la fiche', s.lignes.map((l) => [l.ficheId, l.quantite, l.etat]), [['fictive-cas-13', 160, 'suffit']]);
+    },
+  },
+  {
+    id: 'R349',
+    titre: 'Mon parc suffit-il ? (15c, § 6) : « Nombre dans le parc » de chaque processeur (`parc.quantites`), entier de 1 à 99, facultatif (vide : retiré, pas de contrôle), refus avec la raison ; valeur illisible gardée dans un fichier ignorée ; retiré avec une fiche retirée',
+    etape: '15c',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Parc A');
+      base = fiches.reglerQuantiteParc(base, 'parc-a', 'brompton-s8', '2');
+      base = fiches.reglerQuantiteParc(base, 'parc-a', 'novastar-mctrl660', 99);
+      v.egal('gardées', [base.parcs[0].quantites, fiches.quantitesParc(base, 'parc-a')],
+        [{ 'brompton-s8': 2, 'novastar-mctrl660': 99 }, { 'brompton-s8': 2, 'novastar-mctrl660': 99 }]);
+      const vide = fiches.reglerQuantiteParc(fiches.reglerQuantiteParc(base, 'parc-a', 'brompton-s8', ' '), 'parc-a', 'novastar-mctrl660', '');
+      v.egal('vide : retiré, plus rien d\'écrit', 'quantites' in vide.parcs[0], false);
+      const refus = ['0', '100', '2,5', 'deux', -1].map((x) => messageErreur(() => fiches.reglerQuantiteParc(base, 'parc-a', 'brompton-s8', x)));
+      v.egal('refus avec la raison', refus, Array(5).fill('Nombre dans le parc : un nombre entier de 1 à 99, ou vide.'));
+      v.egal('« Tous » : aucune', fiches.quantitesParc(base, null), {});
+      const lu = { ...base, parcs: [{ ...base.parcs[0], quantites: { 'brompton-s8': 2, x: 0, y: 'trois', z: 150 } }] };
+      v.egal('valeur illisible d\'un fichier : ignorée', fiches.quantitesParc(lu, 'parc-a'), { 'brompton-s8': 2 });
+      const retire = fiches.retirerFicheRetiree(base, 'parc-a', 'processeur', 'brompton-s8');
+      v.egal('fiche retirée : son nombre aussi', retire.parcs[0].quantites, { 'novastar-mctrl660': 99 });
+    },
+  },
+  {
+    id: 'R350',
+    titre: 'Mon parc suffit-il ? (15c, point 4 validé) : processeur conseillé, ceux dont le parc a assez en tête (sans nombre saisi : assez), puis le moins de processeurs, puis la plus petite capacité ; aucun n\'a assez : le conseil d\'avant ; sans nombres : inchangé',
+    etape: '15c',
+    verifier(v) {
+      const ev = (id, nombre, pixelsMax) => ({ nombre, processeur: { id, modele: id.toUpperCase(), pixelsMax } });
+      const evaluations = [ev('a', 2, 9e6), ev('b', 3, 2e6), ev('c', 3, 4e6), ev('d', null, 1e6)];
+      v.egal('sans nombres : le moins de processeurs', [calculs.processeurConseille(evaluations).processeur.id, calculs.processeurConseille(evaluations, { quantites: {} }).processeur.id], ['a', 'a']);
+      v.egal('a : 1 dans le parc pour 2 ; b sans nombre : b en tête', calculs.processeurConseille(evaluations, { quantites: { a: 1 } }).processeur.id, 'b');
+      v.egal('b : 2 pour 3 ; c : 3 pour 3 (juste assez)', calculs.processeurConseille(evaluations, { quantites: { a: 1, b: 2, c: 3 } }).processeur.id, 'c');
+      v.egal('aucun n\'a assez : le conseil d\'avant', calculs.processeurConseille(evaluations, { quantites: { a: 1, b: 2, c: 2 } }).processeur.id, 'a');
+    },
+  },
+  {
+    id: 'R351',
+    titre: 'Mon parc suffit-il ? (15c, § 6) : nombre de processeurs du parc face au processeur retenu (conseillé ou choisi à la main) : « Dans le parc Parc A : 2 × MCTRL660 », alerte « Il en faut 2 × MCTRL660, le parc Parc A en a 1. » ; sans nombre : rien ; texte copié de Data : « Nombre dans le parc », « Manque de stock : … » (alerte grave de la fiche du chef de projet)',
+    etape: '15c',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const r = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      v.egal('2 MCTRL660 pour ce mur', r.nombre, 2);
+      v.egal('assez', calculs.controleQuantiteProcesseur(r, 2, 'Parc A'), { quantite: 2, parcNom: 'Parc A', assez: true, ligne: 'Dans le parc Parc A : 2 × MCTRL660', alerte: null });
+      const court = calculs.controleQuantiteProcesseur(r, 1, 'Parc A');
+      v.egal('pas assez', court, { quantite: 1, parcNom: 'Parc A', assez: false, ligne: 'Dans le parc Parc A : 1 × MCTRL660', alerte: 'Il en faut 2 × MCTRL660, le parc Parc A en a 1.' });
+      v.egal('sans nombre, ou impossible : rien', [calculs.controleQuantiteProcesseur(r, undefined, 'Parc A'), calculs.controleQuantiteProcesseur({ ...r, nombre: null }, 1, 'Parc A')], [null, null]);
+      const t = resumes.resumeData(r, { quantiteParc: court }).split('\n');
+      v.vrai('texte copié : nombre et manque', t.includes('Nombre dans le parc Parc A : 1') && t.includes('Manque de stock : Il en faut 2 × MCTRL660, le parc Parc A en a 1.'), t.join(' / '));
+      const ok = resumes.resumeData(r, { quantiteParc: calculs.controleQuantiteProcesseur(r, 2, 'Parc A') }).split('\n');
+      v.vrai('assez : pas de manque', ok.includes('Nombre dans le parc Parc A : 2') && !ok.some((l) => l.startsWith('Manque de stock')), ok.join(' / '));
+      v.egal('sans nombre : texte inchangé', resumes.resumeData(r, { quantiteParc: null }), resumes.resumeData(r, {}));
+    },
+  },
+  {
+    id: 'R352',
+    titre: 'Mon parc suffit-il ? (15c, § 5 et 6) : total de la presta, processeurs face au nombre saisi dans leur parc (« 3 × Brompton S8 : stock 2 dans le parc Parc A, il en manque 1 »), après les dalles ; sans nombre saisi ou sans parc : aucune ligne ; manques dans la liste du bandeau',
+    etape: '15c',
+    verifier(v) {
+      const liste = (n, nb) => {
+        const l = calculs.listeMateriel({ mur: calculs.mur(DALLE_CAS_13, n, 8), dalle: DALLE_CAS_13 });
+        const proc = { cle: 'processeur|brompton-s8', quantite: nb, designation: 'Brompton S8', longueurM: null, aMesurer: false, detail: 'retenu dans Data' };
+        const mctrl = { cle: 'processeur|novastar-mctrl660', quantite: 1, designation: 'Novastar MCTRL660', longueurM: null, aMesurer: false, detail: 'retenu dans Data' };
+        return { ...l, sections: l.sections.map((s) => (s.id === 'data' ? { ...s, lignes: [proc, mctrl] } : s)) };
+      };
+      const parcs = [{ id: 'parc-a', nom: 'Parc A', lots: { 'fictive-cas-13': [{ identifiant: 'L1', quantite: 200 }] }, quantites: { 'brompton-s8': 2 } }];
+      const s = calculs.stockPresta([{ nom: 'Mur 1', parc: 'parc-a', liste: liste(9, 2) }, { nom: 'Mur 2', parc: 'parc-a', liste: liste(9, 1) }, { nom: 'Mur 3', parc: null, liste: liste(1, 1) }], parcs);
+      v.egal('lignes', s.lignes.map((l) => l.texte), [
+        '152 × Dalle du cas 13 : stock 200 dans le parc Parc A, suffit',
+        '3 × Brompton S8 : stock 2 dans le parc Parc A, il en manque 1',
+        '9 × Dalle du cas 13 : pas de parc, stock non contrôlé',
+      ]);
+      v.egal('clé et genre', [s.lignes[1].cle, s.lignes[1].genre], ['processeur|brompton-s8', 'processeur']);
+      v.egal('manque', s.manques, ['Il en manque 1 × Brompton S8 dans le parc Parc A (stock 2 pour 3).']);
+    },
+  },
 ];
 
 // Ligne « libellé : … » d'un texte copié.

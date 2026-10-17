@@ -144,7 +144,7 @@ export function monterMateriel(racine, { actions, confirmer = (texte) => window.
   }
 
   function dessinerPresta() {
-    const { presta, total, coches, changees, pourcent } = vue;
+    const { presta, total, coches, changees, pourcent, stock } = vue;
     const toutes = total.sections.flatMap((s) => s.lignes);
     const nbCochees = toutes.filter((l) => coches.has(l.cle)).length;
     const surCoche = (l, coche) => executer(() => actions.cocher(presta.id, l.cle, coche ? l.quantite : null));
@@ -155,6 +155,12 @@ export function monterMateriel(racine, { actions, confirmer = (texte) => window.
       el('p', {}, changees.length > 1 ? 'Lignes décochées, la liste a changé :' : 'Ligne décochée, la liste a changé :'),
       el('ul', { class: 'rappels' }, changees.map((c) => el('li', {}, c.texte))),
       bouton('Compris', () => executer(() => actions.compris(presta.id)))) : null;
+    // Stock des parcs (étape 15b) : bandeau des manques en tête, une ligne par parc et par fiche après les dalles.
+    const bandeauStock = stock?.manques.length ? el('div', { class: 'alerte alerte-erreur mat-stock-bandeau', role: 'status' },
+      el('p', {}, 'Stock insuffisant :'), el('ul', { class: 'rappels' }, stock.manques.map((m) => el('li', {}, m)))) : null;
+    const sectionStock = stock?.lignes.length ? el('section', { class: 'mat-section', 'aria-label': 'Stock des parcs', 'data-section': 'stock' },
+      el('h3', { class: 'mat-titre' }, 'Stock des parcs'),
+      el('ul', { class: 'mat-stock', role: 'list' }, stock.lignes.map((l) => el('li', { class: l.etat === 'manque' ? 'mat-stock-manque' : null }, l.texte)))) : null;
     const sections = [...total.sections];
     if (!sections.some((s) => s.id === 'ajouts')) sections.push({ id: 'ajouts', titre: 'Ajouts à la main', lignes: [], notes: [] });
     const ecart = total.sparesPourcent.some((x) => x !== pourcent)
@@ -166,10 +172,11 @@ export function monterMateriel(racine, { actions, confirmer = (texte) => window.
         el('h3', { class: 'mat-nom-mur' }, presta.nom),
         el('p', { class: 'mat-date' }, `${pluriel(total.murs, 'mur', 'murs')} ; chargement : ${pluriel(nbCochees, 'ligne cochée', 'lignes cochées')} sur ${nombreCourt(toutes.length)}.`)),
       alerte(total.rappel, 'alerte-info'),
+      bandeauStock,
       bandeau,
       total.notes.map((n) => alerte(n, 'alerte-info')),
       champSpares(presta, pourcent, ecart),
-      sections.map((s) => elementSection(s, { coches, surCoche, retirer, apres: s.id === 'ajouts' ? formulaireAjout(presta) : null })),
+      sections.map((s) => [elementSection(s, { coches, surCoche, retirer, apres: s.id === 'ajouts' ? formulaireAjout(presta) : null }), s.id === 'dalles' ? sectionStock : null]),
       elementPoids(total.poidsTransporte),
       boutonsPartage(),
       el('div', { class: 'pr-boutons pr-boutons-danger' },
@@ -186,11 +193,11 @@ export function monterMateriel(racine, { actions, confirmer = (texte) => window.
       remplacer(zoneErreur);
       dessiner();
     },
-    // `total` : totalMateriel ; `coches` : Set des clés cochées ; `changees` : lignes décochées, avec la raison.
-    afficherPresta({ presta, total, coches, changees, pourcent }) {
+    // `total` : totalMateriel ; `stock` : stockPresta ; `coches` : Set des clés cochées ; `changees` : lignes décochées, avec la raison.
+    afficherPresta({ presta, total, stock = null, coches, changees, pourcent }) {
       const memeVue = vue?.total && vue.presta.id === presta.id;
       const defilement = memeVue ? racine.scrollTop : 0;
-      vue = { presta, total, coches, changees, pourcent };
+      vue = { presta, total, stock, coches, changees, pourcent };
       remplacer(zoneErreur);
       dessiner();
       racine.scrollTop = defilement;

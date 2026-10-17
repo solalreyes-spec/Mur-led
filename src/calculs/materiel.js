@@ -95,7 +95,7 @@ function lignesCables(designation, longueursM, stock, detail, notes, { detailMes
 }
 
 // Dalles du mur fiche par fiche, dans l'ordre du mur (mur mixte : chaque fiche à part ; demi-dalles sur leur fiche).
-function dallesParFiche(m, dalle) {
+export function dallesParFiche(m, dalle) {
   const fiches = new Map();
   for (const d of dallesDuMur(m, dalle)) {
     const f = fiches.get(d.fiche.id) ?? { fiche: d.fiche, demi: d.type === 'demi' || Boolean(d.fiche.demiDe), nombre: 0 };
