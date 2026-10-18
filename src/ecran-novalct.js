@@ -33,7 +33,7 @@ const MENUS = [
   'Tools > Quickly Adjust Dark or Bright Lines > Adjust Dark or Bright Lines', 'Tools > Quickly Adjust Dark or Bright Lines',
   'Programming > Input > Input', 'Programming > Input', 'Screen Configuration > More Settings > Output Frame Rate',
   'Advanced Settings > Synchronization', 'Specify Receiving Card', 'Reset the Starting Coordinate of Receiving Card', 'Send Mode Parameters',
-  'Bind',
+  'Bind', 'Set as Backup', 'Set as Primary',
   'Input Settings > MOSAIC', 'Screen Configuration > More Settings > Mapping', 'Advanced Settings > Ethernet Port Backup Test',
   'System > Backup', 'System > Restore', 'View Details of Device', 'Configure Screen', 'Sending Card', 'Source Configuration',
   'Automatic Selection', 'Refresh Rate', 'Bit Depth', 'Receiving Card', 'Load from File', 'Send to Receiving Card',
@@ -121,6 +121,9 @@ export function monterNovaLCT(racine, { actions }) {
       e.aVerifier ? el('p', { class: 'nl-a-verifier' }, 'À vérifier en formation') : null,
       el('p', { class: 'nl-texte' }, texteAvecMenus(e.texte)),
       dessin ? el('div', { class: 'nl-dessin' }, dessin) : null,
+      e.tableau ? el('div', { class: 'nl-tableau-cadre' }, el('table', { class: 'nl-tableau' },
+        el('thead', {}, el('tr', {}, e.tableau.colonnes.map((c) => el('th', { scope: 'col' }, c)))),
+        el('tbody', {}, e.tableau.lignes.map((l) => el('tr', {}, l.map((x) => el('td', {}, String(x)))))))) : null,
       e.alerte ? alerte(e.alerte) : null,
       el('p', { class: 'source nl-sources' }, `Source : ${e.sources.map((s) => `${s.court}${s.ref ? ` ${s.ref}` : ''}`).join(' ; ')}`),
       el('label', { class: 'nl-case' }, caseFait, el('span', {}, 'Fait')));
@@ -148,6 +151,7 @@ export function monterNovaLCT(racine, { actions }) {
       resultat.nonCouvert.map((t) => alerte(t, 'alerte-info')),
       choixParties(parties),
       el('h3', { class: 'nl-partie-titre' }, partie.titre),
+      partie.note ? el('div', { class: 'alerte alerte-info nl-note-partie' }, partie.note) : null,
       el('ol', { class: 'nl-etapes' }, partie.etapes.map((e) => carteEtape(e))),
       el('div', { class: 'nl-pied' },
         suivante ? bouton('Partie suivante ▶', () => {

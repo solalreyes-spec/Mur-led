@@ -4155,6 +4155,53 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N89',
+    titre: 'NovaLCT pas à pas (17b3) : tableau de la redondance dans son étape (en-têtes, une ligne par port), note « Redondance non cochée » en tête de la partie ; rien ne dépasse à 375 px, en sombre et en rouge',
+    etape: '17b3',
+    async verifier(v, contexte) {
+      const en = await moduleAppli(v, '../src/ecran-novalct.js');
+      const nl = await moduleAppli(v, '../src/novalct.js');
+      if (!en || !nl) return;
+      const pasAPas = (redondance) => {
+        const m = calculs.mur(DALLE_CAS_13, 12, 6);
+        const evaluation = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), { frequenceHz: 60, bits: 8, redondance });
+        const c = calculs.cablageData(m, DALLE_CAS_13, evaluation, { depart: 'bas-gauche' });
+        return nl.etapesNovaLCT({ mur: m, dalle: DALLE_CAS_13, evaluation, variante: c.variantes.find((x) => x.mode === c.conseil), source: null });
+      };
+      const retirer = await chargerStylesLook();
+      const ecranPlein = el('div', { class: 'montage prestas novalct', 'data-famille': 'donnees', style: 'position:absolute;left:-10000px;top:0;width:375px;height:900px' });
+      const racine = el('div', { class: 'mf-defilant pr nl' });
+      ecranPlein.append(racine);
+      document.body.append(ecranPlein);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      const partie = (nom) => [...racine.querySelectorAll('.nl-parties label')].find((l) => texteDe(l) === nom)?.querySelector('input');
+      try {
+        const ecran = en.monterNovaLCT(racine, { actions: { cocher: async () => {}, compris: async () => {}, toutDecocher: async () => {}, dessinPort: () => null } });
+        ecran.afficher({ resultat: pasAPas(true), cases: {}, avis: null });
+        partie('Processeur 1').click();
+        await attendre();
+        const tableau = racine.querySelector('[data-etape="P1.B.11"] table.nl-tableau');
+        v.egal('en-têtes', [...(tableau?.querySelectorAll('th') ?? [])].map(texteDe), ['Carte d\'envoi principale', 'Port principal', 'Carte d\'envoi de secours', 'Port de secours']);
+        v.egal('lignes', [...(tableau?.querySelectorAll('tbody tr') ?? [])].map((tr) => [...tr.querySelectorAll('td')].map(texteDe)), [['1', '1', '1', '3'], ['1', '2', '1', '4']]);
+        v.egal('redondance cochée : pas de note', racine.querySelector('.nl-note-partie'), null);
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') document.documentElement.dataset.mode = 'rouge';
+          const bord = ecranPlein.getBoundingClientRect();
+          v.egal(`${mode} : rien ne dépasse`, [...ecranPlein.querySelectorAll('*')].filter((x) => { const b = x.getBoundingClientRect(); return b.width > 0 && b.right > bord.right + 0.5; }).map((x) => x.className || x.tagName), []);
+        }
+        delete document.documentElement.dataset.mode;
+        ecran.afficher({ resultat: pasAPas(false), cases: {}, avis: null });
+        await attendre();
+        const note = racine.querySelector('.nl-note-partie');
+        v.vrai('redondance non cochée : note en tête de la partie', texteDe(note).startsWith('Redondance non cochée dans Data') && note?.previousElementSibling?.classList.contains('nl-partie-titre'), texteDe(note) || 'absente');
+      } finally {
+        delete document.documentElement.dataset.mode;
+        ecranPlein.remove();
+        retirer();
+      }
+    },
+  },
 ];
 
 // Contraste WCAG entre deux couleurs « #rrggbb ».

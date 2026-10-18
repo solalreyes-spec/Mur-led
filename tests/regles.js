@@ -8303,6 +8303,23 @@ export const REGLES = [
       v.vrai('NCP : Send et Send Mode Parameters', ncp.includes('All Receiving Card, Send') && ncp.includes('Send Mode Parameters'), ncp);
     },
   },
+  {
+    id: 'R371',
+    titre: 'NovaLCT pas à pas (17b3, redondance) : B.11 en tableau à remplir (numéro de la carte d\'envoi principale, port principal, numéro de la carte d\'envoi de secours, port de secours ; même numéro dans un même processeur), secours par un second processeur chaîné (Set as Backup, son numéro dans la cascade) ; redondance non cochée : note en tête de chaque processeur',
+    etape: '17b3',
+    verifier(v, contexte) {
+      const p = pasAPasNovaLCT(contexte, { reglages: { redondance: true } });
+      const b11 = etapeNovaLCT(p, 'P1.B.11');
+      v.egal('tableau : colonnes', b11?.tableau?.colonnes, ['Carte d\'envoi principale', 'Port principal', 'Carte d\'envoi de secours', 'Port de secours']);
+      v.egal('tableau : une ligne par port, même carte d\'envoi', b11?.tableau?.lignes, [[1, 1, 1, 3], [1, 2, 1, 4]]);
+      v.vrai('second processeur : Set as Backup, numéro dans la cascade', ['Set as Backup', 'dans la cascade', '« enter the same value for serial numbers »'].every((x) => b11?.texte.includes(x)), b11?.texte ?? 'absente');
+      v.vrai('sources : manuel V5.5.0 § 5.3, formation 12', b11?.sources.some((s) => s.id === 'lct-5-5-0' && s.ref === '§ 5.3, p. 27 et 28') && b11?.sources.some((s) => s.id === 'formation-12'));
+      v.egal('redondance cochée : pas de note', p.parties.find((x) => x.id === 'P1').note ?? null, null);
+      const sans = pasAPasNovaLCT(contexte);
+      v.egal('redondance non cochée : note en tête de chaque processeur', sans.parties.filter((x) => x.processeur).map((x) => x.note),
+        Array(2).fill('Redondance non cochée dans Data : pas de port de secours à régler. Si tu câbles des retours de secours, coche « Redondance » dans Data : l\'étape B.11 te donnera le tableau à remplir.'));
+    },
+  },
 ];
 
 // Ligne « libellé : … » d'un texte copié.

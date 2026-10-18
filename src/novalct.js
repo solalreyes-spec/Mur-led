@@ -168,8 +168,9 @@ const titreDe = (id) => {
 };
 
 // Une étape : la signature ne dépend que de son identifiant et de ses valeurs (pas de l'ordre des noms de version).
-function etape(id, texte, sources, { titre = titreDe(id), valeurs = {}, aVerifier = false, alerte = null } = {}) {
-  return { id, titre, texte, sources, aVerifier, alerte, valeurs, signature: `${id}|${JSON.stringify(valeurs)}` };
+// `tableau` : { colonnes, lignes } à remplir dans le logiciel (redondance), ou null.
+function etape(id, texte, sources, { titre = titreDe(id), valeurs = {}, aVerifier = false, alerte = null, tableau = null } = {}) {
+  return { id, titre, texte, sources, aVerifier, alerte, tableau, valeurs, signature: `${id}|${JSON.stringify(valeurs)}` };
 }
 
 const majuscule = (t) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -510,14 +511,28 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
     { valeurs: { grille: [g.colonnes, g.rangees, g.premiereColonne, g.premiereRangee], ports: ports.map((p) => [p.libelle, p.dalles]), plie: plie(i) } }));
 
     if (redondance) {
-      const paires = ports.filter((p) => p.secours).map((p) => `${p.libelle}, secours ${p.secours.libelle}`);
-      etapes.push(etape(`${pre}B.11`, `Onglet Sending Card, Redundancy, Add : carte d'envoi principale et de secours 1 (le même `
-        + `${modele}), puis pour chaque port : ${paires.join(' ; ')}. Add à chaque paire, Close, puis Send ou Save. Ports de `
-        + 'secours : convention par défaut de l\'appli (Schéma), à régler dans le logiciel.',
-      [lct55('§ 5.3, p. 27 et 28'), lct58('§ 5.3, p. 31 et 32'), ...(vx1000 ? [src('vx1000-1-5-0', '§ 5.8.1, p. 37')] : []), src('formation-11')],
-      { valeurs: { paires } }));
+      const avecSecours = ports.filter((p) => p.secours);
+      const paires = avecSecours.map((p) => `${p.libelle}, secours ${p.secours.libelle}`);
+      // Le petit tableau de la fenêtre Redundancy Settings (étape 17b3) : une ligne par port, même numéro de carte d'envoi
+      // pour un secours dans le même processeur (« enter the same value for serial numbers », manuel V5.5.0 § 5.3).
+      const tableau = {
+        colonnes: ['Carte d\'envoi principale', 'Port principal', 'Carte d\'envoi de secours', 'Port de secours'],
+        lignes: avecSecours.map((p) => [1, p.numero, 1, p.secours.numero]),
+      };
+      etapes.push(etape(`${pre}B.11`, `Onglet Sending Card, Redundancy, Add : remplis le tableau ci-dessous, une ligne par port, Add à `
+        + `chaque ligne, Close, puis Send ou Save. Secours dans le même ${modele} : le même numéro de carte d'envoi, 1, en principal `
+        + `et en secours (« enter the same value for serial numbers ») ; ports : ${paires.join(' ; ')}. Ports de secours : convention `
+        + 'par défaut de l\'appli (Schéma), à régler dans le logiciel. Secours par un second processeur chaîné au premier : sur lui, '
+        + 'Set as Backup, et dans le tableau le numéro de carte d\'envoi de secours est son numéro dans la cascade (2 pour le second) ; '
+        + 'configure le premier seul avant (étape 0.6).',
+      [lct55('§ 5.3, p. 27 et 28'), lct58('§ 5.3, p. 31 et 32'), ...(vx1000 ? [src('vx1000-1-5-0', '§ 5.8.1, p. 37')] : []), src('formation-11'), src('formation-12')],
+      { valeurs: { paires }, tableau }));
     }
-    parties.push({ id: `P${n}`, titre: `NovaLCT, ${modele} n° ${n}`, processeur: n, etapes });
+    parties.push({
+      id: `P${n}`, titre: `NovaLCT, ${modele} n° ${n}`, processeur: n, etapes,
+      note: redondance ? null : 'Redondance non cochée dans Data : pas de port de secours à régler. Si tu câbles des retours de secours, '
+        + 'coche « Redondance » dans Data : l\'étape B.11 te donnera le tableau à remplir.',
+    });
   });
 
   // Partie C : contrôles.

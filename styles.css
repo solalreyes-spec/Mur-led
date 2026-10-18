@@ -1574,3 +1574,10 @@ code.nl-menu { font-family: var(--police-chiffres); font-size: 0.9em; padding: 0
 .nl-pied { display: grid; gap: 16px; margin-top: 4px; }
 .nl-confirmation { display: grid; gap: 10px; }
 .nl-confirmation p { margin: 0; }
+/* Tableau de la redondance (étape 17b3) : une ligne par port, comme la fenêtre Redundancy Settings ; défile dans son
+   cadre si besoin, jamais la page. */
+.nl-tableau-cadre { overflow-x: auto; min-width: 0; }
+.nl-tableau { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.nl-tableau th { padding: 6px 4px; border-bottom: 1px solid var(--bordure); color: var(--texte-doux); font-weight: 600; text-align: center; vertical-align: bottom; }
+:root[data-mode="rouge"] .nl-tableau th { color: var(--texte); }
+.nl-tableau td { padding: 8px 4px; border-bottom: 1px solid var(--bordure); font-family: var(--police-chiffres); font-size: 1.1rem; font-weight: 700; text-align: center; }
