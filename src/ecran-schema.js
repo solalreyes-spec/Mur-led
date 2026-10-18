@@ -513,6 +513,33 @@ export function dessinPortNovaLCT(id) {
     geo: geoVue, trajets: trajetsVue, coin: departData, blocs: [], palette: PALETTE_ECRAN, cadrage, selection: etape.cle, ordre: etape.cle,
     repere: null, grand: grandAffichage(),
   });
+  // Contexte (lot 17b5) : le reste du mur en fond discret, d'un seul tracé, sous les dalles du port ; le nom de chaque
+  // colonne voisine dans sa dalle du haut, pour situer le port dans le mur d'un coup d'œil.
+  const autres = [...geo.rects].filter(([id, r]) => !sesDalles.has(id) && !r.rotation);
+  if (autres.length) {
+    const cote = Math.min(...[...geo.rects.values()].map((r) => Math.min(r.w, r.h)));
+    const fond = svg('path', {
+      class: 'nl-contexte', d: autres.map(([, r]) => `M${r.x} ${r.y}h${r.w}v${r.h}h${-r.w}z`).join(''),
+      style: `fill: ${PALETTE_ECRAN.dalleAlt}; fill-opacity: 0.35; stroke: ${PALETTE_ECRAN.bord}`, 'stroke-width': cote * 0.015,
+    });
+    const colonnesPort = new Set(etape.dalles.map((id) => id.split(' ')[0]));
+    const hautDeColonne = new Map();
+    for (const [id, r] of autres) {
+      const colonne = id.split(' ')[0];
+      if (colonnesPort.has(colonne) || !/^C\d+$/.test(colonne)) continue;
+      if (!hautDeColonne.has(colonne) || r.y < hautDeColonne.get(colonne).y) hautDeColonne.set(colonne, r);
+    }
+    // Colonne entière dans le cadre : un nom coupé par le bord (« C1 » pour C10) tromperait.
+    const dansCadre = (r) => !cadrage || (r.x >= cadrage.x && r.x + r.w <= cadrage.x + cadrage.w);
+    const taille = cote * 0.22;
+    const noms = [...hautDeColonne].filter(([, r]) => dansCadre(r)).map(([colonne, r]) => svg('text', {
+      class: 'nl-colonne', x: r.x + r.w / 2, y: r.y + cote * 0.08 + taille, 'font-size': taille, 'text-anchor': 'middle',
+      'font-weight': 700, style: `fill: ${PALETTE_ECRAN.texte}`,
+    }, colonne));
+    const premiere = image.querySelector('[data-dalle]');
+    const parent = premiere?.parentNode ?? image;
+    parent.insertBefore(svg('g', { class: 'nl-contexte-groupe', 'aria-hidden': 'true' }, fond, ...noms), premiere ?? null);
+  }
   image.setAttribute('role', 'img');
   image.setAttribute('aria-label', `${etape.titre} : ${etape.phrase}`);
   return image;
