@@ -5,6 +5,7 @@
 // étape sans source porte « à vérifier en formation », sans nom de menu inventé. Noms de menus en anglais, tels quels.
 
 import { nombre } from './format.js';
+import { mur as murDeDalles, evaluerProcesseur, cablageData, sourceConseillee } from './calculs.js';
 
 export const SOURCES_NOVALCT = {
   'lct-5-5-0': {
@@ -307,7 +308,7 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
     etape('0.3', `Branche le PC au ${modele} avec le câble de contrôle, en USB ou en Ethernet. View Details of Device donne `
       + `le port de communication et le nombre de cartes d'envoi vues : ${nb} attendue${nb > 1 ? 's' : ''} (${nb} × ${modele}).`,
     [lct55('§ 3, p. 3'), lct58('§ 3, p. 4')], { valeurs: { nb } }),
-    etape('0.4', `Mur allumé, tout en ligne : Settings > Hardware Information, Refresh All, puis note les versions du ${modele} `
+    etape('0.4', `Mur allumé, tout en ligne : Settings > Hardware Information, Refresh All, puis Refresh, et note les versions du ${modele} `
       + 'et des cartes de réception (onglet Base, version du parc).',
     [lct55('§ 9.5, p. 116 et 117'), lct58('§ 9.5, p. 125 et 126'), src('cdc')]),
     etape('0.5', 'Menu User > Advanced Synchronous System User Login, mot de passe par défaut « admin ». Sans processeur '
@@ -337,7 +338,7 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
         etape('A.1', `${avantEntree}${avantEntree.endsWith(': ') ? 'entrée' : 'Entrée'} à ${dim(largeurSource, hauteurSource)} à ${nombre(freq)} Hz, en ${mode}`
           + `${personnalisee ? ' (résolution personnalisée, alerte EDID de l\'onglet Canvas)' : ''}. Dans V-Can : `
           + `Programming > Input > Input, choisis l'entrée, ${mode}, puis Apply. En façade : Input Settings, l'entrée, EDID, `
-          + `mode ${mode}, ${personnalisee ? 'Width et Height' : 'Resolution'}, Frame Rate, puis Apply.${facadeAVerifier}`,
+          + `mode ${mode}, ${personnalisee ? 'Width et Height, Frame Rate' : 'Resolution, Frame Rate, puis Apply'}.${facadeAVerifier}`,
         [src('vcan-3-8-0', '§ 3.1.1.1, p. 6 et 7'), src('vx1000-1-5-0', '§ 5.4.1, p. 26 à 28')],
         { valeurs: { l: largeurSource, h: hauteurSource, freq, mode, liaison }, aVerifier: groupe.aVerifier }),
         etape('A.2', 'Si la source arrive sur deux entrées du même type : V-Can, Programming > Input, Source « DVI MOSAIC » ; '
@@ -348,7 +349,7 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
         [src('vcan-3-8-0', '§ 3.1.6 et § 3.1.15.1, p. 21, 22, 38 et 39'), src('vx1000-1-5-0', '§ 5.5.1, p. 31')],
         { valeurs: { couche }, aVerifier: true }),
         etape('A.4', 'Plage : RGB Full conseillé. Source en Limited : active la conversion « limited to full » '
-          + `(V-Can : Programming > Input, réglages avancés ; façade : Color Range sur On).${pasCite('limited')}`,
+          + `(V-Can : Programming > Input, réglages avancés, chemin exact dans V-Can : ${A_VERIFIER} ; façade : Color Range sur On).${pasCite('limited')}`,
         [src('vcan-3-8-0', '§ 3.1.1.6, p. 11 et 12'), src('vx1000-1-5-0', '§ 5.4.5, p. 29')], { aVerifier: !cite('limited') }),
         etape('A.5', 'Réglages finis : sauvegarde du boîtier dans V-Can, System > Backup, Export (fichier .img) ; '
           + `System > Restore le recharge.${pasCite('sauvegarde')}`,
@@ -375,12 +376,15 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
     [lct55('§ 5.2.1, p. 8 et 9'), lct58('§ 5.2.1, p. 9')], { valeurs: { n } }));
 
     const bloc = plie(i) ? `sortie pliée : ${taillePliee}` : `bloc du processeur : ${dim(g.largeurPx, g.hauteurPx)}, en haut à gauche`;
+    // Fréquence de la source de Canvas différente de celle de Data (relecture, doute 22) : les deux sont dites.
+    const ecartFrequence = source?.frequenceHz && source.frequenceHz !== freq
+      ? ` Attention : la source de l'onglet Canvas est à ${nombre(source.frequenceHz)} Hz, Data à ${nombre(freq)} Hz.` : '';
     if (groupe.id === 'carte-envoi' || ENTREE_SENDING_CARD.includes(idCourt)) {
       const conseilBits = bits > 8 ? ` Le manuel conseille 8 bits (« The recommended input source bit depth is 8 bit ») ; Data règle ${bits} bits.` : '';
       etapes.push(etape(`${pre}B.2`, 'Onglet Sending Card : Automatic Selection, ou choisis l\'entrée, puis Send. Dans Source '
         + `Configuration : résolution ${dim(largeurSource, hauteurSource)}${personnalisee ? ' en résolution personnalisée' : ''} `
         + `(source conseillée de l'onglet Canvas ; ${bloc}), Refresh Rate ${nombre(freq)} Hz, Bit Depth ${bits} bits ; `
-        + `puis Set, Refresh et Save.${conseilBits}`,
+        + `puis Set, Refresh et Save.${conseilBits}${ecartFrequence}`,
       [lct55('§ 5.2.1, p. 9 et 10'), lct58('§ 5.2.1, p. 10')],
       { valeurs: { l: largeurSource, h: hauteurSource, freq, bits } }));
     } else {
@@ -389,7 +393,7 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
       const sortie = vcan ? ` Fréquence de sortie vers les dalles : ${nombre(freq)} Hz (60 Hz par défaut) ; en façade, Screen Configuration > `
         + `More Settings > Output Frame Rate${vx1000 ? '' : ` (relevé sur le VX1000, ${A_VERIFIER})`}.` : '';
       etapes.push(etape(`${pre}B.2`, `L'entrée du ${modele} se règle ${ou} : ${dim(largeurSource, hauteurSource)} à ${nombre(freq)} Hz, `
-        + `${bits} bits (${bloc}).${sortie} Ce que l'onglet Sending Card de NovaLCT montre pour ce processeur : ${A_VERIFIER}.`,
+        + `${bits} bits (${bloc}).${sortie}${ecartFrequence} Ce que l'onglet Sending Card de NovaLCT montre pour ce processeur : ${A_VERIFIER}.`,
       vcan ? [src('vcan-3-8-0', '§ 3.1.1.1, p. 6'), src('vx1000-1-5-0', '§ 5.2.7, p. 21')] : groupe.sources,
       { valeurs: { l: largeurSource, h: hauteurSource, freq, bits }, aVerifier: true }));
     }
@@ -472,6 +476,7 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
           + `.rcfgx ; tape ${pxDalle} avant de cliquer les cartes. Puis clique les cartes dans cet ordre (ou une connexion rapide `
           + `qui suit le même chemin).${demis.length ? ` Rangée ${rangeeDemi} : règle la hauteur à ${demi.pxV} px, puis Apply to Entire Row.` : ''} `
           + `Charge : ${nombre(port.px)} px, ${pourcent(port.taux)} de la capacité de Data (${nombre(evaluation.capacite)} px).${secours}`
+          + ' Dessin et Screen Connection en vue de face, côté public : derrière le mur, la gauche et la droite sont inversées.'
           + `${plie(i) ? ` Sortie pliée : colonnes comptées dans le bloc entier ; dans NovaLCT, celles de la tranche du port (${A_VERIFIER}).` : ''}`,
         [lct55('§ 5.2.3, p. 21'), lct58('§ 5.2.3, p. 24 et 25'), src('formation-6'), src('formation-11')],
         { titre: majuscule(port.libelle), aVerifier: plie(i), valeurs: { port: port.libelle, dalles: port.dalles, px: pxDalle, demi: pxDemi, plie: plie(i) } }));
@@ -520,7 +525,7 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
         lignes: avecSecours.map((p) => [1, p.numero, 1, p.secours.numero]),
       };
       etapes.push(etape(`${pre}B.11`, `Onglet Sending Card, Redundancy, Add : remplis le tableau ci-dessous, une ligne par port, Add à `
-        + `chaque ligne, Close, puis Send ou Save. Secours dans le même ${modele} : le même numéro de carte d'envoi, 1, en principal `
+        + `chaque ligne, Close, puis Send ou Save, puis branche les câbles de secours. Secours dans le même ${modele} : le même numéro de carte d'envoi, 1, en principal `
         + `et en secours (« enter the same value for serial numbers ») ; ports : ${paires.join(' ; ')}. Ports de secours : convention `
         + 'par défaut de l\'appli (Schéma), à régler dans le logiciel. Secours par un second processeur chaîné au premier : sur lui, '
         + 'Set as Backup, et dans le tableau le numéro de carte d\'envoi de secours est son numéro dans la cascade (2 pour le second) ; '
@@ -563,8 +568,9 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
     }
   }
   if (cfg.melanges) {
-    controles.push(etape('C.6', `Lots mélangés : Tools > Multi-batch Adjustment, Manual Adjustment, Apply Adjustment File${cfg.lxy.length
-      ? ` (${cfg.lxy.join(', ')})` : ' (fichier .lxy du parc, s\'il existe)'}, puis Apply et Save to Flash (rappel N7).`,
+    controles.push(etape('C.6', `Lots mélangés : Tools > Multi-batch Adjustment ; ${cfg.lxy.length
+      ? `avec le fichier ${cfg.lxy.join(', ')}, Apply Adjustment File` : 'avec le fichier .lxy du parc, s\'il existe, Apply Adjustment File'} ; `
+      + 'sans fichier, Manual Adjustment, le réglage lot par lot, puis Apply et Save to Flash (rappel N7).',
     [lct55('§ 6.3, p. 58 à 63')], { valeurs: { lxy: cfg.lxy } }));
   }
   if (courbe) {
@@ -594,7 +600,11 @@ export function rapprocherNovaLCT(cases, resultat) {
     const e = etapes.get(id);
     if (e && e.signature === signature) gardees[id] = signature;
     else if (e) changees.push(e.libelle);
-    else disparues.push(titreDe(id));
+    else {
+      // Étape disparue d'un processeur : son numéro avec le titre (« Processeur 1 : Redondance des ports »).
+      const p = /^P(\d+)\./.exec(id);
+      disparues.push(p ? `Processeur ${p[1]} : ${titreDe(id)}` : titreDe(id));
+    }
   }
   const perdues = [...changees, ...disparues];
   if (perdues.length === 0) return { cases: gardees, perdues, texte: null };
@@ -608,4 +618,101 @@ export function rapprocherNovaLCT(cases, resultat) {
     ? `Le mur a changé : étape ${noms} décochée (${raison}).`
     : `Le mur a changé : étapes ${noms} décochées (${raison}).`;
   return { cases: gardees, perdues, texte };
+}
+
+// ---------------------------------------------------------------------------
+// Texte copié, PDF et fiche régie (étape 17c1)
+// ---------------------------------------------------------------------------
+
+const deux = (n) => String(n).padStart(2, '0');
+const jour = (d) => `${deux(d.getDate())}/${deux(d.getMonth() + 1)}/${d.getFullYear()}`;
+const numeroEtape = (id) => id.replace(/^P\d+\./, '');
+const faitesSur = (resultat, cases) => {
+  const etapes = resultat.parties.flatMap((p) => p.etapes);
+  return { faites: etapes.filter((e) => cases?.[e.id] === e.signature).length, total: etapes.length };
+};
+const nombreProcesseurs = (resultat) => resultat.parties.filter((p) => p.processeur).length;
+const sourcesTexte = (e) => e.sources.map((s) => `${s.court}${s.ref ? ` ${s.ref}` : ''}`).join(' ; ');
+
+// Le pas à pas en tableau, pour le PDF des fiches métier (`pdfFiche`) et le texte copié : en-tête, un bloc par partie,
+// chaque étape en sous-titre (« B.2 Carte d'envoi : fait »), son texte, le tableau de la redondance, l'alerte, « à
+// vérifier en formation », ses sources.
+export function ficheNovaLCT(resultat, cases, { presta = '', mur = '', date = new Date() } = {}) {
+  const { faites, total } = faitesSur(resultat, cases);
+  const lignesEtape = (e) => [
+    { titre: `${numeroEtape(e.id)} ${e.titre}${cases?.[e.id] === e.signature ? ' : fait' : ''}` },
+    { libelle: '', valeur: e.texte },
+    ...(e.tableau?.lignes ?? []).map((l) => ({ libelle: `Redondance, port ${l[1]}`, valeur: `carte principale ${l[0]}, port ${l[1]} ; carte de secours ${l[2]}, port ${l[3]}` })),
+    ...(e.alerte ? [{ libelle: 'Alerte', valeur: e.alerte }] : []),
+    ...(e.aVerifier ? [{ libelle: 'À vérifier', valeur: 'en formation' }] : []),
+    { libelle: 'Source', valeur: sourcesTexte(e) || 'aucune source lue' },
+  ];
+  return {
+    titre: 'NovaLCT pas à pas',
+    rappel: `Noms des menus des manuels NovaLCT V5.5.0 et V5.8.1, ceux de la V${resultat.version.premiere} en premier ; `
+      + 'une étape « à vérifier en formation » n\'a pas de source sûre.',
+    entete: [['Presta', presta], ['Mur', mur], ['Processeurs', `${nombreProcesseurs(resultat)} × ${resultat.processeur}`],
+      ['Étapes faites', `${faites} sur ${total}`], ['Date', jour(date)]],
+    blocs: resultat.parties.map((p) => ({
+      titre: p.titre, date: null, manque: null,
+      lignes: [...(p.note ? [{ libelle: 'Note', valeur: p.note }] : []), ...p.etapes.flatMap(lignesEtape)],
+    })),
+    fin: null,
+  };
+}
+
+// Texte copié : une information par ligne, titres des parties en capitales, sans tiret de liste ni ligne vide.
+export function texteNovaLCT(resultat, cases, { presta = '', mur = '' } = {}) {
+  const f = ficheNovaLCT(resultat, cases, { presta, mur });
+  const ligne = (l) => (l.titre ? l.titre : [l.libelle, l.valeur].filter(Boolean).join(' : '));
+  const lignes = ['NOVALCT PAS À PAS', ...f.entete.filter(([libelle, valeur]) => valeur && libelle !== 'Date').map(([l, v]) => `${l} : ${v}`)];
+  if (resultat.version.note) lignes.push(resultat.version.note);
+  for (const b of f.blocs) lignes.push(b.titre.toUpperCase(), ...b.lignes.map(ligne));
+  return lignes.map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+}
+
+// Résumé pour la fiche régie : processeurs, étapes faites, entrée et grille de chaque processeur, où trouver le pas à pas.
+export function resumeNovaLCT(resultat, cases) {
+  const { faites, total } = faitesSur(resultat, cases);
+  const lignes = ['NOVALCT', `Processeurs : ${nombreProcesseurs(resultat)} × ${resultat.processeur}`, `Étapes faites : ${faites} sur ${total}`];
+  for (const p of resultat.parties.filter((x) => x.processeur)) {
+    const b2 = p.etapes.find((e) => e.id.endsWith('.B.2'))?.valeurs ?? {};
+    const b6 = p.etapes.find((e) => e.id.endsWith('.B.6'))?.valeurs ?? {};
+    const ports = p.etapes.filter((e) => /\.B\.7\.\d+$/.test(e.id)).length;
+    const grille = b6.colonnes ? `grille de ${b6.colonnes} colonnes × ${b6.rangees} rangées, ${ports} ports` : 'grille : voir le pas à pas';
+    lignes.push(`Processeur n° ${p.processeur} dans NovaLCT : entrée ${b2.l} × ${b2.h} à ${nombre(b2.freq)} Hz en ${b2.bits} bits, ${grille}`);
+  }
+  lignes.push('Pas à pas : onglet Data, carte « NovaLCT pas à pas »');
+  return lignes.join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// À blanc (étape 17c2) : le pas à pas sur un mur d'exemple de la base, pour réviser sans mur
+// ---------------------------------------------------------------------------
+
+// Mur d'exemple : une dalle réelle de la base à carte Novastar, jamais une dalle fictive des tests.
+export const MUR_A_BLANC = {
+  dalle: 'absen-m2-9', colonnes: 12, lignes: 6, frequenceHz: 60, bits: 8, depart: 'bas-gauche',
+  processeurs: ['novastar-mctrl660', 'novastar-vx1000'],
+};
+
+// `dalles`, `processeurs` : fiches résolues de la base ; `liaisons` : liaisons résolues. Rend le mur, l'évaluation, la
+// variante conseillée, la source conseillée, le pas à pas et sa description ; null si la dalle ou le processeur manque.
+export function murABlanc({ dalles = [], processeurs = [], liaisons = [], processeur = MUR_A_BLANC.processeurs[0], redondance = false }) {
+  const dalle = dalles.find((d) => d.id === MUR_A_BLANC.dalle);
+  const proc = processeurs.find((p) => p.id === processeur);
+  if (!dalle || !proc) return null;
+  const { colonnes, lignes, frequenceHz, bits, depart } = MUR_A_BLANC;
+  const m = murDeDalles(dalle, colonnes, lignes);
+  const evaluation = evaluerProcesseur(m, dalle, proc, { frequenceHz, bits, redondance });
+  if (!evaluation?.groupes?.length) return null;
+  const c = cablageData(m, dalle, evaluation, { depart });
+  const variante = c.variantes.find((x) => x.mode === c.conseil) ?? null;
+  const source = sourceConseillee(evaluation, liaisons, frequenceHz);
+  const resultat = etapesNovaLCT({ mur: m, dalle, evaluation, variante, source });
+  return {
+    mur: m, dalle, evaluation, variante, source, depart, resultat,
+    description: `Mur d'exemple : ${colonnes} × ${lignes} ${dalle.nom}, ${evaluation.nombre} × ${proc.modele}, ${nombre(frequenceHz)} Hz, ${bits} bits`
+      + `${redondance ? ', redondance' : ''}.`,
+  };
 }

@@ -15,7 +15,7 @@ const FAMILLES_IMAGES = ['donnees', 'electricite', 'image', 'accroche'];
 const ETATS_POINTS = { 1: 'revoir', 2: 'encours', 3: 'acquise' };
 
 export function monterApprendre(racine, {
-  pourquoi, entrainement, stockage, enLigne = () => navigator.onLine, ouvrirFiche = () => {}, ouvrirEntrainement = () => {},
+  pourquoi, entrainement, stockage, enLigne = () => navigator.onLine, ouvrirFiche = () => {}, ouvrirEntrainement = () => {}, novalct = null,
 }) {
   const questions = entrainement?.questions ?? [];
   const fiches = new Map(pourquoi.fiches.map((f) => [f.id, f]));
@@ -69,9 +69,32 @@ export function monterApprendre(racine, {
         el('span', { class: 'ap-compte' }, String(f.fiches.length))))));
   }
 
+  // NovaLCT à blanc (étape 17c2) : le pas à pas sur un mur d'exemple, processeur et redondance au choix ; en dernier (la
+  // carte S'entraîner et les quatre images restent en tête). `novalct.ouvrir({ processeur, redondance })`.
+  const choixNovaLCT = { processeur: 'novastar-mctrl660', redondance: false };
+  function carteNovaLCT() {
+    if (!novalct) return null;
+    const segments = el('div', { class: 'segments' }, [['novastar-mctrl660', 'MCTRL660'], ['novastar-vx1000', 'VX1000']].map(([id, nom]) => {
+      const radio = el('input', { type: 'radio', name: 'nl-processeur', value: id, checked: choixNovaLCT.processeur === id ? '' : null });
+      radio.addEventListener('change', () => { if (radio.checked) choixNovaLCT.processeur = id; });
+      return el('label', {}, radio, el('span', {}, nom));
+    }));
+    const redondance = el('input', { type: 'checkbox', name: 'nl-redondance', checked: choixNovaLCT.redondance ? '' : null });
+    redondance.addEventListener('change', () => { choixNovaLCT.redondance = redondance.checked; });
+    const bouton = el('button', { type: 'button', class: 'bouton ap-novalct-ouvrir' }, 'Ouvrir à blanc');
+    bouton.addEventListener('click', () => novalct.ouvrir({ ...choixNovaLCT }));
+    return el('section', { class: 'carte ap-novalct', 'data-famille': 'donnees' },
+      el('h3', { class: 'ap-titre' }, 'NovaLCT à blanc'),
+      el('p', { class: 'ap-intro' }, 'Le pas à pas NovaLCT sur un mur d\'exemple de la base (12 × 6 Absen M2.9, carte Novastar), pour réviser '
+        + 'sans mur ouvert. Tes cases y sont gardées à part de tes murs.'),
+      el('fieldset', { class: 'segmente' }, el('legend', {}, 'Processeur'), segments),
+      el('label', { class: 'case' }, redondance, el('span', {}, 'Redondance')),
+      bouton);
+  }
+
   function dessinerAccueil() {
     racine.dataset.vue = 'accueil';
-    remplacer(racine, carteEntrainement(), images(), familles());
+    remplacer(racine, carteEntrainement(), images(), familles(), carteNovaLCT());
   }
 
   function dessinerFamille() {

@@ -79,12 +79,14 @@ export const texteEtatNovaLCT = (resultat, cases) => {
 };
 
 // `actions` : cocher(id, signature ou null), compris(), toutDecocher(), dessinPort(etape) (élément ou null), fermer()
-// (facultative : bouton « Fermer le pas à pas » en bas de l'écran).
+// (facultative : bouton « Fermer le pas à pas » en bas de l'écran), pdf() (renvoie 'partage', 'annule' ou 'telechargement')
+// et copier() (renvoie true si copié), facultatives.
 export function monterNovaLCT(racine, { actions }) {
   let vue = null;
   let partieId = null;
   let confirmation = false;
   let zoneEtat = null;
+  const note = el('p', { class: 'mat-note nl-note', 'aria-live': 'polite' });
   const zoneErreur = el('div', { class: 'nl-erreur', 'aria-live': 'polite' });
 
   async function executer(appel) {
@@ -145,7 +147,7 @@ export function monterNovaLCT(racine, { actions }) {
   }
 
   function dessiner() {
-    const { resultat, cases, avis } = vue;
+    const { resultat, cases, avis, note: noteABlanc } = vue;
     const parties = resultat.parties;
     if (!parties.some((p) => p.id === partieId)) partieId = parties[0].id;
     const i = parties.findIndex((p) => p.id === partieId);
@@ -159,6 +161,18 @@ export function monterNovaLCT(racine, { actions }) {
       el('div', { class: 'mat-tete' },
         el('p', { class: 'pr-sur-titre' }, `${nombre} × ${resultat.processeur}`),
         zoneEtat),
+      // PDF et texte copié (étape 17c1), secondaires : « Partie suivante » reste le seul bouton principal.
+      actions.pdf || actions.copier ? el('div', { class: 'nl-actions' },
+        actions.pdf ? bouton('PDF', () => executer(async () => {
+          const mode = await actions.pdf();
+          note.textContent = mode === 'telechargement' ? 'PDF enregistré dans Fichiers (Téléchargements).' : '';
+        }), { 'data-icone': 'fiche' }) : null,
+        actions.copier ? bouton('Copier', () => executer(async () => {
+          note.textContent = (await actions.copier()) ? 'Pas à pas copié.' : 'Copie impossible sur cet appareil.';
+        }), { 'data-icone': 'copier' }) : null,
+        note) : null,
+      // À blanc (étape 17c2) : le mur d'exemple, en tête.
+      noteABlanc ? el('div', { class: 'alerte alerte-info nl-a-blanc' }, `À blanc. ${noteABlanc}`) : null,
       resultat.version.note ? el('p', { class: 'source' }, resultat.version.note) : null,
       avis ? el('div', { class: 'alerte nl-avis', role: 'status' },
         el('span', {}, avis),
@@ -195,11 +209,12 @@ export function monterNovaLCT(racine, { actions }) {
   }
 
   return {
-    // `resultat` : etapesNovaLCT ; `cases` : { identifiant : signature } ; `avis` : texte du bandeau ou null. La partie
+    // `resultat` : etapesNovaLCT ; `cases` : { identifiant : signature } ; `avis` : texte du bandeau ou null ; `note` : mur
+    // d'exemple du mode à blanc, ou null. La partie
     // affichée reste la même d'un affichage à l'autre (sauf si elle n'existe plus).
-    afficher({ resultat, cases, avis }) {
+    afficher({ resultat, cases, avis, note = null }) {
       const defilement = vue ? racine.scrollTop : 0;
-      vue = { resultat, cases: cases ?? {}, avis: avis ?? null };
+      vue = { resultat, cases: cases ?? {}, avis: avis ?? null, note };
       dessiner();
       racine.scrollTop = defilement;
     },

@@ -22,7 +22,7 @@ import {
   DALLE_CARTE_A10S, DALLE_CARTE_CA50E, DALLE_200, DALLE_120, DALLE_12, DALLE_CAS_9_A, DALLE_CAS_9_B, DALLE_CAS_9_C,
   DALLE_100W_CHAINAGE, DALLE_APPEL, DALLE_SANS_PMAX, DALLE_MAX_METRES, DALLE_MAX_KILOS, DALLE_MAX_3M,
 } from './dalles-fictives.js';
-import { processeurDeBase, liaisonsDeBase, regieDeBase, dalleDeBase, bumperDeBase, baseProcesseurs } from './base.js';
+import { processeurDeBase, liaisonsDeBase, regieDeBase, dalleDeBase, bumperDeBase, baseProcesseurs, baseDalles } from './base.js';
 
 // Tableau du manuel Tessera v3.5 §13.1.4 (repris dans le cahier des charges du projet) :
 // fréquence → [8, 10, 12 bits, 8, 10, 12 bits en ULL].
@@ -8143,7 +8143,7 @@ export const REGLES = [
       v.egal('fréquence changée : carte d\'envoi décochée', [Object.keys(r.cases), r.perdues], [['0.5'], ['NovaLCT, MCTRL660 n° 1 : Carte d\'envoi']]);
       v.egal('bandeau', r.texte, 'Le mur a changé : étape « NovaLCT, MCTRL660 n° 1 : Carte d\'envoi » décochée (ses valeurs ne sont plus les mêmes).');
       const deux = novalct.rapprocherNovaLCT({ 'P1.B.2': 'ancienne', 'P1.B.11': 'disparue' }, apres);
-      v.egal('deux étapes, dont une disparue', deux.texte, 'Le mur a changé : étapes « NovaLCT, MCTRL660 n° 1 : Carte d\'envoi », « Redondance des ports » décochées (leurs valeurs ne sont plus les mêmes ou l\'étape n\'existe plus).');
+      v.egal('deux étapes, dont une disparue', deux.texte, 'Le mur a changé : étapes « NovaLCT, MCTRL660 n° 1 : Carte d\'envoi », « Processeur 1 : Redondance des ports » décochées (leurs valeurs ne sont plus les mêmes ou l\'étape n\'existe plus).');
     },
   },
   {
@@ -8318,6 +8318,112 @@ export const REGLES = [
       const sans = pasAPasNovaLCT(contexte);
       v.egal('redondance non cochée : note en tête de chaque processeur', sans.parties.filter((x) => x.processeur).map((x) => x.note),
         Array(2).fill('Redondance non cochée dans Data : pas de port de secours à régler. Si tu câbles des retours de secours, coche « Redondance » dans Data : l\'étape B.11 te donnera le tableau à remplir.'));
+    },
+  },
+  {
+    id: 'R372',
+    titre: 'NovaLCT pas à pas (17c1, doutes de la relecture et formation) : multi-batch (avec le .lxy Apply Adjustment File, sans fichier Manual Adjustment) ; façade du VX en Custom sans Apply ; Refresh All puis Refresh ; chemin V-Can de la plage à vérifier ; câbles de secours branchés après la redondance ; fréquence de Canvas signalée si elle diffère de Data ; chaque port en vue de face (Formation, transcription 11)',
+    etape: '17c1',
+    verifier(v, contexte) {
+      const config = { logiciel: 'NovaLCT', nomFichier: 'A.rcfgx', multiBatch: 'LOTS.lxy' };
+      const melanges = pasAPasNovaLCT(contexte, { reglages: { redondance: true }, options: { configs: [{ libelle: null, resultat: { retenus: [{ identifiant: 'L1', configs: [config] }, { identifiant: 'L2', configs: [config] }], melanges: true, alertes: [] } }] } });
+      const c6 = etapeNovaLCT(melanges, 'C.6').texte;
+      v.vrai('C.6 : avec le fichier Apply Adjustment File, sans fichier Manual Adjustment', c6.includes('avec le fichier LOTS.lxy, Apply Adjustment File') && c6.includes('sans fichier, Manual Adjustment'), c6);
+      v.vrai('0.4 : Refresh All, puis Refresh', etapeNovaLCT(melanges, '0.4').texte.includes('Refresh All, puis Refresh'), etapeNovaLCT(melanges, '0.4').texte);
+      v.vrai('B.11 : puis branche les câbles de secours', etapeNovaLCT(melanges, 'P1.B.11').texte.includes('puis branche les câbles de secours'), etapeNovaLCT(melanges, 'P1.B.11').texte);
+      const b7 = etapeNovaLCT(melanges, 'P1.B.7.1').texte;
+      v.vrai('port : vue de face, gauche et droite inversées derrière le mur', b7.includes('vue de face') && b7.includes('derrière le mur'), b7);
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const ev = (id) => calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, id), NOVASTAR_60_8);
+      const avec = (id, source) => {
+        const e = ev(id);
+        const c = calculs.cablageData(m, DALLE_CAS_13, e, { depart: 'bas-gauche' });
+        return novalct.etapesNovaLCT({ mur: m, dalle: DALLE_CAS_13, evaluation: e, variante: c.variantes.find((x) => x.mode === c.conseil), source });
+      };
+      const facade = (p) => etapeNovaLCT(p, 'A.1').texte.split('En façade')[1] ?? '';
+      v.vrai('façade en Custom : pas de Apply', !facade(avec('novastar-vx1000', { largeurPx: 2304, hauteurPx: 1152, frequenceHz: 60, standard: false, liaison: 'hdmi-2.0' })).includes('Apply'));
+      v.vrai('façade en Standard : Apply', facade(avec('novastar-vx1000', { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60, standard: true, liaison: 'hdmi-2.0' })).includes('Apply'));
+      v.vrai('A.4 : chemin V-Can à vérifier en formation', etapeNovaLCT(avec('novastar-vx1000', null), 'A.4').texte.includes('chemin exact dans V-Can : à vérifier en formation'));
+      const b2 = etapeNovaLCT(avec('novastar-mctrl660', { largeurPx: 1152, hauteurPx: 1152, frequenceHz: 50, standard: false, liaison: 'hdmi-1.3' }), 'P1.B.2').texte;
+      v.vrai('fréquence de Canvas différente de Data : signalée', b2.includes('la source de l\'onglet Canvas est à 50 Hz, Data à 60 Hz'), b2);
+      const meme = etapeNovaLCT(avec('novastar-mctrl660', { largeurPx: 1152, hauteurPx: 1152, frequenceHz: 60, standard: false, liaison: 'hdmi-1.3' }), 'P1.B.2').texte;
+      v.vrai('même fréquence : rien', !meme.includes('la source de l\'onglet Canvas est à'), meme);
+    },
+  },
+  {
+    id: 'R373',
+    titre: 'NovaLCT pas à pas (17c1) : texte copié (`texteNovaLCT`) : titre, presta et mur, processeurs, étapes faites, une partie par titre en capitales, chaque étape (numéro, titre, « fait »), son texte, le tableau de la redondance, alertes, « à vérifier en formation », sources ; une information par ligne, sans tiret de liste ni tiret long, espaces simples',
+    etape: '17c1',
+    verifier(v, contexte) {
+      const p = pasAPasNovaLCT(contexte, { reglages: { redondance: true } });
+      const b2 = etapeNovaLCT(p, 'P1.B.2');
+      const total = p.parties.reduce((t, x) => t + x.etapes.length, 0);
+      const t = novalct.texteNovaLCT(p, { 'P1.B.2': b2.signature }, { presta: 'Presta A', mur: 'Mur 1' });
+      const lignes = t.split('\n');
+      v.egal('en-tête', lignes.slice(0, 5), ['NOVALCT PAS À PAS', 'Presta : Presta A', 'Mur : Mur 1', `Processeurs : ${p.parties.filter((x) => x.processeur).length} × MCTRL660`, `Étapes faites : 1 sur ${total}`]);
+      v.vrai('parties en capitales', lignes.includes('AVANT DE PARTIR ET SUR PLACE') && lignes.includes('NOVALCT, MCTRL660 N° 1') && lignes.includes('CONTRÔLES'), lignes.filter((l) => l === l.toUpperCase() && l.length > 3).join(' / '));
+      v.vrai('étape faite marquée', lignes.includes('B.2 Carte d\'envoi : fait'), lignes.filter((l) => l.startsWith('B.2')).join(' / '));
+      v.vrai('étape non faite', lignes.includes('0.5 Connexion avancée'));
+      v.vrai('source', lignes.includes('Source : Manuel NovaLCT V5.5.0 § 4, p. 5 ; Manuel NovaLCT V5.8.1 § 4, p. 6 ; Formation (transcription 6)'));
+      v.vrai('tableau de la redondance', lignes.includes('Redondance, port 1 : carte principale 1, port 1 ; carte de secours 1, port 3'), lignes.filter((l) => l.startsWith('Redondance, port')).join(' / '));
+      v.egal('sans tiret de liste, tiret long ni double espace', lignes.filter((l) => /^\s*[-•]|[—–]| {2}/.test(l)), []);
+    },
+  },
+  {
+    id: 'R374',
+    titre: 'NovaLCT pas à pas (17c1) : PDF (`ficheNovaLCT`, puis `pdfFiche` des fiches métier) : titre, rappel, en-tête (presta, mur, processeurs, étapes faites, date), un bloc par partie, lignes des étapes ; fichier PDF valide',
+    etape: '17c1',
+    verifier(v, contexte) {
+      const p = pasAPasNovaLCT(contexte);
+      const f = novalct.ficheNovaLCT(p, {}, { presta: 'Presta A', mur: 'Mur 1', date: new Date(2026, 9, 18, 12) });
+      v.egal('titre et en-tête', [f.titre, f.entete.map(([l]) => l)], ['NovaLCT pas à pas', ['Presta', 'Mur', 'Processeurs', 'Étapes faites', 'Date']]);
+      v.egal('un bloc par partie', f.blocs.map((b) => b.titre), p.parties.map((x) => x.titre));
+      v.vrai('lignes : étape en sous-titre, texte, source', f.blocs[0].lignes[0].titre === '0.1 PC de régie et logiciels' && f.blocs[0].lignes.some((l) => l.libelle === 'Source'));
+      const fichier = pdf.pdfFiche(f);
+      v.vrai('PDF valide', fichier.startsWith('%PDF-1.4') && fichier.trimEnd().endsWith('%%EOF') && /\/Count \d+/.test(fichier));
+    },
+  },
+  {
+    id: 'R375',
+    titre: 'NovaLCT pas à pas (17c1) : résumé pour la fiche régie (`resumeNovaLCT`) : processeurs, étapes faites, entrée et grille de chaque processeur, où trouver le pas à pas ; repris dans la fiche régie sous « Pas à pas NovaLCT » quand le mur en a un, la fiche inchangée sinon',
+    etape: '17c1',
+    verifier(v, contexte) {
+      const p = pasAPasNovaLCT(contexte);
+      const r = novalct.resumeNovaLCT(p, {});
+      v.egal('résumé', r.split('\n'), ['NOVALCT', 'Processeurs : 2 × MCTRL660', `Étapes faites : 0 sur ${p.parties.reduce((t, x) => t + x.etapes.length, 0)}`,
+        'Processeur n° 1 dans NovaLCT : entrée 1152 × 1152 à 60 Hz en 8 bits, grille de 6 colonnes × 6 rangées, 3 ports',
+        'Processeur n° 2 dans NovaLCT : entrée 1152 × 1152 à 60 Hz en 8 bits, grille de 6 colonnes × 6 rangées, 3 ports',
+        'Pas à pas : onglet Data, carte « NovaLCT pas à pas »']);
+      const textes = { canvas: 'CANVAS ET SOURCE\nSource : 1152 × 1152 px à 60 Hz en HDMI 1.3', data: 'DATA\nProcesseur : 2 × MCTRL660' };
+      const fiche = (t) => fichesMetier.ficheMetier('regie', { presta: { nom: 'Presta A', murs: [] }, murs: [{ nom: 'Mur 1', fiche: { textes: t, calculeeLe: '2026-10-18T10:00:00.000Z' }, materiel: null }], date: new Date(2026, 9, 18, 12) });
+      const avec = fiche({ ...textes, novalct: r }).blocs[0].lignes;
+      const i = avec.findIndex((l) => l.titre === 'Pas à pas NovaLCT');
+      v.vrai('fiche régie : bloc « Pas à pas NovaLCT » avec ses lignes', i > 0 && avec[i + 1]?.libelle === 'Processeurs' && avec.some((l) => l.libelle === 'Processeur n° 1 dans NovaLCT'), JSON.stringify(avec.slice(i, i + 3)));
+      v.egal('sans pas à pas : fiche inchangée', fiche(textes).blocs[0].lignes.some((l) => l.titre === 'Pas à pas NovaLCT'), false);
+    },
+  },
+  {
+    id: 'R376',
+    titre: 'NovaLCT pas à pas (17c2, à blanc) : mur d\'exemple de la base (12 × 6 Absen M2.9, carte Novastar, 60 Hz, 8 bits, départ en bas à gauche) sur MCTRL660 ou VX1000, redondance au choix, avec son pas à pas et sa description ; dalle ou processeur absent de la base : rien',
+    etape: '17c2',
+    verifier(v, contexte) {
+      const bd = baseDalles(contexte);
+      const bp = baseProcesseurs(contexte);
+      const base = {
+        dalles: bd.dalles.map((f) => calculs.resoudreFiche(f, bd.sources)),
+        processeurs: bp.processeurs.map((f) => calculs.resoudreFiche(f, bp.sources)),
+        liaisons: liaisonsDeBase(contexte),
+      };
+      v.egal('mur d\'exemple', [novalct.MUR_A_BLANC.dalle, novalct.MUR_A_BLANC.colonnes, novalct.MUR_A_BLANC.lignes, novalct.MUR_A_BLANC.processeurs],
+        ['absen-m2-9', 12, 6, ['novastar-mctrl660', 'novastar-vx1000']]);
+      const a = novalct.murABlanc(base);
+      v.egal('MCTRL660 par défaut, sans redondance', [a?.resultat.processeur, a?.resultat.parties.map((x) => x.id), a?.evaluation.reglages.redondance],
+        ['MCTRL660', ['0', 'P1', 'C'], false]);
+      v.egal('description', a?.description, 'Mur d\'exemple : 12 × 6 Absen M2.9, 1 × MCTRL660, 60 Hz, 8 bits.');
+      const b = novalct.murABlanc({ ...base, processeur: 'novastar-vx1000', redondance: true });
+      v.vrai('VX1000 et redondance : partie V-Can, tableau de redondance', b?.resultat.parties.some((x) => x.id === 'A') && b.resultat.parties.flatMap((x) => x.etapes).some((e) => e.id === 'P1.B.11' && e.tableau?.lignes.length > 0));
+      v.vrai('description avec la redondance', b?.description.endsWith(', redondance.'), b?.description ?? 'aucune');
+      v.egal('dalle absente : rien', novalct.murABlanc({ ...base, dalles: [] }), null);
     },
   },
 ];

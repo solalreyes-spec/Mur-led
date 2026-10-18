@@ -28,7 +28,9 @@ import { monterPrestas, remplirBoutonPresta, fichierExportPresta } from './ecran
 import { monterMateriel } from './ecran-materiel.js';
 import { monterFiches } from './ecran-fiches.js';
 import { monterNovaLCT, carteNovaLCT } from './ecran-novalct.js';
-import { etapesNovaLCT, rapprocherNovaLCT, groupeVideo, versionReference } from './novalct.js';
+import {
+  etapesNovaLCT, rapprocherNovaLCT, groupeVideo, versionReference, ficheNovaLCT, texteNovaLCT, resumeNovaLCT, murABlanc,
+} from './novalct.js';
 import { METIERS, ficheMetier, texteFiche, nomFichierFiche } from './fiches-metier.js';
 import { pdfFiche } from './pdf.js';
 import { enregistrer, fichierTexte } from './export.js';
@@ -275,14 +277,28 @@ let verrouNovaLCT = null;
 // Défilement de la page avant l'ouverture (lot 17b4) : la page remonte en haut, comme pour Prestas, puis revient.
 let defilementNovaLCT = 0;
 const SUIVI_NOVALCT_VIDE = { version: 1, cases: {}, avis: null };
-const suiviNovaLCT = () => prestas.murOuvert(etatPrestas)?.novalct ?? SUIVI_NOVALCT_VIDE;
+// À blanc (étape 17c2) : mur d'exemple d'Apprendre, son suivi gardé à part (clé « novalct-a-blanc »), jamais avec un mur.
+const CLE_NOVALCT_A_BLANC = 'novalct-a-blanc';
+let modeNovaLCT = 'mur';
+let aBlancNovaLCT = null;
+let suiviABlanc = null;
+const suiviDuMur = () => prestas.murOuvert(etatPrestas)?.novalct ?? SUIVI_NOVALCT_VIDE;
+const suiviNovaLCT = () => (modeNovaLCT === 'blanc' ? suiviABlanc ?? SUIVI_NOVALCT_VIDE : suiviDuMur());
+function garderSuiviNovaLCT(suivi) {
+  if (modeNovaLCT === 'blanc') {
+    suiviABlanc = suivi;
+    Promise.resolve(ecrire(CLE_NOVALCT_A_BLANC, suivi)).catch(() => {});
+  } else {
+    majMur({ novalct: suivi });
+  }
+}
 const versionNovaLCT = (proc) => logicielParc(base, parcActif, proc.id)?.version ?? null;
 function texteVersionNovaLCT(version) {
   const v = versionReference(version);
   return v.note ?? `NovaLCT ${version} dans le parc : noms des menus de la V${v.premiere} en premier.`;
 }
 function etatCarteNovaLCT() {
-  const n = Object.keys(suiviNovaLCT().cases ?? {}).length;
+  const n = Object.keys(suiviDuMur().cases ?? {}).length;
   return n === 0 ? 'Aucune étape cochée.' : `${n} ${n > 1 ? 'étapes cochées' : 'étape cochée'}.`;
 }
 function majCarteNovaLCT() {
@@ -299,8 +315,10 @@ function pasAPasNovaLCT() {
   });
 }
 function enregistrerNovaLCT(suivi) {
-  majMur({ novalct: suivi });
-  if (resultatNovaLCT && !panneauNovaLCT.hidden) ecranNovaLCT.afficher({ resultat: resultatNovaLCT, cases: suivi?.cases ?? {}, avis: suivi?.avis ?? null });
+  garderSuiviNovaLCT(suivi);
+  if (resultatNovaLCT && !panneauNovaLCT.hidden) {
+    ecranNovaLCT.afficher({ resultat: resultatNovaLCT, cases: suivi?.cases ?? {}, avis: suivi?.avis ?? null, note: modeNovaLCT === 'blanc' ? aBlancNovaLCT?.description : null });
+  }
   majCarteNovaLCT();
 }
 async function garderEcranNovaLCT() {
@@ -310,9 +328,28 @@ async function garderEcranNovaLCT() {
     verrouNovaLCT = null;
   }
 }
+const nomsNovaLCT = () => (modeNovaLCT === 'blanc' ? { presta: 'Révision à blanc', mur: 'Mur d\'exemple' }
+  : { presta: prestas.prestaOuverte(etatPrestas)?.nom ?? '', mur: prestas.murOuvert(etatPrestas)?.nom ?? '' });
 function ouvrirNovaLCT() {
+  modeNovaLCT = 'mur';
+  aBlancNovaLCT = null;
   const r = pasAPasNovaLCT();
-  if (!r) return;
+  if (r) ouvrirPasAPas(r);
+}
+// À blanc : le mur d'exemple de la base (processeur et redondance choisis dans Apprendre), son suivi relu à part.
+async function ouvrirNovaLCTABlanc({ processeur, redondance }) {
+  const a = murABlanc({ dalles: courant.dalles, processeurs: courant.processeurs, liaisons: connectique?.liaisons ?? [], processeur, redondance });
+  if (!a) return;
+  try {
+    suiviABlanc = (await lire(CLE_NOVALCT_A_BLANC)) ?? SUIVI_NOVALCT_VIDE;
+  } catch (erreur) {
+    suiviABlanc = SUIVI_NOVALCT_VIDE;
+  }
+  modeNovaLCT = 'blanc';
+  aBlancNovaLCT = a;
+  ouvrirPasAPas(a.resultat);
+}
+function ouvrirPasAPas(r) {
   const avant = suiviNovaLCT();
   const rapproche = rapprocherNovaLCT(avant.cases, r);
   const suivi = { version: 1, cases: rapproche.cases, avis: rapproche.texte ?? avant.avis ?? null };
@@ -323,7 +360,7 @@ function ouvrirNovaLCT() {
   panneauNovaLCT.hidden = false;
   document.body.classList.add('montage-ouvert');
   if (JSON.stringify(suivi) !== JSON.stringify(avant)) enregistrerNovaLCT(suivi);
-  else ecranNovaLCT.afficher({ resultat: r, cases: suivi.cases, avis: suivi.avis });
+  else ecranNovaLCT.afficher({ resultat: r, cases: suivi.cases, avis: suivi.avis, note: modeNovaLCT === 'blanc' ? aBlancNovaLCT.description : null });
   document.getElementById('ecran-novalct').scrollTop = 0;
   garderEcranNovaLCT();
 }
@@ -331,6 +368,8 @@ function fermerNovaLCT() {
   if (panneauNovaLCT.hidden) return false;
   panneauNovaLCT.hidden = true;
   resultatNovaLCT = null;
+  modeNovaLCT = 'mur';
+  aBlancNovaLCT = null;
   document.body.classList.remove('montage-ouvert');
   window.scrollTo(0, defilementNovaLCT);
   try {
@@ -351,13 +390,20 @@ const ecranNovaLCT = monterNovaLCT(document.getElementById('ecran-novalct'), {
       const cases = { ...s.cases };
       if (signature) cases[id] = signature;
       else delete cases[id];
-      majMur({ novalct: { ...s, cases } });
+      garderSuiviNovaLCT({ ...s, cases });
       majCarteNovaLCT();
     },
     fermer: () => fermerNovaLCT(),
+    // Texte copié et PDF du pas à pas (étape 17c1) : presta et mur ouverts, cases du suivi.
+    copier: async () => copier(texteNovaLCT(resultatNovaLCT, suiviNovaLCT().cases, nomsNovaLCT())),
+    pdf: async () => {
+      const { presta, mur } = nomsNovaLCT();
+      const nom = prestas.nomFichierPresta(`${presta} ${mur}`).replace(/^mur-led-presta-/, 'mur-led-novalct-').replace(/\.json$/, '.pdf');
+      return enregistrer(new File([pdfFiche(ficheNovaLCT(resultatNovaLCT, suiviNovaLCT().cases, nomsNovaLCT()))], nom, { type: 'application/pdf' }), nom);
+    },
     compris: async () => enregistrerNovaLCT({ ...suiviNovaLCT(), avis: null }),
     toutDecocher: async () => enregistrerNovaLCT({ ...SUIVI_NOVALCT_VIDE }),
-    dessinPort: (etape) => dessinPortNovaLCT(etape.id),
+    dessinPort: (etape) => dessinPortNovaLCT(etape.id, modeNovaLCT === 'blanc' ? aBlancNovaLCT : null),
   },
 });
 definirNovaLCT((choisie) => carteNovaLCT({
@@ -623,6 +669,7 @@ if (pourquoi) {
     stockage: { lire, ecrire },
     ouvrirFiche: ouvrirPourquoi,
     ouvrirEntrainement,
+    novalct: { ouvrir: ouvrirNovaLCTABlanc },
   });
 } else {
   remplacer(document.getElementById('ecran-apprendre'), erreurAlerte('Fiches « pourquoi » introuvables : l\'onglet Apprendre ne peut pas s\'afficher.'));
@@ -704,6 +751,9 @@ function garderListeMurOuvert() {
   const mur = prestas.murOuvert(etatPrestas);
   if (!mur) return;
   const textes = { mur: resumeOngletMur(), data: resumeOngletData(), canvas: resumeOngletCanvas(), elec: resumeOngletElec(), poids: resumeOngletPoids() };
+  // Pas à pas NovaLCT (étape 17c1) : son résumé pour la fiche régie, quand le processeur du mur se règle dans NovaLCT.
+  const pasAPas = pasAPasNovaLCT();
+  if (pasAPas) textes.novalct = resumeNovaLCT(pasAPas, suiviNovaLCT().cases);
   const avecTextes = prestas.enregistrerFicheMur(etatPrestas, mur.id, textes);
   if (avecTextes !== etatPrestas) {
     etatPrestas = avecTextes;

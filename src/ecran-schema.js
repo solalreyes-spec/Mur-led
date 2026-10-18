@@ -490,14 +490,24 @@ export function cablageRetenu() {
 // Dessin d'un port data pour le pas à pas NovaLCT (étape 17b) : celui du guide de montage (dalles du port numérotées
 // dans l'ordre du câble, autres trajets atténués), cadré sur le port au format 4:3, sans geste ni encart. `id` : étape
 // « P1.B.7.2 » (processeur 1, port 2). Null si le Schéma n'a pas ce port.
-export function dessinPortNovaLCT(id) {
+// `autre` (étape 17c2, à blanc) : { mur, dalle, evaluation, variante, depart } d'un mur qui n'est pas celui du Schéma.
+export function dessinPortNovaLCT(id, autre = null) {
   const m = /^P(\d+)\.B\.7\.(\d+)$/.exec(id ?? '');
   if (!m) return null;
-  assurerCalcul();
-  if (!contexteGuide) return null;
-  const etape = etapesCourantes.data.find((x) => x.cle === `p${m[1]}-${m[2]}`);
+  let contexte = contexteGuide;
+  let etapes = etapesCourantes.data;
+  if (autre) {
+    contexte = { mur: autre.mur, dalle: autre.dalle, pm: pixelMap(autre.mur, autre.dalle, autre.evaluation), vd: autre.variante, departData: autre.depart };
+    etapes = etapesData(autre.variante, { depart: autre.depart });
+  } else {
+    assurerCalcul();
+    contexte = contexteGuide;
+    etapes = etapesCourantes.data;
+  }
+  if (!contexte) return null;
+  const etape = etapes.find((x) => x.cle === `p${m[1]}-${m[2]}`);
   if (!etape) return null;
-  const { mur, dalle, pm, vd, departData } = contexteGuide;
+  const { mur, dalle, pm, vd, departData } = contexte;
   const vue = { vue: 'physique', canvasVue: 'mur', cablage: 'data' };
   const geo = geometrieGuide(geometrieSchema(vue, mur, dalle, pm), etape.dalles);
   const trajets = trajetsSchema(vue, vd, null, null);

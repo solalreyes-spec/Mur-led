@@ -102,6 +102,8 @@ function lignesMur(metier, fiche, materiel) {
   if (metier === 'electricien') return [...texteOuManque(textes, 'elec', lignesTexte), ...materielOuManque(materiel, 'Matériel électrique', 'elec')];
   if (metier === 'regie') {
     return [...texteOuManque(textes, 'canvas', lignesTexte), { titre: 'Data' }, ...texteOuManque(textes, 'data', lignesDataRegie),
+      // Pas à pas NovaLCT (étape 17c1) : son résumé, quand le processeur du mur se règle dans NovaLCT.
+      ...(textes.novalct ? [{ titre: 'Pas à pas NovaLCT' }, ...lignesTexte(textes.novalct)] : []),
       { titre: 'Exports à demander dans le Schéma' }, ...EXPORTS];
   }
   return syntheseMur(fiche, materiel);

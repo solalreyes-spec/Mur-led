@@ -4254,6 +4254,100 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N91',
+    titre: 'NovaLCT pas à pas (17c1) : boutons « PDF » et « Copier » en tête de l\'écran (secondaires, « Partie suivante » reste le seul principal), qui appellent leur action ; note « Pas à pas copié. » ; cibles de 56 px',
+    etape: '17c1',
+    async verifier(v, contexte) {
+      const en = await moduleAppli(v, '../src/ecran-novalct.js');
+      const nl = await moduleAppli(v, '../src/novalct.js');
+      if (!en || !nl) return;
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const evaluation = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), { frequenceHz: 60, bits: 8 });
+      const c = calculs.cablageData(m, DALLE_CAS_13, evaluation, { depart: 'bas-gauche' });
+      const r = nl.etapesNovaLCT({ mur: m, dalle: DALLE_CAS_13, evaluation, variante: c.variantes.find((x) => x.mode === c.conseil), source: null });
+      const appels = [];
+      const actions = {
+        cocher: async () => {}, compris: async () => {}, toutDecocher: async () => {}, dessinPort: () => null,
+        copier: async () => { appels.push('copier'); return true; },
+        pdf: async () => { appels.push('pdf'); return 'partage'; },
+      };
+      const retirer = await chargerStylesLook();
+      const ecranPlein = el('div', { class: 'montage prestas novalct', 'data-famille': 'donnees', style: 'position:absolute;left:-10000px;top:0;width:375px;height:900px' });
+      const racine = el('div', { class: 'mf-defilant pr nl' });
+      ecranPlein.append(racine);
+      document.body.append(ecranPlein);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      try {
+        const ecran = en.monterNovaLCT(racine, { actions });
+        ecran.afficher({ resultat: r, cases: {}, avis: null });
+        const boutons = [...racine.querySelectorAll('.nl-actions button')];
+        v.egal('boutons en tête', boutons.map(texteDe), ['PDF', 'Copier']);
+        v.egal('un seul principal dans l\'écran', [...racine.querySelectorAll('.bouton-principal')].map(texteDe), ['Partie suivante ▶']);
+        boutons[1]?.click();
+        await attendre();
+        await attendre();
+        v.egal('« Copier » : action et note', [appels.at(-1), texteDe(racine.querySelector('.nl-note'))], ['copier', 'Pas à pas copié.']);
+        boutons[0]?.click();
+        await attendre();
+        await attendre();
+        v.egal('« PDF » : action', appels.at(-1), 'pdf');
+        v.vrai('cibles de 56 px', boutons.every((b) => b.getBoundingClientRect().height >= 55.5));
+      } finally {
+        ecranPlein.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N92',
+    titre: 'NovaLCT pas à pas (17c2, à blanc) : carte « NovaLCT à blanc » en dernier dans Apprendre quand l\'appli la fournit (choix du processeur MCTRL660 ou VX1000, case Redondance, « Ouvrir à blanc » qui appelle son action avec les choix), absente sinon ; l\'écran du pas à pas montre la note du mur d\'exemple en tête',
+    etape: '17c2',
+    async verifier(v, contexte) {
+      const ap = await moduleAppli(v, '../src/ecran-apprendre.js');
+      const en = await moduleAppli(v, '../src/ecran-novalct.js');
+      const nl = await moduleAppli(v, '../src/novalct.js');
+      if (!ap || !en || !nl) return;
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      const ouvertures = [];
+      try {
+        const sans = ap.monterApprendre(racine, { pourquoi: contexte.pourquoi, entrainement: contexte.entrainement, stockage: null, enLigne: () => false, ouvrirFiche: () => {}, ouvrirEntrainement: () => {} });
+        await sans.pret;
+        v.egal('sans option : pas de carte', racine.querySelector('.ap-novalct'), null);
+        racine.replaceChildren();
+        const ecran = ap.monterApprendre(racine, { pourquoi: contexte.pourquoi, entrainement: contexte.entrainement, stockage: null, enLigne: () => false, ouvrirFiche: () => {}, ouvrirEntrainement: () => {},
+          novalct: { ouvrir: (choix) => ouvertures.push(choix) } });
+        await ecran.pret;
+        const carte = racine.querySelector('.ap-novalct');
+        v.egal('carte en dernier, titre', [carte === racine.lastElementChild, texteDe(carte?.querySelector('h3'))], [true, 'NovaLCT à blanc']);
+        v.egal('choix du processeur', [...(carte?.querySelectorAll('.segments label') ?? [])].map(texteDe), ['MCTRL660', 'VX1000']);
+        const ouvrir = [...(carte?.querySelectorAll('button') ?? [])].find((b) => texteDe(b) === 'Ouvrir à blanc');
+        ouvrir?.click();
+        await attendre();
+        v.egal('« Ouvrir à blanc » : MCTRL660 sans redondance par défaut', ouvertures.at(-1), { processeur: 'novastar-mctrl660', redondance: false });
+        carte.querySelector('input[value="novastar-vx1000"]')?.click();
+        carte.querySelector('input[name="nl-redondance"]')?.click();
+        ouvrir?.click();
+        await attendre();
+        v.egal('VX1000 et redondance', ouvertures.at(-1), { processeur: 'novastar-vx1000', redondance: true });
+        v.vrai('cibles de 48 px', [...carte.querySelectorAll('button, .segments label, label.case')].every((x) => x.getBoundingClientRect().height >= 47.5));
+        const m = calculs.mur(DALLE_CAS_13, 12, 6);
+        const evaluation = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), { frequenceHz: 60, bits: 8 });
+        const c = calculs.cablageData(m, DALLE_CAS_13, evaluation, { depart: 'bas-gauche' });
+        const r = nl.etapesNovaLCT({ mur: m, dalle: DALLE_CAS_13, evaluation, variante: c.variantes.find((x) => x.mode === c.conseil), source: null });
+        racine.replaceChildren();
+        const pas = en.monterNovaLCT(racine, { actions: { cocher: async () => {}, compris: async () => {}, toutDecocher: async () => {}, dessinPort: () => null } });
+        pas.afficher({ resultat: r, cases: {}, avis: null, note: 'Mur d\'exemple : essai.' });
+        v.egal('écran : note du mur d\'exemple en tête', texteDe(racine.querySelector('.nl-a-blanc')), 'À blanc. Mur d\'exemple : essai.');
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
 ];
 
 // Contraste WCAG entre deux couleurs « #rrggbb ».
