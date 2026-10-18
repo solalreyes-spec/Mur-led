@@ -2,16 +2,20 @@
 
 import { resoudreFiche, listeMateriel, totalMateriel, stockPresta, ErreurSaisie } from './calculs.js';
 import { el, remplacer } from './dom.js';
-import { baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc, quantitesParc } from './fiches.js';
+import {
+  baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc, quantitesParc, logicielParc,
+} from './fiches.js';
 import { lire, ecrire, stockageDisponible, suspendreEcritures } from './stockage.js';
 import { surveillerOnglets } from './onglets.js';
 import { initialiserMur, actualiserMur, signalerErreurMur, resumeOngletMur } from './ecran-mur.js';
-import { initialiserData, actualiserData, murModifie, definirDepartData, processeurRetenu, resumeOngletData } from './ecran-data.js';
-import { initialiserCanvas, actualiserRegies, donneesModifiees, resumeOngletCanvas } from './ecran-canvas.js';
+import {
+  initialiserData, actualiserData, murModifie, definirDepartData, processeurRetenu, resumeOngletData, definirNovaLCT, configsNovaLCT,
+} from './ecran-data.js';
+import { initialiserCanvas, actualiserRegies, donneesModifiees, resumeOngletCanvas, sourceAffichee } from './ecran-canvas.js';
 import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec, resumeOngletElec } from './ecran-elec.js';
 import {
   initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema,
-  cablageRetenu, sortieModifieePourSchema, definirStockageMontage, rechargerMontage, entreesMateriel,
+  cablageRetenu, sortieModifieePourSchema, definirStockageMontage, rechargerMontage, entreesMateriel, dessinPortNovaLCT,
 } from './ecran-schema.js';
 import { initialiserPoids, actualiserBumpers, murModifiePourPoids, poidsRetenu, resumeOngletPoids } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
@@ -23,6 +27,8 @@ import { chargerPrestas, creerEnregistreur } from './prestas-appareil.js';
 import { monterPrestas, remplirBoutonPresta, fichierExportPresta } from './ecran-prestas.js';
 import { monterMateriel } from './ecran-materiel.js';
 import { monterFiches } from './ecran-fiches.js';
+import { monterNovaLCT, carteNovaLCT } from './ecran-novalct.js';
+import { etapesNovaLCT, rapprocherNovaLCT, groupeVideo, versionReference } from './novalct.js';
 import { METIERS, ficheMetier, texteFiche, nomFichierFiche } from './fiches-metier.js';
 import { pdfFiche } from './pdf.js';
 import { enregistrer, fichierTexte } from './export.js';
@@ -258,6 +264,103 @@ definirStockageMontage({
     return true;
   },
 });
+
+// NovaLCT pas à pas (étape 17b) : carte de l'onglet Data quand le processeur retenu se règle dans NovaLCT, écran plein
+// ouvert par son bouton (jamais tout seul). Le pas à pas lit le câblage retenu du Schéma, la source de Canvas, les
+// configs des lots de Data et la version du parc ; le suivi des étapes est gardé avec le mur ouvert (`novalct`), sans
+// marquer la presta modifiée. À l'ouverture, une case dont l'étape a changé est décochée et le bandeau le dit.
+const panneauNovaLCT = document.getElementById('novalct');
+let resultatNovaLCT = null;
+let verrouNovaLCT = null;
+const SUIVI_NOVALCT_VIDE = { version: 1, cases: {}, avis: null };
+const suiviNovaLCT = () => prestas.murOuvert(etatPrestas)?.novalct ?? SUIVI_NOVALCT_VIDE;
+const versionNovaLCT = (proc) => logicielParc(base, parcActif, proc.id)?.version ?? null;
+function texteVersionNovaLCT(version) {
+  const v = versionReference(version);
+  return v.note ?? `NovaLCT ${version} dans le parc : noms des menus de la V${v.premiere} en premier.`;
+}
+function etatCarteNovaLCT() {
+  const n = Object.keys(suiviNovaLCT().cases ?? {}).length;
+  return n === 0 ? 'Aucune étape cochée.' : `${n} ${n > 1 ? 'étapes cochées' : 'étape cochée'}.`;
+}
+function majCarteNovaLCT() {
+  const etat = document.querySelector('.nl-carte .nl-etat');
+  if (etat) etat.textContent = etatCarteNovaLCT();
+}
+function pasAPasNovaLCT() {
+  const c = cablageRetenu();
+  if (!c?.evaluation || c.evaluation.processeur.logiciel !== 'NovaLCT') return null;
+  const courbe = (c.mur.saisie?.zones ?? []).some((z) => z.courbure || z.pose?.type === 'pliee');
+  return etapesNovaLCT({
+    mur: c.mur, dalle: c.dalle, evaluation: c.evaluation, variante: c.variante, source: sourceAffichee(), configs: configsNovaLCT(),
+    version: versionNovaLCT(c.evaluation.processeur), pliage: c.pliage, courbe,
+  });
+}
+function enregistrerNovaLCT(suivi) {
+  majMur({ novalct: suivi });
+  if (resultatNovaLCT && !panneauNovaLCT.hidden) ecranNovaLCT.afficher({ resultat: resultatNovaLCT, cases: suivi?.cases ?? {}, avis: suivi?.avis ?? null });
+  majCarteNovaLCT();
+}
+async function garderEcranNovaLCT() {
+  try {
+    verrouNovaLCT = (await navigator.wakeLock?.request?.('screen')) ?? null;
+  } catch (erreur) {
+    verrouNovaLCT = null;
+  }
+}
+function ouvrirNovaLCT() {
+  const r = pasAPasNovaLCT();
+  if (!r) return;
+  const avant = suiviNovaLCT();
+  const rapproche = rapprocherNovaLCT(avant.cases, r);
+  const suivi = { version: 1, cases: rapproche.cases, avis: rapproche.texte ?? avant.avis ?? null };
+  resultatNovaLCT = r;
+  ecranNovaLCT.revenirAuDebut();
+  panneauNovaLCT.hidden = false;
+  document.body.classList.add('montage-ouvert');
+  if (JSON.stringify(suivi) !== JSON.stringify(avant)) enregistrerNovaLCT(suivi);
+  else ecranNovaLCT.afficher({ resultat: r, cases: suivi.cases, avis: suivi.avis });
+  document.getElementById('ecran-novalct').scrollTop = 0;
+  garderEcranNovaLCT();
+}
+function fermerNovaLCT() {
+  if (panneauNovaLCT.hidden) return false;
+  panneauNovaLCT.hidden = true;
+  resultatNovaLCT = null;
+  document.body.classList.remove('montage-ouvert');
+  try {
+    verrouNovaLCT?.release?.();
+  } catch (erreur) {
+    // Rien à faire : le navigateur a déjà relâché l'écran.
+  }
+  verrouNovaLCT = null;
+  majCarteNovaLCT();
+  return true;
+}
+const ecranNovaLCT = monterNovaLCT(document.getElementById('ecran-novalct'), {
+  actions: {
+    cocher: async (id, signature) => {
+      const s = suiviNovaLCT();
+      const cases = { ...s.cases };
+      if (signature) cases[id] = signature;
+      else delete cases[id];
+      enregistrerNovaLCT({ ...s, cases });
+    },
+    compris: async () => enregistrerNovaLCT({ ...suiviNovaLCT(), avis: null }),
+    toutDecocher: async () => enregistrerNovaLCT({ ...SUIVI_NOVALCT_VIDE }),
+    dessinPort: (etape) => dessinPortNovaLCT(etape.id),
+  },
+});
+definirNovaLCT((choisie) => carteNovaLCT({
+  processeur: choisie.processeur.modele, nombre: choisie.nombre, groupe: groupeVideo(choisie.processeur)?.id ?? null,
+  version: texteVersionNovaLCT(versionNovaLCT(choisie.processeur)), etat: etatCarteNovaLCT(),
+}, { ouvrir: ouvrirNovaLCT }));
+document.getElementById('novalct-fermer').addEventListener('click', fermerNovaLCT);
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && fermerNovaLCT()) e.stopPropagation();
+}, true);
+window.addEventListener('hashchange', fermerNovaLCT);
+document.addEventListener('visibilitychange', () => { if (!panneauNovaLCT.hidden && document.visibilityState === 'visible') garderEcranNovaLCT(); });
 
 // Fusion base de départ + ma base, puis résolution des valeurs sourcées.
 function construire() {
@@ -923,8 +1026,9 @@ demanderStockagePersistant().then((accorde) => {
 });
 document.getElementById('reglages-defaut').addEventListener('click', () => {
   const mur = prestas.murOuvert(etatPrestas)?.nom ?? 'le mur ouvert';
-  if (confirm(`Remettre toutes les saisies de ${mur} (onglets Mur, Data, Canvas, Élec, Poids et Schéma) à leurs valeurs par défaut, et effacer son suivi du montage ? Les autres murs, ta base et tes parcs ne changent pas.`)) {
+  if (confirm(`Remettre toutes les saisies de ${mur} (onglets Mur, Data, Canvas, Élec, Poids et Schéma) à leurs valeurs par défaut, et effacer son suivi du montage et du pas à pas NovaLCT ? Les autres murs, ta base et tes parcs ne changent pas.`)) {
     reglagesParDefaut();
     effacerMontage();
+    majMur({ novalct: null });
   }
 });

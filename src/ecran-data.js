@@ -562,6 +562,8 @@ function configsData(choisie) {
   const prefixe = (g, texte) => (g.libelle ? `${g.libelle} : ${texte.charAt(0).toLowerCase()}${texte.slice(1)}` : texte);
   return {
     logiciel,
+    // Pour le pas à pas NovaLCT (étape 17b) : le résultat de configsDuMur de chaque fiche du mur.
+    parFiche: groupes.map(({ g, c }) => ({ libelle: g.libelle ?? null, resultat: c })),
     note: groupes.find(({ c }) => c.note)?.c.note ?? null,
     lignes: groupes.flatMap(({ g, c }) => c.lignes.map((l) => prefixe(g, l))),
     alertes: groupes.flatMap(({ g, c }) => c.alertes.map((a) => prefixe(g, a))),
@@ -671,6 +673,18 @@ function sectionAutres(e, evaluations, choisie) {
 // ---------------------------------------------------------------------------
 
 let dernier = null;
+
+// Carte « NovaLCT pas à pas » (étape 17b) : fournie par l'appli, qui garde le suivi des étapes avec le mur ouvert.
+let fournirNovaLCT = null;
+export function definirNovaLCT(fournisseur) {
+  fournirNovaLCT = fournisseur;
+}
+
+// Configs NovaLCT des lots du mur (configsDuMur de chaque fiche) pour le pas à pas ; null sans parc choisi.
+export function configsNovaLCT() {
+  if (!contexteLots.parcId) return null;
+  return dernier?.configs?.logiciel === 'NovaLCT' ? dernier.configs.parFiche ?? null : null;
+}
 
 // Processeur retenu au dernier calcul (conseil ou choix), pour la marque du projet dans l'écran Dépannage.
 export function processeurRetenu() {
@@ -822,6 +836,7 @@ function calculer(e) {
     sectionDecoupageZones(choisie),
     sectionZones(choisie),
     sectionConfigs(configs),
+    choisie.processeur.logiciel === 'NovaLCT' && fournirNovaLCT ? fournirNovaLCT(choisie) : null,
     sectionAutres(e, evaluations, choisie),
   );
   return choisie;

@@ -487,6 +487,31 @@ export function cablageRetenu() {
   return variante ? { mur: etatData.mur, dalle: etatData.dalle, evaluation: etatData.choisie ?? null, variante, pliage: dernier.pliage ?? null } : null;
 }
 
+// Dessin d'un port data pour le pas à pas NovaLCT (étape 17b) : celui du guide de montage (dalles du port numérotées
+// dans l'ordre du câble, autres trajets atténués), cadré sur le port au format 4:3, sans geste ni encart. `id` : étape
+// « P1.B.7.2 » (processeur 1, port 2). Null si le Schéma n'a pas ce port.
+export function dessinPortNovaLCT(id) {
+  const m = /^P(\d+)\.B\.7\.(\d+)$/.exec(id ?? '');
+  if (!m) return null;
+  assurerCalcul();
+  if (!contexteGuide) return null;
+  const etape = etapesCourantes.data.find((x) => x.cle === `p${m[1]}-${m[2]}`);
+  if (!etape) return null;
+  const { mur, dalle, pm, vd, departData } = contexteGuide;
+  const vue = { vue: 'physique', canvasVue: 'mur', cablage: 'data' };
+  const geo = geometrieGuide(geometrieSchema(vue, mur, dalle, pm), etape.dalles);
+  const trajets = trajetsSchema(vue, vd, null, null);
+  const t = trajets.find((x) => x.cle === etape.cle);
+  const calcul = calculerCadrageGuide(geo, etape.dalles, 4 / 3, { coin: departData, orientation: t?.orientation ?? 'colonnes', repere: null });
+  const { svg: image } = construireSvg({
+    geo, trajets, coin: departData, blocs: [], palette: PALETTE_ECRAN, cadrage: calcul?.cadrage ?? null, selection: etape.cle, ordre: etape.cle,
+    repere: null, grand: grandAffichage(),
+  });
+  image.setAttribute('role', 'img');
+  image.setAttribute('aria-label', `${etape.titre} : ${etape.phrase}`);
+  return image;
+}
+
 // Entrées de la liste de matériel (étape 13b) : le mur, le câblage data et élec retenus dans le Schéma (variantes
 // choisies), la distribution d'Élec sur la variante élec retenue, la distance régie–mur et le mou.
 export function entreesMateriel() {

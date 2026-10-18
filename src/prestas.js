@@ -9,7 +9,8 @@
 //   (`organisationPresta` la lit toujours entière) ; exportée et importée avec la presta.
 //   murs : { [id du mur]: { version, parc, configuration, montage, materiel } }, une clé de stockage par mur ;
 //   `materiel` (étape 13b) : { liste, calculeeLe }, la liste de matériel du mur, jamais exportée ; `fiche` (étape 14b) :
-//   { textes, calculeeLe }, les textes des onglets pour les fiches par métier, jamais exportés. Presta : `materiel`
+//   { textes, calculeeLe }, les textes des onglets pour les fiches par métier, jamais exportés. `novalct` (étape 17b) :
+//   { version, cases, avis }, le suivi du pas à pas NovaLCT, jamais exporté. Presta : `materiel`
 //   { sparesPourcent, coches { [clé]: quantité cochée }, ajouts [{ id, libelle, quantite }] } facultatif (13c), jamais
 //   exporté.
 // `configuration` a la forme des saisies gardées (configuration.js) ; null : réglages par défaut.
@@ -289,7 +290,8 @@ export function renommerMur(etat, prestaId, murId, nom, opts) {
   return avecPresta(etat, prestaId, (x) => ({ ...x, modifieeLe: o.iso, murs: x.murs.map((m) => (m.id === murId ? { ...m, nom: n } : m)) }));
 }
 
-// Saisies, parc ou suivi du montage d'un mur ({ configuration, parc, montage }, chacun facultatif).
+// Saisies, parc, suivi du montage ou du pas à pas NovaLCT d'un mur ({ configuration, parc, montage, novalct }, chacun
+// facultatif).
 export function enregistrerMur(etat, murId, champs, opts) {
   const actuel = etat.murs[murId];
   if (!actuel) throw new ErreurSaisie('Mur introuvable.');
@@ -297,11 +299,14 @@ export function enregistrerMur(etat, murId, champs, opts) {
   if ('configuration' in champs) maj.configuration = copie(champs.configuration);
   if ('parc' in champs) maj.parc = champs.parc ?? null;
   if ('montage' in champs) maj.montage = copie(champs.montage);
+  // Suivi du pas à pas NovaLCT (étape 17b), comme celui du montage.
+  if ('novalct' in champs) maj.novalct = copie(champs.novalct);
   // Rien de changé : la presta n'est pas marquée modifiée (ouvrir le guide de montage, relire les saisies).
   if (JSON.stringify(maj) === JSON.stringify(actuel)) return etat;
   const e = { ...etat, murs: { ...etat.murs, [murId]: maj } };
-  // Le suivi du montage seul (ouvrir le guide, cocher un port) ne marque pas la presta modifiée : rien n'a été saisi.
-  const saisi = JSON.stringify({ ...maj, montage: null }) !== JSON.stringify({ ...actuel, montage: null });
+  // Le suivi du montage ou du pas à pas NovaLCT seul (ouvrir le guide, cocher une case) ne marque pas la presta modifiée :
+  // rien n'a été saisi.
+  const saisi = JSON.stringify({ ...maj, montage: null, novalct: null }) !== JSON.stringify({ ...actuel, montage: null, novalct: null });
   const presta = etat.index.prestas.find((p) => p.murs.some((m) => m.id === murId));
   return presta && saisi ? toucher(e, presta.id, opts) : e;
 }
@@ -427,7 +432,7 @@ export function retirerAjout(etat, prestaId, ajoutId, opts) {
   return toucher(e, prestaId, opts);
 }
 
-// Copie d'un mur, ouverte : mêmes saisies et même parc, suivi de montage vide.
+// Copie d'un mur, ouverte : mêmes saisies et même parc, suivis du montage et de NovaLCT vides.
 export function dupliquerMur(etat, prestaId, murId, opts) {
   const o = options(opts);
   const p = trouverPresta(etat, prestaId);
@@ -437,7 +442,7 @@ export function dupliquerMur(etat, prestaId, murId, opts) {
   for (let k = 2; p.murs.some((m) => m.nom === nom); k += 1) nom = avecSuffixe(source.nom, ` (copie ${k})`, LIMITES.nomMur);
   const mid = nouvelId('m', o.alea, idsPris(etat));
   const e = avecPresta(etat, prestaId, (x) => ({ ...x, modifieeLe: o.iso, murs: [...x.murs, { id: mid, nom }] }));
-  return { index: { ...e.index, ouverte: { presta: prestaId, mur: mid } }, murs: { ...etat.murs, [mid]: { ...copie(etat.murs[murId]), montage: null } } };
+  return { index: { ...e.index, ouverte: { presta: prestaId, mur: mid } }, murs: { ...etat.murs, [mid]: { ...copie(etat.murs[murId]), montage: null, novalct: null } } };
 }
 
 // Copie d'une presta, ouverte : infos et murs (saisies et parcs), non archivée, jamais exportée, suivis vides.
@@ -452,7 +457,7 @@ export function dupliquerPresta(etat, prestaId, opts) {
     murs: murs.map(({ id, nom }) => ({ id, nom })),
   };
   const donnees = { ...etat.murs };
-  for (const m of murs) donnees[m.id] = { ...copie(etat.murs[m.source] ?? murVide()), montage: null };
+  for (const m of murs) donnees[m.id] = { ...copie(etat.murs[m.source] ?? murVide()), montage: null, novalct: null };
   return { index: { ...etat.index, ouverte: { presta: pid, mur: murs[0].id }, prestas: [...etat.index.prestas, presta] }, murs: donnees };
 }
 

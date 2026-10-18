@@ -3984,6 +3984,177 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N86',
+    titre: 'NovaLCT pas à pas (17b, spec § 5) : carte de Data « NovaLCT pas à pas » : titre, processeurs, V-Can annoncé pour un VX réglé dans V-Can, ligne de version, état des étapes, bouton principal « Ouvrir le pas à pas » qui appelle son action ; cible de 48 px ; rien ne dépasse à 375 px',
+    etape: '17b',
+    async verifier(v) {
+      const en = await moduleAppli(v, '../src/ecran-novalct.js');
+      if (!en) return;
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      let ouvert = 0;
+      try {
+        const carte = en.carteNovaLCT({ processeur: 'MCTRL660', nombre: 2, groupe: 'carte-envoi', version: 'Noms des menus : V5.8.1 en premier.', etat: 'Aucune étape faite sur 34.' }, { ouvrir: () => { ouvert += 1; } });
+        racine.append(carte);
+        v.egal('titre', texteDe(carte.querySelector('h3')), 'NovaLCT pas à pas');
+        v.egal('texte', texteDe(carte.querySelector('.nl-carte-texte')), '2 × MCTRL660 : ce qu\'il faut faire dans NovaLCT pour ce mur, étape par étape, avec ses valeurs et la source de chaque étape.');
+        v.egal('version et état', [texteDe(carte.querySelector('.source')), texteDe(carte.querySelector('.nl-etat'))], ['Noms des menus : V5.8.1 en premier.', 'Aucune étape faite sur 34.']);
+        const bouton = carte.querySelector('button');
+        v.egal('bouton principal', [texteDe(bouton), bouton?.classList.contains('bouton-principal')], ['Ouvrir le pas à pas', true]);
+        bouton?.click();
+        v.egal('le bouton appelle son action', ouvert, 1);
+        v.vrai(`cible de 48 px au moins (${Math.round(bouton?.getBoundingClientRect().height ?? 0)} px)`, (bouton?.getBoundingClientRect().height ?? 0) >= 47.5);
+        const vx = en.carteNovaLCT({ processeur: 'VX1000', nombre: 1, groupe: 'v-can', version: '', etat: '2 étapes sur 31 faites.' }, { ouvrir: () => {} });
+        v.vrai('VX réglé dans V-Can : annoncé', texteDe(vx.querySelector('.nl-carte-texte')).includes('et avant dans V-Can ou en façade'), texteDe(vx.querySelector('.nl-carte-texte')));
+        const bord = racine.getBoundingClientRect();
+        v.egal('375 px : rien ne dépasse', [...racine.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().right > bord.right + 0.5).map((x) => x.className || x.tagName), []);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N87',
+    titre: 'NovaLCT pas à pas (17b, spec § 5) : écran plein : état « n étapes sur N faites », choix des parties (Avant, V-Can, Processeur n, Contrôles), une carte par étape (titre, texte, noms des menus en chasse fixe, sources courtes, « À vérifier en formation », alerte), dessin sous chaque port, case « Fait » qui appelle son action avec la signature, bandeau « Le mur a changé » et « Compris », « Partie suivante », « Tout décocher » confirmé dans l\'écran',
+    etape: '17b',
+    async verifier(v, contexte) {
+      const en = await moduleAppli(v, '../src/ecran-novalct.js');
+      const nl = await moduleAppli(v, '../src/novalct.js');
+      if (!en || !nl) return;
+      const pasAPas = (procId, reglages = {}) => {
+        const m = calculs.mur(DALLE_CAS_13, 12, 6);
+        const evaluation = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, procId), { frequenceHz: 60, bits: 8, ...reglages });
+        const c = calculs.cablageData(m, DALLE_CAS_13, evaluation, { depart: 'bas-gauche' });
+        const variante = c.variantes.find((x) => x.mode === c.conseil);
+        return nl.etapesNovaLCT({ mur: m, dalle: DALLE_CAS_13, evaluation, variante, source: calculs.sourceConseillee(evaluation, liaisonsDeBase(contexte), evaluation.reglages.frequenceHz) });
+      };
+      const appels = [];
+      const actions = {
+        cocher: async (...a) => { appels.push(['cocher', ...a]); },
+        compris: async () => { appels.push(['compris']); },
+        toutDecocher: async () => { appels.push(['toutDecocher']); },
+        dessinPort: (etape) => el('div', { class: 'dessin-essai' }, etape.id),
+      };
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      const ids = () => [...racine.querySelectorAll('.nl-etape')].map((x) => x.dataset.etape);
+      const partie = (nom) => [...racine.querySelectorAll('.nl-parties label')].find((l) => texteDe(l) === nom)?.querySelector('input');
+      try {
+        const r = pasAPas('novastar-mctrl660');
+        const total = r.parties.reduce((t, p) => t + p.etapes.length, 0);
+        const ecran = en.monterNovaLCT(racine, { actions });
+        ecran.afficher({ resultat: r, cases: {}, avis: null });
+        v.egal('état', texteDe(racine.querySelector('.nl-etat')), `Aucune étape faite sur ${total}.`);
+        v.egal('parties', [...racine.querySelectorAll('.nl-parties label')].map(texteDe), ['Avant', 'Processeur 1', 'Processeur 2', 'Contrôles']);
+        v.egal('première partie affichée', [texteDe(racine.querySelector('.nl-partie-titre')), ids()], ['Avant de partir et sur place', ['0.1', '0.2', '0.3', '0.4', '0.5']]);
+        const e05 = racine.querySelector('[data-etape="0.5"]');
+        v.egal('titre de l\'étape, avec son numéro (les textes renvoient à « l\'étape A.1 »)', texteDe(e05?.querySelector('h4')), '0.5 Connexion avancée');
+        v.vrai('noms des menus en chasse fixe', [...(e05?.querySelectorAll('code.nl-menu') ?? [])].map(texteDe).includes('User > Advanced Synchronous System User Login'), texteDe(e05));
+        v.vrai('sources courtes', texteDe(e05?.querySelector('.nl-sources')).includes('Manuel NovaLCT V5.5.0 § 4, p. 5'), texteDe(e05?.querySelector('.nl-sources')));
+        partie('Processeur 1').click();
+        await attendre();
+        v.egal('processeur 1', ids(), r.parties[1].etapes.map((x) => x.id));
+        v.egal('dessin sous chaque port seulement', [...racine.querySelectorAll('.dessin-essai')].map(texteDe), ['P1.B.7.1', 'P1.B.7.2', 'P1.B.7.3']);
+        const caseB2 = racine.querySelector('[data-etape="P1.B.2"] .nl-case input');
+        caseB2.click();
+        await attendre();
+        v.egal('case cochée : action avec la signature', appels.at(-1), ['cocher', 'P1.B.2', r.parties[1].etapes[1].signature]);
+        caseB2.click();
+        await attendre();
+        v.egal('case décochée : signature nulle', appels.at(-1), ['cocher', 'P1.B.2', null]);
+        ecran.afficher({ resultat: r, cases: { 'P1.B.2': r.parties[1].etapes[1].signature, '0.1': r.parties[0].etapes[0].signature }, avis: 'Le mur a changé : étape « Port 4 » décochée (l\'étape n\'existe plus).' });
+        v.egal('cases gardées et état', [racine.querySelector('[data-etape="P1.B.2"] .nl-case input')?.checked, texteDe(racine.querySelector('.nl-etat'))], [true, `2 étapes sur ${total} faites.`]);
+        v.egal('même partie après un nouvel affichage', texteDe(racine.querySelector('.nl-partie-titre')), 'NovaLCT, MCTRL660 n° 1');
+        v.egal('bandeau', texteDe(racine.querySelector('.nl-avis span')), 'Le mur a changé : étape « Port 4 » décochée (l\'étape n\'existe plus).');
+        racine.querySelector('.nl-avis button')?.click();
+        await attendre();
+        v.egal('« Compris »', appels.at(-1), ['compris']);
+        boutonTexte(racine, 'Partie suivante')?.click();
+        await attendre();
+        v.egal('« Partie suivante »', texteDe(racine.querySelector('.nl-partie-titre')), 'NovaLCT, MCTRL660 n° 2');
+        boutonTexte(racine, 'Tout décocher')?.click();
+        await attendre();
+        v.egal('« Tout décocher » demande confirmation', [appels.at(-1)[0], Boolean(boutonTexte(racine, 'Oui, tout décocher'))], ['compris', true]);
+        boutonTexte(racine, 'Oui, tout décocher')?.click();
+        await attendre();
+        v.egal('confirmé', appels.at(-1), ['toutDecocher']);
+        const vx = pasAPas('novastar-vx1000', { frequenceHz: 50 });
+        ecran.afficher({ resultat: vx, cases: {}, avis: null });
+        v.egal('VX1000 : partie V-Can', [...racine.querySelectorAll('.nl-parties label')].map(texteDe), ['Avant', 'V-Can', 'Processeur 1', 'Contrôles']);
+        partie('V-Can').click();
+        await attendre();
+        v.egal('« À vérifier en formation » marqué', [...racine.querySelectorAll('.nl-a-verifier')].map((x) => x.closest('.nl-etape')?.dataset.etape), ['A.3']);
+        partie('Processeur 1').click();
+        await attendre();
+        v.vrai('alerte des 650 000 px dans son étape', texteDe(racine.querySelector('[data-etape="P1.B.8"] .alerte')).startsWith('NovaLCT avertira'), texteDe(racine.querySelector('[data-etape="P1.B.8"]')));
+        v.egal('« Partie suivante » absent sur la dernière partie', (partie('Contrôles').click(), await attendre(), boutonTexte(racine, 'Partie suivante') ?? null), null);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N88',
+    titre: 'NovaLCT pas à pas (17b) : à 375 px, en sombre, en rouge et en grand affichage : rien ne dépasse, cibles de 48 px (cases de 64 px, 60 et 64 px en grand affichage), noms des menus et « À vérifier en formation » à 4,5:1 sur leur fond',
+    etape: '17b',
+    async verifier(v, contexte) {
+      const en = await moduleAppli(v, '../src/ecran-novalct.js');
+      const nl = await moduleAppli(v, '../src/novalct.js');
+      if (!en || !nl) return;
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const evaluation = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-vx1000'), { frequenceHz: 50, bits: 8, redondance: true });
+      const c = calculs.cablageData(m, DALLE_CAS_13, evaluation, { depart: 'bas-gauche' });
+      const r = nl.etapesNovaLCT({ mur: m, dalle: DALLE_CAS_13, evaluation, variante: c.variantes.find((x) => x.mode === c.conseil), source: calculs.sourceConseillee(evaluation, liaisonsDeBase(contexte), 50) });
+      const retirer = await chargerStylesLook();
+      const ecranPlein = el('div', { class: 'montage prestas novalct', 'data-famille': 'donnees', style: 'position:absolute;left:-10000px;top:0;width:375px;height:900px' });
+      const racine = el('div', { class: 'mf-defilant pr nl' });
+      ecranPlein.append(racine);
+      document.body.append(ecranPlein);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      try {
+        const ecran = en.monterNovaLCT(racine, { actions: { cocher: async () => {}, compris: async () => {}, toutDecocher: async () => {}, dessinPort: () => null } });
+        ecran.afficher({ resultat: r, cases: {}, avis: 'Le mur a changé : étape « Port 4 » décochée (l\'étape n\'existe plus).' });
+        const parties = [...racine.querySelectorAll('.nl-parties input')];
+        for (const [mode, taille] of [['sombre', null], ['rouge', null], ['sombre', 'grand'], ['rouge', 'grand']]) {
+          if (mode === 'rouge') document.documentElement.dataset.mode = 'rouge';
+          else delete document.documentElement.dataset.mode;
+          if (taille) document.documentElement.dataset.taille = taille;
+          else delete document.documentElement.dataset.taille;
+          const nom = `${mode}${taille ? ', grand affichage' : ''}`;
+          const debordements = [];
+          const petites = [];
+          const contrastes = [];
+          for (const p of parties) {
+            p.click();
+            await attendre();
+            const bord = ecranPlein.getBoundingClientRect();
+            debordements.push(...[...ecranPlein.querySelectorAll('*')].filter((x) => { const b = x.getBoundingClientRect(); return b.width > 0 && b.right > bord.right + 0.5; }).map((x) => `${p.value} : ${x.className || x.tagName}`));
+            const minimum = taille ? 59.5 : 47.5;
+            petites.push(...[...racine.querySelectorAll('button, .nl-parties label')].filter((x) => x.getBoundingClientRect().height < minimum).map((x) => `${p.value} : ${texteDe(x)}`));
+            petites.push(...[...racine.querySelectorAll('.nl-case')].filter((x) => x.getBoundingClientRect().height < 63.5).map((x) => `${p.value} : case`));
+            for (const x of racine.querySelectorAll('code.nl-menu, .nl-a-verifier')) {
+              const k = contraste(rgbVersHex(getComputedStyle(x).color), fondDe(x));
+              if (k < 4.5) contrastes.push(`${texteDe(x)} : ${k.toFixed(2)}`);
+            }
+          }
+          v.egal(`${nom} : rien ne dépasse`, [...new Set(debordements)], []);
+          v.egal(`${nom} : cibles`, [...new Set(petites)], []);
+          v.egal(`${nom} : contrastes`, [...new Set(contrastes)], []);
+        }
+      } finally {
+        delete document.documentElement.dataset.mode;
+        delete document.documentElement.dataset.taille;
+        ecranPlein.remove();
+        retirer();
+      }
+    },
+  },
 ];
 
 // Contraste WCAG entre deux couleurs « #rrggbb ».

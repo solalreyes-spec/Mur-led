@@ -3,7 +3,7 @@
 
 import {
   controleSource, controleRegie, controleChaine, sourceConseillee, champsManquantsRegie, maillonDepuisFiche, ErreurSaisie,
-  pliageSortie, pliagePropose, pixelMap, pixelMapPliee, cablageData,
+  pliageSortie, pliagePropose, pixelMap, pixelMapPliee, cablageData, RESOLUTIONS_STANDARD,
 } from './calculs.js';
 import { nombre, nombreCourt, lireNombre, sourceCourte } from './format.js';
 import { el, remplacer, listeNumerotee } from './dom.js';
@@ -260,6 +260,17 @@ export function sourceEstModifiee() {
 
 export function definirSourceModifiee(modifiee) {
   sourceModifiee = modifiee === true;
+}
+
+// Source de l'onglet Canvas (conseillée ou saisie à la main), pour le pas à pas NovaLCT (étape 17b) ; null si la taille
+// n'est pas lisible.
+export function sourceAffichee() {
+  const s = lireFormulaire();
+  if (!(s.largeurPx > 0 && s.hauteurPx > 0)) return null;
+  return {
+    largeurPx: s.largeurPx, hauteurPx: s.hauteurPx, frequenceHz: s.frequenceHz, liaison: s.liaison || null,
+    standard: RESOLUTIONS_STANDARD.some(([l, h]) => l === s.largeurPx && h === s.hauteurPx),
+  };
 }
 
 function mettreAJour() {
