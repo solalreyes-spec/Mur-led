@@ -78,11 +78,13 @@ export const texteEtatNovaLCT = (resultat, cases) => {
   return etatTexte(faites, total);
 };
 
-// `actions` : cocher(id, signature ou null), compris(), toutDecocher(), dessinPort(etape) (élément ou null).
+// `actions` : cocher(id, signature ou null), compris(), toutDecocher(), dessinPort(etape) (élément ou null), fermer()
+// (facultative : bouton « Fermer le pas à pas » en bas de l'écran).
 export function monterNovaLCT(racine, { actions }) {
   let vue = null;
   let partieId = null;
   let confirmation = false;
+  let zoneEtat = null;
   const zoneErreur = el('div', { class: 'nl-erreur', 'aria-live': 'polite' });
 
   async function executer(appel) {
@@ -114,9 +116,8 @@ export function monterNovaLCT(racine, { actions }) {
   function carteEtape(e) {
     const coche = vue.cases?.[e.id] === e.signature;
     const caseFait = el('input', { type: 'checkbox', checked: coche ? '' : null, 'aria-describedby': `nl-titre-${e.id}` });
-    caseFait.addEventListener('change', () => executer(() => actions.cocher(e.id, caseFait.checked ? e.signature : null)));
     const dessin = /\.B\.7\.\d+$/.test(e.id) && actions.dessinPort ? actions.dessinPort(e) : null;
-    return el('li', { class: `nl-etape${coche ? ' nl-faite' : ''}`, 'data-etape': e.id },
+    const carte = el('li', { class: `nl-etape${coche ? ' nl-faite' : ''}`, 'data-etape': e.id },
       el('h4', { id: `nl-titre-${e.id}` }, el('span', { class: 'nl-numero' }, e.id.replace(/^P\d+\./, '')), ' ', e.titre),
       e.aVerifier ? el('p', { class: 'nl-a-verifier' }, 'À vérifier en formation') : null,
       el('p', { class: 'nl-texte' }, texteAvecMenus(e.texte)),
@@ -127,6 +128,20 @@ export function monterNovaLCT(racine, { actions }) {
       e.alerte ? alerte(e.alerte) : null,
       el('p', { class: 'source nl-sources' }, `Source : ${e.sources.map((s) => `${s.court}${s.ref ? ` ${s.ref}` : ''}`).join(' ; ')}`),
       el('label', { class: 'nl-case' }, caseFait, el('span', {}, 'Fait')));
+    // Case cochée (lot 17b4) : la case, sa carte et l'état changent sur place, sans redessiner l'écran ni ses dessins ;
+    // l'enregistrement suit (action de l'appli).
+    caseFait.addEventListener('change', () => {
+      const signature = caseFait.checked ? e.signature : null;
+      const cases = { ...vue.cases };
+      if (signature) cases[e.id] = signature;
+      else delete cases[e.id];
+      vue = { ...vue, cases };
+      carte.classList.toggle('nl-faite', Boolean(signature));
+      const { faites, total } = compterFaites(vue.resultat, cases);
+      if (zoneEtat) zoneEtat.textContent = etatTexte(faites, total);
+      executer(() => actions.cocher(e.id, signature));
+    });
+    return carte;
   }
 
   function dessiner() {
@@ -138,11 +153,12 @@ export function monterNovaLCT(racine, { actions }) {
     const { faites, total } = compterFaites(resultat, cases);
     const suivante = parties[i + 1];
     const nombre = resultat.parties.filter((p) => p.processeur).length;
+    zoneEtat = el('p', { class: 'nl-etat' }, etatTexte(faites, total));
     remplacer(racine,
       zoneErreur,
       el('div', { class: 'mat-tete' },
         el('p', { class: 'pr-sur-titre' }, `${nombre} × ${resultat.processeur}`),
-        el('p', { class: 'nl-etat' }, etatTexte(faites, total))),
+        zoneEtat),
       resultat.version.note ? el('p', { class: 'source' }, resultat.version.note) : null,
       avis ? el('div', { class: 'alerte nl-avis', role: 'status' },
         el('span', {}, avis),
@@ -160,6 +176,7 @@ export function monterNovaLCT(racine, { actions }) {
           dessiner();
           racine.scrollTop = 0;
         }, { class: 'bouton bouton-principal' }) : null,
+        actions.fermer ? bouton('Fermer le pas à pas', () => actions.fermer(), { 'data-icone': 'fermer' }) : null,
         confirmation
           ? el('div', { class: 'nl-confirmation' },
             el('p', {}, 'Décocher toutes les étapes de ce mur ?'),

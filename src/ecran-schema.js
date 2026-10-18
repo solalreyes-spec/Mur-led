@@ -503,8 +503,14 @@ export function dessinPortNovaLCT(id) {
   const trajets = trajetsSchema(vue, vd, null, null);
   const t = trajets.find((x) => x.cle === etape.cle);
   const calcul = calculerCadrageGuide(geo, etape.dalles, 4 / 3, { coin: departData, orientation: t?.orientation ?? 'colonnes', repere: null });
+  const cadrage = calcul?.cadrage ?? null;
+  // Dessin allégé (lot 17b4) : seulement les dalles du port et son câble, comme le guide d'un grand mur ; un mur entier
+  // par port rendait l'écran lent sur iPhone (24 × 10 : 12 dessins, 17 000 éléments).
+  const sesDalles = new Set(etape.dalles);
+  const geoVue = { ...geo, rects: new Map([...geo.rects].filter(([id]) => sesDalles.has(id))), absentes: [] };
+  const trajetsVue = trajets.filter((x) => x.cle === etape.cle);
   const { svg: image } = construireSvg({
-    geo, trajets, coin: departData, blocs: [], palette: PALETTE_ECRAN, cadrage: calcul?.cadrage ?? null, selection: etape.cle, ordre: etape.cle,
+    geo: geoVue, trajets: trajetsVue, coin: departData, blocs: [], palette: PALETTE_ECRAN, cadrage, selection: etape.cle, ordre: etape.cle,
     repere: null, grand: grandAffichage(),
   });
   image.setAttribute('role', 'img');

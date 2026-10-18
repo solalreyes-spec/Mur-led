@@ -4202,6 +4202,58 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N90',
+    titre: 'NovaLCT pas à pas (lot 17b4, réactivité sur iPhone) : cocher une case met à jour la case, sa carte et l\'état sur place, sans redessiner l\'écran ni ses dessins ; bouton « Fermer le pas à pas » en bas de l\'écran, qui appelle son action',
+    etape: '17b4',
+    async verifier(v, contexte) {
+      const en = await moduleAppli(v, '../src/ecran-novalct.js');
+      const nl = await moduleAppli(v, '../src/novalct.js');
+      if (!en || !nl) return;
+      const m = calculs.mur(DALLE_CAS_13, 12, 6);
+      const evaluation = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), { frequenceHz: 60, bits: 8 });
+      const c = calculs.cablageData(m, DALLE_CAS_13, evaluation, { depart: 'bas-gauche' });
+      const r = nl.etapesNovaLCT({ mur: m, dalle: DALLE_CAS_13, evaluation, variante: c.variantes.find((x) => x.mode === c.conseil), source: null });
+      const total = r.parties.reduce((t, p) => t + p.etapes.length, 0);
+      const appels = [];
+      let dessins = 0;
+      const actions = {
+        cocher: async (...a) => { appels.push(['cocher', ...a]); },
+        compris: async () => {}, toutDecocher: async () => {},
+        fermer: () => { appels.push(['fermer']); },
+        dessinPort: () => { dessins += 1; return el('div', { class: 'dessin-essai' }); },
+      };
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      try {
+        const ecran = en.monterNovaLCT(racine, { actions });
+        ecran.afficher({ resultat: r, cases: {}, avis: null });
+        [...racine.querySelectorAll('.nl-parties label')].find((l) => texteDe(l) === 'Processeur 1')?.querySelector('input').click();
+        await attendre();
+        const li = racine.querySelector('[data-etape="P1.B.2"]');
+        const avant = dessins;
+        li.querySelector('.nl-case input').click();
+        await attendre();
+        v.egal('case cochée : sur place, sans redessin', [li.isConnected, dessins - avant, li.classList.contains('nl-faite'), texteDe(racine.querySelector('.nl-etat'))],
+          [true, 0, true, `1 étape sur ${total} faite.`]);
+        v.egal('action appelée avec la signature', appels.at(-1), ['cocher', 'P1.B.2', r.parties[1].etapes[1].signature]);
+        li.querySelector('.nl-case input').click();
+        await attendre();
+        v.egal('case décochée : sur place', [li.isConnected, li.classList.contains('nl-faite'), texteDe(racine.querySelector('.nl-etat')), appels.at(-1)[2]],
+          [true, false, `Aucune étape faite sur ${total}.`, null]);
+        const bas = boutonTexte(racine, 'Fermer le pas à pas');
+        v.vrai('bouton « Fermer le pas à pas » en bas, après « Partie suivante »', Boolean(bas) && bas.closest('.nl-pied') !== null);
+        bas?.click();
+        await attendre();
+        v.egal('il appelle son action', appels.at(-1), ['fermer']);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
 ];
 
 // Contraste WCAG entre deux couleurs « #rrggbb ».

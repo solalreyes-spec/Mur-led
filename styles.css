@@ -1581,3 +1581,5 @@ code.nl-menu { font-family: var(--police-chiffres); font-size: 0.9em; padding: 0
 .nl-tableau th { padding: 6px 4px; border-bottom: 1px solid var(--bordure); color: var(--texte-doux); font-weight: 600; text-align: center; vertical-align: bottom; }
 :root[data-mode="rouge"] .nl-tableau th { color: var(--texte); }
 .nl-tableau td { padding: 8px 4px; border-bottom: 1px solid var(--bordure); font-family: var(--police-chiffres); font-size: 1.1rem; font-weight: 700; text-align: center; }
+/* Écran du pas à pas (lot 17b4) : marge de la zone de l'heure et de l'encoche sur iPhone, quand elle existe. */
+.novalct { padding-top: max(10px, env(safe-area-inset-top)); }

@@ -272,6 +272,8 @@ definirStockageMontage({
 const panneauNovaLCT = document.getElementById('novalct');
 let resultatNovaLCT = null;
 let verrouNovaLCT = null;
+// Défilement de la page avant l'ouverture (lot 17b4) : la page remonte en haut, comme pour Prestas, puis revient.
+let defilementNovaLCT = 0;
 const SUIVI_NOVALCT_VIDE = { version: 1, cases: {}, avis: null };
 const suiviNovaLCT = () => prestas.murOuvert(etatPrestas)?.novalct ?? SUIVI_NOVALCT_VIDE;
 const versionNovaLCT = (proc) => logicielParc(base, parcActif, proc.id)?.version ?? null;
@@ -316,6 +318,8 @@ function ouvrirNovaLCT() {
   const suivi = { version: 1, cases: rapproche.cases, avis: rapproche.texte ?? avant.avis ?? null };
   resultatNovaLCT = r;
   ecranNovaLCT.revenirAuDebut();
+  defilementNovaLCT = window.scrollY;
+  window.scrollTo(0, 0);
   panneauNovaLCT.hidden = false;
   document.body.classList.add('montage-ouvert');
   if (JSON.stringify(suivi) !== JSON.stringify(avant)) enregistrerNovaLCT(suivi);
@@ -328,6 +332,7 @@ function fermerNovaLCT() {
   panneauNovaLCT.hidden = true;
   resultatNovaLCT = null;
   document.body.classList.remove('montage-ouvert');
+  window.scrollTo(0, defilementNovaLCT);
   try {
     verrouNovaLCT?.release?.();
   } catch (erreur) {
@@ -339,13 +344,17 @@ function fermerNovaLCT() {
 }
 const ecranNovaLCT = monterNovaLCT(document.getElementById('ecran-novalct'), {
   actions: {
+    // L'écran a déjà mis la case à jour : l'enregistrement attend la fin de l'appui, sans redessiner (lot 17b4).
     cocher: async (id, signature) => {
+      await new Promise((fin) => setTimeout(fin, 0));
       const s = suiviNovaLCT();
       const cases = { ...s.cases };
       if (signature) cases[id] = signature;
       else delete cases[id];
-      enregistrerNovaLCT({ ...s, cases });
+      majMur({ novalct: { ...s, cases } });
+      majCarteNovaLCT();
     },
+    fermer: () => fermerNovaLCT(),
     compris: async () => enregistrerNovaLCT({ ...suiviNovaLCT(), avis: null }),
     toutDecocher: async () => enregistrerNovaLCT({ ...SUIVI_NOVALCT_VIDE }),
     dessinPort: (etape) => dessinPortNovaLCT(etape.id),
