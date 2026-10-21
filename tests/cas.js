@@ -316,4 +316,35 @@ export const CAS = [
       v.proche('charge surfacique (kg/m²)', p.kgParM2, 30, 1e-9);
     },
   },
+  {
+    id: '17',
+    titre: 'Exercice de formation : config imposée',
+    donnees: 'Unilumin Upad IV 2.6 (192 × 192 px, 165 W) en 4 × 4, soit 2 × 2 m, sur MCTRL4K, 60 Hz, 8 bits ; mono 16 A, 220 V, 80 % ; départ en bas à gauche',
+    attendu: 'conseil 1 port et 1 ligne ; imposé 2 ports de 2 colonnes (294 912 px chacun, 45,4 %), 2 lignes de 2 colonnes (1 320 W), fibre : 1 CVT4K, 14 ports non utilisés, fibre OPT1',
+    source: 'Formation (exercice)',
+    etape: '18c1',
+    verifier(v, contexte) {
+      const dalle = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const m = calculs.mur(dalle, 4, 4);
+      const e = calculs.evaluerProcesseur(m, dalle, processeurDeBase(contexte, 'novastar-mctrl4k'), NOVASTAR_60_8);
+      v.egal('conseil : 17 dalles par port, les 16 du mur sur 1 port', [e.dallesParPort, e.totaux.ports.colonnes], [17, 1]);
+      const base = contexte.processeurs;
+      const distributeurs = base.distributeurs.map((d) => calculs.resoudreFiche(d, base.sources));
+      const t = calculs.cablageData(m, dalle, e, { depart: 'bas-gauche', distributeurs, imposee: { ports: 2, fibre: true } });
+      const data = t.variantes.find((x) => x.mode === 'imposee');
+      v.egal('imposé : 2 ports retenus', [t.imposee?.possible, t.retenue, data?.ports], [true, 'imposee', 2]);
+      v.egal('2 colonnes par port', data?.processeurs[0].ports.map((p) => new Set(p.dalles.map((id) => id.split(' ')[0])).size), [2, 2]);
+      v.egal('294 912 px chacun, 45,4 %', data?.processeurs[0].ports.map((p) => [p.px, format.nombre(p.taux * 100, 1)]), [[294912, '45,4'], [294912, '45,4']]);
+      v.egal('fibre : 1 CVT4K, 14 ports non utilisés, OPT1', [t.imposee?.fibre.modele, t.imposee?.fibre.convertisseurs, t.imposee?.fibre.portsNonUtilises, t.imposee?.fibre.fibres],
+        ['CVT4K', 1, 14, ['OPT1']]);
+      const elec = calculs.electricite(m, dalle, { arrivee: { type: 'mono', intensiteA: 16 }, depart: 'bas-gauche' });
+      v.egal('puissance utile d\'une ligne, dalle de 165 W', [elec.ligne.utileW, elec.pMax.dalle.valeurW], [2816, 165]);
+      const c = calculs.cablageElec(m, dalle, elec, { imposee: { lignes: 2 } });
+      v.egal('conseil : 1 ligne', c.variantes.find((x) => x.mode === c.conseil).lignes, 1);
+      const lignes = c.variantes.find((x) => x.mode === 'imposee');
+      v.egal('imposé : 2 lignes de 2 colonnes, 1 320 W', [c.retenue, lignes?.lignesDetail.map((l) => [new Set(l.dalles.map((id) => id.split(' ')[0])).size, l.puissanceW])],
+        ['imposee', [[2, 1320], [2, 1320]]]);
+      v.egal('chaque ligne sur la moitié de son port', lignes?.lignesDetail.map((l) => [...l.dalles].sort().join()), data?.processeurs[0].ports.map((p) => [...p.dalles].sort().join()));
+    },
+  },
 ];

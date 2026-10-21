@@ -2226,4 +2226,26 @@ export const DONNEES = [
       v.egal('source', [s.court, s.confiance], ['Manuel Tessera v3.5 §7.14.5', 'constructeur']);
     },
   },
+  {
+    id: 'D67',
+    titre: 'Passer en fibre (18c1) : sorties fibre du MCTRL660 Pro en copie, comme sa fiche V1.4.1 (OPT1 porte les 6 ports, OPT2 en est le secours, p. 4 ; « can work as a sending card and a fiber converter », p. 1) ; portée de la fibre des convertisseurs Novastar, chacune avec sa source, la plus courte retenue : CVT4K 300 m en multimode (fiche CVT4K-M V1.0.3) et 10 km en monomode (fiche CVT4K-S V1.0.6, p. 3), CVT10 300 m et 10 km (wiki COEX), CVT310 550 m, CVT320 20 km',
+    etape: '18c1',
+    verifier(v, contexte) {
+      const b = baseProcesseurs(contexte);
+      const pro = calculs.resoudreFiche(b.processeurs.find((p) => p.id === 'novastar-mctrl660-pro'), b.sources);
+      v.egal('MCTRL660 Pro : sorties fibre', [pro.sortiesFibre, pro.sources.sortiesFibre?.source.court, pro.sources.sortiesFibre?.source.confiance], ['copie', 'Fiche MCTRL660 Pro V1.4.1', 'constructeur']);
+      const note = pro.sources.sortiesFibre?.note ?? '';
+      v.vrai('note : OPT1 et ses 6 ports, OPT2 secours, mode convertisseur', note.includes('OPT1 porte les 6 ports') && note.includes('OPT2') && note.includes('fiber converter'), note);
+      const portee = (id) => {
+        const d = calculs.resoudreFiche(b.distributeurs.find((x) => x.id === id), b.sources);
+        const s = d.sources.porteeFibreM;
+        return s ? [d.porteeFibreM, [s, ...s.autres].map((g) => `${g.valeur} ${g.source.id}`)] : null;
+      };
+      v.egal('CVT4K', portee('novastar-cvt4k'), [300, ['300 novastar-cvt4k-m-v1-0-3', '10000 novastar-cvt4k-s-v1-0-6']]);
+      v.egal('CVT10', portee('novastar-cvt10'), [300, ['300 coex-wiki-cvt10', '10000 coex-wiki-cvt10']]);
+      v.egal('CVT310', portee('novastar-cvt310'), [550, ['550 novastar-cvt310-v2-3-4']]);
+      v.egal('CVT320', portee('novastar-cvt320'), [20000, ['20000 novastar-cvt320-v2-3-3']]);
+      v.egal('portée : la plus courte retenue', calculs.PLUS_DEFAVORABLE.porteeFibreM, 'min');
+    },
+  },
 ];

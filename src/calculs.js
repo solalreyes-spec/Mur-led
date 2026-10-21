@@ -5,11 +5,11 @@
 //
 // Point d'entrée : le code est réparti en modules par domaine dans src/calculs/ (étape 10a). Ce fichier réexporte
 // tout ce que les écrans et les tests utilisent. Couches, de la plus basse à la plus haute : commun, valeurs-sourcees,
-// mur, morceaux, forme-reelle, mur-zones, capacites, ports, decoupage, processeur, elec, poids, pixel-map, cablage,
+// mur, morceaux, forme-reelle, mur-zones, capacites, ports, decoupage, processeur, elec, poids, pixel-map, config-imposee, cablage,
 // distribution, materiel, stock, canvas, regies. Un module n'importe que des couches plus basses et ne lit au chargement aucune valeur
 // d'un autre module, sauf de commun.js : pas d'import circulaire.
 
-export { ErreurSaisie, COINS, LIBELLES_COIN } from './calculs/commun.js';
+export { ErreurSaisie, COINS, LIBELLES_COIN, LIBELLE_IMPOSEE } from './calculs/commun.js';
 export { PLUS_DEFAVORABLE, valeurRetenue, resoudreFiche, valeursEnConflit } from './calculs/valeurs-sourcees.js';
 export { pitchCalculeMm, densite, DALLES_MAX_MUR, verifierNombreDalles, mur, dimensionner, pitchLePlusFin, pixelsInterpoles } from './calculs/mur.js';
 export { limitesCourbure, grandeursCourbure, aFormeReelle, formeReelle } from './calculs/forme-reelle.js';
@@ -27,6 +27,7 @@ export { TENSION_CALCUL_V, TENSION_THEORIQUE_V, MARGE_DEFAUT, DEPART_DEFAUT_A, A
 export { PARTS_PONT, RAPPELS_POIDS, poids } from './calculs/poids.js';
 export { SURFACE_MAX_IMAGE, idDalle, idDalleZone, dallesDuMur, pixelMap, positionsDalles, coinsTournes, ENTETE_CSV,
   texteCSV, texteOBJ, pixelMapPliee, dalleTournee, tuilesImage, motifPixelMap } from './calculs/pixel-map.js';
+export { IMPOSE_MAX, PAIRE_DEFAUT, nombreImpose, repartirAuProrata, taillesImposees, fibreImposee } from './calculs/config-imposee.js';
 export { MARGE_MOU_DEFAUT, coinDepart, MENTION_AU_PLUS_JUSTE, cablageData, cablageElec } from './calculs/cablage.js';
 export { SEUIL_BOITIERS_M, PRISES_BOITIER_DEFAUT, PRISES_BOITIER, distributionElec } from './calculs/distribution.js';
 export { SPARES_POURCENT_DEFAUT, SEUIL_MULTIPAIRE_M, CABLES_PAR_MULTIPAIRE, LONGUEURS_STOCK, RAPPEL_LISTE, RAPPEL_RIGGER, spares,

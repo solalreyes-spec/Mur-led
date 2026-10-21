@@ -226,11 +226,29 @@ export function texteCapaciteAppareil(c) {
 
 // `r` : évaluation du processeur retenu ; `distributeur` : nom du distributeur (XD, CVT10) s'il y en a.
 // `configs` : lots et configs du mur pour le logiciel du processeur (fiches.configsDuMur), avec la version relevée.
+// Config imposée (étape 18c) : lignes des textes copiés de Data et d'Élec, d'après le résumé `imposee` du câblage.
+const refusImpose = (imposee) => [`Config imposée refusée : ${imposee.raison} Conseil de l'appli retenu.`];
+export function lignesConfigData(imposee) {
+  if (!imposee) return [];
+  if (!imposee.possible) return refusImpose(imposee);
+  return [
+    imposee.ports === null ? null : `Ports : ${imposee.ports} (imposé ; conseil de l'appli : ${imposee.conseil.ports})`,
+    imposee.ports === null ? null : `Ma config : ${imposee.texte}`,
+    imposee.fibre ? `Fibre (imposée) : ${imposee.fibre.texte.replace(/^Passer en fibre : /, '')}` : null,
+  ].filter(Boolean);
+}
+export function lignesConfigElec(imposee) {
+  if (!imposee) return [];
+  if (!imposee.possible) return refusImpose(imposee);
+  return [`Lignes : ${imposee.lignes} (imposé ; conseil de l'appli : ${imposee.conseil.lignes})`];
+}
+
 export function resumeData(r, {
   conseille = false, distributeur = null, distributeurFiche = null, puissanceDistributeurW = null, origineBits = null, gainDixBits = null, configs = null, reseau = null,
   alternative = null,
   ports = [],
   quantiteParc = null,
+  imposee = null,
 } = {}) {
   const proc = r.processeur;
   if (!r.groupes?.length) {
@@ -262,6 +280,7 @@ export function resumeData(r, {
   const alertesPorts = [];
   if (g) {
     lignes.push(`Ports en colonnes entières : ${nombre(g.colonnes.ports)}`);
+    lignes.push(...lignesConfigData(imposee));
     if (reg.redondance) lignes.push(`Ports avec la redondance : ${nombre(g.redondance.colonnes)} en colonnes entières`);
     lignes.push(`Minimum théorique : ${nombre(g.serpentin.ports)} ports au plus juste, serpentin depuis ${LIBELLES_COIN[g.serpentin.depart]}`
       + `${g.auPlusJusteRealisable ? '' : ', non réalisable tel quel dans NovaLCT'}`);
@@ -430,7 +449,7 @@ export function lignesParZone(r, m) {
   });
 }
 
-export function resumeElec(r, { dalle, mur: m, distribution = null }) {
+export function resumeElec(r, { dalle, mur: m, distribution = null, imposee = null }) {
   const reg = r.reglages;
   const d = r.dallesParLigne;
   const lignes = [
@@ -451,6 +470,7 @@ export function resumeElec(r, { dalle, mur: m, distribution = null }) {
       ? r.zones.map((z, i) => texteDallesParLigne(z.dallesParLigne, ` (zone ${z.nom}, ${m.zones[i].dalle.nom})`))
       : [texteDallesParLigne(d, '')]),
     `Lignes en colonnes entières : ${nombre(r.lignes.retenues)}`,
+    ...lignesConfigElec(imposee),
     ...(lignesParZone(r, m) ? [`Zones : ${m.zones.length}, une ligne ne passe jamais d'une zone à l'autre`,
       ...lignesParZone(r, m).map((z) => `Zone ${z.nom} : ${pluriel(z.lignes.length, 'ligne', 'lignes')} de ${z.lignes.map((l) => l.colonnes).join(' + ')} `
         + `colonne${z.lignes.length === 1 && z.lignes[0].colonnes === 1 ? '' : 's'}, ${nombreCourt(z.puissanceW / 1000, 2)} kW`)] : []),
@@ -623,7 +643,7 @@ export function resumePoids(r, { dalle, mur: m }) {
 // `montage` : état du guide pas à pas (« 1 port sur 2 branché (port 1) »), une ligne par câblage.
 export function resumeCablage({ data = null, modeData = null, elec = null, modeElec = null, montage = null, distribution = null }) {
   const lignes = ['CÂBLAGE'];
-  const choisir = (t, mode) => t?.variantes.find((x) => x.mode === (mode ?? t.conseil)) ?? null;
+  const choisir = (t, mode) => t?.variantes.find((x) => x.mode === (mode ?? t.retenue ?? t.conseil)) ?? null;
   const vd = choisir(data, modeData);
   if (vd) {
     lignes.push(`Data : ${vd.libelle}, départ ${LIBELLES_COIN[data.depart]}`);

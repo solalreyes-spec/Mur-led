@@ -62,6 +62,8 @@ function lireFormulaire() {
       courbe: d.get('courbe') || null,
       depart: departElec,
     },
+    // Config imposée (étape 18c) : nombre de lignes (vide : le conseil ; illisible : refusé par le calcul).
+    imposee: { lignes: String(d.get('lignesImposees') ?? '').trim() === '' ? null : lireNombre(d.get('lignesImposees')) },
   };
 }
 
@@ -114,7 +116,18 @@ function tablePhases(option, capaciteW, titre, conseil) {
         el('tbody', {}, lignes))));
 }
 
-function sectionArrivee(r) {
+// Phases des lignes imposées (étape 18c), au format des répartitions de l'onglet : colonnes de chaque ligne, écart.
+function optionImposee(variante, tensionV) {
+  const charges = variante.phases.map((p) => p.puissanceW);
+  return {
+    phases: variante.phases.map((p) => ({ ...p, intensiteA: p.puissanceW / tensionV })),
+    lignes: variante.lignesDetail.map((l) => ({ colonnes: new Set(l.dalles.map((x) => x.split(' ')[0])).size })),
+    ecartW: Math.max(...charges) - Math.min(...charges),
+    ecartPourcent: variante.ecartPhasesPourcent ?? 0,
+  };
+}
+
+function sectionArrivee(r, impose = null) {
   const a = r.arrivee;
   if (r.monophase) {
     const mono = r.monophase;
@@ -129,6 +142,7 @@ function sectionArrivee(r) {
   return el('section', { class: 'bloc-resultats' },
     el('h3', {}, `Arrivée tri ${nombreCourt(a.intensiteA)} A : ${watts(a.capacitePhaseW)} utiles par phase`),
     el('p', { class: 'source' }, `Maxi théorique à 230 V : ${watts(a.capacite230W)} par phase. Une phase ne prête jamais sa puissance à une autre.`),
+    impose ? tablePhases(optionImposee(impose.variante, r.reglages.tensionV), a.capacitePhaseW, 'Ma config (imposée)', false) : null,
     el('h4', {}, 'En colonnes entières'),
     tablePhases(t.colonnes.equilibre, a.capacitePhaseW, 'Équilibre des phases (écart le plus faible)', true),
     taillesLignes(t.colonnes.equilibre) === taillesLignes(t.colonnes.minimum)
@@ -157,15 +171,15 @@ function sectionZones(parZone) {
     el('p', { class: 'source' }, 'Une ligne ne passe jamais d\'une zone à l\'autre ; les phases se répartissent sur toutes les lignes du mur.'));
 }
 
-function sectionAppel(r) {
-  const a = r.appel;
+function sectionAppel(r, impose = null) {
+  const a = impose?.variante.appel ?? r.appel;
   if (!a) {
     return el('p', { class: 'source' }, 'Courant d\'appel non donné par la fiche : allume ligne par ligne et fais vérifier la courbe des disjoncteurs par l\'électricien.');
   }
   return el('section', { class: 'bloc-resultats' },
     el('h3', {}, 'Courant d\'appel'),
     el('dl', { class: 'tuiles' },
-      tuile('Pic d\'une ligne', `${nombreCourt(a.picLigneA, 1)} A`, 'toutes ses dalles allumées en même temps', a.dureeMs ? `pendant ${nombreCourt(a.dureeMs)} ms` : null),
+      tuile(impose ? 'Pic d\'une ligne imposée' : 'Pic d\'une ligne', `${nombreCourt(a.picLigneA, 1)} A`, 'toutes ses dalles allumées en même temps', a.dureeMs ? `pendant ${nombreCourt(a.dureeMs)} ms` : null),
       tuile(`Seuil magnétique bas, courbe ${a.courbe}`, `${nombreCourt(a.seuilA)} A`, 'NF EN 60898-1'),
       tuile('Bilan', a.ok ? 'passe' : 'dépasse', 'contrôle prudent')));
 }
@@ -226,6 +240,23 @@ const RAPPELS = [
 
 let dernier = null;
 
+// Bloc « Ma config » (étape 18c) : contrôle des lignes imposées, refus en erreur.
+const zoneMaConfig = () => document.getElementById('etat-ma-config-elec');
+function afficherMaConfig(resume, impose, r) {
+  if (!resume) {
+    remplacer(zoneMaConfig());
+    return;
+  }
+  if (!resume.possible) {
+    remplacer(zoneMaConfig(), alerte(`${resume.raison} Le conseil de l'appli reste retenu partout.`, 'alerte-erreur'));
+    return;
+  }
+  const maxW = Math.max(...impose.variante.lignesDetail.map((l) => l.puissanceW));
+  remplacer(zoneMaConfig(), el('p', { class: 'note' }, `${pluriel(resume.lignes, 'ligne imposée', 'lignes imposées')} : ligne la plus chargée `
+    + `${watts(maxW)} pour ${watts(r.ligne.utileW)} utiles, ça passe.`));
+}
+const maConfigRemplie = () => formulaire.elements.lignesImposees.value.trim() !== '';
+
 // Résumé texte du dernier calcul valide, pour « Copier les résultats ».
 export function resumeOngletElec() {
   return dernier ? resumeElec(dernier.r, dernier) : null;
@@ -233,6 +264,7 @@ export function resumeOngletElec() {
 
 function mettreAJour() {
   dernier = null;
+  afficherMaConfig(null);
   const e = lireFormulaire();
   if (e.type !== typeAffiche) {
     preparerArrivee(e.type);
@@ -266,12 +298,15 @@ function mettreAJour() {
     return;
   }
 
-  // Distribution des lignes retenues (variante conseillée du câblage élec, dans l'ordre du câblage).
+  // Distribution des lignes retenues (la config imposée quand elle passe, sinon la variante conseillée du câblage élec,
+  // dans l'ordre du câblage).
   let distribution = null;
   let erreurDistribution = null;
+  let cablage = null;
   try {
-    const t = cablageElec(mur, dalle, r, { depart: departElec, margeMou });
-    const variante = t.variantes.find((x) => x.mode === t.conseil);
+    cablage = cablageElec(mur, dalle, r, { depart: departElec, margeMou, imposee: e.imposee });
+    const t = cablage;
+    const variante = t.variantes.find((x) => x.mode === (t.retenue ?? t.conseil));
     distribution = {
       d: distributionElec(mur, variante, r, { depart: departElec, distanceArmoireM: saisie.distanceArmoireM, margeMou, mode: modeMur, choix: saisie.choix, materiel: saisie.materiel }),
       variante,
@@ -281,8 +316,10 @@ function mettreAJour() {
     erreurDistribution = erreur.message;
   }
 
-  dernier = { r, dalle, mur, distribution: distribution?.d ?? null };
-  publier({ r, dalle, mur, distribution: reglagesDistribution });
+  const impose = cablage?.imposee?.possible ? { variante: cablage.variantes.find((x) => x.mode === 'imposee'), resume: cablage.imposee } : null;
+  afficherMaConfig(cablage?.imposee ?? null, impose, r);
+  dernier = { r, dalle, mur, distribution: distribution?.d ?? null, imposee: cablage?.imposee ?? null };
+  publier({ r, dalle, mur, distribution: reglagesDistribution, imposee: e.imposee });
   const parZone = lignesParZone(r, mur);
   const recap = el('p', { class: 'recap-mur' },
     // Mur mixte (9b5) : la P max de la dalle de chaque zone.
@@ -305,19 +342,23 @@ function mettreAJour() {
 
   // Nouveau look : les deux chiffres clés (lignes retenues, charge de la ligne la plus chargée sur son départ, U × I),
   // avec la barre de charge : couleur de famille jusqu'à 80 %, alerte au-delà, refus au-delà de la puissance utile.
-  const lignesRetenues = (r.triphase?.colonnes.equilibre ?? r.lignes.colonnes).lignes;
+  // Config imposée (étape 18c) : elle prend les chiffres clés, le conseil de l'appli est rappelé dessous avec l'écart.
+  const lignesRetenues = impose ? impose.variante.lignesDetail : (r.triphase?.colonnes.equilibre ?? r.lignes.colonnes).lignes;
   const ligneMaxW = Math.max(...lignesRetenues.map((l) => l.puissanceW));
   const chiffres = el('div', { class: 'chiffres-cles' },
-    el('p', { class: 'chiffre' }, el('span', { class: 'chiffre-valeur' }, nombre(r.lignes.retenues)), el('span', { class: 'chiffre-libelle' }, 'Lignes en colonnes entières')),
+    el('p', { class: 'chiffre' }, el('span', { class: 'chiffre-valeur' }, nombre(impose ? impose.variante.lignes : r.lignes.retenues)),
+      el('span', { class: 'chiffre-libelle' }, impose ? 'Lignes (imposé)' : 'Lignes en colonnes entières')),
     el('p', { class: 'chiffre' }, el('span', { class: 'chiffre-valeur' }, nombre(ligneMaxW / r.ligne.theoriqueW * 100, 1), el('span', { class: 'chiffre-unite' }, ' %')),
       el('span', { class: 'chiffre-libelle' }, `Ligne la plus chargée : ${watts(ligneMaxW)} sur ${watts(r.ligne.theoriqueW)} (${nombreCourt(r.reglages.tensionV)} V × ${nombreCourt(r.reglages.departA)} A)`)),
-    barreCharge(ligneMaxW / r.ligne.theoriqueW, { seuilRefus: r.ligne.utileW / r.ligne.theoriqueW }));
+    barreCharge(ligneMaxW / r.ligne.theoriqueW, { seuilRefus: r.ligne.utileW / r.ligne.theoriqueW }),
+    impose ? el('p', { class: 'conseil-impose' }, impose.resume.texteConseil) : null);
   remplacer(zone,
     recap,
     alerte('Résultats indicatifs : l\'électricité est validée par l\'électricien.', 'alerte-info'),
     r.lignes.auPlusJuste.ecart ? alerte(r.lignes.auPlusJuste.ecart, 'alerte-info') : null,
     ligneManques(r.manques),
     alertesSansManques(r.alertes, r.manques).map((texte) => alerte(texte)),
+    (impose?.variante.alertes ?? []).map((texte) => alerte(`Ma config (imposée) : ${texte}`)),
     el('section', { class: 'bloc-resultats' },
       el('h3', {}, 'Puissance et lignes'),
       chiffres,
@@ -349,10 +390,10 @@ function mettreAJour() {
           `dalles : ${r.lignes.auPlusJuste.lignes.map((l) => l.dalles).join(' + ')}`,
           ...r.lignes.minimum.raisons.map((raison) => `écart : ${raison}`)))),
     sectionZones(parZone),
-    sectionArrivee(r));
+    sectionArrivee(r, impose));
   remplacer(zoneDistribution, erreurDistribution ? alerte(erreurDistribution, 'alerte-erreur') : sectionDistribution(distribution.d, distribution.variante));
   remplacer(zoneSuite,
-    sectionAppel(r),
+    sectionAppel(r, impose),
     el('section', { class: 'bloc-resultats' },
       el('h3', {}, 'Rappels terrain'),
       el('ul', { class: 'rappels' }, RAPPELS.map((texte) => el('li', {}, texte)))));
@@ -372,10 +413,17 @@ export function definirModeElec(mode) {
 }
 
 // `rappel({ r, dalle, mur })` reçoit chaque calcul valide (null sinon), pour l'onglet Schéma.
-export function initialiserElec(rappel = () => {}) {
+// `surConfigImposee()` : appelé quand l'utilisateur change ses lignes imposées (le Schéma revient alors à « Ma config »).
+export function initialiserElec(rappel = () => {}, { surConfigImposee = () => {} } = {}) {
   publier = rappel;
-  formulaire.addEventListener('input', mettreAJour);
-  formulaire.addEventListener('change', mettreAJour);
+  const surSaisie = (evenement) => {
+    // Reprise des saisies (événement sur le formulaire lui-même) : le bloc s'ouvre quand un champ est rempli.
+    if (evenement.target === formulaire && maConfigRemplie()) document.getElementById('ma-config-elec').open = true;
+    if (evenement.target.name === 'lignesImposees') surConfigImposee();
+    mettreAJour();
+  };
+  formulaire.addEventListener('input', surSaisie);
+  formulaire.addEventListener('change', surSaisie);
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());
   formDistribution.addEventListener('input', mettreAJour);
   formDistribution.addEventListener('change', mettreAJour);

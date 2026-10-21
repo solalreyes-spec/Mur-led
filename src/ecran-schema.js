@@ -80,8 +80,11 @@ function calculer(e) {
   const resultat = { data: null, elec: null, erreurs: [] };
   if (etatData?.choisie?.groupes?.length) {
     try {
-      resultat.data = cablageData(etatData.mur, etatData.dalle, etatData.choisie,
-        { depart: e.departData, distanceRegieM: e.distanceRegieM, margeMou: e.margeMou });
+      resultat.data = cablageData(etatData.mur, etatData.dalle, etatData.choisie, {
+        depart: e.departData, distanceRegieM: e.distanceRegieM, margeMou: e.margeMou,
+        // Config imposée de Data (étape 18c) : variante « Ma config (imposée) », retenue quand elle passe.
+        imposee: etatData.imposee ?? null, distributeurs: etatData.distributeurs ?? [],
+      });
     } catch (erreur) {
       if (!(erreur instanceof ErreurSaisie)) throw erreur;
       resultat.erreurs.push(erreur.message);
@@ -90,7 +93,7 @@ function calculer(e) {
   if (etatElec) {
     try {
       resultat.elec = cablageElec(etatElec.mur, etatElec.dalle, etatElec.r,
-        { depart: e.departElec, distanceArmoireM: e.distanceArmoireM, margeMou: e.margeMou });
+        { depart: e.departElec, distanceArmoireM: e.distanceArmoireM, margeMou: e.margeMou, imposee: etatElec.imposee ?? null });
     } catch (erreur) {
       if (!(erreur instanceof ErreurSaisie)) throw erreur;
       resultat.erreurs.push(erreur.message);
@@ -99,7 +102,18 @@ function calculer(e) {
   return resultat;
 }
 
-const varianteChoisie = (t, mode) => (t ? t.variantes.find((x) => x.mode === mode) ?? t.variantes.find((x) => x.mode === t.conseil) : null);
+// Variante choisie à la main, sinon la retenue (la config imposée quand elle passe, sinon le conseil) ; une config
+// imposée refusée n'a pas de trajet et n'est jamais choisie.
+const varianteChoisie = (t, mode) => (t ? t.variantes.find((x) => x.mode === mode && (x.mode !== 'imposee' || x.possible))
+  ?? t.variantes.find((x) => x.mode === (t.retenue ?? t.conseil)) : null);
+
+// Appelé quand l'utilisateur change sa config imposée dans Data ou Élec (étape 18c) : le Schéma revient à « Ma config ».
+export function revenirAMaConfig(type) {
+  const champ = formulaire.elements[type === 'elec' ? 'varianteElec' : 'varianteData'];
+  if (!champ.value) return;
+  champ.value = '';
+  formulaire.dispatchEvent(new Event('change'));
+}
 
 // Distribution de la variante élec affichée (étape 12c) : réglages saisis dans Élec (distance, conseil ou matériel,
 // montage), coin et mou du Schéma. Matériel mal saisi : pas de distribution ici, Élec affiche l'erreur.
@@ -241,8 +255,14 @@ function carteVariante(v, choisie, conseil, champ, lignes, charge = null) {
   lignes.map((l) => el('span', {}, l)),
   charge === null ? null : barreCharge(charge),
   v.mention ? el('span', { class: 'mention' }, v.mention) : null,
+  v.mode === 'imposee' ? el('span', { class: 'badge badge-info' }, 'imposée') : null,
   v.mode === conseil ? el('span', { class: 'badge badge-reussi' }, 'conseillé') : null,
   v.possible ? null : el('span', { class: 'badge badge-echec' }, 'impossible'));
+  // Config imposée refusée : listée avec sa raison, sans trajet à montrer.
+  if (v.mode === 'imposee' && !v.possible) {
+    bouton.disabled = true;
+    return bouton;
+  }
   bouton.addEventListener('click', () => {
     formulaire.elements[champ].value = v.mode;
     selection = null;
@@ -253,7 +273,7 @@ function carteVariante(v, choisie, conseil, champ, lignes, charge = null) {
 
 function cartesData(t, vd) {
   return el('div', { class: 'cartes-variantes', role: 'group', 'aria-label': 'Variantes de câblage data' },
-    t.variantes.map((v) => carteVariante(v, vd, t.conseil, 'varianteData', [
+    t.variantes.map((v) => carteVariante(v, vd, t.conseil, 'varianteData', v.mode === 'imposee' && !v.possible ? [`refusée : ${v.raison}`] : [
       `${pluriel(v.ports, 'port', 'ports')}${v.portsSecours ? ` + ${v.portsSecours} de secours` : ''}`,
       `charge maxi ${pourcent(v.chargeMax)}`,
       `${pluriel(v.cablesTete, 'câble de tête', 'câbles de tête')}, ${pluriel(v.liaisons, 'liaison', 'liaisons')}`,
@@ -262,7 +282,7 @@ function cartesData(t, vd) {
 
 function cartesElec(t, ve) {
   return el('div', { class: 'cartes-variantes', role: 'group', 'aria-label': 'Variantes de câblage élec' },
-    t.variantes.map((v) => carteVariante(v, ve, t.conseil, 'varianteElec', [
+    t.variantes.map((v) => carteVariante(v, ve, t.conseil, 'varianteElec', v.mode === 'imposee' && !v.possible ? [`refusée : ${v.raison}`] : [
       pluriel(v.lignes, 'ligne', 'lignes'),
       `charge maxi ${pourcent(v.chargeMax)}`,
       v.phases.length > 1 ? v.phases.map((p) => `L${p.numero} ${nombreCourt(p.puissanceW)} W`).join(' · ') : `${nombreCourt(v.phases[0].puissanceW)} W`,
@@ -667,6 +687,8 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
   const repere = vueCanvas ? null : repereSchema(e.cablage, {
     evaluation: etatData?.choisie ?? null,
     distanceM: e.cablage === 'elec' ? e.distanceArmoireM : e.distanceRegieM,
+    // Config imposée en fibre (étape 18c) : le convertisseur au pied du mur.
+    fibre: vd?.mode === 'imposee' ? vd.fibre : null,
   });
   // Boîtiers de la distribution, sur la vue de tout le mur en câblage élec.
   const boitiers = e.cablage === 'elec' && !vueCanvas ? boitiersDessin(distribution) : null;

@@ -1,7 +1,7 @@
 // Calculs du mur LED, module 6, câblage du Schéma : câblage data et câblage élec, dalle par dalle.
 // Module de src/calculs.js, le point d'entrée qui réexporte tout : fonctions pures, sans accès à l'interface.
 import { nombreCourt } from '../format.js';
-import { EPS, ErreurSaisie, COINS, suite, serpentin, remplirGlouton } from './commun.js';
+import { EPS, ErreurSaisie, COINS, LIBELLE_IMPOSEE, suite, serpentin, remplirGlouton } from './commun.js';
 import { mur } from './mur.js';
 import { plusieursZones, ficheZone, mursDesZones } from './morceaux.js';
 import { entierInferieur, pixelsComptes, dallesParPort, repartir, penaliteGroupe, texteCable5G, MODELES_DISTRIBUTEUR } from './capacites.js';
@@ -9,6 +9,10 @@ import { cablage, chargeGeometrie, sousMur, repartirSurCartes, groupesForme, opt
 import { rectanglesNovaLCT } from './decoupage.js';
 import { arrondiW, pMaxDalle } from './elec.js';
 import { idDalle, idDalleZone, dallesDuMur } from './pixel-map.js';
+import {
+  refusMurImpose, nombreImpose, planPortsImposes, taillesImposees, ecartImpose, fibreImposee, alertePortee,
+  texteConseilPorts, texteConseilLignes, textePortsImposes
+} from './config-imposee.js';
 
 const LIMITE_CUIVRE_M = 100;
 
@@ -148,14 +152,22 @@ function pxRectangleEnglobant(positions, dalle, hauteurs) {
   return largeur * hauteur;
 }
 
-const LIBELLES_DATA = { colonnes: 'par colonnes', rangees: 'par rangées', auPlusJuste: 'au plus juste', rectangles: 'rectangles NovaLCT' };
+const LIBELLES_DATA = { imposee: LIBELLE_IMPOSEE, colonnes: 'par colonnes', rangees: 'par rangées', auPlusJuste: 'au plus juste', rectangles: 'rectangles NovaLCT' };
+
+// Variante imposée refusée avant tout câblage (mur, nombre, répartition) : listée avec sa raison, sans trajet.
+const imposeeRefusee = (raison, propres) => ({
+  mode: 'imposee', libelle: LIBELLE_IMPOSEE, orientation: 'colonnes', mention: null, ecart: null, possible: false, raison, alertes: [], ...propres,
+});
 
 // Câblage data : pour chaque processeur (bloc du découpage de l'onglet Data), les ports en serpentin depuis le coin
 // de départ, dans chaque variante. Options : depart (un des COINS), distanceRegieM (facultatif), margeMou (0,10),
 // nomDistributeur. Secours en redondance : XD miroirs sur SX40 ; paires de ports voisins sur les autres Brompton
 // (impair principal, pair secours) ; ailleurs port p + moitié des ports, convention par défaut à régler dans le logiciel.
+// Config imposée (18c) : `imposee` { ports, fibre, paire } ajoute en tête la variante « Ma config (imposée) », retenue
+// quand elle passe (`retenue`), et son résumé (`imposee`) ; le conseil ne change pas. `distributeurs` : fiches des
+// convertisseurs de la base, pour la fibre.
 export function cablageData(m, dalle, evaluation, {
-  depart = 'haut-gauche', distanceRegieM = null, margeMou = MARGE_MOU_DEFAUT, nomDistributeur = null,
+  depart = 'haut-gauche', distanceRegieM = null, margeMou = MARGE_MOU_DEFAUT, nomDistributeur = null, imposee = null, distributeurs = [],
 } = {}) {
   if (!COINS.includes(depart)) throw new ErreurSaisie('Choisis le coin de départ du câblage.');
   if (!(margeMou >= 0)) throw new ErreurSaisie('La marge de mou est positive ou nulle.');
@@ -255,8 +267,19 @@ export function cablageData(m, dalle, evaluation, {
 
   const limite = redondance && proc.portsRedondance ? proc.portsRedondance : (modeOptique && proc.portsOptionOptique ? proc.portsOptionOptique : proc.ports);
   const utilises = (nb) => (redondance && !proc.portsRedondance ? 2 * nb : nb);
-  const modes = ['colonnes', 'rangees', 'auPlusJuste', ...(novaLCT ? ['rectangles'] : [])];
+  // Config imposée : ports de chaque processeur (ceux du conseil quand seule la fibre est cochée), fibre.
+  const avecImposee = Boolean(imposee && ((imposee.ports ?? null) !== null || imposee.fibre));
+  const plan = avecImposee ? planPortsImposes(m, evaluation, imposee.ports ?? null) : null;
+  const portsImposes = plan && !plan.refus.length ? plan.parProcesseur ?? evaluation.groupes.map((g) => g.ports.colonnes) : null;
+  const fibreImp = portsImposes && imposee.fibre ? fibreImposee(evaluation, portsImposes, { distributeurs, paire: imposee.paire }) : null;
+  const enFibre = Boolean(fibreImp?.possible && !fibreImp.deja);
+  const modes = [...(avecImposee ? ['imposee'] : []), 'colonnes', 'rangees', 'auPlusJuste', ...(novaLCT ? ['rectangles'] : [])];
   const variantes = modes.map((mode) => {
+    if (mode === 'imposee' && plan.refus.length) {
+      return imposeeRefusee(plan.refus.join(' '), { processeurs: [], ports: 0, portsSecours: 0, chargeMax: null, cablesTete: 0, liaisons: 0, noteSecours: null });
+    }
+    // En fibre (config imposée), le cuivre part du convertisseur au pied du mur, comme avec un distributeur obligatoire.
+    const viaConvertisseur = surDistributeur || (mode === 'imposee' && enFibre);
     const raisons = [];
     const notes = [];
     const orientation = mode === 'rangees' ? 'rangees' : 'colonnes';
@@ -279,7 +302,15 @@ export function cablageData(m, dalle, evaluation, {
         // est déjà un rectangle réalisable).
         const t = chargeDeFiche(sous.fiche ?? dalle, sous.demiFiche ?? m.demi);
         groupes = groupesForme(sous, cols[0], cablageForme(sous, t.parPort, t.charge, { pair: evaluation.colonnesPaires, depuisDroite: depart.endsWith('droite') }).colonnes.groupes, depart);
-      } else if (mode === 'colonnes') {
+      } else if (mode === 'imposee' && plan.parProcesseur) {
+        // Ports imposés : colonnes entières, le plus égal possible ; segments égaux si une colonne dépasse un port.
+        const cBloc = cablage(sous, evaluation.dallesParPort, charge, { pair: evaluation.colonnesPaires });
+        const r = taillesImposees(plan.parProcesseur[i], cols.length, {
+          segmentsMin: cBloc.colonnes.colonnesParPort ? null : cBloc.colonnes.segments.length, parColonne: rows.length,
+        });
+        if (r.refus) raisons.push(`${evaluation.groupes.length > 1 ? `Processeur n° ${i + 1} : ` : ''}${r.refus}`);
+        groupes = r.refus ? [] : (r.tailles ? lotsDeColonnes(cols, rows, r.tailles, depart) : segmentsDeColonnes(cols, rows, r.segments, depart));
+      } else if (mode === 'colonnes' || mode === 'imposee') {
         // Mêmes colonnes par port que l'onglet Data : le plus possible, en nombre pair en redondance
         // (sauf s'il coûte un processeur). Mur mixte : la charge de la dalle du morceau.
         const t = (m.mixte || m.horsAxe) && sous.fiche ? chargeDeFiche(sous.fiche, sous.demiFiche) : { parPort: evaluation.dallesParPort, charge };
@@ -327,6 +358,9 @@ export function cablageData(m, dalle, evaluation, {
           + `au-delà des ${limite} d'un ${proc.nom}.`);
       }
       numerotation = numerotationParCartes(groupes);
+      if (mode === 'imposee' && groupes.length && surDistributeur && (proc.carteSortie?.largeurMaxPx || proc.carteSortie?.pixelsMax) && !numerotation) {
+        raisons.push(`Processeur n° ${i + 1} : les ports imposés ne tiennent pas dans les cartes de sortie du ${proc.nom}.`);
+      }
       const ports = groupes.map((grp, j) => {
         const px = grp.reduce((s, p) => s + poids(p), 0);
         const trajet = trajetDepuisCoin(m, depart, tuile(grp[0]));
@@ -344,7 +378,7 @@ export function cablageData(m, dalle, evaluation, {
             chemin,
             retourM: murM * mou,
             long,
-            longueurCuivreM: distanceRegieM === null ? null : (surDistributeur ? murM : distanceRegieM + murM) * mou,
+            longueurCuivreM: distanceRegieM === null ? null : (viaConvertisseur ? murM : distanceRegieM + murM) * mou,
           };
         }
         return {
@@ -352,10 +386,21 @@ export function cablageData(m, dalle, evaluation, {
           dalles: grp.map(([c, r]) => cle(c, r)),
           px,
           taux: (px + (penalite ? penalite(grp) : 0)) / capacite,
-          longueurCuivreM: distanceRegieM === null ? null : (surDistributeur ? trajet : distanceRegieM + trajet) * mou,
-          fibreM: distanceRegieM !== null && surDistributeur ? distanceRegieM * mou : null,
+          longueurCuivreM: distanceRegieM === null ? null : (viaConvertisseur ? trajet : distanceRegieM + trajet) * mou,
+          fibreM: distanceRegieM !== null && viaConvertisseur ? distanceRegieM * mou : null,
         };
       });
+      // Config imposée : chaque port face à sa capacité et au plafond de dalles (50 par boucle Brompton en redondance).
+      if (mode === 'imposee') {
+        const prefixe = evaluation.groupes.length > 1 ? `Processeur n° ${i + 1}, port` : 'Port';
+        for (const p of ports) {
+          if (p.taux > 1 + EPS) {
+            raisons.push(`${prefixe} ${p.numero} : ${nombreCourt(p.px)} px, plus que les ${nombreCourt(entierInferieur(capacite))} px d'un port`
+              + `${penalite ? ' (capacité baissée sous 128 px de large)' : ''}.`);
+          }
+          if (p.dalles.length > plafond) raisons.push(`${prefixe} ${p.numero} : ${p.dalles.length} dalles, plus que les ${plafond} dalles d'une boucle en redondance.`);
+        }
+      }
       return { numero: i + 1, modele: proc.modele, ports };
     });
 
@@ -373,6 +418,10 @@ export function cablageData(m, dalle, evaluation, {
           ? `et le ${proc.modele} n'a ${TEXTES_SANS_FIBRE[proc.famille] ?? TEXTE_SANS_FIBRE}.`
           : `passe en fibre avec des ${fibre} au pied du mur${autres && !nomDistributeur ? ` (${autres} possibles)` : ''}.`));
     }
+    if (mode === 'imposee' && enFibre && tous.length) {
+      const portee = alertePortee(fibreImp, Math.max(...tous.map((p) => p.fibreM ?? 0)));
+      if (portee) alertes.push(portee);
+    }
     const retoursLongs = tous.filter((p) => p.secours?.long).map((p) => p.secours.retourM);
     if (retoursLongs.length > 0) {
       const [min, max] = [Math.min(...retoursLongs), Math.max(...retoursLongs)].map((x) => nombreCourt(x, 1));
@@ -383,6 +432,7 @@ export function cablageData(m, dalle, evaluation, {
     return {
       mode,
       libelle: LIBELLES_DATA[mode],
+      ...(mode === 'imposee' ? { fibre: fibreImp } : {}),
       orientation,
       mention: mode === 'auPlusJuste' ? MENTION_AU_PLUS_JUSTE : null,
       ecart: notes.length ? notes.join(' ') : null,
@@ -402,10 +452,28 @@ export function cablageData(m, dalle, evaluation, {
     };
   });
   // Conseil : colonnes entières, comme sur le terrain ; l'au plus juste reste une optimisation.
-  return { depart, conseil: 'colonnes', variantes, alertes: [] };
+  if (!avecImposee) return { depart, conseil: 'colonnes', variantes, alertes: [] };
+  const conseilV = variantes.find((x) => x.mode === 'colonnes');
+  const vi = variantes[0];
+  const plusCharge = (v) => v.processeurs.flatMap((p) => p.ports).reduce((a, b) => (b.taux > a.taux ? b : a));
+  const pc = plusCharge(conseilV);
+  const conseil = { ports: conseilV.ports, px: pc.px, taux: pc.taux };
+  const ecart = ecartImpose(plan.valeur === null ? conseilV.ports : plan.valeur, conseilV.ports, 'port');
+  const resume = {
+    ports: plan.valeur ?? null,
+    possible: vi.possible,
+    raison: vi.raison,
+    conseil,
+    ecart,
+    texte: vi.possible ? textePortsImposes(vi.ports, plusCharge(vi).px, entierInferieur(capacite)) : null,
+    texteConseil: texteConseilPorts(conseil, ecart),
+    fibre: fibreImp,
+  };
+  return { depart, conseil: 'colonnes', retenue: vi.possible ? 'imposee' : 'colonnes', variantes, alertes: [], imposee: resume };
 }
 
 const LIBELLES_ELEC = {
+  imposee: LIBELLE_IMPOSEE,
   colonnes: 'par colonnes',
   colonnesEquilibre: 'par colonnes, phases équilibrées',
   rangees: 'par rangées',
@@ -435,9 +503,26 @@ function phasesDesLignes(lignes, { equilibre, mono, tensionV, capacitePhaseW }) 
 // Câblage élec : lignes en serpentin depuis le coin de départ, dans chaque variante, avec leur phase.
 // `elec` est le résultat de electricite() pour ce mur ; son coin de départ sert par défaut, pour que les lignes
 // au plus juste soient celles de l'onglet Élec. Options : depart, distanceArmoireM (facultatif), margeMou (0,10).
-export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? 'haut-gauche', distanceArmoireM = null, margeMou = MARGE_MOU_DEFAUT } = {}) {
+// Config imposée (18c) : `imposee` { lignes } ajoute en tête la variante « Ma config (imposée) », retenue quand elle passe
+// (`retenue`), et son résumé (`imposee`) ; le conseil ne change pas.
+export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? 'haut-gauche', distanceArmoireM = null, margeMou = MARGE_MOU_DEFAUT, imposee = null } = {}) {
   if (!COINS.includes(depart)) throw new ErreurSaisie('Choisis le coin de départ du câblage.');
   if (!(margeMou >= 0)) throw new ErreurSaisie('La marge de mou est positive ou nulle.');
+  const t = cablageElecConseil(m, dalle, elec, { depart, distanceArmoireM, margeMou, imposee });
+  if ((imposee?.lignes ?? null) === null) return t;
+  // Résumé de la config imposée, à côté du conseil.
+  const vi = t.variantes[0];
+  const conseilV = t.variantes.find((x) => x.mode === t.conseil);
+  const n = nombreImpose(imposee.lignes, 'ligne').valeur;
+  const ecart = ecartImpose(n, conseilV.lignes, 'ligne');
+  return {
+    ...t,
+    retenue: vi.possible ? 'imposee' : t.conseil,
+    imposee: { lignes: n ?? null, possible: vi.possible, raison: vi.raison, conseil: { lignes: conseilV.lignes }, ecart, texteConseil: texteConseilLignes({ lignes: conseilV.lignes }, ecart) },
+  };
+}
+
+function cablageElecConseil(m, dalle, elec, { depart, distanceArmoireM, margeMou, imposee }) {
   const dalles = new Map(dallesDuMur(m, dalle).map((d) => [d.id, d]));
   const cle = identifiantDalle(m);
   const tuile = ([c, r]) => dalles.get(cle(c, r));
@@ -463,8 +548,14 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
   const cols = suite(1, m.colonnes);
   const rows = suite(1, m.rangees.length);
   const charge = { capacite: utileW, pxParDalle: pDalle, pxParDemi: pDemi, plafond };
+  const avecImposee = (imposee?.lignes ?? null) !== null;
   // Mur en zones : lignes zone par zone (jamais à cheval), les zones prises depuis le côté du départ.
-  if (plusieursZones(m)) return cablageElecZones(m, dalle, elec, { depart, distanceArmoireM, margeMou, tuile, cle, poids, charge, pFiche, existe: (p) => dalles.has(cle(...p)) });
+  if (plusieursZones(m)) {
+    const z = cablageElecZones(m, dalle, elec, { depart, distanceArmoireM, margeMou, tuile, cle, poids, charge, pFiche, existe: (p) => dalles.has(cle(...p)) });
+    if (!avecImposee) return z;
+    const refusee = imposeeRefusee(refusMurImpose(m), { lignesDetail: [], lignes: 0, phases: [], ecartPhasesPourcent: null, ok: true, chargeMax: null, cablesTete: 0, liaisons: 0 });
+    return { ...z, variantes: [refusee, ...z.variantes] };
+  }
   const c = cablage(m, elec.dallesParLigne.retenu, charge);
   const serpent = serpentin(cols, rows, 'vertical', depart);
 
@@ -474,7 +565,14 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
   const coupee = kmax ? null : `Une colonne dépasse une ligne : elle est coupée en ${c.colonnes.segments.length} segments égaux, `
     + 'les lignes éloignées du bord démarrent au milieu de leur colonne.';
   const notes = { colonnes: coupee, colonnesEquilibre: coupee };
+  // Lignes imposées : colonnes entières, le plus égal possible, même sens que la data ; refus du nombre ou du découpage.
+  const nombreLignes = avecImposee ? nombreImpose(imposee.lignes, 'ligne') : null;
+  const tailles = nombreLignes?.valeur ? taillesImposees(nombreLignes.valeur, m.colonnes, {
+    unite: 'ligne', segmentsMin: kmax ? null : c.colonnes.segments.length, parColonne: rows.length,
+  }) : null;
+  const refusImpose = nombreLignes?.refus ?? tailles?.refus ?? null;
   const groupesDe = {
+    imposee: () => (tailles.tailles ? lotsDeColonnes(cols, rows, tailles.tailles, depart) : segmentsDeColonnes(cols, rows, tailles.segments, depart)),
     colonnes: () => (kmax ? lotsDeColonnes(cols, rows, kmax, depart) : segmentsDeColonnes(cols, rows, c.colonnes.segments, depart)),
     // Répartition conseillée de l'onglet Élec en triphasé : mêmes lignes, dans l'ordre depuis le côté de départ.
     colonnesEquilibre: () => lotsDeColonnes(cols, rows, elec.triphase.colonnes.equilibre.lignes.map((l) => l.colonnes), depart),
@@ -494,15 +592,18 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
     },
   };
   // Variante équilibrée en colonnes entières seulement quand ses lignes diffèrent du minimum de lignes.
-  const tailles = (option) => option?.lignes.map((l) => l.colonnes).join(' ');
+  const taillesOption = (option) => option?.lignes.map((l) => l.colonnes).join(' ');
   const equilibreDistinct = !mono && kmax && elec.triphase.colonnes.equilibre
-    && tailles(elec.triphase.colonnes.equilibre) !== tailles(elec.triphase.colonnes.minimum);
-  const modes = mono
+    && taillesOption(elec.triphase.colonnes.equilibre) !== taillesOption(elec.triphase.colonnes.minimum);
+  const modes = [...(avecImposee ? ['imposee'] : []), ...(mono
     ? ['colonnes', 'rangees', 'auPlusJuste']
     : ['colonnes', ...(equilibreDistinct ? ['colonnesEquilibre'] : []), 'rangees', 'auPlusJuste',
-      ...(elec.triphase.auPlusJuste.equilibre ? ['auPlusJusteEquilibre'] : [])];
+      ...(elec.triphase.auPlusJuste.equilibre ? ['auPlusJusteEquilibre'] : [])])];
 
   const variantes = modes.map((mode) => {
+    if (mode === 'imposee' && (refusMurImpose(m) || refusImpose)) {
+      return imposeeRefusee(refusMurImpose(m) ?? refusImpose, { lignesDetail: [], lignes: 0, phases: [], ecartPhasesPourcent: null, ok: true, chargeMax: null, cablesTete: 0, liaisons: 0 });
+    }
     const groupes = groupesDe[mode]();
     const lignesDetail = groupes.map((grp, i) => {
       const puissanceW = arrondiW(grp.reduce((s, p) => s + poids(p), 0));
@@ -523,14 +624,34 @@ export function cablageElec(m, dalle, elec, { depart = elec.reglages.depart ?? '
     const { phases, ok } = phasesDesLignes(lignesDetail, { equilibre, mono, tensionV, capacitePhaseW });
     const charges = phases.map((p) => p.puissanceW);
     const alertes = ok ? [] : [`Une phase dépasse les ${nombreCourt(capacitePhaseW)} W utiles de l'arrivée : il faut une arrivée plus forte.`];
+    // Lignes imposées : chacune face à la puissance utile et au chaînage de la fiche ; courant d'appel ligne par ligne.
+    const raisons = [];
+    let appel = null;
+    if (mode === 'imposee') {
+      for (const l of lignesDetail) {
+        if (l.puissanceW > utileW + EPS) raisons.push(`Ligne ${l.numero} : ${nombreCourt(l.puissanceW)} W, plus que les ${nombreCourt(utileW)} W utiles d'une ligne.`);
+        if (l.dalles.length > plafond) raisons.push(`Ligne ${l.numero} : ${l.dalles.length} dalles, plus que les ${plafond} dalles du chaînage power de la fiche.`);
+      }
+      if (elec.appel) {
+        const appelDemi = m.demi?.courantAppelA ?? dalle.courantAppelA;
+        const picLigneA = Math.max(...groupes.map((grp) => grp.reduce((s, p) => s + (tuile(p)?.type === 'demi' ? appelDemi : dalle.courantAppelA), 0)));
+        appel = { ...elec.appel, picLigneA, ok: picLigneA <= elec.appel.seuilA + EPS };
+        if (!appel.ok) {
+          alertes.push(`Courant d'appel : jusqu'à ${nombreCourt(picLigneA)} A sur une ligne si toutes ses dalles s'allument en même temps, `
+            + `au-delà du seuil magnétique bas d'un disjoncteur courbe ${appel.courbe} ${nombreCourt(elec.reglages.departA)} A (${nombreCourt(appel.seuilA)} A). `
+            + 'Contrôle prudent : le pic ne dure que quelques millisecondes. Allume ligne par ligne et fais vérifier la courbe par l\'électricien.');
+        }
+      }
+    }
     return {
       mode,
       libelle: LIBELLES_ELEC[mode],
+      ...(mode === 'imposee' ? { appel } : {}),
       orientation: mode === 'rangees' ? 'rangees' : 'colonnes',
       mention: mode.startsWith('auPlusJuste') ? MENTION_AU_PLUS_JUSTE : null,
       ecart: notes[mode] ?? null,
-      possible: true,
-      raison: null,
+      possible: raisons.length === 0,
+      raison: raisons.length ? raisons.join(' ') : null,
       lignesDetail,
       lignes: lignesDetail.length,
       phases,

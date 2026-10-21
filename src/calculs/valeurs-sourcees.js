@@ -33,6 +33,7 @@ export const PLUS_DEFAVORABLE = {
   portsOptionOptique: 'min',
   pxMinParDimension: 'max',
   sortiesParDistributeur: 'min',
+  porteeFibreM: 'min', // fibre d'un convertisseur : la portée la plus courte (multimode)
   capacitePort60Hz8bits: 'min',
   capacitePort60Hz10bits: 'min',
   capacitePort60Hz12bits: 'min',

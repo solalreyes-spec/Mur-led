@@ -338,6 +338,24 @@
             </optgroup>
           </select>
         </div>
+        <!-- Config imposée (étape 18c) : gardée avec les saisies du mur ; vide, le conseil de l'appli. -->
+        <details id="ma-config-data" class="fiche ma-config">
+          <summary>Ma config : imposer un découpage</summary>
+          <p class="note">Vide : le conseil de l'appli. Ta config passe en tête partout, le conseil reste affiché dessous avec l'écart.</p>
+          <div class="champ">
+            <label for="ports-imposes">Nombre de ports imposé</label>
+            <input id="ports-imposes" name="portsImposes" inputmode="numeric" autocomplete="off" placeholder="conseil de l'appli">
+          </div>
+          <label class="case"><input type="checkbox" name="fibreImposee"><span>Passer en fibre (le convertisseur de la fiche du processeur)</span></label>
+          <fieldset id="bloc-paire-fibre" class="segmente" hidden>
+            <legend>Paire de convertisseurs, une par port</legend>
+            <div class="segments">
+              <label><input type="radio" name="paireFibre" value="novastar-cvt310" checked><span>CVT310, multimode 550 m</span></label>
+              <label><input type="radio" name="paireFibre" value="novastar-cvt320"><span>CVT320, monomode 20 km</span></label>
+            </div>
+          </fieldset>
+          <div id="etat-ma-config-data" class="etat-ma-config" aria-live="polite"></div>
+        </details>
       </form>
 
       <div class="barre-copie">
@@ -590,6 +608,16 @@
             <label><input type="radio" name="courbe" value="D"><span>D</span></label>
           </div>
         </fieldset>
+        <!-- Config imposée (étape 18c) : gardée avec les saisies du mur ; vide, le conseil de l'appli. -->
+        <details id="ma-config-elec" class="fiche ma-config">
+          <summary>Ma config : imposer un découpage</summary>
+          <p class="note">Vide : le conseil de l'appli. Tes lignes passent en tête partout, le conseil reste affiché dessous avec l'écart.</p>
+          <div class="champ">
+            <label for="lignes-imposees">Nombre de lignes imposé</label>
+            <input id="lignes-imposees" name="lignesImposees" inputmode="numeric" autocomplete="off" placeholder="conseil de l'appli">
+          </div>
+          <div id="etat-ma-config-elec" class="etat-ma-config" aria-live="polite"></div>
+        </details>
       </form>
 
       <div class="barre-copie">

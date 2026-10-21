@@ -13,6 +13,8 @@ export const minuscule = (texte) => (texte ? `${texte.charAt(0).toLowerCase()}${
 export class ErreurSaisie extends Error {}
 
 export const COINS = ['haut-gauche', 'haut-droite', 'bas-gauche', 'bas-droite'];
+// Variante du câblage choisie par l'utilisateur (config imposée, étape 18c).
+export const LIBELLE_IMPOSEE = 'Ma config (imposée)';
 export const LIBELLES_COIN = {
   'haut-gauche': 'en haut à gauche', 'haut-droite': 'en haut à droite', 'bas-gauche': 'en bas à gauche', 'bas-droite': 'en bas à droite',
 };

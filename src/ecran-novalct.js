@@ -188,6 +188,8 @@ export function monterNovaLCT(racine, { actions }) {
       // À blanc (étape 17c2) : le mur d'exemple, en tête.
       noteABlanc ? el('div', { class: 'alerte alerte-info nl-a-blanc' }, `À blanc. ${noteABlanc}`) : null,
       resultat.version.note ? el('p', { class: 'source' }, resultat.version.note) : null,
+      // Config imposée (étape 18c3) : rappelée en tête.
+      resultat.imposee ? el('div', { class: 'alerte alerte-info nl-imposee' }, `Câblage : ${resultat.imposee}`) : null,
       avis ? el('div', { class: 'alerte nl-avis', role: 'status' },
         el('span', {}, avis),
         bouton('Compris', () => executer(() => actions.compris()))) : null,

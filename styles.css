@@ -641,6 +641,14 @@ main, main section, .carte, details, .champ, .resultats, .bloc-resultats { min-w
 
 .bloc-demi { display: grid; gap: 8px; }
 
+/* Config imposée (étape 18c) : bloc « Ma config » des formulaires de Data et d'Élec, conseil de l'appli sous les chiffres clés. */
+.ma-config { border-top: 1px solid var(--bordure); margin-top: 4px; }
+.ma-config > * + * { margin-top: 8px; }
+.etat-ma-config { display: grid; gap: 6px; }
+.etat-ma-config:empty { display: none; }
+.etat-ma-config .alerte { margin: 0; }
+.conseil-impose { color: var(--texte-doux); font-size: 0.875rem; margin: 4px 0 0; overflow-wrap: anywhere; }
+
 .fiche summary {
   display: flex;
   align-items: center;

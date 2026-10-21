@@ -8591,8 +8591,364 @@ export const REGLES = [
       v.vrai('redondance : Verify', (etapeNovaLCT(p, 'C.5')?.texte ?? '').includes('Verify'));
     },
   },
+  {
+    id: 'R383',
+    titre: 'Config imposée, ports (18c1, spec § 4.1) : N ports principaux en colonnes entières, le plus égal possible, les plus chargés depuis le coin de départ (5 colonnes en 2 ports : 3 + 2) ; variante « Ma config (imposée) » en tête, retenue ; conseil de l\'appli inchangé, rappelé avec l\'écart ; N égal au conseil : « comme le conseil » ; sans option, rien ne change',
+    etape: '18c1',
+    verifier(v, contexte) {
+      const x = exercice(contexte);
+      const sans = calculs.cablageData(x.m, x.dalle, x.e, { depart: 'bas-gauche' });
+      const t = imposerData(contexte, x, { ports: 2 });
+      const vi = varianteImposee(t);
+      v.egal('variante en tête', [t.variantes[0].mode, vi?.libelle, vi?.possible], ['imposee', 'Ma config (imposée)', true]);
+      v.egal('conseil inchangé', [t.conseil, JSON.stringify(t.variantes.filter((y) => y.mode !== 'imposee')) === JSON.stringify(sans.variantes)], ['colonnes', true]);
+      v.egal('retenue : la config imposée', t.retenue, 'imposee');
+      v.egal('2 ports de 2 colonnes', colonnesDesPorts(vi), [[[1, 2], [3, 4]]]);
+      v.egal('294 912 px chacun, 45,4 %', vi?.processeurs[0].ports.map((p) => [p.px, nombre(p.taux * 100, 1)]), [[294912, '45,4'], [294912, '45,4']]);
+      if (vi) verifierPorts(v, vi, 16, x.e);
+      v.egal('écart', [t.imposee?.ports, t.imposee?.conseil.ports, t.imposee?.ecart.valeur, t.imposee?.ecart.texte], [2, 1, 1, '1 port de plus']);
+      v.egal('conseil rappelé', t.imposee?.texteConseil, `Conseil de l'appli : 1 port (${nombre(589824)} px, 90,7 %) ; écart : 1 port de plus.`);
+      v.egal('contrôle', t.imposee?.texte, `2 ports imposés : port le plus chargé ${nombre(294912)} px pour ${nombre(650000)} px, ça passe.`);
+      const cinq = exercice(contexte, 5, 4);
+      v.egal('5 colonnes en 2 ports depuis la gauche : 3 + 2', colonnesDesPorts(varianteImposee(imposerData(contexte, cinq, { ports: 2 }))), [[[1, 2, 3], [4, 5]]]);
+      v.egal('depuis la droite : 3 + 2 depuis le bord droit', colonnesDesPorts(varianteImposee(imposerData(contexte, cinq, { ports: 2 }, { depart: 'bas-droite' }))), [[[3, 4, 5], [1, 2]]]);
+      const huit = imposerData(contexte, exercice(contexte, 8, 4), { ports: 3 });
+      v.egal('8 colonnes en 3 ports : 3 + 3 + 2', colonnesDesPorts(varianteImposee(huit)), [[[1, 2, 3], [4, 5, 6], [7, 8]]]);
+      const egal = imposerData(contexte, x, { ports: 1 });
+      v.egal('N égal au conseil', [egal.imposee?.possible, egal.imposee?.ecart.valeur, egal.imposee?.ecart.texte], [true, 0, 'comme le conseil']);
+      v.egal('sans option : ni config imposée ni variante retenue', ['imposee' in sans, 'retenue' in sans, sans.variantes.some((y) => y.mode === 'imposee')], [false, false, false]);
+      const vide = imposerData(contexte, x, { ports: null });
+      v.egal('ports vides, sans fibre : rien d\'imposé', [vide.imposee ?? null, vide.variantes.some((y) => y.mode === 'imposee')], [null, false]);
+    },
+  },
+  {
+    id: 'R384',
+    titre: 'Config imposée, refus (18c1, spec § 4.1) : un port au-delà de sa capacité, plus de ports que de colonnes, plus de ports que le processeur (en redondance, ses ports principaux), 50 dalles par boucle Brompton, nombre illisible, mur en zones ; refus : la variante reste listée avec sa raison, le conseil reste retenu ; règle des 128 px des COEX recalculée',
+    etape: '18c1',
+    verifier(v, contexte) {
+      const x = exercice(contexte);
+      const un = imposerData(contexte, exercice(contexte, 6, 4), { ports: 1 });
+      v.egal('1 port pour 884 736 px : refus', [un.imposee?.possible, un.retenue, varianteImposee(un)?.possible], [false, 'colonnes', false]);
+      v.vrai('raison', (un.imposee?.raison ?? '').includes(`Port 1 : ${nombre(884736)} px, plus que les ${nombre(650000)} px d'un port.`), un.imposee?.raison);
+      v.egal('variante refusée : sa raison', varianteImposee(un)?.raison, un.imposee?.raison);
+      v.egal('écart d\'un refus', un.imposee?.ecart.texte, '1 port de moins');
+      v.egal('5 ports pour 4 colonnes', [imposerData(contexte, x, { ports: 5 }).imposee?.possible, imposerData(contexte, x, { ports: 5 }).imposee?.raison],
+        [false, '5 ports pour 4 colonnes : une colonne serait coupée ; par rangées dans le Schéma.']);
+      v.egal('17 ports : le MCTRL4K a 16 ports', imposerData(contexte, exercice(contexte, 18, 2), { ports: 17 }).imposee?.raison, '17 ports : le MCTRL4K a 16 ports.');
+      v.egal('redondance : 9 ports principaux', imposerData(contexte, exercice(contexte, 18, 2, 'novastar-mctrl4k', { redondance: true }), { ports: 9 }).imposee?.raison,
+        '9 ports : le MCTRL4K a 8 ports principaux en redondance.');
+      v.egal('nombre illisible', [0, 2.5, -1, 1000].map((n) => imposerData(contexte, x, { ports: n }).imposee?.raison),
+        Array(4).fill('Nombre de ports imposé : un nombre entier de 1 à 999, ou vide.'));
+      const m64 = calculs.mur(DALLE_64, 2, 30);
+      const s8 = calculs.evaluerProcesseur(m64, DALLE_64, processeurDeBase(contexte, 'brompton-s8'), { frequenceHz: 60, bits: 12, redondance: true });
+      const boucle = imposerData(contexte, { dalle: DALLE_64, m: m64, e: s8 }, { ports: 1 });
+      v.egal('S8 en redondance : 50 dalles par boucle', [s8.totaux.ports.colonnes, boucle.imposee?.possible], [2, false]);
+      v.vrai('raison des 50 dalles', (boucle.imposee?.raison ?? '').includes('Port 1 : 60 dalles, plus que les 50 dalles d\'une boucle en redondance.'), boucle.imposee?.raison);
+      const mx = calculs.mur(DALLE_64, 4, 10);
+      const emx = calculs.evaluerProcesseur(mx, DALLE_64, processeurDeBase(contexte, 'coex-mx40-pro'), NOVASTAR_60_8);
+      const vmx = varianteImposee(imposerData(contexte, { dalle: DALLE_64, m: mx, e: emx }, { ports: 4 }));
+      v.vrai('MX40 Pro, 1 colonne de 64 px par port : capacité baissée de (128 − 64) × 640 px', vmx?.processeurs[0].ports.length === 4
+        && vmx.processeurs[0].ports.every((p) => Math.abs(p.taux * emx.capacite - (p.px + 64 * 640)) < 1e-6), vmx?.processeurs[0].ports.map((p) => p.taux));
+      const z = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 6 }, { nom: 'B', colonnes: 3, rangees: 6 }], { ecarts: 'main', ecartsPx: [84] });
+      const ez = calculs.evaluerProcesseur(z, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl4k'), NOVASTAR_60_8);
+      const tz = calculs.cablageData(z, DALLE_CAS_13, ez, { imposee: { ports: 2 } });
+      v.egal('mur en zones : refusé en V1', [tz.imposee?.possible, tz.imposee?.raison, tz.retenue],
+        [false, 'Config imposée : pas encore possible sur un mur en zones, de forme libre ou mixte ; le conseil de l\'appli reste.', 'colonnes']);
+    },
+  },
+  {
+    id: 'R385',
+    titre: 'Config imposée, plusieurs processeurs et redondance (18c1, spec § 4.1, choix 1) : les N ports du mur répartis au prorata des colonnes de chaque processeur, au moins un chacun, le reste au plus fort reste ; en redondance, secours doublés (convention port p + moitié), alerte « retour de secours long » quand un port a un nombre impair de colonnes',
+    etape: '18c1',
+    verifier(v, contexte) {
+      const deux = exercice(contexte, 18, 4, 'novastar-mctrl660');
+      v.egal('MCTRL660, 18 × 4 : 2 processeurs de 9 colonnes', [deux.e.nombre, deux.e.groupes.map((g) => g.colonnes)], [2, [9, 9]]);
+      const quatre = varianteImposee(imposerData(contexte, deux, { ports: 4 }));
+      v.egal('4 ports : 2 par processeur, 5 + 4 colonnes', colonnesDesPorts(quatre), [[[1, 2, 3, 4, 5], [6, 7, 8, 9]], [[10, 11, 12, 13, 14], [15, 16, 17, 18]]]);
+      v.egal('5 ports : 3 + 2', varianteImposee(imposerData(contexte, deux, { ports: 5 }))?.processeurs.map((p) => p.ports.length), [3, 2]);
+      const dixSept = exercice(contexte, 17, 4, 'novastar-mctrl660');
+      v.egal('17 colonnes : 9 + 8', dixSept.e.groupes.map((g) => g.colonnes), [9, 8]);
+      v.egal('3 ports au prorata : 2 + 1', varianteImposee(imposerData(contexte, dixSept, { ports: 3 }))?.processeurs.map((p) => p.ports.length), [2, 1]);
+      v.egal('1 port pour 2 processeurs', imposerData(contexte, deux, { ports: 1 }).imposee?.raison, '1 port pour 2 processeurs : au moins un port par processeur.');
+      const red = varianteImposee(imposerData(contexte, exercice(contexte, 4, 4, 'novastar-mctrl4k', { redondance: true }), { ports: 2 }));
+      v.egal('redondance : ports 1 et 2, secours 9 et 10', red?.processeurs[0].ports.map((p) => [p.numero, p.secours?.numero, p.secours?.convention]), [[1, 9, true], [2, 10, true]]);
+      v.egal('colonnes paires : pas de retour long', [red?.portsSecours, red?.alertes.some((a) => a.includes('retour de secours long'))], [2, false]);
+      const impair = varianteImposee(imposerData(contexte, exercice(contexte, 5, 4, 'novastar-mctrl4k', { redondance: true }), { ports: 2 }));
+      v.vrai('3 + 2 colonnes en redondance : retour de secours long', impair?.alertes.some((a) => a.includes('retour de secours long')), impair?.alertes);
+    },
+  },
+  {
+    id: 'R386',
+    titre: 'Config imposée, lignes (18c1, spec § 4.2) : N lignes en colonnes entières, le plus égal possible, même sens que la data ; refus d\'une ligne au-delà de la puissance utile ou du chaînage, de plus de lignes que de colonnes, d\'un mur en zones ; triphasé : la ligne la plus chargée sur la phase la moins chargée, écart entre phases ; courant d\'appel par ligne ; conseil inchangé, rappelé avec l\'écart',
+    etape: '18c1',
+    verifier(v, contexte) {
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const m5 = calculs.mur(upad, 5, 4);
+      const mono = calculs.electricite(m5, upad, { arrivee: { type: 'mono', intensiteA: 32 }, depart: 'bas-gauche' });
+      const sans = calculs.cablageElec(m5, upad, mono);
+      const t = calculs.cablageElec(m5, upad, mono, { imposee: { lignes: 3 } });
+      const vi = varianteImposee(t);
+      v.egal('variante en tête, retenue, conseil inchangé', [t.variantes[0].mode, vi?.libelle, t.retenue, t.conseil,
+        JSON.stringify(t.variantes.filter((y) => y.mode !== 'imposee')) === JSON.stringify(sans.variantes)], ['imposee', 'Ma config (imposée)', 'imposee', 'colonnes', true]);
+      v.egal('3 lignes : 2 + 2 + 1 colonnes', [vi?.lignesDetail.map((l) => colonnesDe(l.dalles).sort((a, b) => a - b)), vi?.lignesDetail.map((l) => l.puissanceW)],
+        [[[1, 2], [3, 4], [5]], [1320, 1320, 660]]);
+      if (vi) verifierLignes(v, vi, 20, 2816, null);
+      v.egal('conseil et écart', [t.imposee?.conseil.lignes, t.imposee?.ecart.texte, t.imposee?.texteConseil],
+        [2, '1 ligne de plus', 'Conseil de l\'appli : 2 lignes ; écart : 1 ligne de plus.']);
+      const un = calculs.cablageElec(m5, upad, mono, { imposee: { lignes: 1 } });
+      v.egal('1 ligne de 3 300 W : refus', [un.imposee?.possible, un.retenue, un.imposee?.raison],
+        [false, 'colonnes', `Ligne 1 : ${nombre(3300)} W, plus que les ${nombre(2816)} W utiles d'une ligne.`]);
+      v.egal('6 lignes pour 5 colonnes', calculs.cablageElec(m5, upad, mono, { imposee: { lignes: 6 } }).imposee?.raison,
+        '6 lignes pour 5 colonnes : une colonne serait coupée ; par rangées dans le Schéma.');
+      v.egal('nombre illisible', calculs.cablageElec(m5, upad, mono, { imposee: { lignes: 0 } }).imposee?.raison, 'Nombre de lignes imposé : un nombre entier de 1 à 999, ou vide.');
+      const mc = calculs.mur(DALLE_100W_CHAINAGE, 2, 4);
+      const ec = calculs.electricite(mc, DALLE_100W_CHAINAGE, { arrivee: { type: 'mono', intensiteA: 32 } });
+      v.egal('chaînage de 7 dalles', calculs.cablageElec(mc, DALLE_100W_CHAINAGE, ec, { imposee: { lignes: 1 } }).imposee?.raison,
+        'Ligne 1 : 8 dalles, plus que les 7 dalles du chaînage power de la fiche.');
+      const tri = calculs.electricite(m5, upad, { arrivee: { type: 'tri', intensiteA: 32 }, depart: 'bas-gauche' });
+      const v4 = varianteImposee(calculs.cablageElec(m5, upad, tri, { imposee: { lignes: 4 } }));
+      v.egal('triphasé, 4 lignes : 2 + 1 + 1 + 1, phases', [v4?.lignesDetail.map((l) => l.puissanceW), v4?.lignesDetail.map((l) => l.phase), v4?.phases.map((p) => p.puissanceW)],
+        [[1320, 660, 660, 660], [1, 2, 3, 2], [1320, 1320, 660]]);
+      v.egal('écart entre phases', v4 && nombre(v4.ecartPhasesPourcent, 1), '50,0');
+      const ma = calculs.mur(DALLE_APPEL, 6, 4);
+      const ea = calculs.electricite(ma, DALLE_APPEL, { arrivee: { type: 'mono', intensiteA: 32 }, courbe: 'B' });
+      const va = varianteImposee(calculs.cablageElec(ma, DALLE_APPEL, ea, { imposee: { lignes: 2 } }));
+      v.egal('courant d\'appel par ligne : 12 dalles de 5 A, seuil de 48 A en courbe B', [va?.appel?.picLigneA, va?.appel?.seuilA, va?.appel?.ok], [60, 48, false]);
+      v.vrai('alerte du courant d\'appel', va?.alertes.some((a) => a.startsWith('Courant d\'appel : jusqu\'à 60 A sur une ligne')), va?.alertes);
+      const z = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 6 }, { nom: 'B', colonnes: 3, rangees: 6 }], { ecarts: 'main', ecartsPx: [84] });
+      const tz = calculs.cablageElec(z, DALLE_CAS_13, calculs.electricite(z, DALLE_CAS_13, {}), { imposee: { lignes: 2 } });
+      v.egal('mur en zones : refusé en V1, le conseil reste retenu', [tz.imposee?.possible, tz.imposee?.raison, tz.retenue === tz.conseil],
+        [false, 'Config imposée : pas encore possible sur un mur en zones, de forme libre ou mixte ; le conseil de l\'appli reste.', true]);
+    },
+  },
+  {
+    id: 'R387',
+    titre: 'Config imposée, passer en fibre (18c1, spec § 4.3, choix A, C, D) : le convertisseur de la fiche du processeur, par processeur (MCTRL4K : CVT4K, ports non utilisés, fibres OPT ; VX1000 : CVT10 ; MCTRL660 Pro et MCTRL R5 : CVT10 de la base, à confirmer) ; sans sortie fibre (MCTRL660) : une paire de CVT310 par port, CVT320 au choix ; SX40 : déjà en fibre ; S4 : une paire de transceivers fibre Gigabit Ethernet par port (18c3, manuel Tessera ; changé avec l\'accord de l\'utilisateur) ; le cuivre part du convertisseur (plus d\'alerte des 100 m), la portée de la fibre est contrôlée (la plus courte des fiches) ; fibre sans nombre de ports : les ports du conseil',
+    etape: '18c1',
+    verifier(v, contexte) {
+      const x = exercice(contexte);
+      const t = imposerData(contexte, x, { ports: 2, fibre: true }, { distanceRegieM: 150 });
+      const f = t.imposee?.fibre;
+      v.egal('MCTRL4K : 1 CVT4K, 14 ports non utilisés, fibre OPT1', [f?.possible, f?.modele, f?.convertisseurs, f?.portsNonUtilises, f?.fibres, f?.fibresSecours],
+        [true, 'CVT4K', 1, 14, ['OPT1'], []]);
+      const vi = varianteImposee(t);
+      const colonnes = t.variantes.find((y) => y.mode === 'colonnes');
+      v.vrai('cuivre depuis le CVT4K : l\'alerte des 100 m disparaît (elle reste sur le conseil en cuivre)',
+        !vi?.alertes.some((a) => a.includes('100 m')) && colonnes.alertes.some((a) => a.includes('100 m')), vi?.alertes);
+      v.proche('fibre : 150 m et 10 % de mou', vi?.processeurs[0].ports[0].fibreM, 165, 1e-9);
+      v.vrai('cuivre : le trajet au pied du mur seulement', vi?.processeurs[0].ports[0].longueurCuivreM < 5, vi?.processeurs[0].ports[0].longueurCuivreM);
+      v.egal('portée : la plus courte des fiches', [f?.porteeM, vi?.alertes.some((a) => a.startsWith('Fibre de'))], [300, false]);
+      const loin = varianteImposee(imposerData(contexte, x, { ports: 2, fibre: true }, { distanceRegieM: 400 }));
+      v.vrai('fibre de 440 m : au-delà des 300 m du CVT4K', loin?.alertes.some((a) => a.startsWith('Fibre de 440 m') && a.includes('300 m') && a.includes('CVT4K')), loin?.alertes);
+      const fr = imposerData(contexte, exercice(contexte, 4, 4, 'novastar-mctrl4k', { redondance: true }), { ports: 2, fibre: true }).imposee?.fibre;
+      v.egal('MCTRL4K en redondance : 12 ports non utilisés, OPT1 et OPT2, OPT3 et OPT4 en secours', [fr?.convertisseurs, fr?.portsNonUtilises, fr?.fibres, fr?.fibresSecours],
+        [1, 12, ['OPT1', 'OPT2'], ['OPT3', 'OPT4']]);
+      const vx = imposerData(contexte, exercice(contexte, 4, 4, 'novastar-vx1000'), { ports: 2, fibre: true }).imposee?.fibre;
+      v.egal('VX1000 : 1 CVT10, 8 ports non utilisés', [vx?.modele, vx?.convertisseurs, vx?.portsNonUtilises, vx?.aConfirmer], ['CVT10', 1, 8, false]);
+      const m660 = imposerData(contexte, exercice(contexte, 4, 4, 'novastar-mctrl660'), { ports: 2, fibre: true }).imposee?.fibre;
+      v.egal('MCTRL660 : une paire de CVT310 par port', [m660?.modele, m660?.paires, m660?.convertisseurs, m660?.porteeM], ['CVT310', 2, 4, 550]);
+      const m320 = imposerData(contexte, exercice(contexte, 4, 4, 'novastar-mctrl660'), { ports: 2, fibre: true, paire: 'novastar-cvt320' }).imposee?.fibre;
+      v.egal('CVT320 au choix', [m320?.modele, m320?.paires, m320?.porteeM], ['CVT320', 2, 20000]);
+      const pro = imposerData(contexte, exercice(contexte, 4, 4, 'novastar-mctrl660-pro'), { ports: 2, fibre: true }).imposee?.fibre;
+      v.egal('MCTRL660 Pro : CVT10 de la base, à confirmer, fibre OPT1', [pro?.modele, pro?.convertisseurs, pro?.aConfirmer, pro?.fibres], ['CVT10', 1, true, ['OPT1']]);
+      v.vrai('MCTRL660 Pro : la fiche le dit aussi convertisseur', (pro?.texte ?? '').includes('à confirmer') && (pro?.texte ?? '').includes('fiber converter'), pro?.texte);
+      const r5 = imposerData(contexte, exercice(contexte, 4, 4, 'novastar-mctrl-r5'), { ports: 2, fibre: true }).imposee?.fibre;
+      v.egal('MCTRL R5 : CVT10 de la base, à confirmer', [r5?.modele, r5?.aConfirmer], ['CVT10', true]);
+      const bp2 = (procId) => exercice(contexte, 6, 4, procId, { bits: 12 }, 'roe-bp2-v2');
+      const sx = imposerData(contexte, bp2('brompton-sx40'), { ports: 2, fibre: true }).imposee?.fibre;
+      v.egal('SX40 : déjà en fibre', [sx?.deja, sx?.texte], [true, 'Le SX40 passe déjà en fibre par ses XD : la case « Passer en fibre » ne change rien.']);
+      const s4 = imposerData(contexte, bp2('brompton-s4'), { ports: 3, fibre: true });
+      v.egal('S4 : une paire de transceivers fibre par port, 2 nœuds par trajet, la config reste', [s4.imposee?.fibre.possible, s4.imposee?.fibre.modele, s4.imposee?.fibre.paires,
+        s4.imposee?.fibre.noeuds, s4.imposee?.possible], [true, 'transceivers fibre Gigabit Ethernet', 3, 2, true]);
+      const seule = imposerData(contexte, x, { ports: null, fibre: true });
+      v.egal('fibre sans nombre de ports : le conseil en fibre', [seule.imposee?.possible, seule.imposee?.ports, varianteImposee(seule)?.ports, seule.imposee?.ecart.texte, seule.imposee?.fibre.convertisseurs],
+        [true, null, 1, 'comme le conseil', 1]);
+    },
+  },
+  {
+    id: 'R388',
+    titre: 'Config imposée, textes copiés (18c2, spec § 4.4) : Data « Ports : 2 (imposé ; conseil de l\'appli : 1) », le contrôle et la fibre ; refus avec sa raison et « conseil de l\'appli retenu » ; fibre seule ; Élec « Lignes : 2 (imposé ; conseil de l\'appli : 1) » ; dans les textes de Data et d\'Élec, après les lignes du conseil ; Schéma : la variante retenue, « Ma config (imposée) », sans choix à la main',
+    etape: '18c2',
+    verifier(v, contexte) {
+      const x = exercice(contexte);
+      const t = imposerData(contexte, x, { ports: 2, fibre: true });
+      v.egal('Data, config imposée', resumes.lignesConfigData(t.imposee), [
+        'Ports : 2 (imposé ; conseil de l\'appli : 1)',
+        `Ma config : 2 ports imposés : port le plus chargé ${nombre(294912)} px pour ${nombre(650000)} px, ça passe.`,
+        'Fibre (imposée) : 1 CVT4K au pied du mur (16 ports, 14 non utilisés) ; fibre OPT1 (ports 1 à 2).',
+      ]);
+      const refus = imposerData(contexte, x, { ports: 5 });
+      v.egal('Data, config refusée', resumes.lignesConfigData(refus.imposee),
+        ['Config imposée refusée : 5 ports pour 4 colonnes : une colonne serait coupée ; par rangées dans le Schéma. Conseil de l\'appli retenu.']);
+      v.egal('Data, fibre seule', resumes.lignesConfigData(imposerData(contexte, x, { ports: null, fibre: true }).imposee),
+        ['Fibre (imposée) : 1 CVT4K au pied du mur (16 ports, 15 non utilisés) ; fibre OPT1 (port 1).']);
+      v.egal('sans config imposée : rien', [resumes.lignesConfigData(null), resumes.lignesConfigElec(null)], [[], []]);
+      const texteData = resumes.resumeData(x.e, { imposee: t.imposee }).split('\n');
+      const iConseil = texteData.indexOf('Ports en colonnes entières : 1');
+      v.vrai('texte de Data : la config imposée après les ports du conseil', iConseil >= 0 && texteData[iConseil + 1] === 'Ports : 2 (imposé ; conseil de l\'appli : 1)', texteData.join(' | '));
+      const elec = calculs.electricite(x.m, x.dalle, { arrivee: { type: 'mono', intensiteA: 16 }, depart: 'bas-gauche' });
+      const c = calculs.cablageElec(x.m, x.dalle, elec, { imposee: { lignes: 2 } });
+      v.egal('Élec, config imposée', resumes.lignesConfigElec(c.imposee), ['Lignes : 2 (imposé ; conseil de l\'appli : 1)']);
+      v.egal('Élec, config refusée', resumes.lignesConfigElec(calculs.cablageElec(x.m, x.dalle, elec, { imposee: { lignes: 5 } }).imposee),
+        ['Config imposée refusée : 5 lignes pour 4 colonnes : une colonne serait coupée ; par rangées dans le Schéma. Conseil de l\'appli retenu.']);
+      const texteElec = resumes.resumeElec(elec, { dalle: x.dalle, mur: x.m, imposee: c.imposee }).split('\n');
+      const iLignes = texteElec.indexOf('Lignes en colonnes entières : 1');
+      v.vrai('texte d\'Élec : la config imposée après les lignes du conseil', iLignes >= 0 && texteElec[iLignes + 1] === 'Lignes : 2 (imposé ; conseil de l\'appli : 1)', texteElec.join(' | '));
+      const cablage = resumes.resumeCablage({ data: t, elec: c }).split('\n');
+      v.vrai('Schéma : variantes retenues, « Ma config (imposée) »', cablage.includes('Data : Ma config (imposée), départ en bas à gauche')
+        && cablage.some((l) => l.startsWith('Élec : Ma config (imposée), départ')), cablage.join(' | '));
+    },
+  },
+  {
+    id: 'R389',
+    titre: 'Config imposée dans le pas à pas NovaLCT (18c3, spec § 4.4) : en fibre, l\'étape 0.7 devient « Fibre : ta config (imposée) » (convertisseur, nombre, fibres et ports du mur ; aussi pour le VX1000 et ses CVT10, le MCTRL660 et ses paires de CVT310) ; sa signature suit la fibre ; un pas par port imposé ; « Câblage : Ma config (imposée), 2 ports… » en tête, dans le texte copié et le résumé de la fiche régie ; sans config imposée, rien ne change',
+    etape: '18c3',
+    verifier(v, contexte) {
+      const k4 = pasAPasImpose(contexte, 'novastar-mctrl4k', { ports: 2, fibre: true });
+      const f = etapeNovaLCT(k4, '0.7');
+      v.egal('MCTRL4K en fibre : titre', f?.titre, 'Fibre : ta config (imposée)');
+      v.vrai('MCTRL4K en fibre : CVT4K, OPT1 et ses ports', (f?.texte ?? '').startsWith('Tu passes en fibre (ta config) : 1 CVT4K au pied du mur (16 ports, 14 non utilisés) ; fibre OPT1 (ports 1 à 2).')
+        && (f?.texte ?? '').includes('Pour ce mur : OPT1 (ports 1 à 2)'), f?.texte);
+      v.vrai('MCTRL4K en fibre : sources de la fiche', (f?.sources ?? []).some((s) => s.id === 'cvt4k-s-1-0-6'), JSON.stringify(f?.sources));
+      v.egal('un pas par port imposé', k4.parties.flatMap((x) => x.etapes).map((e) => e.id).filter((id) => /\.B\.7\.\d+$/.test(id)), ['P1.B.7.1', 'P1.B.7.2']);
+      v.egal('en tête', k4.imposee, 'Ma config (imposée), 2 ports, en fibre (1 CVT4K) ; le conseil de l\'appli reste dans Data.');
+      const cuivre = pasAPasImpose(contexte, 'novastar-mctrl4k', { ports: 2 });
+      v.egal('MCTRL4K en cuivre : l\'étape conditionnelle, « en fibre » absent', [etapeNovaLCT(cuivre, '0.7')?.titre, cuivre.imposee],
+        ['Fibre, si le mur passe en fibre', 'Ma config (imposée), 2 ports ; le conseil de l\'appli reste dans Data.']);
+      v.vrai('signature : la fibre décoche l\'étape', etapeNovaLCT(cuivre, '0.7')?.signature !== f?.signature);
+      v.vrai('texte copié et résumé de la fiche régie', novalct.texteNovaLCT(k4, {}).split('\n').includes(`Câblage : ${k4.imposee}`)
+        && novalct.resumeNovaLCT(k4, {}).split('\n').includes(`Câblage : ${k4.imposee}`), novalct.texteNovaLCT(k4, {}).split('\n').slice(0, 6).join(' | '));
+      const vx = etapeNovaLCT(pasAPasImpose(contexte, 'novastar-vx1000', { ports: 2, fibre: true }), '0.7');
+      v.vrai('VX1000 en fibre : CVT10, cahier des charges', (vx?.texte ?? '').startsWith('Tu passes en fibre (ta config) : 1 CVT10 au pied du mur')
+        && (vx?.sources ?? []).some((s) => s.id === 'cdc'), vx?.texte);
+      const m660 = etapeNovaLCT(pasAPasImpose(contexte, 'novastar-mctrl660', { ports: 2, fibre: true }), '0.7');
+      v.vrai('MCTRL660 en fibre : paires de CVT310', (m660?.texte ?? '').startsWith('Tu passes en fibre (ta config) : 2 paires de CVT310'), m660?.texte);
+      const conseil = pasAPasNovaLCT(contexte, { procId: 'novastar-mctrl4k', dalle: dalleDeBase(contexte, 'unilumin-upad-iv-2-6'), colonnes: 4, lignes: 4 });
+      v.egal('sans config imposée : rien en tête, étape conditionnelle', [conseil.imposee, etapeNovaLCT(conseil, '0.7')?.titre], [null, 'Fibre, si le mur passe en fibre']);
+    },
+  },
+  {
+    id: 'R390',
+    titre: 'Config imposée dans le guide de montage (18c3, choix 4) : en fibre, chaque câble de tête part du convertisseur au pied du mur (« du port 1 du CVT4K, au pied du mur », « depuis son CVT310 au pied du mur ») ; la fibre change la signature du port (case décochée avec le bandeau) ; sans fibre, un port imposé identique à celui du conseil garde sa signature',
+    etape: '18c3',
+    verifier(v, contexte) {
+      const x = exercice(contexte);
+      const variante = (t) => t.variantes.find((y) => y.mode === t.retenue);
+      const fibre = montage.etapesData(variante(imposerData(contexte, x, { ports: 2, fibre: true })), { depart: 'bas-gauche' });
+      v.egal('port 1 en fibre', fibre[0]?.phrase, '8 dalles, de C1 R4 à C2 R4. Câble de tête du port 1 du CVT4K, au pied du mur, jusqu\'à C1 R4, puis suis les numéros.');
+      const cuivre = montage.etapesData(variante(imposerData(contexte, x, { ports: 2 })), { depart: 'bas-gauche' });
+      v.egal('port 1 en cuivre', cuivre[0]?.phrase, '8 dalles, de C1 R4 à C2 R4. Câble de tête du port 1 jusqu\'à C1 R4, puis suis les numéros.');
+      v.vrai('la fibre change la signature', fibre[0]?.signature !== cuivre[0]?.signature);
+      const conseil = calculs.cablageData(x.m, x.dalle, x.e, { depart: 'bas-gauche' });
+      const egal = montage.etapesData(variante(imposerData(contexte, x, { ports: 1 })), { depart: 'bas-gauche' });
+      v.egal('sans fibre, même port que le conseil : même signature', egal[0]?.signature, montage.etapesData(conseil.variantes.find((y) => y.mode === 'colonnes'), { depart: 'bas-gauche' })[0]?.signature);
+      const paires = montage.etapesData(variante(imposerData(contexte, exercice(contexte, 4, 4, 'novastar-mctrl660'), { ports: 2, fibre: true })), { depart: 'bas-gauche' });
+      v.vrai('paires de CVT310', (paires[0]?.phrase ?? '').includes('Câble de tête du port 1, depuis son CVT310 au pied du mur, jusqu\'à C1 R4'), paires[0]?.phrase);
+    },
+  },
+  {
+    id: 'R391',
+    titre: 'Config imposée dans la liste de matériel (18c3, choix 3) : en fibre, les convertisseurs comptés (plus de note « si fibre »), les fibres (OPT des ports, secours en redondance ; une par paire), les câbles de tête depuis le convertisseur, pas de multipaire ; note « Config imposée : 2 ports, 2 lignes, fibre. » ; transceivers des Brompton',
+    etape: '18c3',
+    verifier(v, contexte) {
+      const x = exercice(contexte);
+      const liste = (xx, imposee, lignes = 2) => {
+        const t = imposerData(contexte, xx, imposee, { distanceRegieM: 50 });
+        const elec = calculs.electricite(xx.m, xx.dalle, { arrivee: { type: 'mono', intensiteA: 16 }, depart: 'bas-gauche' });
+        const c = calculs.cablageElec(xx.m, xx.dalle, elec, { imposee: { lignes } });
+        const vd = t.variantes.find((y) => y.mode === t.retenue);
+        const ve = c.variantes.find((y) => y.mode === c.retenue);
+        return calculs.listeMateriel({ mur: xx.m, dalle: xx.dalle, data: { evaluation: xx.e, variante: vd, distanceRegieM: 50, margeMou: 0.1 }, elec: { variante: ve, distribution: null, departA: 16 } })
+          .sections.find((s) => s.id === 'data');
+      };
+      const total = (s, designation) => s.lignes.filter((l) => l.designation === designation).reduce((n, l) => n + l.quantite, 0);
+      const k4 = liste(x, { ports: 2, fibre: true });
+      v.egal('MCTRL4K : 1 CVT4K, 1 fibre, 2 câbles de tête, pas de multipaire', [total(k4, 'CVT4K'), total(k4, 'Fibre jusqu\'au CVT4K'), total(k4, 'Câble de tête RJ45'), total(k4, 'Multipaire 8 RJ45')], [1, 1, 2, 0]);
+      v.vrai('CVT4K : détail', k4.lignes.find((l) => l.designation === 'CVT4K')?.detail === 'config imposée, en fibre ; 14 ports non utilisés', k4.lignes.find((l) => l.designation === 'CVT4K')?.detail);
+      v.vrai('note de la config imposée, plus de « si fibre »', k4.notes.includes('Config imposée : 2 ports, 2 lignes, fibre.') && !k4.notes.some((n) => n.startsWith('Si tu passes en fibre')), k4.notes.join(' | '));
+      const red = liste(exercice(contexte, 4, 4, 'novastar-mctrl4k', { redondance: true }), { ports: 2, fibre: true });
+      v.egal('MCTRL4K en redondance : 4 fibres (OPT1 à OPT4)', total(red, 'Fibre jusqu\'au CVT4K'), 4);
+      const m660 = liste(exercice(contexte, 4, 4, 'novastar-mctrl660'), { ports: 2, fibre: true });
+      v.egal('MCTRL660 : 4 CVT310, 2 fibres', [total(m660, 'CVT310'), total(m660, 'Fibre jusqu\'au CVT310')], [4, 2]);
+      const cuivre = liste(x, { ports: 2 }, 1);
+      v.vrai('sans fibre : la note dit 2 ports et 1 ligne, la régie loin en multipaire', cuivre.notes.includes('Config imposée : 2 ports, 1 ligne.') && total(cuivre, 'Multipaire 8 RJ45') === 1, cuivre.notes.join(' | '));
+      const bp2 = exercice(contexte, 6, 4, 'brompton-s4', { bits: 12 }, 'roe-bp2-v2');
+      const s4 = liste(bp2, { ports: 3, fibre: true });
+      const tr = s4.lignes.find((l) => l.designation === 'Transceiver fibre Gigabit Ethernet');
+      v.egal('S4 : 6 transceivers, 3 fibres', [tr?.quantite, total(s4, 'Fibre jusqu\'au transceiver')], [6, 3]);
+      v.vrai('S4 : modèle à choisir', /modèle à choisir/.test(tr?.detail ?? ''), tr?.detail);
+    },
+  },
+  {
+    id: 'R392',
+    titre: 'Config imposée dans les fiches par métier (18c3, spec § 4.4) : synthèse du chef de projet avec « Ports : 2 (imposé ; …) », la fibre et « Lignes : 2 (imposé ; …) » ; fiche régie avec les ports imposés et la fibre ; config refusée dans la synthèse',
+    etape: '18c3',
+    verifier(v, contexte) {
+      const x = exercice(contexte);
+      const t = imposerData(contexte, x, { ports: 2, fibre: true });
+      const elec = calculs.electricite(x.m, x.dalle, { arrivee: { type: 'mono', intensiteA: 16 }, depart: 'bas-gauche' });
+      const c = calculs.cablageElec(x.m, x.dalle, elec, { imposee: { lignes: 2 } });
+      const textes = { ...textesEssai(contexte), data: resumes.resumeData(x.e, { imposee: t.imposee }), elec: resumes.resumeElec(elec, { dalle: x.dalle, mur: x.m, imposee: c.imposee }) };
+      const murs = [{ nom: 'Mur 1', fiche: { textes, calculeeLe: '2026-10-21T10:00:00.000Z' }, materiel: null }];
+      const fiche = (metier, m = murs) => fichesMetier.ficheMetier(metier, { presta: { nom: 'Presta A', murs: [] }, murs: m, date: new Date(2026, 9, 21, 12) });
+      const chef = fiche('chefProjet').blocs[0].lignes.map((l) => `${l.libelle} : ${l.valeur}`);
+      v.vrai('chef de projet : ports, fibre et lignes imposés', ['Ports : 2 (imposé ; conseil de l\'appli : 1)', 'Lignes : 2 (imposé ; conseil de l\'appli : 1)'].every((l) => chef.includes(l))
+        && chef.some((l) => l.startsWith('Fibre (imposée) : 1 CVT4K')), chef.join(' | '));
+      const regie = fichesMetier.lignesDataRegie(textes.data).map((l) => `${l.libelle} : ${l.valeur}`);
+      v.vrai('régie : ports imposés et fibre', regie.includes('Ports : 2 (imposé ; conseil de l\'appli : 1)') && regie.some((l) => l.startsWith('Fibre (imposée) :')), regie.join(' | '));
+      const refus = { ...textes, data: resumes.resumeData(x.e, { imposee: imposerData(contexte, x, { ports: 5 }).imposee }) };
+      const chefRefus = fiche('chefProjet', [{ nom: 'Mur 1', fiche: { textes: refus, calculeeLe: '2026-10-21T10:00:00.000Z' }, materiel: null }]).blocs[0].lignes;
+      v.vrai('chef de projet : config refusée', chefRefus.some((l) => l.libelle === 'Config imposée refusée'), chefRefus.map((l) => l.libelle).join(' | '));
+    },
+  },
+  {
+    id: 'R393',
+    titre: 'Config imposée, fibre des Brompton S4, S8, M2 et T1 (18c3, choix 1 ; manuel Tessera V3.5, § 13.1.2, p. 220) : une paire de transceivers fibre Gigabit Ethernet par port utilisé, secours compris, modèle à choisir, portée selon le transceiver ; 2 nœuds par trajet dans le contrôle du réseau Brompton (5 au plus) ; SX40 inchangé ; Colorlight sans sortie fibre : rien dans la base',
+    etape: '18c3',
+    verifier(v, contexte) {
+      const bp2 = (procId, reglages = {}) => exercice(contexte, 6, 4, procId, { bits: 12, ...reglages }, 'roe-bp2-v2');
+      const s4 = imposerData(contexte, bp2('brompton-s4'), { ports: 3, fibre: true }).imposee?.fibre;
+      v.vrai('S4 : texte, source', (s4?.texte ?? '').startsWith('Passer en fibre : 3 paires de transceivers fibre Gigabit Ethernet, une par port')
+        && (s4?.texte ?? '').includes('modèle à choisir') && (s4?.texte ?? '').includes('manuel Tessera V3.5, § 13.1.2, p. 220'), s4?.texte);
+      v.egal('S4 : portée selon le transceiver, rien d\'inventé', [s4?.porteeM, s4?.aConfirmer, s4?.nombreFibres], [null, false, 3]);
+      const s8 = imposerData(contexte, bp2('brompton-s8', { redondance: true }), { ports: 2, fibre: true }).imposee?.fibre;
+      v.egal('S8 en redondance : secours compris', [s8?.paires, s8?.convertisseurs], [4, 8]);
+      v.egal('réseau Brompton : 2 nœuds + 3 switches passent, + 4 refusés', [calculs.reseauBrompton({ switches: 3, convertisseursFibre: s4?.noeuds }).refus.length,
+        calculs.reseauBrompton({ switches: 4, convertisseursFibre: s4?.noeuds }).refus.length], [0, 1]);
+      const sx = imposerData(contexte, bp2('brompton-sx40'), { ports: 2, fibre: true }).imposee?.fibre;
+      v.egal('SX40 : inchangé', [sx?.deja, sx?.noeuds ?? 0], [true, 0]);
+      const m = calculs.mur(DALLE_64, 4, 4);
+      const e = calculs.evaluerProcesseur(m, DALLE_64, processeurDeBase(contexte, 'colorlight-x16e'), { frequenceHz: 60, bits: 8 });
+      v.egal('Colorlight X16E : rien dans la base', imposerData(contexte, { dalle: DALLE_64, m, e }, { ports: 2, fibre: true }).imposee?.fibre.texte,
+        `Aucun convertisseur fibre dans la base pour le ${e.processeur.modele} : à vérifier.`);
+    },
+  },
 ];
 
+
+// Config imposée (18c) : mur de Upad IV 2.6 (exercice : 4 × 4 sur MCTRL4K, 60 Hz, 8 bits) et convertisseurs de la base.
+function exercice(contexte, colonnes = 4, rangees = 4, procId = 'novastar-mctrl4k', reglages = {}, dalleId = 'unilumin-upad-iv-2-6') {
+  const dalle = dalleDeBase(contexte, dalleId);
+  const m = calculs.mur(dalle, colonnes, rangees);
+  return { dalle, m, e: calculs.evaluerProcesseur(m, dalle, processeurDeBase(contexte, procId), { ...NOVASTAR_60_8, ...reglages }) };
+}
+function distributeursDeBase(contexte) {
+  const b = baseProcesseurs(contexte);
+  return b.distributeurs.map((d) => calculs.resoudreFiche(d, b.sources));
+}
+function imposerData(contexte, x, imposee, options = {}) {
+  return calculs.cablageData(x.m, x.dalle, x.e, { depart: 'bas-gauche', distributeurs: distributeursDeBase(contexte), ...options, imposee });
+}
+const varianteImposee = (t) => t.variantes.find((x) => x.mode === 'imposee');
+// Pas à pas NovaLCT de l'exercice (4 × 4 Upad IV 2.6) sur la variante retenue avec une config imposée (18c3).
+function pasAPasImpose(contexte, procId, imposee, reglages = {}) {
+  const x = exercice(contexte, 4, 4, procId, reglages);
+  const t = imposerData(contexte, x, imposee);
+  const source = calculs.sourceConseillee(x.e, liaisonsDeBase(contexte), x.e.reglages.frequenceHz);
+  return novalct.etapesNovaLCT({ mur: x.m, dalle: x.dalle, evaluation: x.e, variante: t.variantes.find((y) => y.mode === t.retenue), source });
+}
+// Colonnes de chaque port, par processeur, dans l'ordre des ports.
+const colonnesDesPorts = (variante) => variante?.processeurs.map((p) => p.ports.map((x) => colonnesDe(x.dalles).sort((a, b) => a - b)));
 
 // Ligne « libellé : … » d'un texte copié.
 const ligneDe = (texte, libelle) => texte.split('\n').find((l) => l.startsWith(`${libelle} : `)) ?? `${libelle} : absente`;

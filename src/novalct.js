@@ -398,9 +398,12 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
       + 'seul avant de brancher le second.', [src('formation-11'), src('formation-12'), src('cdc')])] : []),
   ];
   // Fibre (étape 18b) : les OPT que ce mur utilise, d'après les ports principaux et de secours du câblage retenu.
+  // Config imposée en fibre (étape 18c3) : l'étape devient la vraie, avec le convertisseur et son nombre, pour tout
+  // processeur (CVT10 des VX, paires de CVT310 : règle du cahier des charges).
   const fibre = FIBRES[idCourt];
-  if (fibre) {
-    const parProc = (variante?.processeurs ?? []).map((pv) => {
+  const fibreImposee = variante?.mode === 'imposee' && variante.fibre?.possible && !variante.fibre.deja ? variante.fibre : null;
+  if (fibre || fibreImposee) {
+    const parProc = !fibre ? [] : (variante?.processeurs ?? []).map((pv) => {
       const ports = pv.ports.flatMap((p) => [p.numero, ...(redondance && p.secours ? [p.secours.numero] : [])]);
       const opt = new Map();
       for (const n of ports) {
@@ -410,8 +413,14 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
       const liste = [...opt].sort(([a], [b]) => a - b).map(([k, l]) => `OPT${k} (${textePorts(l)})`);
       return `${nb > 1 ? `${modele} n° ${pv.numero} : ` : ''}${enumeration(liste)}`;
     });
-    partie0.push(etape('0.7', `Si tu passes en fibre : ${fibre.texte}${parProc.length ? ` Pour ce mur : ${parProc.join(' ; ')}.` : ''}${fibre.convertisseur}`,
-      fibre.sources.map(([id, ref]) => src(id, ref)), { aVerifier: fibre.aVerifier, valeurs: { fibres: parProc } }));
+    const detail = fibre ? `${fibre.texte}${parProc.length ? ` Pour ce mur : ${parProc.join(' ; ')}.` : ''}${fibre.convertisseur}` : '';
+    partie0.push(fibreImposee
+      ? etape('0.7', `Tu passes en fibre (ta config) : ${fibreImposee.texte.replace(/^Passer en fibre : /, '')}${detail ? ` ${detail}` : ''}`,
+        [...(fibre ? fibre.sources.map(([id, ref]) => src(id, ref)) : []), src('cdc')],
+        { titre: 'Fibre : ta config (imposée)', aVerifier: Boolean(fibre?.aVerifier || fibreImposee.aConfirmer),
+          valeurs: { fibres: parProc, impose: [fibreImposee.designation, fibreImposee.convertisseurs] } })
+      : etape('0.7', `Si tu passes en fibre : ${detail}`,
+        fibre.sources.map(([id, ref]) => src(id, ref)), { aVerifier: fibre.aVerifier, valeurs: { fibres: parProc } }));
   }
   const parties = [{ id: '0', titre: 'Avant de partir et sur place', etapes: partie0 }];
 
@@ -702,6 +711,11 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
   return {
     logiciel: 'NovaLCT', processeur: modele, groupe, version: ver, parties, nonCouvert, alertes: alerteVariante ? [alerteVariante] : [],
     parc: codeParc ? { nom: codeParc, aCode: true } : null,
+    // Config imposée (étape 18c3) : rappelée en tête, dans le texte copié, le PDF et la fiche régie.
+    imposee: variante?.mode === 'imposee'
+      ? `Ma config (imposée), ${variante.ports} port${variante.ports > 1 ? 's' : ''}${fibreImposee ? `, en fibre (${fibreImposee.convertisseurs} ${fibreImposee.designation})` : ''} ; `
+        + 'le conseil de l\'appli reste dans Data.'
+      : null,
   };
 }
 
@@ -772,7 +786,7 @@ export function ficheNovaLCT(resultat, cases, { presta = '', mur = '', date = ne
     rappel: `Noms des menus des manuels NovaLCT V5.5.0 et V5.8.1, ceux de la V${resultat.version.premiere} en premier ; `
       + 'une étape « à vérifier en formation » n\'a pas de source sûre.',
     entete: [['Presta', presta], ['Mur', mur], ['Processeurs', `${nombreProcesseurs(resultat)} × ${resultat.processeur}`],
-      ['Étapes faites', `${faites} sur ${total}`], ['Date', jour(date)]],
+      ['Étapes faites', `${faites} sur ${total}`], ...(resultat.imposee ? [['Câblage', resultat.imposee]] : []), ['Date', jour(date)]],
     blocs: resultat.parties.map((p) => ({
       titre: p.titre, date: null, manque: null,
       lignes: [...(p.note ? [{ libelle: 'Note', valeur: p.note }] : []), ...p.etapes.flatMap(lignesEtape)],
@@ -797,6 +811,7 @@ export function resumeNovaLCT(resultat, cases) {
   const lignes = ['NOVALCT', `Processeurs : ${nombreProcesseurs(resultat)} × ${resultat.processeur}`, `Étapes faites : ${faites} sur ${total}`];
   // Code admin du parc (étape 18a) : où le trouver, jamais le code.
   if (resultat.parc?.aCode) lignes.push(`Mot de passe NovaLCT : celui du parc ${resultat.parc.nom}, dans l'appli (onglet Base)`);
+  if (resultat.imposee) lignes.push(`Câblage : ${resultat.imposee}`);
   for (const p of resultat.parties.filter((x) => x.processeur)) {
     const b2 = p.etapes.find((e) => e.id.endsWith('.B.2'))?.valeurs ?? {};
     const b6 = p.etapes.find((e) => e.id.endsWith('.B.6'))?.valeurs ?? {};

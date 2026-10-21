@@ -102,6 +102,12 @@ function lireFormulaire() {
     switchMegapixel: d.get('switchMegapixel') || null,
     lienMegapixel: d.has('lien25G') ? '2.5G' : '1G',
     mode20G: d.has('mode20G'),
+    // Config imposée (étape 18c) : nombre de ports (vide : le conseil ; illisible : refusé par le calcul), fibre, paire.
+    imposee: {
+      ports: String(d.get('portsImposes') ?? '').trim() === '' ? null : lireNombre(d.get('portsImposes')),
+      fibre: d.has('fibreImposee'),
+      paire: d.get('paireFibre') || null,
+    },
     reseau: {
       switches: Math.max(0, Math.floor(lireNombre(d.get('reseauSwitches')) || 0)),
       convertisseursFibre: Math.max(0, Math.floor(lireNombre(d.get('reseauConvertisseurs')) || 0)),
@@ -267,7 +273,9 @@ function nomDistributeur(r) {
   return r.distributeurObligatoire ? d.modele : `${d.modele} (si fibre)`;
 }
 
-function sectionPorts(e, dalle, r) {
+// `impose` : { variante, resume } de la config imposée quand elle passe (étape 18c) ; elle prend les chiffres clés, le conseil
+// de l'appli est rappelé dessous avec l'écart.
+function sectionPorts(e, dalle, r, impose = null) {
   const g = r.global;
   const proc = r.processeur;
   const compte = r.pxParDalle !== dalle.pxH * dalle.pxV
@@ -285,16 +293,18 @@ function sectionPorts(e, dalle, r) {
 
   // Nouveau look : réglages en cours en puces, puis les deux chiffres clés (ports retenus, charge du port le plus
   // chargé) avec la barre de charge (seuil de refus : le port plein, 100 %).
-  const tauxCharge = g.chargeMax.colonnes.taux;
+  const tauxCharge = impose ? impose.variante.chargeMax : g.chargeMax.colonnes.taux;
   return el('section', { class: 'bloc-resultats' },
     el('h3', {}, `Ports — ${proc.nom}`),
     el('ul', { class: 'puces-info' }, [proc.nom, `${nombreCourt(r.reglages.frequenceHz)} Hz`, `${r.reglages.bits} bits`,
-      r.reglages.ull ? 'ULL' : null, r.reglages.redondance ? 'redondance' : null].filter(Boolean).map((t) => el('li', { class: 'puce-info' }, t))),
+      r.reglages.ull ? 'ULL' : null, r.reglages.redondance ? 'redondance' : null, impose ? 'Ma config' : null].filter(Boolean).map((t) => el('li', { class: 'puce-info' }, t))),
     el('div', { class: 'chiffres-cles' },
-      el('p', { class: 'chiffre' }, el('span', { class: 'chiffre-valeur' }, nombre(g.colonnes.ports)), el('span', { class: 'chiffre-libelle' }, 'Ports en colonnes entières')),
+      el('p', { class: 'chiffre' }, el('span', { class: 'chiffre-valeur' }, nombre(impose ? impose.variante.ports : g.colonnes.ports)),
+        el('span', { class: 'chiffre-libelle' }, impose ? 'Ports (imposé)' : 'Ports en colonnes entières')),
       el('p', { class: 'chiffre' }, el('span', { class: 'chiffre-valeur' }, nombre(tauxCharge * 100, 1), el('span', { class: 'chiffre-unite' }, ' %')),
         el('span', { class: 'chiffre-libelle' }, 'Port le plus chargé')),
       barreCharge(tauxCharge)),
+    impose ? el('p', { class: 'conseil-impose' }, impose.resume.texteConseil) : null,
     el('dl', { class: 'tuiles' },
       tuile(`Capacité par port${proc.typePorts ? ` ${proc.typePorts}` : ''}`, `${nombre(entierInferieur(r.capacite))} px`, r.formule,
         `source : ${sourceLimite(proc, champCapacite)}`, qualite ? `valeur ${qualite}` : null,
@@ -668,6 +678,28 @@ function sectionAutres(e, evaluations, choisie) {
         el('tbody', {}, lignes))));
 }
 
+// Bloc « Ma config » (étape 18c) : contrôle de la config imposée, refus en erreur ; la paire CVT310 ou CVT320 seulement
+// pour un Novastar sans sortie fibre quand la fibre est cochée.
+const SEUIL_95 = 0.95;
+function afficherMaConfig(resume, variante, choisie) {
+  const proc = choisie?.processeur;
+  id('bloc-paire-fibre').hidden = !(formulaire.elements.fibreImposee.checked && proc?.famille === 'novastar' && proc.sortiesFibre === 'aucune');
+  if (!resume) {
+    remplacer(id('etat-ma-config-data'));
+    return;
+  }
+  if (!resume.possible) {
+    remplacer(id('etat-ma-config-data'), alerte(`${resume.raison} Le conseil de l'appli reste retenu partout.`, 'alerte-erreur'));
+    return;
+  }
+  const fibre = resume.fibre;
+  remplacer(id('etat-ma-config-data'),
+    resume.texte && resume.ports !== null ? el('p', { class: 'note' }, resume.texte) : null,
+    fibre ? alerte(fibre.texte, fibre.possible ? 'alerte-info' : '') : null,
+    ...(variante?.alertes ?? []).filter((a) => a.startsWith('Fibre de')).map((a) => alerte(a)));
+}
+const id = (x) => document.getElementById(x);
+
 // ---------------------------------------------------------------------------
 // Calcul
 // ---------------------------------------------------------------------------
@@ -700,6 +732,7 @@ export function resumeOngletData() {
 function calculer(e) {
   dernier = null;
   afficherDepart(null, false);
+  afficherMaConfig(null, null, null);
   if (!etatMur) return null;
   if (!etatMur.mur) {
     remplacer(zone, alerte('Le mur n\'est pas valide : corrige-le dans l\'onglet Mur.', 'alerte-erreur'));
@@ -756,10 +789,21 @@ function calculer(e) {
   for (const texte of alertesSansManques(choisie?.alertes ?? [], choisie?.manques)) alertes.push(alerte(texte));
   // Informations sans alerte (Colorlight : règle des 1280 px de la fiche S20 sur un autre modèle).
   for (const texte of choisie?.notes ?? []) alertes.push(alerte(texte, 'alerte-info'));
-  // Réseau Brompton (aide en ligne Tessera) : switches, fibre et cuivre 10G entre le processeur et les dalles.
+  // Câblage retenu, comme le Schéma : la config imposée quand elle passe (étape 18c), sinon les colonnes entières.
+  let cablage = null;
+  if (choisie?.groupes?.length) {
+    try {
+      cablage = cablageData(mur, dalle, choisie, { depart: departData, imposee: e.imposee, distributeurs: [...distributeurs.values()] });
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaisie)) throw erreur;
+    }
+  }
+  // Réseau Brompton (aide en ligne Tessera) : switches, fibre et cuivre 10G entre le processeur et les dalles ; les
+  // transceivers de la config imposée en fibre (18c3) comptent comme des switches.
   const reseau = choisie?.processeur.famille === 'brompton'
     ? reseauBrompton({
       ...e.reseau,
+      convertisseursFibre: e.reseau.convertisseursFibre + (cablage?.imposee?.possible ? cablage.imposee.fibre?.noeuds ?? 0 : 0),
       xd: /^brompton-xd/.test(choisie.processeur.distributeur ?? '') ? 1 : 0,
       distributeur: distributeurs.get(choisie.processeur.distributeur) ?? null,
     }) : null;
@@ -773,7 +817,12 @@ function calculer(e) {
   // Nombre dans le parc (étape 15c), conseillé ou choisi à la main.
   const quantiteParc = nomParc ? controleQuantiteProcesseur(choisie, quantites[choisie.processeur.id], nomParc) : null;
   if (quantiteParc) alertes.push(quantiteParc.alerte ? alerte(quantiteParc.alerte, 'alerte-erreur') : alerte(`${quantiteParc.ligne}.`, 'alerte-info'));
-  if (choisie.global) {
+  const impose = cablage?.imposee?.possible ? { variante: cablage.variantes.find((x) => x.mode === 'imposee'), resume: cablage.imposee } : null;
+  afficherMaConfig(cablage?.imposee ?? null, impose?.variante ?? null, choisie);
+  if (impose && impose.variante.chargeMax > SEUIL_95) {
+    alertes.push(alerte(`Ma config (imposée) : un port est chargé à ${nombre(impose.variante.chargeMax * 100, 1)} %, au-delà de 95 %. Garde de la marge.`));
+  }
+  if (choisie.global && !impose) {
     const { colonnes } = choisie.global.chargeMax;
     const serpentin = choisie.global.serpentin.chargeMax;
     if (choisie.global.serpentin.ecart) alertes.push(alerte(choisie.global.serpentin.ecart, 'alerte-info'));
@@ -805,18 +854,11 @@ function calculer(e) {
   // Alternative « SX40 + XD » : le SX40 en demande strictement moins que le Brompton retenu.
   const dansParc = processeurs.some((p) => p.id === ficheSX40?.id);
   const alternative = alternativeSX40(mur, dalle, choisie, ficheSX40, reglages, { dansParc, nomParc });
-  // Couleurs des ports : celles du Schéma (câblage retenu en colonnes entières, même coin de départ).
-  let ports = [];
-  if (choisie.groupes?.length) {
-    try {
-      const cablage = cablageData(mur, dalle, choisie, { depart: departData });
-      ports = portsEnCouleurs(cablage.variantes.find((x) => x.mode === cablage.conseil));
-    } catch (erreur) {
-      if (!(erreur instanceof ErreurSaisie)) throw erreur;
-    }
-  }
+  // Couleurs des ports : celles du Schéma (câblage retenu, même coin de départ).
+  const ports = cablage ? portsEnCouleurs(cablage.variantes.find((x) => x.mode === (cablage.retenue ?? cablage.conseil))) : [];
   dernier = {
     ports,
+    imposee: cablage?.imposee ?? null,
     alternative,
     choisie, conseille: choisie === conseil, distributeur: nomDistributeur(choisie),
     distributeurFiche: distributeurs.get(choisie.processeur.distributeur) ?? null,
@@ -830,7 +872,7 @@ function calculer(e) {
   remplacer(zone, recap,
     ...alertes,
     sectionAlternative(alternative, dansParc),
-    choisie.global ? sectionPorts(e, dalle, choisie) : null,
+    choisie.global ? sectionPorts(e, dalle, choisie, impose) : null,
     sectionCouleurs(ports),
     sectionProcesseur(choisie, conseil),
     sectionDecoupageZones(choisie),
@@ -857,15 +899,24 @@ function mettreAJour() {
     dalle: etatMur?.dalle ?? null,
     mur: etatMur?.mur ?? null,
     depart: departData,
+    // Config imposée (étape 18c), pour le câblage du Schéma ; fiches des convertisseurs pour la fibre.
+    imposee: e.imposee,
+    distributeurs: [...distributeurs.values()],
   });
 }
 
 // `base` : { processeurs, distributeurs, sources } déjà résolus. `rappel(etat)` reçoit le processeur retenu
 // et les réglages data après chaque calcul, pour l'onglet Canvas.
-export function initialiserData(base, rappel = () => {}) {
+// `surConfigImposee()` : appelé quand l'utilisateur change sa config imposée (le Schéma revient alors à « Ma config »).
+const CHAMPS_IMPOSES = new Set(['portsImposes', 'fibreImposee', 'paireFibre']);
+export function initialiserData(base, rappel = () => {}, { surConfigImposee = () => {} } = {}) {
   surChangement = rappel;
   const siPasParc = (evenement) => {
-    if (evenement.target.name !== 'parc') mettreAJour();
+    if (evenement.target.name === 'parc') return;
+    // Reprise des saisies (événement sur le formulaire lui-même) : le bloc s'ouvre quand un champ est rempli.
+    if (evenement.target === formulaire && maConfigRemplie()) id('ma-config-data').open = true;
+    if (CHAMPS_IMPOSES.has(evenement.target.name)) surConfigImposee();
+    mettreAJour();
   };
   formulaire.addEventListener('input', siPasParc);
   formulaire.addEventListener('change', siPasParc);
@@ -903,6 +954,8 @@ export function actualiserData(base, premiereFois = false) {
   if (!premiereFois && defautBits(famille).bits !== avant) cocherBits(defautBits(famille).bits);
   if (!premiereFois) mettreAJour();
 }
+
+const maConfigRemplie = () => formulaire.elements.portsImposes.value.trim() !== '' || formulaire.elements.fibreImposee.checked;
 
 // Appelé par l'onglet Schéma quand le coin de départ du câblage data change.
 export function definirDepartData(depart) {

@@ -1814,6 +1814,19 @@
       },
       "typeSorties": "1G",
       "fibre": "S : monomode, 10 km ; M : multimode, 300 m",
+      "porteeFibreM": {
+        "valeurs": [
+          {
+            "valeur": 300,
+            "source": "coex-wiki-cvt10"
+          },
+          {
+            "valeur": 10000,
+            "source": "coex-wiki-cvt10"
+          }
+        ],
+        "note": "300 m en multimode, version M ; 10 km en monomode, version S"
+      },
       "puissanceW": {
         "valeurs": [
           {
@@ -1864,6 +1877,19 @@
       },
       "typeSorties": "1G",
       "fibre": "S : monomode, 10 km (fiche V1.0.6) ; M : multimode OM3 ou OM4, 300 m (fiche V1.0.3)",
+      "porteeFibreM": {
+        "valeurs": [
+          {
+            "valeur": 300,
+            "source": "novastar-cvt4k-m-v1-0-3"
+          },
+          {
+            "valeur": 10000,
+            "source": "novastar-cvt4k-s-v1-0-6"
+          }
+        ],
+        "note": "300 m en multimode OM3 ou OM4, version M ; 10 km en monomode, version S, p. 3"
+      },
       "puissanceW": {
         "valeurs": [
           {
@@ -1898,6 +1924,11 @@
       },
       "typeSorties": "1G",
       "fibre": "multimode, LC double, 850 nm, 550 m",
+      "porteeFibreM": {
+        "valeur": 550,
+        "source": "novastar-cvt310-v2-3-4",
+        "note": "multimode"
+      },
       "puissanceW": {
         "valeur": 3.5,
         "source": "novastar-cvt310-v2-3-4"
@@ -1919,6 +1950,11 @@
       },
       "typeSorties": "1G",
       "fibre": "monomode, LC double, 20 km",
+      "porteeFibreM": {
+        "valeur": 20000,
+        "source": "novastar-cvt320-v2-3-3",
+        "note": "monomode"
+      },
       "puissanceW": {
         "valeur": 3.5,
         "source": "novastar-cvt320-v2-3-3"
@@ -3001,6 +3037,11 @@
       "sortiesParDistributeur": {
         "valeur": 10,
         "source": "cahier-des-charges-module-4"
+      },
+      "sortiesFibre": {
+        "valeur": "copie",
+        "source": "novastar-mctrl660-pro-v1-4-1",
+        "note": "OPT1 porte les 6 ports Ethernet et OPT2 en est le secours (« OPT1 is the main input or output port and corresponds to the 6 Gigabit Ethernet ports », p. 4) ; la fiche dit aussi qu'il peut servir de convertisseur (« can work as a sending card and a fiber converter », p. 1)"
       },
       "entrees": "DVI, HDMI 1.4a, 3G-SDI, boucles",
       "entreesTypes": {

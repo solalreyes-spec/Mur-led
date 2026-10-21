@@ -14,7 +14,7 @@ import {
 import { initialiserCanvas, actualiserRegies, donneesModifiees, resumeOngletCanvas, sourceAffichee } from './ecran-canvas.js';
 import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec, resumeOngletElec } from './ecran-elec.js';
 import {
-  initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema,
+  initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema, revenirAMaConfig,
   cablageRetenu, sortieModifieePourSchema, definirStockageMontage, rechargerMontage, entreesMateriel, dessinPortNovaLCT,
 } from './ecran-schema.js';
 import { initialiserPoids, actualiserBumpers, murModifiePourPoids, poidsRetenu, resumeOngletPoids } from './ecran-poids.js';
@@ -551,9 +551,10 @@ if (depart.processeurs) {
   initialiserData(pourData(), (etat) => {
     if (connectique) donneesModifiees(etat);
     dataModifieePourSchema(etat);
-  });
+  }, { surConfigImposee: () => revenirAMaConfig('data') });
 }
-initialiserElec(elecModifiePourSchema);
+// Config imposée changée (étape 18c) : le Schéma revient à « Ma config ».
+initialiserElec(elecModifiePourSchema, { surConfigImposee: () => revenirAMaConfig('elec') });
 if (depart.dalles) {
   initialiserPoids(courant.bumpers);
   initialiserMur(pourMur(), (etat) => {

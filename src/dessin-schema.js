@@ -207,8 +207,9 @@ function geometrieSansZones(vue, mur, dalle, pm) {
 }
 
 // Repère dessiné au coin de départ : processeurs (ou XD au pied du mur, la régie en fibre) pour la data, armoire
-// pour l'élec, avec la distance saisie. `evaluation` : processeur retenu dans l'onglet Data.
-export function repereSchema(cablage, { evaluation = null, distanceM = null } = {}) {
+// pour l'élec, avec la distance saisie. `evaluation` : processeur retenu dans l'onglet Data. `fibre` : « Passer en fibre »
+// de la config imposée (étape 18c), le convertisseur au pied du mur et la régie en fibre.
+export function repereSchema(cablage, { evaluation = null, distanceM = null, fibre = null } = {}) {
   const distance = distanceM === null || distanceM === undefined ? null : nombreCourt(distanceM, 1);
   if (cablage === 'elec') return { lignes: ['Armoire', distance ? `à ${distance} m` : null].filter(Boolean) };
   if (cablage !== 'data' || !evaluation?.processeur) return null;
@@ -217,6 +218,9 @@ export function repereSchema(cablage, { evaluation = null, distanceM = null } = 
     return { lignes: [MODELES_DISTRIBUTEUR[proc.distributeur] ?? 'Distributeur', distance ? `fibre ${distance} m` : null].filter(Boolean) };
   }
   const n = evaluation.nombre ?? 1;
+  if (fibre?.possible && !fibre.deja) {
+    return { lignes: [`${n > 1 ? `${n} × ` : ''}${proc.modele}`, `${fibre.modele} au pied du mur`, distance ? `fibre ${distance} m` : null].filter(Boolean) };
+  }
   return { lignes: [`${n > 1 ? `${n} × ` : ''}${proc.modele}`, distance ? `régie à ${distance} m` : null].filter(Boolean) };
 }
 

@@ -136,8 +136,17 @@ function sectionData(data, stock) {
   const obligatoire = Boolean(e.distributeurObligatoire ?? proc.distributeurObligatoire);
   const modele = data.distributeur?.modele ?? MODELES_DISTRIBUTEUR[proc.distributeur] ?? 'convertisseur';
   const nbDist = dist ? (red ? dist.redondance : dist.colonnes) : 0;
+  // Config imposée en fibre (étape 18c3) : les convertisseurs de la config, plus de note « si fibre ».
+  const fibreImp = v.mode === 'imposee' && v.fibre?.possible && !v.fibre.deja ? v.fibre : null;
   if (dist && nbDist && obligatoire) {
     L.push(ligneListe(`distributeur|${modele}`, nbDist, modele, red ? 'comptés dans Data, redondance comprise' : 'comptés dans Data'));
+  } else if (fibreImp) {
+    const DETAILS = {
+      copie: `config imposée, en fibre ; ${pluriel(fibreImp.portsNonUtilises, 'port non utilisé', 'ports non utilisés')}${fibreImp.aConfirmer ? ' ; à confirmer' : ''}`,
+      paires: 'config imposée, en fibre ; par paires, un côté régie et un au pied du mur',
+      transceivers: 'config imposée, en fibre ; modèle à choisir (Brompton n\'en nomme pas), un côté régie et un au pied du mur',
+    };
+    L.push(ligneListe(`distributeur|${fibreImp.designation}`, fibreImp.convertisseurs, fibreImp.designation, DETAILS[fibreImp.type]));
   } else if (dist && nbDist) {
     section.notes.push(`Si tu passes en fibre : ${nombreCourt(nbDist)} × ${modele} (comptés dans Data).`);
   }
@@ -154,6 +163,16 @@ function sectionData(data, stock) {
     L.push(...lignesCables('Câble de tête RJ45', tetes, stock.data, `du ${modele} à la première dalle, mou compris`, section.notes,
       { detailMesurer: 'longueur à mesurer (distance régie–mur non saisie)' }));
     if (secours.length) L.push(...lignesCables('Retour de secours RJ45', secours, stock.data, `de la dernière dalle au ${modele}, mou compris`, section.notes));
+  } else if (fibreImp) {
+    // Config imposée en fibre : les fibres du convertisseur à la longueur régie–mur, le cuivre depuis le pied du mur.
+    const fibreM = distance === null ? null : distance * mou;
+    const vers = fibreImp.type === 'transceivers' ? 'transceiver' : fibreImp.modele;
+    const mesurer = { detailMesurer: 'longueur à mesurer (distance régie–mur non saisie)' };
+    L.push(...lignesCables(`Fibre jusqu'au ${vers}`, Array(fibreImp.nombreFibres).fill(fibreM), stock.fibre,
+      `${fibreImp.fibres.length ? `${[...fibreImp.fibres, ...fibreImp.fibresSecours].join(', ')}, ` : ''}régie à ${nombreCourt(distance ?? 0)} m, mou compris`, section.notes, mesurer));
+    L.push(...lignesCables('Câble de tête RJ45', tetes, stock.data, `du ${vers} à la première dalle, mou compris`, section.notes, mesurer));
+    if (secours.length) L.push(...lignesCables('Retour de secours RJ45', secours, stock.data, `de la dernière dalle au ${vers}, mou compris`, section.notes));
+    if (fibreImp.fibresSecoursAVerifier) section.notes.push(`Fibres de secours du ${fibreImp.modele} : à vérifier, la fiche ne dit pas laquelle secourt l'autre.`);
   } else if (distance !== null && distance > SEUIL_MULTIPAIRE_M + EPS) {
     // Régie loin : multipaires (secours compris), un câble court au mur par câble, un cordon côté régie.
     const tronc = distance * mou;
@@ -289,9 +308,16 @@ export function listeMateriel(entrees) {
     nonCompte: casesPesees ? 'processeurs, câbles et accroche non comptés' : 'cases, processeurs, câbles et accroche non comptés',
     indicatif: true,
   };
+  // Config imposée (étape 18c3) : une note en tête de la section Data.
+  const sData = sectionData(data, stock);
+  const vd = data?.variante;
+  const ve = elec?.variante;
+  const imposee = [vd?.mode === 'imposee' ? pluriel(vd.ports, 'port', 'ports') : null, ve?.mode === 'imposee' ? pluriel(ve.lignes, 'ligne', 'lignes') : null,
+    vd?.mode === 'imposee' && vd.fibre?.possible && !vd.fibre.deja ? 'fibre' : null].filter(Boolean);
+  if (imposee.length) sData.notes.unshift(`Config imposée : ${imposee.join(', ')}.`);
   return {
     sparesPourcent,
-    sections: [dalles, sectionData(data, stock), sectionElec(elec, stock), sectionAccroche(poids), cases],
+    sections: [dalles, sData, sectionElec(elec, stock), sectionAccroche(poids), cases],
     poidsTransporte,
     stock,
     // Origine des longueurs du stock : le parc pour les familles qu'il règle, le défaut pour les autres.

@@ -12,9 +12,12 @@ const majuscule = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const minuscule = (t) => (/^(Port|Ligne) /.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t);
 
 // Étapes data : une par port de la variante affichée (calculs.cablageData), dans l'ordre du Schéma.
+// Config imposée en fibre (étape 18c3) : chaque câble de tête part du convertisseur au pied du mur, et la fibre entre
+// dans la signature du port (passer en fibre ou revenir au cuivre décoche la case) ; sans fibre, signature d'avant.
 export function etapesData(variante, { depart = 'haut-gauche' } = {}) {
   if (!variante?.processeurs?.length) return [];
   const plusieurs = variante.processeurs.length > 1;
+  const fibre = variante.mode === 'imposee' && variante.fibre?.possible && !variante.fibre.deja ? variante.fibre : null;
   let rang = 0;
   return variante.processeurs.flatMap((p) => p.ports.map((port) => {
     const couleur = couleurPort(rang);
@@ -35,8 +38,8 @@ export function etapesData(variante, { depart = 'haut-gauche' } = {}) {
       premiere,
       derniere,
       phrase: `${pluriel(port.dalles.length, 'dalle', 'dalles')}, de ${premiere} à ${derniere}. `
-        + `Câble de tête du ${port.libelle} jusqu'à ${premiere}, puis suis les numéros.${secours}`,
-      signature: `${depart}|${processeur}|${port.libelle}|${port.dalles.join(',')}`,
+        + `Câble de tête du ${port.libelle}${fibre ? `${fibre.origine},` : ''} jusqu'à ${premiere}, puis suis les numéros.${secours}`,
+      signature: `${depart}|${processeur}|${port.libelle}|${port.dalles.join(',')}${fibre ? `|fibre ${fibre.designation}` : ''}`,
     };
   }));
 }

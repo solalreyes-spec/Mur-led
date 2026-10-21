@@ -39,8 +39,10 @@ function enLigne(texte) {
 const lignesTexte = (texte) => String(texte).split('\n').slice(1).filter((l) => l.trim()).map(enLigne);
 
 // Lignes de Data utiles à la régie : processeurs, réglages, processeur n° i (et sa sortie dans la pixel map, ses zones),
-// mapping, découpage, réglage des zones ; ni capacités, ni ports du câblage (leur couleur), ni alertes.
-const LIBELLES_DATA_REGIE = ['Processeur', 'Configuration', 'Réglages', 'Profondeur réseau', 'Mapping', 'Découpage', 'Variantes', 'Réglage des zones'];
+// mapping, découpage, réglage des zones, config imposée (ports, fibre, refus ; étape 18c3) ; ni capacités, ni ports du
+// câblage (leur couleur), ni alertes.
+const LIBELLES_DATA_REGIE = ['Processeur', 'Configuration', 'Réglages', 'Profondeur réseau', 'Mapping', 'Découpage', 'Variantes', 'Réglage des zones',
+  'Ports', 'Fibre (imposée)', 'Config imposée refusée'];
 export function lignesDataRegie(texteData) {
   return lignesTexte(texteData).filter((l) => LIBELLES_DATA_REGIE.includes(l.libelle)
     || (/^.+ n° \d+(,|$)/.test(l.libelle) && !/, couleur [^,]+$/.test(l.valeur)));
@@ -70,8 +72,8 @@ const estGrave = (l) => ['Refus', 'Impossible', 'Manque de stock'].includes(l.li
 const SYNTHESE = [
   ['mur', ['Dalle', 'Dalles', 'Demi-dalles', 'Zones', 'Taille', 'Taille réelle', 'Taille développée', 'Résolution', 'Pixel map']],
   ['dalles'],
-  ['data', ['Processeur', 'Ports en colonnes entières', 'Ports avec la redondance']],
-  ['elec', ['Puissance totale', 'Arrivée', 'Lignes en colonnes entières']],
+  ['data', ['Processeur', 'Ports en colonnes entières', 'Ports avec la redondance', 'Ports', 'Fibre (imposée)', 'Config imposée refusée']],
+  ['elec', ['Puissance totale', 'Arrivée', 'Lignes en colonnes entières', 'Lignes', 'Config imposée refusée']],
   ['poids', ['Mode', 'Total suspendu', 'Total']],
 ];
 function syntheseMur({ textes }, materiel) {

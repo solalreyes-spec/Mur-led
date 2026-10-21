@@ -4440,7 +4440,103 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N95',
+    titre: 'Config imposée dans Data (18c2, spec § 4.1) : bloc repliable « Ma config » dans le formulaire de Data, donc gardé avec les saisies du mur : nombre de ports imposé (clavier numérique, vide = conseil de l\'appli), « Passer en fibre », paire CVT310 (par défaut) ou CVT320 cachée tant qu\'elle ne sert pas, zone d\'état lue à voix haute ; à 375 px, en sombre et en mode rouge : cibles de 48 px, rien ne dépasse',
+    etape: '18c2',
+    async verifier(v) {
+      const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+      const bloc = page.getElementById('form-data')?.querySelector('details#ma-config-data');
+      v.vrai('bloc dans le formulaire de Data', Boolean(bloc));
+      if (!bloc) return;
+      v.egal('titre du bloc', texteDe(bloc.querySelector('summary')), 'Ma config : imposer un découpage');
+      const ports = bloc.querySelector('input[name="portsImposes"]');
+      v.egal('nombre de ports imposé', [ports?.getAttribute('inputmode'), texteDe(bloc.querySelector(`label[for="${ports?.id}"]`)), ports?.getAttribute('placeholder')],
+        ['numeric', 'Nombre de ports imposé', 'conseil de l\'appli']);
+      v.egal('passer en fibre', [bloc.querySelector('input[name="fibreImposee"]')?.type, texteDe(bloc.querySelector('input[name="fibreImposee"]')?.closest('label'))],
+        ['checkbox', 'Passer en fibre (le convertisseur de la fiche du processeur)']);
+      const paires = [...bloc.querySelectorAll('input[name="paireFibre"]')];
+      v.egal('paire de convertisseurs : CVT310 par défaut, cachée', [paires.map((p) => [p.value, p.checked]), bloc.querySelector('#bloc-paire-fibre')?.hidden],
+        [[['novastar-cvt310', true], ['novastar-cvt320', false]], true]);
+      v.egal('zone d\'état', bloc.querySelector('#etat-ma-config-data')?.getAttribute('aria-live'), 'polite');
+      await mesurerMaConfig(v, bloc, 'Data');
+    },
+  },
+  {
+    id: 'N96',
+    titre: 'Config imposée dans Élec (18c2, spec § 4.2) : bloc repliable « Ma config » dans le formulaire d\'Élec, gardé avec les saisies du mur : nombre de lignes imposé (clavier numérique, vide = conseil de l\'appli), zone d\'état lue à voix haute ; à 375 px, en sombre et en mode rouge : cibles de 48 px, rien ne dépasse',
+    etape: '18c2',
+    async verifier(v) {
+      const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+      const bloc = page.getElementById('form-elec')?.querySelector('details#ma-config-elec');
+      v.vrai('bloc dans le formulaire d\'Élec', Boolean(bloc));
+      if (!bloc) return;
+      v.egal('titre du bloc', texteDe(bloc.querySelector('summary')), 'Ma config : imposer un découpage');
+      const lignes = bloc.querySelector('input[name="lignesImposees"]');
+      v.egal('nombre de lignes imposé', [lignes?.getAttribute('inputmode'), texteDe(bloc.querySelector(`label[for="${lignes?.id}"]`)), lignes?.getAttribute('placeholder')],
+        ['numeric', 'Nombre de lignes imposé', 'conseil de l\'appli']);
+      v.egal('zone d\'état', bloc.querySelector('#etat-ma-config-elec')?.getAttribute('aria-live'), 'polite');
+      await mesurerMaConfig(v, bloc, 'Élec');
+    },
+  },
+  {
+    id: 'N97',
+    titre: 'Config imposée dans le Schéma (18c2, spec § 4.4) : repère du départ en fibre, « MCTRL4K », « CVT4K au pied du mur », « fibre 50 m » ; paire de CVT310 du MCTRL660 de même ; sans fibre, la régie en cuivre comme avant ; SX40 : ses XD, comme avant',
+    etape: '18c2',
+    verifier(v, contexte) {
+      const b = baseProcesseurs(contexte);
+      const distributeurs = b.distributeurs.map((d) => calculs.resoudreFiche(d, b.sources));
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const m = calculs.mur(upad, 4, 4);
+      const fibre = (procId) => {
+        const e = calculs.evaluerProcesseur(m, upad, processeurDeBase(contexte, procId), { frequenceHz: 60, bits: 8 });
+        return { e, fibre: calculs.cablageData(m, upad, e, { distributeurs, imposee: { ports: 2, fibre: true } }).imposee.fibre };
+      };
+      const k4 = fibre('novastar-mctrl4k');
+      v.egal('MCTRL4K en fibre', repereSchema('data', { evaluation: k4.e, distanceM: 50, fibre: k4.fibre }), { lignes: ['MCTRL4K', 'CVT4K au pied du mur', 'fibre 50 m'] });
+      v.egal('MCTRL4K en cuivre', repereSchema('data', { evaluation: k4.e, distanceM: 50 }), { lignes: ['MCTRL4K', 'régie à 50 m'] });
+      const m660 = fibre('novastar-mctrl660');
+      v.egal('MCTRL660, paires de CVT310', repereSchema('data', { evaluation: m660.e, distanceM: 50, fibre: m660.fibre }), { lignes: ['MCTRL660', 'CVT310 au pied du mur', 'fibre 50 m'] });
+      const bp2 = dalleDeBase(contexte, 'roe-bp2-v2');
+      const mb = calculs.mur(bp2, 12, 6);
+      const sx40 = calculs.evaluerProcesseur(mb, bp2, processeurDeBase(contexte, 'brompton-sx40'), { frequenceHz: 60, bits: 10 });
+      const fsx = calculs.cablageData(mb, bp2, sx40, { distributeurs, imposee: { ports: 6, fibre: true } }).imposee.fibre;
+      v.egal('SX40 : ses XD, comme avant', repereSchema('data', { evaluation: sx40, distanceM: 150, fibre: fsx }), { lignes: ['XD', 'fibre 150 m'] });
+    },
+  },
 ];
+
+// Bloc « Ma config » (18c2) monté seul à 375 px, ouvert, tous ses champs visibles : cibles de 48 px et débordement,
+// en thème sombre puis en mode rouge.
+async function mesurerMaConfig(v, bloc, onglet) {
+  const retirer = await chargerStylesLook();
+  const html = document.documentElement;
+  const mode = html.dataset.mode;
+  const racine = el('form', { class: 'carte formulaire', style: 'position:absolute;left:-10000px;top:0;width:375px;box-sizing:border-box' });
+  const copie = document.importNode(bloc, true);
+  copie.open = true;
+  copie.querySelectorAll('[hidden]').forEach((x) => { x.hidden = false; });
+  racine.append(copie);
+  document.body.append(racine);
+  try {
+    for (const rouge of [false, true]) {
+      if (rouge) html.dataset.mode = 'rouge';
+      else delete html.dataset.mode;
+      const nom = `${onglet}, ${rouge ? 'mode rouge' : 'sombre'}`;
+      const cibles = [copie.querySelector('summary'), ...copie.querySelectorAll('input:not([type="radio"]):not([type="checkbox"])'),
+        ...[...copie.querySelectorAll('input[type="radio"], input[type="checkbox"]')].map((x) => x.closest('label'))];
+      v.egal(`${nom} : cibles de 48 px`, cibles.filter((x) => x.getBoundingClientRect().height < 47.5).map((x) => texteDe(x) || x.name), []);
+      const bord = racine.getBoundingClientRect().right;
+      v.egal(`${nom} : rien ne dépasse`, [...copie.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > bord + 0.5)
+        .map((x) => `${x.tagName.toLowerCase()}${x.className ? `.${x.className}` : ''}`), []);
+    }
+  } finally {
+    if (mode) html.dataset.mode = mode;
+    else delete html.dataset.mode;
+    racine.remove();
+    retirer();
+  }
+}
 
 // Contraste WCAG entre deux couleurs « #rrggbb ».
 function luminance(hex) {
