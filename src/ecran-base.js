@@ -10,7 +10,7 @@ import {
   supprimerLot, reglerConfigLot, configLot, supprimerConfigLot, verifierFichierJoint, joindreFichier, detacherFichier,
   fichiersJoints, tailleFichiersJoints, alerteTailleFichier, migrerFichiersConfig, logicielDuProcesseur, reglerLogicielParc,
   logicielParc, fichesRetirees, retirerFicheRetiree, arbreDalles, reglerQuantiteParc, quantitesParc,
-  FAMILLES_LONGUEURS, LIBELLES_LONGUEURS, reglerLongueursParc, reglerCaseParc,
+  FAMILLES_LONGUEURS, LIBELLES_LONGUEURS, reglerLongueursParc, reglerCaseParc, reglerCodeNovaLCT, codeNovaLCT, CODE_NOVALCT_MAX,
 } from './fiches.js';
 import { stockageDisponible, ecrireFichier, lireFichier, supprimerFichier, listerFichiers } from './stockage.js';
 import { choixPartageFichier, partagerFichier, telecharger, NOTE_TELECHARGEMENT_CONFIG } from './export.js';
@@ -200,9 +200,49 @@ function afficherParcs() {
       return el('li', {}, champ,
         el('span', { class: 'compte' }, `${compterMembres(parc)}${parc.id === parcActif ? ' · parc actif' : ''}`),
         bits,
+        codeParc(parc),
         longueursParc(parc),
         bouton);
     }));
+}
+
+// Code admin NovaLCT de ce prestataire (étape 18a) : champ masqué, « Afficher », gardé sur l'appareil seulement.
+function codeParc(parc) {
+  const cle = `code:${parc.id}`;
+  const actuel = codeNovaLCT(ctx.base, parc.id);
+  const id = `code-novalct-${parc.id}`;
+  const erreur = el('div', { 'aria-live': 'polite' });
+  const champ = el('input', {
+    id, name: 'code', type: 'password', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', maxlength: String(CODE_NOVALCT_MAX), value: actuel,
+  });
+  const afficher = el('button', { class: 'bouton bouton-discret', type: 'button', 'aria-pressed': 'false', 'aria-controls': id }, 'Afficher');
+  afficher.addEventListener('click', () => {
+    const montre = champ.type === 'password';
+    champ.type = montre ? 'text' : 'password';
+    afficher.textContent = montre ? 'Masquer' : 'Afficher';
+    afficher.setAttribute('aria-pressed', String(montre));
+  });
+  const formulaire = el('form', { class: 'formulaire code-parc', novalidate: '' },
+    el('p', { class: 'compte' }, 'Mot de passe de User > Advanced Synchronous System User Login quand ce parc a changé le défaut « admin ». '
+      + 'Gardé sur cet appareil : jamais dans un PDF, un texte copié ni l\'export d\'une presta. Vide : retiré.'),
+    el('div', { class: 'champ' }, el('label', { for: id }, 'Code admin NovaLCT'), el('div', { class: 'code-parc-ligne' }, champ, afficher)),
+    erreur,
+    el('button', { class: 'bouton', type: 'submit', 'data-icone': 'enregistrer' }, 'Enregistrer pour ce parc'));
+  formulaire.addEventListener('submit', (evenement) => {
+    evenement.preventDefault();
+    remplacer(erreur);
+    try {
+      enregistrer(reglerCodeNovaLCT(ctx.base, parc.id, champ.value));
+    } catch (e) {
+      if (!(e instanceof ErreurSaisie)) throw e;
+      remplacer(erreur, el('div', { class: 'alerte alerte-erreur', role: 'alert' }, e.message));
+    }
+  });
+  const details = el('details', { class: 'code-novalct-parc', open: ouvertes.has(cle) ? '' : null },
+    el('summary', {}, `NovaLCT : code admin${actuel ? ' (enregistré)' : ''}`),
+    formulaire);
+  details.addEventListener('toggle', () => (details.open ? ouvertes.add(cle) : ouvertes.delete(cle)));
+  return details;
 }
 
 // Longueurs du stock de ce prestataire, par famille de câble (liste de matériel, étape 13b) ; vide = longueurs par défaut.

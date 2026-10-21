@@ -8414,8 +8414,8 @@ export const REGLES = [
         processeurs: bp.processeurs.map((f) => calculs.resoudreFiche(f, bp.sources)),
         liaisons: liaisonsDeBase(contexte),
       };
-      v.egal('mur d\'exemple', [novalct.MUR_A_BLANC.dalle, novalct.MUR_A_BLANC.colonnes, novalct.MUR_A_BLANC.lignes, novalct.MUR_A_BLANC.processeurs],
-        ['absen-m2-9', 12, 6, ['novastar-mctrl660', 'novastar-vx1000']]);
+      v.egal('mur d\'exemple', [novalct.MUR_A_BLANC.dalle, novalct.MUR_A_BLANC.colonnes, novalct.MUR_A_BLANC.lignes, novalct.MUR_A_BLANC.processeur],
+        ['absen-m2-9', 12, 6, 'novastar-mctrl660']);
       const a = novalct.murABlanc(base);
       v.egal('MCTRL660 par défaut, sans redondance', [a?.resultat.processeur, a?.resultat.parties.map((x) => x.id), a?.evaluation.reglages.redondance],
         ['MCTRL660', ['0', 'P1', 'C'], false]);
@@ -8426,7 +8426,173 @@ export const REGLES = [
       v.egal('dalle absente : rien', novalct.murABlanc({ ...base, dalles: [] }), null);
     },
   },
+  {
+    id: 'R377',
+    titre: 'Code admin NovaLCT du parc (18a, spec § 2) : `parc.codeNovaLCT`, texte de 1 à 40 caractères, espaces de bord retirés, facultatif (vide : retiré), refus avec la raison ; valeur illisible d\'un fichier ignorée ; gardé dans l\'export de la base, retiré de l\'export d\'une presta ; import d\'une presta : parc identique sans tenir compte du code, code de l\'appareil gardé même en prenant le parc du fichier',
+    etape: '18a',
+    verifier(v, contexte) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Parc test');
+      const id = base.parcs[0].id;
+      base = fiches.reglerCodeNovaLCT(base, id, '  code-essai ');
+      v.egal('gardé, espaces de bord retirés', [base.parcs[0].codeNovaLCT, fiches.codeNovaLCT(base, id)], ['code-essai', 'code-essai']);
+      v.egal('vide : retiré, plus rien d\'écrit', 'codeNovaLCT' in fiches.reglerCodeNovaLCT(base, id, '  ').parcs[0], false);
+      v.egal('41 caractères : refus avec la raison', messageErreur(() => fiches.reglerCodeNovaLCT(base, id, 'x'.repeat(41))), 'Code admin NovaLCT : 40 caractères au plus, ou vide.');
+      v.egal('40 caractères : gardé', fiches.codeNovaLCT(fiches.reglerCodeNovaLCT(base, id, 'x'.repeat(40)), id), 'x'.repeat(40));
+      const lu = (x) => fiches.codeNovaLCT({ ...base, parcs: [{ ...base.parcs[0], codeNovaLCT: x }] }, id);
+      v.egal('valeur illisible d\'un fichier : ignorée', [lu(1234), lu(''), lu('x'.repeat(41)), lu(null), lu({ code: 'a' })], [null, null, null, null, null]);
+      v.egal('« Tous » ou parc inconnu : aucun', [fiches.codeNovaLCT(base, null), fiches.codeNovaLCT(base, 'autre')], [null, null]);
+      v.egal('export de la base : gardé', fiches.exporter(base, null).parcs[0].codeNovaLCT, 'code-essai');
+
+      const o = optionsPresta();
+      const essai = prestaEssai(o, contexte);
+      const pid = essai.base.parcs[0].id;
+      const avecCode = fiches.reglerCodeNovaLCT(essai.base, pid, 'code-essai');
+      const { donnees } = prestas.exporterPresta(essai.etat, essai.presta.id, avecCode, { ...o, versionAppli: 38 });
+      v.egal('export d\'une presta : parc sans le code', [donnees.parcs.map((p) => p.nom), donnees.parcs.some((p) => 'codeNovaLCT' in p), JSON.stringify(donnees).includes('code-essai')],
+        [['Prestataire A'], false, false]);
+      const texte = JSON.stringify(donnees);
+      v.egal('import sur l\'appareil qui a le code : parc identique, pas de conflit', prestas.verifierImportPresta(texte, essai.etat, avecCode, essai.depart).conflits.parcs, []);
+      const r1 = prestas.importerPresta(prestas.migrer({}, o), avecCode, essai.depart, texte, { conflits: 'prendre' }, o);
+      v.egal('« Prendre ceux du fichier », parc identique : code gardé', [r1.rapport.parcs.identiques, fiches.codeNovaLCT(r1.base, pid)], [['Prestataire A'], 'code-essai']);
+      const autre = fiches.reglerCodeNovaLCT(autreAppareil(contexte), pid, 'autre-code');
+      const r2 = prestas.importerPresta(prestas.migrer({}, o), autre, essai.depart, texte, { conflits: 'prendre' }, o);
+      v.egal('parc différent pris du fichier : code de l\'appareil gardé', [r2.rapport.parcs.remplaces, fiches.codeNovaLCT(r2.base, pid)], [['Prestataire A'], 'autre-code']);
+      const r3 = prestas.importerPresta(prestas.migrer({}, o), fiches.baseVide(), essai.depart, texte, {}, o);
+      v.egal('parc absent ajouté : sans code', [r3.rapport.parcs.ajoutes, fiches.codeNovaLCT(r3.base, pid)], [['Prestataire A'], null]);
+    },
+  },
+  {
+    id: 'R378',
+    titre: 'Code admin NovaLCT du parc (18a, spec § 2) : étape 0.5, défaut « admin » toujours dit ; parc avec un code : « Ton parc X a changé ce mot de passe », l\'étape porte le nom du parc pour l\'écran, jamais le code ; même signature avec ou sans code ; texte copié, PDF et résumé de la fiche régie : le code du parc dans l\'appli, jamais le code lui-même ; parc sans code : textes d\'avant ; à blanc : le parc aussi',
+    etape: '18a',
+    verifier(v, contexte) {
+      const sans = pasAPasNovaLCT(contexte);
+      const parc = { nom: 'Parc test', aCode: true };
+      const avec = pasAPasNovaLCT(contexte, { options: { parc } });
+      const sansCode = pasAPasNovaLCT(contexte, { options: { parc: { nom: 'Parc test', aCode: false } } });
+      const [e0, e1, e2] = [sans, avec, sansCode].map((p) => etapeNovaLCT(p, '0.5'));
+      v.vrai('défaut « admin » dit, avec ou sans code', [e0, e1].every((e) => e.texte.includes('mot de passe par défaut « admin »')), e1.texte);
+      v.vrai('avec un code : le parc l\'a changé, code dans l\'appli', e1.texte.includes('Ton parc Parc test a changé ce mot de passe : prends son code dans l\'appli (onglet Base).'), e1.texte);
+      v.egal('nom du parc pour l\'écran ; sans code : aucun', [e1.codeParc, e0.codeParc, e2.codeParc], ['Parc test', null, null]);
+      v.egal('parc sans code : texte d\'avant', e2.texte, e0.texte);
+      v.egal('même signature (changer le code ne décoche rien)', e1.signature, e0.signature);
+      const lignes = novalct.texteNovaLCT(avec, {}, { presta: 'Presta A', mur: 'Mur 1' }).split('\n');
+      v.vrai('texte copié : le code du parc dans l\'appli', lignes.some((l) => l.includes('Ton parc Parc test a changé ce mot de passe')));
+      const pdfLignes = novalct.ficheNovaLCT(avec, {}, { presta: 'Presta A', mur: 'Mur 1' }).blocs[0].lignes;
+      v.vrai('PDF : idem', pdfLignes.some((l) => (l.valeur ?? '').includes('Ton parc Parc test a changé ce mot de passe')));
+      const resume = novalct.resumeNovaLCT(avec, {}).split('\n');
+      v.vrai('fiche régie : le code du parc dans l\'appli', resume.includes('Mot de passe NovaLCT : celui du parc Parc test, dans l\'appli (onglet Base)'), resume.join(' / '));
+      v.egal('fiche régie sans code : inchangée', novalct.resumeNovaLCT(sansCode, {}), novalct.resumeNovaLCT(sans, {}));
+      const fuite = pasAPasNovaLCT(contexte, { options: { parc: { ...parc, code: 'code-essai' } } });
+      v.egal('code passé par erreur : jamais dans le pas à pas, le texte, le PDF ni le résumé',
+        [fuite, novalct.texteNovaLCT(fuite, {}), novalct.ficheNovaLCT(fuite, {}), novalct.resumeNovaLCT(fuite, {})].filter((x) => JSON.stringify(x).includes('code-essai')).length, 0);
+      const bd = baseDalles(contexte);
+      const bp = baseProcesseurs(contexte);
+      const blanc = novalct.murABlanc({
+        dalles: bd.dalles.map((f) => calculs.resoudreFiche(f, bd.sources)), processeurs: bp.processeurs.map((f) => calculs.resoudreFiche(f, bp.sources)),
+        liaisons: liaisonsDeBase(contexte), parc,
+      });
+      v.egal('à blanc : le parc actif aussi', etapeNovaLCT(blanc.resultat, '0.5').codeParc, 'Parc test');
+    },
+  },
+  {
+    id: 'R379',
+    titre: 'NovaLCT à blanc pour chaque processeur (18b, spec § 3.1) : liste des processeurs de la base réglés dans NovaLCT, sans les fiches « à compléter », groupés par gamme dans l\'ordre MCTRL, MSD, VX, VX Pro, NovaPro, série H, du plus petit au plus grand comme dans Data, « actuel » ou « ancien » ; MCTRL660 par défaut ; aucun processeur d\'un autre logiciel',
+    etape: '18b',
+    verifier(v, contexte) {
+      const bp = baseProcesseurs(contexte);
+      const procs = bp.processeurs.map((f) => calculs.resoudreFiche(f, bp.sources));
+      const l = novalct.processeursABlanc(procs);
+      const ids = l.groupes.flatMap((g) => g.processeurs.map((p) => p.id));
+      const attendus = procs.filter((p) => p.logiciel === 'NovaLCT' && calculs.champsManquants(p).length === 0).map((p) => p.id);
+      v.egal('tous les NovaLCT complets, une fois chacun', [...ids].sort(), [...attendus].sort());
+      v.egal('34 processeurs (liste lue le 21/10/2026)', ids.length, 34);
+      v.egal('MCTRL4K proposé, VX400s (à compléter) absent', [ids.includes('novastar-mctrl4k'), ids.includes('novastar-vx400s')], [true, false]);
+      v.egal('gammes dans l\'ordre', l.groupes.map((g) => g.gamme), ['MCTRL', 'MSD (cartes d\'envoi)', 'VX', 'VX Pro', 'NovaPro', 'Série H']);
+      v.egal('MCTRL du plus petit au plus grand, comme dans Data', l.groupes[0].processeurs.map((p) => p.modele),
+        ['MCTRL300', 'MCTRL660', 'MCTRL660 Pro', 'MCTRL500', 'MCTRL600', 'MCTRL700', 'MCTRL700 Pro', 'MCTRL R5', 'MCTRL4K']);
+      v.egal('libellé avec « actuel » ou « ancien »', [l.groupes[0].processeurs.at(-1).libelle, l.groupes[0].processeurs[3].libelle], ['MCTRL4K (actuel)', 'MCTRL500 (ancien)']);
+      v.egal('MCTRL660 par défaut', l.defaut, 'novastar-mctrl660');
+      v.egal('aucun processeur d\'un autre logiciel', ids.filter((id) => procs.find((p) => p.id === id).logiciel !== 'NovaLCT'), []);
+    },
+  },
+  {
+    id: 'R380',
+    titre: 'NovaLCT à blanc pour chaque processeur (18b, spec § 3.1 et 3.2) : un pas à pas complet sur le mur d\'exemple pour chacun des processeurs de la liste, avec et sans redondance ; chaque étape a une source ou « à vérifier en formation »',
+    etape: '18b',
+    verifier(v, contexte) {
+      const bd = baseDalles(contexte);
+      const bp = baseProcesseurs(contexte);
+      const base = { dalles: bd.dalles.map((f) => calculs.resoudreFiche(f, bd.sources)), processeurs: bp.processeurs.map((f) => calculs.resoudreFiche(f, bp.sources)), liaisons: liaisonsDeBase(contexte) };
+      const ids = novalct.processeursABlanc(base.processeurs).groupes.flatMap((g) => g.processeurs.map((p) => p.id));
+      const problemes = [];
+      for (const id of ids) {
+        for (const redondance of [false, true]) {
+          const a = novalct.murABlanc({ ...base, processeur: id, redondance });
+          if (!a?.resultat) {
+            problemes.push(`${id}${redondance ? ' (redondance)' : ''} : ${a?.raison ?? 'aucun pas à pas'}`);
+            continue;
+          }
+          const sans = a.resultat.parties.flatMap((x) => x.etapes).filter((e) => !e.sources.length && !e.aVerifier).map((e) => e.id);
+          if (sans.length) problemes.push(`${id} : étapes sans source ni « à vérifier » ${sans.join(', ')}`);
+          if (!a.resultat.parties.some((x) => x.processeur)) problemes.push(`${id} : aucune partie NovaLCT`);
+        }
+      }
+      v.egal(`un pas à pas complet pour chacun des ${ids.length} processeurs`, problemes, []);
+    },
+  },
+  {
+    id: 'R381',
+    titre: 'NovaLCT pas à pas, particularités des modèles (18b, spec § 3.2) : MCTRL4K, fibres OPT1 (ports 1 à 8) et OPT2 (9 à 16), OPT3 et OPT4 en secours, CVT4K au pied du mur, fibres du mur selon ses ports (redondance comprise) ; MCTRL R5 et MCTRL660 PRO, leurs fibres, convertisseur à vérifier ; mode de travail « sending card mode » (MCTRL660 PRO, MCTRL R5, H9, NovaPro UHD Jr), ports optiques en hot backup ou copy (H9, NovaPro UHD Jr) ; secours de la source, facultatif (MCTRL660 PRO, MCTRL R5) ; série H : cartes de sortie de Data, ports par carte à vérifier ; rien de tout cela sur un MCTRL660',
+    etape: '18b',
+    verifier(v, contexte) {
+      const pas = (procId, reglages = {}) => pasAPasNovaLCT(contexte, { dalle: dalleDeBase(contexte, 'absen-m2-9'), procId, reglages });
+      const ids = (p) => p.parties.flatMap((x) => x.etapes).map((e) => e.id);
+      const k4 = pas('novastar-mctrl4k');
+      const f = etapeNovaLCT(k4, '0.7');
+      v.egal('MCTRL4K : étape fibre', f?.titre, 'Fibre, si le mur passe en fibre');
+      v.vrai('MCTRL4K : OPT1 à OPT4 et CVT4K', /OPT1 porte les ports 1 à 8, OPT2 les ports 9 à 16 ; OPT3 copie OPT1 et OPT4 copie OPT2, en secours\./.test(f?.texte ?? '')
+        && (f?.texte ?? '').includes('CVT4K'), f?.texte);
+      v.vrai('MCTRL4K, 4 ports : une fibre, OPT1', (f?.texte ?? '').includes('Pour ce mur : OPT1 (ports 1 à 4)') && !(f?.texte ?? '').includes('OPT2 (ports'), f?.texte);
+      v.egal('MCTRL4K : sources de la fibre', f?.sources.map((s) => `${s.id} ${s.ref}`), ['mctrl4k-1-2-1 p. 4', 'mctrl4k-manuel-1-2-1 p. 4 et 8', 'cvt4k-s-1-0-6 p. 3', 'formation-10 null']);
+      const k4r = etapeNovaLCT(pas('novastar-mctrl4k', { redondance: true }), '0.7');
+      v.vrai('MCTRL4K en redondance (colonnes paires : 6 ports) : secours 9 à 14 sur OPT2', (k4r?.texte ?? '').includes('Pour ce mur : OPT1 (ports 1 à 6) et OPT2 (ports 9 à 14)'), k4r?.texte);
+      v.vrai('MCTRL4K : signature selon les fibres', k4r?.signature !== f?.signature);
+      const r5 = etapeNovaLCT(pas('novastar-mctrl-r5'), '0.7');
+      v.vrai('MCTRL R5 : OPT1 copie les ports 1 à 8, convertisseur à vérifier', (r5?.texte ?? '').includes('OPT1 copie les ports 1 à 8 ; OPT2 copie OPT1') && r5?.aVerifier === true, r5?.texte);
+      const pro = pas('novastar-mctrl660-pro');
+      const fp = etapeNovaLCT(pro, '0.7');
+      v.vrai('MCTRL660 PRO : OPT1 et ses 6 ports, OPT2 en secours', (fp?.texte ?? '').includes('OPT1 porte les 6 ports ; OPT2 est le secours d\'OPT1') && fp?.aVerifier === true, fp?.texte);
+      const mode = etapeNovaLCT(pro, 'P1.B.1a');
+      v.vrai('MCTRL660 PRO : mode de travail', mode?.titre === 'Mode de travail : carte d\'envoi' && mode.texte.includes('Set Working Mode') && mode.texte.includes('sending card mode')
+        && mode.texte.includes('fiber converter mode'), mode?.texte);
+      v.egal('MCTRL660 PRO : sources du mode', mode?.sources.map((s) => `${s.id} ${s.ref}`), ['lct-5-5-0 § 5.5, p. 30 à 33', 'lct-5-8-1 § 5.5, p. 33 à 36', 'mctrl660-pro-1-4-1 p. 1']);
+      const entree = etapeNovaLCT(pro, 'P1.B.2a');
+      v.vrai('MCTRL660 PRO : secours de la source, facultatif', entree?.titre === 'Secours de la source (facultatif)' && entree.texte.includes('Source Backup Setting')
+        && entree.texte.includes('Start source backup'), entree?.texte);
+      v.vrai('MCTRL R5 : mode de travail et secours de la source, façade Input Backup', ids(pas('novastar-mctrl-r5')).includes('P1.B.1a')
+        && (etapeNovaLCT(pas('novastar-mctrl-r5'), 'P1.B.2a')?.texte ?? '').includes('Input Backup'));
+      const h9 = etapeNovaLCT(pas('novastar-h9'), 'P1.B.1a');
+      v.vrai('H9 : mode de travail et ports optiques hot backup ou copy', (h9?.texte ?? '').includes('hot backup') && h9.texte.includes('copy'), h9?.texte);
+      v.vrai('NovaPro UHD Jr : mode de travail', ids(pas('novastar-novapro-uhd-jr')).includes('P1.B.1a'));
+      const h5 = etapeNovaLCT(pas('novastar-h5'), 'P1.B.6');
+      v.vrai('série H : cartes de sortie de Data, ports par carte à vérifier', /carte(s)? H_20xRJ45/.test(h5?.texte ?? '') && (h5?.texte ?? '').includes('quels ports sont sur quelle carte') && h5.aVerifier === true, h5?.texte);
+      const m660 = ids(pas('novastar-mctrl660'));
+      v.egal('MCTRL660 : ni fibre, ni mode de travail, ni secours de la source', ['0.7', 'P1.B.1a', 'P1.B.2a'].filter((x) => m660.includes(x)), []);
+    },
+  },
+  {
+    id: 'R382',
+    titre: 'NovaLCT pas à pas (18b) : un mur sur MCTRL4K choisi à la main dans Data a son pas à pas (cartes d\'envoi, 16 ports, Verify en redondance)',
+    etape: '18b',
+    verifier(v, contexte) {
+      const p = pasAPasNovaLCT(contexte, { procId: 'novastar-mctrl4k', reglages: { redondance: true } });
+      v.egal('pas à pas du MCTRL4K', [p?.processeur, p?.groupe.id, p?.parties.some((x) => x.processeur === 1)], ['MCTRL4K', 'carte-envoi', true]);
+      v.vrai('redondance : Verify', (etapeNovaLCT(p, 'C.5')?.texte ?? '').includes('Verify'));
+    },
+  },
 ];
+
 
 // Ligne « libellé : … » d'un texte copié.
 const ligneDe = (texte, libelle) => texte.split('\n').find((l) => l.startsWith(`${libelle} : `)) ?? `${libelle} : absente`;

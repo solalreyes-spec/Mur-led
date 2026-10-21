@@ -6,6 +6,7 @@
 
 import { nombre } from './format.js';
 import { mur as murDeDalles, evaluerProcesseur, cablageData, sourceConseillee } from './calculs.js';
+import { arbreProcesseurs } from './fiches.js';
 
 export const SOURCES_NOVALCT = {
   'lct-5-5-0': {
@@ -42,7 +43,37 @@ export const SOURCES_NOVALCT = {
     court: 'Fiche VX1000 Pro V1.4.0',
     confiance: 'constructeur',
   },
+  // Fiches et manuels relus pour les particularités des modèles (étape 18b, récupérés le 21 octobre 2026).
+  'mctrl4k-1-2-1': {
+    titre: 'MCTRL4K LED Display Controller Specifications V1.2.1 (Novastar)', court: 'Fiche MCTRL4K V1.2.1', confiance: 'constructeur',
+    url: 'https://oss.novastar.tech/uploads/2024/11/MCTRL4K-LED-Display-Controller-Specifications-V1.2.1.pdf',
+  },
+  'mctrl4k-manuel-1-2-1': {
+    titre: 'MCTRL4K LED Display Controller User Manual V1.2.1 (Novastar)', court: 'Manuel MCTRL4K V1.2.1', confiance: 'constructeur',
+    url: 'https://oss.novastar.tech/uploads/2024/11/MCTRL4K-LED-Display-Controller-User-Manual-V1.2.1.pdf',
+  },
+  'cvt4k-s-1-0-6': {
+    titre: 'CVT4K-S Fiber Converter Specifications V1.0.6 (Novastar)', court: 'Fiche CVT4K-S V1.0.6', confiance: 'constructeur',
+    url: 'https://oss.novastar.tech/uploads/2024/10/CVT4K-S-Fiber-Converter-Specifications-V1.0.6.pdf',
+  },
+  'mctrl660-pro-1-4-1': {
+    titre: 'MCTRL660 PRO Independent Controller Specifications V1.4.1 (Novastar)', court: 'Fiche MCTRL660 PRO V1.4.1', confiance: 'constructeur',
+    url: 'https://oss.novastar.tech/uploads/2024/11/MCTRL660-PRO-Independent-Controller-Specifications-V1.4.1.pdf',
+  },
+  'mctrl-r5-1-0-5': {
+    titre: 'MCTRL R5 LED Display Controller Specifications V1.0.5 (Novastar)', court: 'Fiche MCTRL R5 V1.0.5', confiance: 'constructeur',
+    url: 'https://oss.novastar.tech/uploads/2024/11/MCTRL-R5-LED-Display-Controller-Specifications-V1.0.5.pdf',
+  },
+  'mctrl-r5-manuel-1-0-5': {
+    titre: 'MCTRL R5 LED Display Controller User Manual V1.0.5 (Novastar)', court: 'Manuel MCTRL R5 V1.0.5', confiance: 'constructeur',
+    url: 'https://oss.novastar.tech/uploads/2024/11/MCTRL-R5-LED-Display-Controller-User-Manual-V1.0.5.pdf',
+  },
+  'h9-1-8-0': {
+    titre: 'H9 Video Wall Splicer Specifications V1.8.0 (Novastar)', court: 'Fiche H9 V1.8.0', confiance: 'constructeur',
+    url: 'https://oss.novastar.tech/uploads/2023/02/H9-Video-Wall-Splicer-Specifications-V1.8.0.pdf',
+  },
   'formation-6': { titre: 'Formation (transcription 6)', court: 'Formation (transcription 6)', confiance: 'formation' },
+  'formation-10': { titre: 'Formation (transcription 10)', court: 'Formation (transcription 10)', confiance: 'formation' },
   'formation-11': { titre: 'Formation (transcription 11)', court: 'Formation (transcription 11)', confiance: 'formation' },
   'formation-12': { titre: 'Formation (transcription 12)', court: 'Formation (transcription 12)', confiance: 'formation' },
   cdc: { titre: 'Cahier des charges du projet, mise en service Novastar', court: 'Cahier des charges du projet', confiance: 'choix de conception' },
@@ -111,6 +142,50 @@ export function groupeVideo(proc) {
 }
 
 // ---------------------------------------------------------------------------
+// Particularités des modèles (étape 18b, spec § 3.2) : chacune avec sa source, ou « à vérifier en formation »
+// ---------------------------------------------------------------------------
+
+// Sorties fibre : quels ports chaque fibre porte (`parFibre` ports par OPT principale), convertisseur au pied du mur.
+const FIBRES = {
+  mctrl4k: {
+    texte: 'OPT1 porte les ports 1 à 8, OPT2 les ports 9 à 16 ; OPT3 copie OPT1 et OPT4 copie OPT2, en secours.',
+    parFibre: 8,
+    convertisseur: ' Au pied du mur : un CVT4K ; la fibre sur son OPT du même numéro, puis chaque câble de dalle sur le port du même '
+      + 'numéro (fiche CVT4K-S : OPT1 pour les ports 1 à 8, OPT2 pour 9 à 16). Fibre monomode OS1 ou OS2, connecteurs LC, 10 km au plus.',
+    aVerifier: false,
+    sources: [['mctrl4k-1-2-1', 'p. 4'], ['mctrl4k-manuel-1-2-1', 'p. 4 et 8'], ['cvt4k-s-1-0-6', 'p. 3'], ['formation-10', null]],
+  },
+  'mctrl-r5': {
+    texte: 'OPT1 copie les ports 1 à 8 ; OPT2 copie OPT1.',
+    parFibre: 8,
+    convertisseur: ` Convertisseur au pied du mur : la fiche ne le nomme pas, ${'à vérifier en formation'}.`,
+    aVerifier: true,
+    sources: [['mctrl-r5-1-0-5', 'p. 3'], ['mctrl-r5-manuel-1-0-5', 'p. 3']],
+  },
+  'mctrl660-pro': {
+    texte: 'OPT1 porte les 6 ports ; OPT2 est le secours d\'OPT1.',
+    parFibre: 6,
+    convertisseur: ' Au pied du mur, la fiche dit que le MCTRL660 PRO peut lui-même servir de convertisseur (« can work as a sending card '
+      + `and a fiber converter ») ; le convertisseur à prendre au stock : ${'à vérifier en formation'}.`,
+    aVerifier: true,
+    sources: [['mctrl660-pro-1-4-1', 'p. 1 et 4']],
+  },
+};
+// Mode de travail (Set Working Mode, NovaLCT § 5.5 « Applicable Products ») ; ports optiques en hot backup ou copy.
+const MODE_TRAVAIL = { 'mctrl660-pro': ['mctrl660-pro-1-4-1', 'p. 1'], 'mctrl-r5': null, h9: ['h9-1-8-0', 'p. 2'], 'novapro-uhd-jr': null };
+const MODE_OPTIQUE = ['h9', 'novapro-uhd-jr'];
+// Secours de la source d'entrée (NovaLCT § 5.2.1, étape 10 : « For the MCTRL660 PRO and MCTRL R5 »).
+const SECOURS_SOURCE = ['mctrl660-pro', 'mctrl-r5'];
+
+// « ports 1 à 4 », « port 3 », « ports 1, 3 et 5 ».
+function textePorts(liste) {
+  const l = [...new Set(liste)].sort((a, b) => a - b);
+  if (l.length === 1) return `port ${l[0]}`;
+  const suite = l.every((x, i) => i === 0 || x === l[i - 1] + 1);
+  return suite ? `ports ${l[0]} à ${l.at(-1)}` : `ports ${enumeration(l.map(String))}`;
+}
+
+// ---------------------------------------------------------------------------
 // Versions de NovaLCT (spec § 3.3)
 // ---------------------------------------------------------------------------
 
@@ -153,10 +228,10 @@ const A_VERIFIER = 'à vérifier en formation';
 // Titres fixes, aussi pour nommer une étape disparue dans le bandeau des cases.
 const TITRES = {
   '0.1': 'PC de régie et logiciels', '0.2': 'Fichiers du lot', '0.3': 'Brancher le PC', '0.4': 'Tout en ligne, firmwares notés',
-  '0.5': 'Connexion avancée', '0.6': 'Redondance : câble principal d\'abord',
+  '0.5': 'Connexion avancée', '0.6': 'Redondance : câble principal d\'abord', '0.7': 'Fibre, si le mur passe en fibre',
   'A.1': 'Entrée à la taille du canvas', 'A.2': 'Deux entrées assemblées (MOSAIC)', 'A.3': 'Couche plein écran et preset',
   'A.4': 'Plage RGB Full', 'A.5': 'Sauvegarde du boîtier', 'A.6': 'Synchronisation des processeurs',
-  'B.1': 'Ouvrir Screen Configuration', 'B.2': 'Carte d\'envoi', 'B.3': 'Cartes de réception : fichier', 'B.4': 'Taille de carte',
+  'B.1': 'Ouvrir Screen Configuration', 'B.1a': 'Mode de travail : carte d\'envoi', 'B.2': 'Carte d\'envoi', 'B.2a': 'Secours de la source (facultatif)', 'B.3': 'Cartes de réception : fichier', 'B.4': 'Taille de carte',
   'B.5': 'Performance Settings : ne touche à rien', 'B.6': 'Screen Connection : la grille', 'B.8': 'Charge des ports',
   'B.9': 'Coordinate', 'B.10': 'Envoyer, enregistrer', 'B.11': 'Redondance des ports',
   'C.1': 'Nombre de cartes par port', 'C.2': 'Mapping', 'C.3': 'Mire', 'C.4': 'Luminosité', 'C.5': 'Test de la redondance',
@@ -170,8 +245,9 @@ const titreDe = (id) => {
 
 // Une étape : la signature ne dépend que de son identifiant et de ses valeurs (pas de l'ordre des noms de version).
 // `tableau` : { colonnes, lignes } à remplir dans le logiciel (redondance), ou null.
-function etape(id, texte, sources, { titre = titreDe(id), valeurs = {}, aVerifier = false, alerte = null, tableau = null } = {}) {
-  return { id, titre, texte, sources, aVerifier, alerte, tableau, valeurs, signature: `${id}|${JSON.stringify(valeurs)}` };
+// `codeParc` : nom du parc dont l'écran montre le code admin NovaLCT (étape 0.5), jamais le code lui-même.
+function etape(id, texte, sources, { titre = titreDe(id), valeurs = {}, aVerifier = false, alerte = null, tableau = null, codeParc = null } = {}) {
+  return { id, titre, texte, sources, aVerifier, alerte, tableau, codeParc, valeurs, signature: `${id}|${JSON.stringify(valeurs)}` };
 }
 
 const majuscule = (t) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -259,8 +335,9 @@ const SEUIL_AVERTISSEMENT = 650000;
 
 // Le pas à pas du mur ouvert, ou null si le processeur ne se règle pas dans NovaLCT.
 // `configs` : [{ libelle, resultat: configsDuMur(...) }] (null : pas de parc) ; `version` : version de NovaLCT relevée
-// dans le parc ; `pliage` : pliageSortie de Canvas ; `courbe` : une zone courbe ou pliée.
-export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, configs = null, version = null, pliage = null, courbe = false }) {
+// dans le parc ; `pliage` : pliageSortie de Canvas ; `courbe` : une zone courbe ou pliée ; `parc` : { nom, aCode } du parc
+// actif (étape 18a), le code lui-même n'entre jamais dans le pas à pas.
+export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, configs = null, version = null, pliage = null, courbe = false, parc = null }) {
   const proc = evaluation?.processeur;
   if (!proc || proc.logiciel !== 'NovaLCT') return null;
   const groupe = groupeVideo(proc);
@@ -288,6 +365,7 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
   const personnalisee = source ? !source.standard : true;
   const lct55 = (ref) => src('lct-5-5-0', ref);
   const lct58 = (ref) => src('lct-5-8-1', ref);
+  const codeParc = parc?.aCode && parc.nom ? String(parc.nom) : null;
 
   // Partie 0 : avant de partir et sur place.
   const fichiersTexte = cfg.aucunParc ? CHOISIS_PARC : [
@@ -311,13 +389,30 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
     etape('0.4', `Mur allumé, tout en ligne : Settings > Hardware Information, Refresh All, puis Refresh, et note les versions du ${modele} `
       + 'et des cartes de réception (onglet Base, version du parc).',
     [lct55('§ 9.5, p. 116 et 117'), lct58('§ 9.5, p. 125 et 126'), src('cdc')]),
-    etape('0.5', 'Menu User > Advanced Synchronous System User Login, mot de passe par défaut « admin ». Sans processeur '
+    etape('0.5', 'Menu User > Advanced Synchronous System User Login, mot de passe par défaut « admin ».'
+      + `${codeParc ? ` Ton parc ${codeParc} a changé ce mot de passe : prends son code dans l'appli (onglet Base).` : ''} Sans processeur `
       + 'branché, User > Demonstration Login permet de s\'entraîner.',
-    [lct55('§ 4, p. 5'), lct58('§ 4, p. 6'), src('formation-6')]),
+    [lct55('§ 4, p. 5'), lct58('§ 4, p. 6'), src('formation-6')], { codeParc }),
     ...(redondance ? [etape('0.6', 'Redondance : branche d\'abord le câble principal seul, configure, puis branche les câbles '
       + 'de secours ; tout brancher d\'un coup peut créer des conflits. Deux processeurs en redondance : configure le premier '
       + 'seul avant de brancher le second.', [src('formation-11'), src('formation-12'), src('cdc')])] : []),
   ];
+  // Fibre (étape 18b) : les OPT que ce mur utilise, d'après les ports principaux et de secours du câblage retenu.
+  const fibre = FIBRES[idCourt];
+  if (fibre) {
+    const parProc = (variante?.processeurs ?? []).map((pv) => {
+      const ports = pv.ports.flatMap((p) => [p.numero, ...(redondance && p.secours ? [p.secours.numero] : [])]);
+      const opt = new Map();
+      for (const n of ports) {
+        const k = Math.ceil(n / fibre.parFibre);
+        opt.set(k, [...(opt.get(k) ?? []), n]);
+      }
+      const liste = [...opt].sort(([a], [b]) => a - b).map(([k, l]) => `OPT${k} (${textePorts(l)})`);
+      return `${nb > 1 ? `${modele} n° ${pv.numero} : ` : ''}${enumeration(liste)}`;
+    });
+    partie0.push(etape('0.7', `Si tu passes en fibre : ${fibre.texte}${parProc.length ? ` Pour ce mur : ${parProc.join(' ; ')}.` : ''}${fibre.convertisseur}`,
+      fibre.sources.map(([id, ref]) => src(id, ref)), { aVerifier: fibre.aVerifier, valeurs: { fibres: parProc } }));
+  }
   const parties = [{ id: '0', titre: 'Avant de partir et sur place', etapes: partie0 }];
 
   // Partie A : avant NovaLCT, pour les tout-en-un réglés dans V-Can.
@@ -374,6 +469,14 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
     etapes.push(etape(`${pre}B.1`, `Settings > Screen Configuration, choisis le port de communication du ${modele} n° ${n}`
       + `${nb > 1 ? ' (une carte d\'envoi par port de communication dans la liste)' : ''}, Configure Screen, puis Next.`,
     [lct55('§ 5.2.1, p. 8 et 9'), lct58('§ 5.2.1, p. 9')], { valeurs: { n } }));
+    if (idCourt in MODE_TRAVAIL) {
+      const fiche = MODE_TRAVAIL[idCourt];
+      etapes.push(etape(`${pre}B.1a`, `Onglet Sending Card : Set Working Mode, choisis le ${modele}, puis sending card mode (et non fiber `
+        + 'converter mode), OK.'
+        + `${MODE_OPTIQUE.includes(idCourt) ? ' Puis le mode de ses ports optiques : hot backup (la même image vers le même écran, par un '
+          + 'convertisseur principal et un de secours) ou copy (la même image vers deux écrans).' : ''}`,
+      [lct55('§ 5.5, p. 30 à 33'), lct58('§ 5.5, p. 33 à 36'), ...(fiche ? [src(...fiche)] : [])]));
+    }
 
     const bloc = plie(i) ? `sortie pliée : ${taillePliee}` : `bloc du processeur : ${dim(g.largeurPx, g.hauteurPx)}, en haut à gauche`;
     // Fréquence de la source de Canvas différente de celle de Data (relecture, doute 22) : les deux sont dites.
@@ -396,6 +499,15 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
         + `${bits} bits (${bloc}).${sortie}${ecartFrequence} Ce que l'onglet Sending Card de NovaLCT montre pour ce processeur : ${A_VERIFIER}.`,
       vcan ? [src('vcan-3-8-0', '§ 3.1.1.1, p. 6'), src('vx1000-1-5-0', '§ 5.2.7, p. 21')] : groupe.sources,
       { valeurs: { l: largeurSource, h: hauteurSource, freq, bits }, aVerifier: true }));
+    }
+
+    if (SECOURS_SOURCE.includes(idCourt)) {
+      const r5 = idCourt === 'mctrl-r5';
+      etapes.push(etape(`${pre}B.2a`, 'Facultatif : onglet Sending Card, Set à côté de Source Backup Setting, coche Start source backup, '
+        + 'choisis l\'entrée de secours de chaque entrée principale, puis OK. Sinon, passe cette étape.'
+        + `${r5 ? ' En façade du MCTRL R5 : Input Backup, une entrée de secours pour chaque entrée principale ; une fois le secours en '
+          + 'service, le choix de la source ne revient pas en arrière (« the video source selection is irreversible »).' : ''}`,
+      [lct55('§ 5.2.1, p. 9 et 10'), lct58('§ 5.2.1, p. 9'), ...(r5 ? [src('mctrl-r5-manuel-1-0-5', '§ 6.6.7, p. 14')] : [])]));
     }
 
     const fichierLot = cfg.aucunParc ? `le .rcfgx du lot (${CHOISIS_PARC})` : cfg.fichiers.length ? cfg.fichiers.join(', ') : 'le .rcfgx du lot';
@@ -454,10 +566,15 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
         [lct55('§ 5.2.3, p. 20 et 21'), lct58('§ 5.2.3, p. 24')],
         { aVerifier: true, alerte: alerteVariante, valeurs: { tranches: tranches.map((t) => [t.nom, ...t.colonnes]), rangees: g.rangees } }));
       } else {
+        // Série H (étape 18b) : les cartes de sortie de Data ; leurs ports dans Screen Connection ne sont pas décrits par les sources lues.
+        const carte = proc.carteSortie;
+        const nCartes = carte ? g.cartesSortie?.[redondance ? 'redondance' : 'colonnes'] ?? null : null;
+        const cartes = carte ? ` Cartes de sortie : ${nCartes ? `${nCartes} carte${nCartes > 1 ? 's' : ''}` : 'cartes'} ${carte.nomCourt ?? carte.modele} `
+          + `(onglet Data) ; quels ports sont sur quelle carte dans Screen Connection : ${A_VERIFIER}.` : '';
         etapes.push(etape(`${pre}B.6`, `Onglet Screen Connection : nombre d'écrans 1 (les ports du ${modele} chargent le même écran), `
-          + `Configure. Standard Screen : ${g.colonnes} colonnes × ${g.rangees} rangées de cartes${zone}.`,
+          + `Configure. Standard Screen : ${g.colonnes} colonnes × ${g.rangees} rangées de cartes${zone}.${cartes}`,
         [lct55('§ 5.2.3, p. 20 et 21'), lct58('§ 5.2.3, p. 24')],
-        { alerte: alerteVariante, valeurs: { colonnes: g.colonnes, rangees: g.rangees, c: g.premiereColonne, r: g.premiereRangee } }));
+        { alerte: alerteVariante, aVerifier: Boolean(carte), valeurs: { colonnes: g.colonnes, rangees: g.rangees, c: g.premiereColonne, r: g.premiereRangee, cartes: nCartes } }));
       }
 
       for (const port of ports) {
@@ -582,7 +699,10 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
   [lct55('§ 12.2.1, p. 132'), lct55('§ 5.2.3, p. 24'), src('formation-11')]));
   parties.push({ id: 'C', titre: 'Contrôles', etapes: controles });
 
-  return { logiciel: 'NovaLCT', processeur: modele, groupe, version: ver, parties, nonCouvert, alertes: alerteVariante ? [alerteVariante] : [] };
+  return {
+    logiciel: 'NovaLCT', processeur: modele, groupe, version: ver, parties, nonCouvert, alertes: alerteVariante ? [alerteVariante] : [],
+    parc: codeParc ? { nom: codeParc, aCode: true } : null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -675,6 +795,8 @@ export function texteNovaLCT(resultat, cases, { presta = '', mur = '' } = {}) {
 export function resumeNovaLCT(resultat, cases) {
   const { faites, total } = faitesSur(resultat, cases);
   const lignes = ['NOVALCT', `Processeurs : ${nombreProcesseurs(resultat)} × ${resultat.processeur}`, `Étapes faites : ${faites} sur ${total}`];
+  // Code admin du parc (étape 18a) : où le trouver, jamais le code.
+  if (resultat.parc?.aCode) lignes.push(`Mot de passe NovaLCT : celui du parc ${resultat.parc.nom}, dans l'appli (onglet Base)`);
   for (const p of resultat.parties.filter((x) => x.processeur)) {
     const b2 = p.etapes.find((e) => e.id.endsWith('.B.2'))?.valeurs ?? {};
     const b6 = p.etapes.find((e) => e.id.endsWith('.B.6'))?.valeurs ?? {};
@@ -693,12 +815,28 @@ export function resumeNovaLCT(resultat, cases) {
 // Mur d'exemple : une dalle réelle de la base à carte Novastar, jamais une dalle fictive des tests.
 export const MUR_A_BLANC = {
   dalle: 'absen-m2-9', colonnes: 12, lignes: 6, frequenceHz: 60, bits: 8, depart: 'bas-gauche',
-  processeurs: ['novastar-mctrl660', 'novastar-vx1000'],
+  // Processeur choisi par défaut ; tous les processeurs réglés dans NovaLCT sont proposés (étape 18b, processeursABlanc).
+  processeur: 'novastar-mctrl660',
 };
+
+// Processeurs proposés à blanc (étape 18b) : ceux de la base réglés dans NovaLCT, sans les fiches à compléter, groupés
+// par gamme (MCTRL, MSD, VX, VX Pro, NovaPro, série H), du plus petit au plus grand comme dans Data (arbreProcesseurs).
+const ORDRE_GAMMES = ['MCTRL', 'MSD (cartes d\'envoi)', 'VX', 'VX Pro', 'NovaPro', 'Série H'];
+export function processeursABlanc(processeurs = []) {
+  const arbre = arbreProcesseurs(processeurs.filter((p) => p.logiciel === 'NovaLCT'));
+  const rang = (g) => (ORDRE_GAMMES.includes(g) ? ORDRE_GAMMES.indexOf(g) : ORDRE_GAMMES.length);
+  const groupes = arbre.flatMap((m) => m.gammes)
+    .map(({ gamme, fiches }) => ({ gamme, processeurs: fiches.filter((f) => !f.aCompleter && !f.information && !f.calculHorsAppli)
+      .map((f) => ({ id: f.id, modele: f.modele, libelle: f.libelle })) }))
+    .filter((g) => g.processeurs.length)
+    .sort((a, b) => rang(a.gamme) - rang(b.gamme) || a.gamme.localeCompare(b.gamme, 'fr'));
+  return { groupes, defaut: MUR_A_BLANC.processeur };
+}
 
 // `dalles`, `processeurs` : fiches résolues de la base ; `liaisons` : liaisons résolues. Rend le mur, l'évaluation, la
 // variante conseillée, la source conseillée, le pas à pas et sa description ; null si la dalle ou le processeur manque.
-export function murABlanc({ dalles = [], processeurs = [], liaisons = [], processeur = MUR_A_BLANC.processeurs[0], redondance = false }) {
+// `parc` : { nom, aCode } du parc actif, pour le code admin de l'étape 0.5 (étape 18a).
+export function murABlanc({ dalles = [], processeurs = [], liaisons = [], processeur = MUR_A_BLANC.processeur, redondance = false, parc = null }) {
   const dalle = dalles.find((d) => d.id === MUR_A_BLANC.dalle);
   const proc = processeurs.find((p) => p.id === processeur);
   if (!dalle || !proc) return null;
@@ -709,7 +847,7 @@ export function murABlanc({ dalles = [], processeurs = [], liaisons = [], proces
   const c = cablageData(m, dalle, evaluation, { depart });
   const variante = c.variantes.find((x) => x.mode === c.conseil) ?? null;
   const source = sourceConseillee(evaluation, liaisons, frequenceHz);
-  const resultat = etapesNovaLCT({ mur: m, dalle, evaluation, variante, source });
+  const resultat = etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, parc });
   return {
     mur: m, dalle, evaluation, variante, source, depart, resultat,
     description: `Mur d'exemple : ${colonnes} × ${lignes} ${dalle.nom}, ${evaluation.nombre} × ${proc.modele}, ${nombre(frequenceHz)} Hz, ${bits} bits`

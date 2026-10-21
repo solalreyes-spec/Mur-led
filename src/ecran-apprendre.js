@@ -71,14 +71,35 @@ export function monterApprendre(racine, {
 
   // NovaLCT à blanc (étape 17c2) : le pas à pas sur un mur d'exemple, processeur et redondance au choix ; en dernier (la
   // carte S'entraîner et les quatre images restent en tête). `novalct.ouvrir({ processeur, redondance })`.
-  const choixNovaLCT = { processeur: 'novastar-mctrl660', redondance: false };
+  // Étape 18b : `novalct.processeurs` (processeursABlanc de novalct.js) donne tous les processeurs réglés dans NovaLCT,
+  // groupés par gamme, avec une recherche sans espaces, tirets ni accents ; le choix reste tant que la recherche ne trouve rien.
+  const choixNovaLCT = { processeur: novalct?.processeurs?.defaut ?? 'novastar-mctrl660', redondance: false };
+  const compact = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[\s-]+/g, '');
   function carteNovaLCT() {
     if (!novalct) return null;
-    const segments = el('div', { class: 'segments' }, [['novastar-mctrl660', 'MCTRL660'], ['novastar-vx1000', 'VX1000']].map(([id, nom]) => {
-      const radio = el('input', { type: 'radio', name: 'nl-processeur', value: id, checked: choixNovaLCT.processeur === id ? '' : null });
-      radio.addEventListener('change', () => { if (radio.checked) choixNovaLCT.processeur = id; });
-      return el('label', {}, radio, el('span', {}, nom));
-    }));
+    const groupes = novalct.processeurs?.groupes ?? [];
+    const choix = el('select', { id: 'nl-processeur', name: 'nl-processeur' });
+    const aucun = el('p', { class: 'note ap-novalct-aucun', 'aria-live': 'polite' });
+    const remplir = (q = '') => {
+      const garde = groupes.map((g) => ({ ...g, processeurs: g.processeurs.filter((p) => !q || compact(`${p.modele} ${p.id}`).includes(q)) }))
+        .filter((g) => g.processeurs.length);
+      if (!garde.length) {
+        aucun.textContent = `Aucun processeur pour « ${recherche.value.trim()} » : le choix ne change pas.`;
+        return;
+      }
+      aucun.textContent = '';
+      const ids = garde.flatMap((g) => g.processeurs.map((p) => p.id));
+      if (!ids.includes(choixNovaLCT.processeur)) choixNovaLCT.processeur = ids[0];
+      remplacer(choix, garde.map((g) => el('optgroup', { label: g.gamme },
+        g.processeurs.map((p) => el('option', { value: p.id, selected: p.id === choixNovaLCT.processeur ? '' : null }, p.libelle)))));
+      choix.value = choixNovaLCT.processeur;
+    };
+    const recherche = el('input', { type: 'search', id: 'nl-recherche', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', placeholder: 'MCTRL4K, VX1000…' });
+    recherche.addEventListener('input', () => remplir(compact(recherche.value)));
+    const retenir = () => { choixNovaLCT.processeur = choix.value; };
+    choix.addEventListener('input', retenir);
+    choix.addEventListener('change', retenir);
+    remplir();
     const redondance = el('input', { type: 'checkbox', name: 'nl-redondance', checked: choixNovaLCT.redondance ? '' : null });
     redondance.addEventListener('change', () => { choixNovaLCT.redondance = redondance.checked; });
     const bouton = el('button', { type: 'button', class: 'bouton ap-novalct-ouvrir' }, 'Ouvrir à blanc');
@@ -86,8 +107,10 @@ export function monterApprendre(racine, {
     return el('section', { class: 'carte ap-novalct', 'data-famille': 'donnees' },
       el('h3', { class: 'ap-titre' }, 'NovaLCT à blanc'),
       el('p', { class: 'ap-intro' }, 'Le pas à pas NovaLCT sur un mur d\'exemple de la base (12 × 6 Absen M2.9, carte Novastar), pour réviser '
-        + 'sans mur ouvert. Tes cases y sont gardées à part de tes murs.'),
-      el('fieldset', { class: 'segmente' }, el('legend', {}, 'Processeur'), segments),
+        + 'sans mur ouvert, avec le processeur Novastar de ton choix. Tes cases y sont gardées à part de tes murs.'),
+      el('div', { class: 'champ' }, el('label', { for: 'nl-recherche' }, 'Rechercher un processeur'), recherche),
+      el('div', { class: 'champ' }, el('label', { for: 'nl-processeur' }, 'Processeur'), choix),
+      aucun,
       el('label', { class: 'case' }, redondance, el('span', {}, 'Redondance')),
       bouton);
   }

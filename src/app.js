@@ -3,7 +3,7 @@
 import { resoudreFiche, listeMateriel, totalMateriel, stockPresta, ErreurSaisie } from './calculs.js';
 import { el, remplacer } from './dom.js';
 import {
-  baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc, quantitesParc, logicielParc,
+  baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc, quantitesParc, logicielParc, codeNovaLCT,
 } from './fiches.js';
 import { lire, ecrire, stockageDisponible, suspendreEcritures } from './stockage.js';
 import { surveillerOnglets } from './onglets.js';
@@ -29,7 +29,7 @@ import { monterMateriel } from './ecran-materiel.js';
 import { monterFiches } from './ecran-fiches.js';
 import { monterNovaLCT, carteNovaLCT } from './ecran-novalct.js';
 import {
-  etapesNovaLCT, rapprocherNovaLCT, groupeVideo, versionReference, ficheNovaLCT, texteNovaLCT, resumeNovaLCT, murABlanc,
+  etapesNovaLCT, rapprocherNovaLCT, groupeVideo, versionReference, ficheNovaLCT, texteNovaLCT, resumeNovaLCT, murABlanc, processeursABlanc,
 } from './novalct.js';
 import { METIERS, ficheMetier, texteFiche, nomFichierFiche } from './fiches-metier.js';
 import { pdfFiche } from './pdf.js';
@@ -293,6 +293,12 @@ function garderSuiviNovaLCT(suivi) {
   }
 }
 const versionNovaLCT = (proc) => logicielParc(base, parcActif, proc.id)?.version ?? null;
+// Code admin NovaLCT du parc actif (étape 18a) : le pas à pas ne connaît que le nom du parc, l'écran reçoit le code.
+const codeParcNovaLCT = () => codeNovaLCT(base, parcActif);
+function parcNovaLCT() {
+  const parc = parcActif ? base.parcs.find((p) => p.id === parcActif) : null;
+  return parc ? { nom: parc.nom, aCode: Boolean(codeParcNovaLCT()) } : null;
+}
 function texteVersionNovaLCT(version) {
   const v = versionReference(version);
   return v.note ?? `NovaLCT ${version} dans le parc : noms des menus de la V${v.premiere} en premier.`;
@@ -311,13 +317,13 @@ function pasAPasNovaLCT() {
   const courbe = (c.mur.saisie?.zones ?? []).some((z) => z.courbure || z.pose?.type === 'pliee');
   return etapesNovaLCT({
     mur: c.mur, dalle: c.dalle, evaluation: c.evaluation, variante: c.variante, source: sourceAffichee(), configs: configsNovaLCT(),
-    version: versionNovaLCT(c.evaluation.processeur), pliage: c.pliage, courbe,
+    version: versionNovaLCT(c.evaluation.processeur), pliage: c.pliage, courbe, parc: parcNovaLCT(),
   });
 }
 function enregistrerNovaLCT(suivi) {
   garderSuiviNovaLCT(suivi);
   if (resultatNovaLCT && !panneauNovaLCT.hidden) {
-    ecranNovaLCT.afficher({ resultat: resultatNovaLCT, cases: suivi?.cases ?? {}, avis: suivi?.avis ?? null, note: modeNovaLCT === 'blanc' ? aBlancNovaLCT?.description : null });
+    ecranNovaLCT.afficher({ resultat: resultatNovaLCT, cases: suivi?.cases ?? {}, avis: suivi?.avis ?? null, note: modeNovaLCT === 'blanc' ? aBlancNovaLCT?.description : null, code: codeParcNovaLCT() });
   }
   majCarteNovaLCT();
 }
@@ -338,7 +344,7 @@ function ouvrirNovaLCT() {
 }
 // À blanc : le mur d'exemple de la base (processeur et redondance choisis dans Apprendre), son suivi relu à part.
 async function ouvrirNovaLCTABlanc({ processeur, redondance }) {
-  const a = murABlanc({ dalles: courant.dalles, processeurs: courant.processeurs, liaisons: connectique?.liaisons ?? [], processeur, redondance });
+  const a = murABlanc({ dalles: courant.dalles, processeurs: courant.processeurs, liaisons: connectique?.liaisons ?? [], processeur, redondance, parc: parcNovaLCT() });
   if (!a) return;
   try {
     suiviABlanc = (await lire(CLE_NOVALCT_A_BLANC)) ?? SUIVI_NOVALCT_VIDE;
@@ -360,7 +366,7 @@ function ouvrirPasAPas(r) {
   panneauNovaLCT.hidden = false;
   document.body.classList.add('montage-ouvert');
   if (JSON.stringify(suivi) !== JSON.stringify(avant)) enregistrerNovaLCT(suivi);
-  else ecranNovaLCT.afficher({ resultat: r, cases: suivi.cases, avis: suivi.avis, note: modeNovaLCT === 'blanc' ? aBlancNovaLCT.description : null });
+  else ecranNovaLCT.afficher({ resultat: r, cases: suivi.cases, avis: suivi.avis, note: modeNovaLCT === 'blanc' ? aBlancNovaLCT.description : null, code: codeParcNovaLCT() });
   document.getElementById('ecran-novalct').scrollTop = 0;
   garderEcranNovaLCT();
 }
@@ -669,7 +675,8 @@ if (pourquoi) {
     stockage: { lire, ecrire },
     ouvrirFiche: ouvrirPourquoi,
     ouvrirEntrainement,
-    novalct: { ouvrir: ouvrirNovaLCTABlanc },
+    // Étape 18b : tous les processeurs de la base réglés dans NovaLCT (base de départ et mes fiches).
+    novalct: { ouvrir: ouvrirNovaLCTABlanc, processeurs: processeursABlanc(courant.processeurs) },
   });
 } else {
   remplacer(document.getElementById('ecran-apprendre'), erreurAlerte('Fiches « pourquoi » introuvables : l\'onglet Apprendre ne peut pas s\'afficher.'));

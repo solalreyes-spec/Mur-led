@@ -115,6 +115,19 @@ export function monterNovaLCT(racine, { actions }) {
       })));
   }
 
+  // Code admin NovaLCT du parc (étape 18a) : masqué ; « Afficher » le montre sur place, un nouvel affichage le masque.
+  function blocCode(nomParc, code) {
+    const MASQUE = '••••••';
+    const valeur = el('span', { class: 'nl-code-valeur' }, MASQUE);
+    const basculer = bouton('Afficher', () => {
+      const montre = basculer.getAttribute('aria-pressed') !== 'true';
+      valeur.textContent = montre ? code : MASQUE;
+      basculer.textContent = montre ? 'Masquer' : 'Afficher';
+      basculer.setAttribute('aria-pressed', String(montre));
+    }, { class: 'bouton bouton-discret', 'aria-pressed': 'false' });
+    return el('p', { class: 'nl-code' }, `Code du parc ${nomParc} : `, valeur, ' ', basculer);
+  }
+
   function carteEtape(e) {
     const coche = vue.cases?.[e.id] === e.signature;
     const caseFait = el('input', { type: 'checkbox', checked: coche ? '' : null, 'aria-describedby': `nl-titre-${e.id}` });
@@ -123,6 +136,7 @@ export function monterNovaLCT(racine, { actions }) {
       el('h4', { id: `nl-titre-${e.id}` }, el('span', { class: 'nl-numero' }, e.id.replace(/^P\d+\./, '')), ' ', e.titre),
       e.aVerifier ? el('p', { class: 'nl-a-verifier' }, 'À vérifier en formation') : null,
       el('p', { class: 'nl-texte' }, texteAvecMenus(e.texte)),
+      e.codeParc && vue.code ? blocCode(e.codeParc, vue.code) : null,
       dessin ? el('div', { class: 'nl-dessin' }, dessin) : null,
       e.tableau ? el('div', { class: 'nl-tableau-cadre' }, el('table', { class: 'nl-tableau' },
         el('thead', {}, el('tr', {}, e.tableau.colonnes.map((c) => el('th', { scope: 'col' }, c)))),
@@ -212,9 +226,10 @@ export function monterNovaLCT(racine, { actions }) {
     // `resultat` : etapesNovaLCT ; `cases` : { identifiant : signature } ; `avis` : texte du bandeau ou null ; `note` : mur
     // d'exemple du mode à blanc, ou null. La partie
     // affichée reste la même d'un affichage à l'autre (sauf si elle n'existe plus).
-    afficher({ resultat, cases, avis, note = null }) {
+    // `code` : code admin NovaLCT du parc actif (étape 18a), montré masqué à l'étape 0.5 ; null sans code.
+    afficher({ resultat, cases, avis, note = null, code = null }) {
       const defilement = vue ? racine.scrollTop : 0;
-      vue = { resultat, cases: cases ?? {}, avis: avis ?? null, note };
+      vue = { resultat, cases: cases ?? {}, avis: avis ?? null, note, code };
       dessiner();
       racine.scrollTop = defilement;
     },

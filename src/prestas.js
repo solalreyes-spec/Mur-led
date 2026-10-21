@@ -570,7 +570,8 @@ export function exporterPresta(etat, prestaId, base, opts = {}) {
   const o = options(opts);
   const p = trouverPresta(etat, prestaId);
   const fiches = copie(fichesUtilisees(etat, prestaId, base, opts.depart ?? null));
-  const parcs = copie(parcsUtilises(etat, prestaId, base));
+  // Code admin NovaLCT du parc (étape 18a) : jamais dans un fichier de presta, qui se partage.
+  const parcs = copie(parcsUtilises(etat, prestaId, base)).map(sansCode);
   const citees = chaines(fiches);
   const donnees = {
     format: FORMAT_PRESTA,
@@ -686,10 +687,17 @@ function comparerFiches(donnees, base, depart) {
   });
 }
 
+// Parc sans son code admin NovaLCT (étape 18a) : le code reste sur l'appareil, hors des fichiers de presta.
+function sansCode(parc) {
+  const { codeNovaLCT, ...reste } = parc;
+  return reste;
+}
+
+// Le code de l'appareil ne compte pas dans la comparaison (le fichier n'en a jamais).
 function comparerParcs(donnees, base) {
   return donnees.parcs.map((parc) => {
     const mien = base.parcs.find((p) => p.id === parc.id);
-    return { parc, etat: !mien ? 'absent' : stable(mien) === stable(parc) ? 'identique' : 'conflit' };
+    return { parc, etat: !mien ? 'absent' : stable(sansCode(mien)) === stable(sansCode(parc)) ? 'identique' : 'conflit' };
   });
 }
 
@@ -745,10 +753,11 @@ export function importerPresta(etat, base, depart, texte, choix = {}, opts) {
     if (e === 'identique') parcs.identiques.push(parc.nom);
     else if (e === 'conflit' && !prendre) parcs.gardes.push(parc.nom);
     else if (e === 'conflit') {
-      nouvelleBase = { ...nouvelleBase, parcs: nouvelleBase.parcs.map((p) => (p.id === parc.id ? parc : p)) };
+      // Parc pris du fichier : le code admin NovaLCT de l'appareil reste (étape 18a).
+      nouvelleBase = { ...nouvelleBase, parcs: nouvelleBase.parcs.map((p) => (p.id === parc.id ? { ...sansCode(parc), ...(p.codeNovaLCT ? { codeNovaLCT: p.codeNovaLCT } : {}) } : p)) };
       parcs.remplaces.push(parc.nom);
     } else {
-      nouvelleBase = { ...nouvelleBase, parcs: [...nouvelleBase.parcs, parc] };
+      nouvelleBase = { ...nouvelleBase, parcs: [...nouvelleBase.parcs, sansCode(parc)] };
       parcs.ajoutes.push(parc.nom);
     }
   }

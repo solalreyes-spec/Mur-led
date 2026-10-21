@@ -4301,7 +4301,7 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N92',
-    titre: 'NovaLCT pas à pas (17c2, à blanc) : carte « NovaLCT à blanc » en dernier dans Apprendre quand l\'appli la fournit (choix du processeur MCTRL660 ou VX1000, case Redondance, « Ouvrir à blanc » qui appelle son action avec les choix), absente sinon ; l\'écran du pas à pas montre la note du mur d\'exemple en tête',
+    titre: 'NovaLCT pas à pas (17c2, à blanc) : carte « NovaLCT à blanc » en dernier dans Apprendre quand l\'appli la fournit (choix du processeur dans la liste, MCTRL660 ou VX1000 ici, case Redondance, « Ouvrir à blanc » qui appelle son action avec les choix), absente sinon ; l\'écran du pas à pas montre la note du mur d\'exemple en tête',
     etape: '17c2',
     async verifier(v, contexte) {
       const ap = await moduleAppli(v, '../src/ecran-apprendre.js');
@@ -4318,22 +4318,28 @@ export const NAVIGATEUR = [
         await sans.pret;
         v.egal('sans option : pas de carte', racine.querySelector('.ap-novalct'), null);
         racine.replaceChildren();
+        // Adapté le 21/10/2026 avec l'accord de l'utilisateur (18b) : liste de tous les processeurs NovaLCT au lieu de deux boutons.
+        const bp = baseProcesseurs(contexte);
+        const liste = nl.processeursABlanc(bp.processeurs.map((f) => calculs.resoudreFiche(f, bp.sources)));
         const ecran = ap.monterApprendre(racine, { pourquoi: contexte.pourquoi, entrainement: contexte.entrainement, stockage: null, enLigne: () => false, ouvrirFiche: () => {}, ouvrirEntrainement: () => {},
-          novalct: { ouvrir: (choix) => ouvertures.push(choix) } });
+          novalct: { ouvrir: (choix) => ouvertures.push(choix), processeurs: liste } });
         await ecran.pret;
         const carte = racine.querySelector('.ap-novalct');
         v.egal('carte en dernier, titre', [carte === racine.lastElementChild, texteDe(carte?.querySelector('h3'))], [true, 'NovaLCT à blanc']);
-        v.egal('choix du processeur', [...(carte?.querySelectorAll('.segments label') ?? [])].map(texteDe), ['MCTRL660', 'VX1000']);
+        const choixProc = carte?.querySelector('select[name="nl-processeur"]');
+        v.vrai('choix du processeur : MCTRL660 et VX1000 dans la liste', ['novastar-mctrl660', 'novastar-vx1000'].every((id) => [...(choixProc?.options ?? [])].some((o) => o.value === id)));
         const ouvrir = [...(carte?.querySelectorAll('button') ?? [])].find((b) => texteDe(b) === 'Ouvrir à blanc');
         ouvrir?.click();
         await attendre();
         v.egal('« Ouvrir à blanc » : MCTRL660 sans redondance par défaut', ouvertures.at(-1), { processeur: 'novastar-mctrl660', redondance: false });
-        carte.querySelector('input[value="novastar-vx1000"]')?.click();
+        choixProc.value = 'novastar-vx1000';
+        choixProc.dispatchEvent(new Event('input', { bubbles: true }));
+        choixProc.dispatchEvent(new Event('change', { bubbles: true }));
         carte.querySelector('input[name="nl-redondance"]')?.click();
         ouvrir?.click();
         await attendre();
         v.egal('VX1000 et redondance', ouvertures.at(-1), { processeur: 'novastar-vx1000', redondance: true });
-        v.vrai('cibles de 48 px', [...carte.querySelectorAll('button, .segments label, label.case')].every((x) => x.getBoundingClientRect().height >= 47.5));
+        v.vrai('cibles de 48 px', [...carte.querySelectorAll('button, select, label.case')].every((x) => x.getBoundingClientRect().height >= 47.5));
         const m = calculs.mur(DALLE_CAS_13, 12, 6);
         const evaluation = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), { frequenceHz: 60, bits: 8 });
         const c = calculs.cablageData(m, DALLE_CAS_13, evaluation, { depart: 'bas-gauche' });
@@ -4342,6 +4348,92 @@ export const NAVIGATEUR = [
         const pas = en.monterNovaLCT(racine, { actions: { cocher: async () => {}, compris: async () => {}, toutDecocher: async () => {}, dessinPort: () => null } });
         pas.afficher({ resultat: r, cases: {}, avis: null, note: 'Mur d\'exemple : essai.' });
         v.egal('écran : note du mur d\'exemple en tête', texteDe(racine.querySelector('.nl-a-blanc')), 'À blanc. Mur d\'exemple : essai.');
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N93',
+    titre: 'Code admin NovaLCT du parc (18a, spec § 2) : à l\'étape 0.5 du pas à pas, « Code du parc X » masqué, « Afficher » le montre en clair et devient « Masquer », un nouvel affichage le masque de nouveau ; sans code donné à l\'écran, rien ; cible de 48 px',
+    etape: '18a',
+    async verifier(v, contexte) {
+      const en = await moduleAppli(v, '../src/ecran-novalct.js');
+      const nl = await moduleAppli(v, '../src/novalct.js');
+      if (!en || !nl) return;
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      try {
+        const m = calculs.mur(DALLE_CAS_13, 12, 6);
+        const evaluation = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), { frequenceHz: 60, bits: 8 });
+        const c = calculs.cablageData(m, DALLE_CAS_13, evaluation, { depart: 'bas-gauche' });
+        const r = nl.etapesNovaLCT({ mur: m, dalle: DALLE_CAS_13, evaluation, variante: c.variantes.find((x) => x.mode === c.conseil), source: null, parc: { nom: 'Parc test', aCode: true } });
+        const pas = en.monterNovaLCT(racine, { actions: { cocher: async () => {}, compris: async () => {}, toutDecocher: async () => {}, dessinPort: () => null } });
+        pas.afficher({ resultat: r, cases: {}, avis: null, code: 'code-essai' });
+        const bloc = () => racine.querySelector('[data-etape="0.5"] .nl-code');
+        const boutonCode = () => bloc()?.querySelector('button');
+        v.vrai('bloc du code à l\'étape 0.5', Boolean(bloc()));
+        v.vrai('masqué : le code n\'est pas dans la page', !racine.textContent.includes('code-essai') && texteDe(bloc()).startsWith('Code du parc Parc test : ••••'), texteDe(bloc()));
+        v.egal('bouton « Afficher »', [texteDe(boutonCode()), boutonCode()?.getAttribute('aria-pressed')], ['Afficher', 'false']);
+        v.vrai('cible de 48 px', (boutonCode()?.getBoundingClientRect().height ?? 0) >= 47.5);
+        boutonCode()?.click();
+        v.vrai('« Afficher » : le code en clair', texteDe(bloc()).includes('code-essai'), texteDe(bloc()));
+        v.egal('le bouton devient « Masquer »', [texteDe(boutonCode()), boutonCode()?.getAttribute('aria-pressed')], ['Masquer', 'true']);
+        boutonCode()?.click();
+        v.vrai('« Masquer » : masqué de nouveau', !texteDe(bloc()).includes('code-essai'));
+        boutonCode()?.click();
+        pas.afficher({ resultat: r, cases: {}, avis: null, code: 'code-essai' });
+        v.vrai('nouvel affichage : masqué', !racine.textContent.includes('code-essai'));
+        pas.afficher({ resultat: r, cases: {}, avis: null });
+        v.egal('sans code donné à l\'écran : pas de bloc', bloc(), null);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N94',
+    titre: 'NovaLCT à blanc pour chaque processeur (18b, spec § 3.1) : dans Apprendre, recherche (sans tenir compte des espaces, tirets et accents) et liste groupée par gamme de tous les processeurs NovaLCT, MCTRL660 par défaut ; « mctrl 4k » garde le MCTRL4K et le choisit, « Ouvrir à blanc » l\'envoie ; recherche sans résultat : message, choix inchangé ; cibles de 48 px, rien ne dépasse à 375 px',
+    etape: '18b',
+    async verifier(v, contexte) {
+      const ap = await moduleAppli(v, '../src/ecran-apprendre.js');
+      const nl = await moduleAppli(v, '../src/novalct.js');
+      if (!ap || !nl) return;
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const ouvertures = [];
+      try {
+        const bp = baseProcesseurs(contexte);
+        const liste = nl.processeursABlanc(bp.processeurs.map((f) => calculs.resoudreFiche(f, bp.sources)));
+        const ecran = ap.monterApprendre(racine, { pourquoi: contexte.pourquoi, entrainement: contexte.entrainement, stockage: null, enLigne: () => false, ouvrirFiche: () => {}, ouvrirEntrainement: () => {},
+          novalct: { ouvrir: (choix) => ouvertures.push(choix), processeurs: liste } });
+        await ecran.pret;
+        const carte = racine.querySelector('.ap-novalct');
+        const choix = carte?.querySelector('select[name="nl-processeur"]');
+        const recherche = carte?.querySelector('input[type="search"]');
+        v.egal('liste : une gamme par groupe, 34 processeurs, MCTRL660 choisi', [[...(choix?.querySelectorAll('optgroup') ?? [])].map((g) => g.label), choix?.options.length, choix?.value],
+          [['MCTRL', 'MSD (cartes d\'envoi)', 'VX', 'VX Pro', 'NovaPro', 'Série H'], 34, 'novastar-mctrl660']);
+        recherche.value = 'mctrl 4k';
+        recherche.dispatchEvent(new Event('input', { bubbles: true }));
+        v.egal('« mctrl 4k » : le MCTRL4K seul, choisi', [[...choix.options].map((o) => o.value), choix.value], [['novastar-mctrl4k'], 'novastar-mctrl4k']);
+        [...carte.querySelectorAll('button')].find((b) => texteDe(b) === 'Ouvrir à blanc')?.click();
+        v.egal('« Ouvrir à blanc » : MCTRL4K', ouvertures.at(-1), { processeur: 'novastar-mctrl4k', redondance: false });
+        recherche.value = 'zzz';
+        recherche.dispatchEvent(new Event('input', { bubbles: true }));
+        v.egal('« zzz » : message, choix inchangé', [texteDe(carte.querySelector('.ap-novalct-aucun')), choix.value], ['Aucun processeur pour « zzz » : le choix ne change pas.', 'novastar-mctrl4k']);
+        recherche.value = 'Vx-1000';
+        recherche.dispatchEvent(new Event('input', { bubbles: true }));
+        v.vrai('« Vx-1000 » : VX1000 et VX1000 Pro', ['novastar-vx1000', 'novastar-vx1000-pro'].every((id) => [...choix.options].some((o) => o.value === id)), [...choix.options].map((o) => o.value).join(', '));
+        v.vrai('cibles de 48 px', [choix, recherche, ...carte.querySelectorAll('button')].every((x) => x.getBoundingClientRect().height >= 47.5));
+        // Les options d'une liste ne sont pas dessinées dans la page : seuls les éléments affichés comptent.
+        const dessines = [...carte.querySelectorAll('*')].filter((x) => (!x.closest('select') || x === choix) && x.getBoundingClientRect().width > 0);
+        const bord = carte.getBoundingClientRect().right;
+        v.egal('375 px : rien ne dépasse de la carte', dessines.filter((x) => x.getBoundingClientRect().right > bord + 0.5)
+          .map((x) => `${x.tagName.toLowerCase()}${x.className ? `.${x.className}` : ''} ${Math.round(x.getBoundingClientRect().right - bord)} px`), []);
       } finally {
         racine.remove();
         retirer();

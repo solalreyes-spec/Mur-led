@@ -279,12 +279,12 @@ details.manques p { margin: 0 14px 10px; }
 .convertisseur[hidden] { display: none; }
 .liste-chaine { margin: 0; padding-left: 1.2em; }
 .liste-chaine li { margin-bottom: 6px; overflow-wrap: anywhere; }
-.choix-dalle input[type="search"] {
+.choix-dalle input[type="search"], .ap-novalct input[type="search"] {
   width: 100%; min-height: var(--cible); padding: 0 12px; border: 1px solid var(--bordure); border-radius: var(--rayon);
   background: var(--surface-2); color: var(--texte); font: inherit; font-size: 1rem; -webkit-appearance: none; appearance: none;
 }
 #etat-choix-dalle:empty { display: none; }
-.choix-dalle input[type="search"], .groupe input[type="search"] { width: 100%; }
+.choix-dalle input[type="search"], .groupe input[type="search"], .ap-novalct input[type="search"] { width: 100%; }
 .groupe input[type="search"] {
   min-height: var(--cible); padding: 0 12px; border: 1px solid var(--bordure); border-radius: var(--rayon);
   background: var(--surface-2); color: var(--texte); font: inherit; font-size: 1rem; -webkit-appearance: none; appearance: none;
@@ -1278,6 +1278,11 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .ap-entrainement { display: grid; gap: 12px; border-color: var(--famille-bord); }
 .ap-titre { margin: 0; font-size: 1.35rem; line-height: 1.2; }
 .ap-intro { margin: 0; color: var(--texte-doux); line-height: 1.4; }
+/* NovaLCT à blanc (étape 18b) : recherche, liste des processeurs, case et bouton espacés comme la carte S'entraîner. */
+.ap-novalct { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.ap-novalct > * { margin: 0; }
+.ap-novalct > .bouton { justify-self: start; }
+.ap-novalct-aucun:empty { display: none; }
 .ap-points { display: grid; grid-template-columns: repeat(17, minmax(0, 1fr)); gap: 5px; max-width: 340px; }
 .ap-point { aspect-ratio: 1; border-radius: 50%; background: var(--point-eteint); }
 .ap-point[data-etat="revoir"], .ap-cle[data-etat="revoir"]::before { background: var(--point-revoir); }
@@ -1563,6 +1568,11 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .nl-etape h4 { margin: 0; font-size: 1.05rem; line-height: 1.3; overflow-wrap: anywhere; }
 .nl-numero { font-family: var(--police-chiffres); color: var(--famille); }
 .nl-texte { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+/* Code admin NovaLCT du parc (étape 18a) : masqué, « Afficher » sur la même ligne quand elle le permet. */
+.nl-code { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; }
+.nl-code-valeur { font-family: var(--police-chiffres); overflow-wrap: anywhere; }
+.code-parc-ligne { display: flex; gap: 8px; align-items: center; }
+.code-parc-ligne input { flex: 1 1 auto; min-width: 0; }
 code.nl-menu { font-family: var(--police-chiffres); font-size: 0.9em; padding: 0 3px; border-radius: 4px; background: var(--puce); color: var(--texte); white-space: normal; overflow-wrap: anywhere; }
 .nl-a-verifier { justify-self: start; margin: 0; padding: 2px 8px; border: 1.5px solid var(--alerte); border-radius: 6px; background: var(--alerte-fond); color: var(--alerte); font-size: 0.9rem; font-weight: 700; }
 .nl-dessin { border: 1px solid var(--bordure); border-radius: var(--rayon); overflow: hidden; aspect-ratio: 4 / 3; }

@@ -857,6 +857,27 @@ export function quantitesParc(base, parcId) {
   return Object.fromEntries(Object.entries(parc?.quantites ?? {}).filter(([, n]) => quantiteValable(n)));
 }
 
+// Code admin NovaLCT du parc (étape 18a) : le mot de passe de User > Advanced Synchronous System User Login quand le
+// prestataire a changé le défaut « admin ». Texte de 1 à 40 caractères, facultatif ; vide : retiré. Gardé sur l'appareil
+// seulement : jamais dans un PDF, un texte copié ni l'export d'une presta.
+export const CODE_NOVALCT_MAX = 40;
+const codeValable = (x) => typeof x === 'string' && x.trim().length >= 1 && x.trim().length <= CODE_NOVALCT_MAX;
+export function reglerCodeNovaLCT(base, parcId, valeur) {
+  const brut = valeur === null || valeur === undefined ? '' : String(valeur).trim();
+  if (brut.length > CODE_NOVALCT_MAX) throw new ErreurSaisie(`Code admin NovaLCT : ${CODE_NOVALCT_MAX} caractères au plus, ou vide.`);
+  return modifierParc(base, parcId, (p) => {
+    const copie = { ...p, codeNovaLCT: brut };
+    if (!brut) delete copie.codeNovaLCT;
+    return copie;
+  });
+}
+
+// Code du parc, ou null (« Tous », pas de code, valeur illisible d'un fichier).
+export function codeNovaLCT(base, parcId) {
+  const parc = parcId ? base.parcs.find((p) => p.id === parcId) : null;
+  return codeValable(parc?.codeNovaLCT) ? parc.codeNovaLCT.trim() : null;
+}
+
 export function logicielParc(base, parcId, processeurId) {
   if (!parcId) return null;
   return base.parcs.find((p) => p.id === parcId)?.logiciels?.[processeurId] ?? null;
