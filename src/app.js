@@ -41,6 +41,8 @@ import { monterMireFiche } from './ecran-mire.js';
 import { monterPourquoi, relierPourquoi } from './pourquoi.js';
 import { monterEntrainement } from './ecran-entrainement.js';
 import { monterApprendre } from './ecran-apprendre.js';
+import { CLE_ORDINATEUR, systemeConnu, marqueConnexion } from './connexion.js';
+import { carteConnexion, blocDepannage } from './ecran-connexion.js';
 import { FAMILLES_ONGLETS } from './look.js';
 import { versionAppli } from './mire.js';
 
@@ -105,6 +107,28 @@ boutonGrand.addEventListener('click', () => {
   }
   actualiserAffichageSchema();
 });
+
+// Mon ordinateur (étape 19a) : Mac ou Windows, gardé sur l'appareil (« mur-led-ordinateur »), Mac la première fois ;
+// il sert à Apprendre, au pas à pas NovaLCT et au Dépannage, jamais à une presta (ni exporté ni copié avec elle).
+let ordinateur = null;
+function lireOrdinateur() {
+  if (!ordinateur) {
+    try {
+      ordinateur = systemeConnu(localStorage.getItem(CLE_ORDINATEUR));
+    } catch (erreur) {
+      ordinateur = 'mac';
+    }
+  }
+  return ordinateur;
+}
+function garderOrdinateur(systeme) {
+  ordinateur = systemeConnu(systeme);
+  try {
+    localStorage.setItem(CLE_ORDINATEUR, ordinateur);
+  } catch (erreur) {
+    // Stockage bloqué : le choix vaut pour cette session.
+  }
+}
 
 // Stockage persistant : le navigateur n'efface pas ma base pour faire de la place.
 async function demanderStockagePersistant() {
@@ -317,7 +341,7 @@ function pasAPasNovaLCT() {
   const courbe = (c.mur.saisie?.zones ?? []).some((z) => z.courbure || z.pose?.type === 'pliee');
   return etapesNovaLCT({
     mur: c.mur, dalle: c.dalle, evaluation: c.evaluation, variante: c.variante, source: sourceAffichee(), configs: configsNovaLCT(),
-    version: versionNovaLCT(c.evaluation.processeur), pliage: c.pliage, courbe, parc: parcNovaLCT(),
+    version: versionNovaLCT(c.evaluation.processeur), pliage: c.pliage, courbe, parc: parcNovaLCT(), systeme: lireOrdinateur(),
   });
 }
 function enregistrerNovaLCT(suivi) {
@@ -344,7 +368,7 @@ function ouvrirNovaLCT() {
 }
 // À blanc : le mur d'exemple de la base (processeur et redondance choisis dans Apprendre), son suivi relu à part.
 async function ouvrirNovaLCTABlanc({ processeur, redondance }) {
-  const a = murABlanc({ dalles: courant.dalles, processeurs: courant.processeurs, liaisons: connectique?.liaisons ?? [], processeur, redondance, parc: parcNovaLCT() });
+  const a = murABlanc({ dalles: courant.dalles, processeurs: courant.processeurs, liaisons: connectique?.liaisons ?? [], processeur, redondance, parc: parcNovaLCT(), systeme: lireOrdinateur() });
   if (!a) return;
   try {
     suiviABlanc = (await lire(CLE_NOVALCT_A_BLANC)) ?? SUIVI_NOVALCT_VIDE;
@@ -410,6 +434,11 @@ const ecranNovaLCT = monterNovaLCT(document.getElementById('ecran-novalct'), {
     compris: async () => enregistrerNovaLCT({ ...suiviNovaLCT(), avis: null }),
     toutDecocher: async () => enregistrerNovaLCT({ ...SUIVI_NOVALCT_VIDE }),
     dessinPort: (etape) => dessinPortNovaLCT(etape.id, modeNovaLCT === 'blanc' ? aBlancNovaLCT : null),
+    // Étape 0.3 (19a) : la fiche « Brancher l'ordinateur au processeur » d'Apprendre.
+    ouvrirConnexion: () => {
+      fermerNovaLCT();
+      allerConnexion();
+    },
   },
 });
 definirNovaLCT((choisie) => carteNovaLCT({
@@ -626,6 +655,26 @@ function allerApprendre() {
   ecranApprendre?.afficherAccueil();
   location.hash = 'apprendre';
 }
+// Fiche « Brancher l'ordinateur au processeur » (étape 19a), depuis le pas à pas ou le Dépannage : onglet Apprendre,
+// la carte à l'écran, après le retour en haut de page que fait le changement d'onglet.
+function allerConnexion() {
+  const deja = location.hash === '#apprendre';
+  if (!deja) window.addEventListener('hashchange', () => ecranApprendre?.afficherConnexion(), { once: true });
+  allerApprendre();
+  if (deja) ecranApprendre?.afficherConnexion();
+}
+// Processeur de la fiche : celui retenu dans Data quand un mur a des saisies, sa marque et son modèle ; sinon « Toutes ».
+function processeurConnexion() {
+  const p = prestas.murOuvert(etatPrestas)?.configuration ? processeurRetenu() : null;
+  return { marque: marqueConnexion(p) ?? 'toutes', modele: p?.id ?? null };
+}
+const carteConnexionAppli = () => carteConnexion({
+  systeme: lireOrdinateur(), garderSysteme: garderOrdinateur, ...processeurConnexion(), copier: (texte) => copier(texte),
+  pdf: async (feuille) => {
+    const nom = `mur-led-connexion-${new Date().toISOString().slice(0, 10)}.pdf`;
+    return enregistrer(new File([pdfFiche(feuille)], nom, { type: 'application/pdf' }), nom);
+  },
+});
 // Mode entraînement : écran plein au-dessus de l'onglet Apprendre ; « Fermer » ou Échap y ramène, et ses 67 points
 // suivent la séance. « Séance du jour » et « Les 5 essentiels » lancent la séance ; « Par famille » ouvre l'accueil du
 // mode, familles dépliées (« Effacer ma progression » y reste, en bas).
@@ -678,6 +727,11 @@ if (pourquoi) {
     ouvrirEntrainement,
     // Étape 18b : tous les processeurs de la base réglés dans NovaLCT (base de départ et mes fiches).
     novalct: { ouvrir: ouvrirNovaLCTABlanc, processeurs: processeursABlanc(courant.processeurs) },
+    // Étape 19a : la fiche « Brancher l'ordinateur au processeur », refaite à chaque ouverture de l'onglet.
+    connexion: { carte: carteConnexionAppli },
+  });
+  window.addEventListener('hashchange', () => {
+    if (location.hash === '#apprendre') ecranApprendre.actualiserConnexion();
   });
 } else {
   remplacer(document.getElementById('ecran-apprendre'), erreurAlerte('Fiches « pourquoi » introuvables : l\'onglet Apprendre ne peut pas s\'afficher.'));
@@ -1081,6 +1135,8 @@ if (depannage) {
       liensPourquoi: ecranPourquoi ? liensPourquoi.liens : [],
       ouvrirPourquoi: ecranPourquoi ? ouvrirPourquoi : null,
       ouvrirListePourquoi: ecranApprendre ? () => allerApprendre() : null,
+      // Étape 19a : sous la ligne 1 de T10.3, le chemin de ton ordinateur et le lien vers la fiche d'Apprendre.
+      ajouts: { 'T10.3:1': (marque) => blocDepannage({ systeme: lireOrdinateur(), marque, ouvrirFiche: ecranApprendre ? allerConnexion : null }) },
     });
   window.addEventListener('hashchange', async () => {
     if (location.hash === '#depannage') ecranDepannage.definirProjet(await projetDepannage());

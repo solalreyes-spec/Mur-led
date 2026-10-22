@@ -1291,6 +1291,34 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .ap-novalct > * { margin: 0; }
 .ap-novalct > .bouton { justify-self: start; }
 .ap-novalct-aucun:empty { display: none; }
+/* Brancher l'ordinateur au processeur (étape 19a, src/ecran-connexion.js) : carte d'Apprendre, bloc ajouté par l'appli
+   sous la ligne 1 de T10.3 du Dépannage, chemins repliés de l'étape 0.3 du pas à pas NovaLCT. */
+.ap-connexion { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.ap-connexion > * { margin: 0; }
+.cx-reponse { margin: 0; padding: 10px 12px; border: 1px solid var(--famille-bord); border-radius: var(--rayon); background: var(--famille-fond); font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.cx-reponse-erreur { border-color: var(--alerte); background: var(--alerte-fond); }
+.cx-notes, .cx-ligne, .cx-chemin, .cx-fiche { display: grid; gap: 4px; min-width: 0; }
+.cx-fiche { gap: 12px; }
+.cx-notes:empty { display: none; }
+.cx-note-adresse, .cx-texte { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.cx-note-adresse { color: var(--texte-doux); }
+.cx-etapes, .cx-etapes-chemin { margin: 0; }
+.cx-etapes > li + li, .cx-etapes-chemin > li + li { margin-top: 10px; }
+.cx-etape-titre { margin: 0 0 4px; font-size: 1.05rem; line-height: 1.3; }
+.cx-ligne + .cx-ligne { margin-top: 6px; }
+.cx-source-ligne, .cx-sources { margin: 0; overflow-wrap: anywhere; }
+.cx-source-ligne a, .cx-sources a { color: var(--lien); }
+.cx-a-verifier { justify-self: start; margin: 0; padding: 2px 8px; border: 1.5px solid var(--alerte); border-radius: 6px; background: var(--alerte-fond); color: var(--alerte); font-size: 0.9rem; font-weight: 700; }
+.cx-autre, .nl-chemin { min-width: 0; padding: 0 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); }
+.cx-autre > summary, .nl-chemin > summary { display: flex; align-items: center; min-height: var(--cible); color: var(--lien); font-weight: 600; cursor: pointer; }
+.cx-autre[open], .nl-chemin[open] { padding-bottom: 12px; }
+.cx-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.cx-depannage { display: grid; gap: 8px; min-width: 0; margin-top: 10px; padding: 12px; border: 1px dashed var(--bordure); border-radius: var(--rayon); background: var(--surface-2); }
+.cx-ajout { justify-self: start; margin: 0; padding: 2px 8px; border-radius: 6px; background: var(--puce); color: var(--texte); font-size: 0.85rem; font-weight: 700; }
+.cx-depannage .cx-titre { margin: 0; color: var(--texte); font-size: 1.05rem; }
+.cx-ouvrir-fiche { justify-self: start; }
+.nl-connexion { display: grid; gap: 8px; min-width: 0; }
+:root[data-taille="grand"] :is(.cx-depannage, .ap-connexion, .nl-connexion) :is(.source, .cx-a-verifier, .cx-ajout, .mat-note, .cx-etape-titre, .cx-titre) { font-size: 1rem; }
 .ap-points { display: grid; grid-template-columns: repeat(17, minmax(0, 1fr)); gap: 5px; max-width: 340px; }
 .ap-point { aspect-ratio: 1; border-radius: 50%; background: var(--point-eteint); }
 .ap-point[data-etat="revoir"], .ap-cle[data-etat="revoir"]::before { background: var(--point-revoir); }

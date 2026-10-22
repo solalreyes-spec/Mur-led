@@ -3,6 +3,8 @@
 // calcule rien et ne touche ni au stockage ni aux saisies.
 
 import { el, remplacer } from './dom.js';
+import { verifierOu } from './novalct.js';
+import { cheminsPasAPas } from './ecran-connexion.js';
 
 const alerte = (texte, genre = '') => el('div', { class: `alerte ${genre}`.trim(), role: genre === 'alerte-erreur' ? 'alert' : null }, texte);
 
@@ -134,8 +136,10 @@ export function monterNovaLCT(racine, { actions }) {
     const dessin = /\.B\.7\.\d+$/.test(e.id) && actions.dessinPort ? actions.dessinPort(e) : null;
     const carte = el('li', { class: `nl-etape${coche ? ' nl-faite' : ''}`, 'data-etape': e.id },
       el('h4', { id: `nl-titre-${e.id}` }, el('span', { class: 'nl-numero' }, e.id.replace(/^P\d+\./, '')), ' ', e.titre),
-      e.aVerifier ? el('p', { class: 'nl-a-verifier' }, 'À vérifier en formation') : null,
+      e.aVerifier ? el('p', { class: 'nl-a-verifier' }, `À vérifier ${verifierOu(e)}`) : null,
       el('p', { class: 'nl-texte' }, texteAvecMenus(e.texte)),
+      // Ton ordinateur (étape 19a) : chemin du système choisi et de l'autre, repliés, et lien vers la fiche d'Apprendre.
+      e.connexion ? cheminsPasAPas(e.connexion, { ouvrirFiche: actions.ouvrirConnexion ?? null }) : null,
       e.codeParc && vue.code ? blocCode(e.codeParc, vue.code) : null,
       dessin ? el('div', { class: 'nl-dessin' }, dessin) : null,
       e.tableau ? el('div', { class: 'nl-tableau-cadre' }, el('table', { class: 'nl-tableau' },

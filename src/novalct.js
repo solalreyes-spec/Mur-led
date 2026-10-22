@@ -7,6 +7,9 @@
 import { nombre } from './format.js';
 import { mur as murDeDalles, evaluerProcesseur, cablageData, sourceConseillee } from './calculs.js';
 import { arbreProcesseurs } from './fiches.js';
+import {
+  SOURCES_CONNEXION, ALERTE_NOVALCT, SOURCES_ALERTE_NOVALCT, controleProcesseur, cheminIP, autreSysteme,
+} from './connexion.js';
 
 export const SOURCES_NOVALCT = {
   'lct-5-5-0': {
@@ -77,6 +80,8 @@ export const SOURCES_NOVALCT = {
   'formation-11': { titre: 'Formation (transcription 11)', court: 'Formation (transcription 11)', confiance: 'formation' },
   'formation-12': { titre: 'Formation (transcription 12)', court: 'Formation (transcription 12)', confiance: 'formation' },
   cdc: { titre: 'Cahier des charges du projet, mise en service Novastar', court: 'Cahier des charges du projet', confiance: 'choix de conception' },
+  // Ton ordinateur (étape 19a) : sources des étapes 0.1 et 0.3, reprises de connexion.js.
+  ...Object.fromEntries(['vmp-1-5-0', 'apple-boot-camp', 'ms-mac-arm', 'ms-emulation-arm', 'ms-faq-arm'].map((id) => [id, SOURCES_CONNEXION[id]])),
 };
 
 const src = (id, ref = null) => ({ id, ref, court: SOURCES_NOVALCT[id].court });
@@ -246,9 +251,13 @@ const titreDe = (id) => {
 // Une étape : la signature ne dépend que de son identifiant et de ses valeurs (pas de l'ordre des noms de version).
 // `tableau` : { colonnes, lignes } à remplir dans le logiciel (redondance), ou null.
 // `codeParc` : nom du parc dont l'écran montre le code admin NovaLCT (étape 0.5), jamais le code lui-même.
-function etape(id, texte, sources, { titre = titreDe(id), valeurs = {}, aVerifier = false, alerte = null, tableau = null, codeParc = null } = {}) {
-  return { id, titre, texte, sources, aVerifier, alerte, tableau, codeParc, valeurs, signature: `${id}|${JSON.stringify(valeurs)}` };
+// `aVerifier` : true (« à vérifier en formation ») ou ce qu'il reste à vérifier et où (« chez toi, avant ta première presta »).
+// `connexion` : { chemin, autre } de cheminIP (étape 0.3, 19a), hors de la signature : changer d'ordinateur ne décoche rien.
+function etape(id, texte, sources, { titre = titreDe(id), valeurs = {}, aVerifier = false, alerte = null, tableau = null, codeParc = null, connexion = null } = {}) {
+  return { id, titre, texte, sources, aVerifier, alerte, tableau, codeParc, connexion, valeurs, signature: `${id}|${JSON.stringify(valeurs)}` };
 }
+// Texte de « à vérifier » d'une étape.
+export const verifierOu = (e) => (typeof e.aVerifier === 'string' ? e.aVerifier : 'en formation');
 
 const majuscule = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const dim = (l, h) => `${l} × ${h}`;
@@ -336,8 +345,9 @@ const SEUIL_AVERTISSEMENT = 650000;
 // Le pas à pas du mur ouvert, ou null si le processeur ne se règle pas dans NovaLCT.
 // `configs` : [{ libelle, resultat: configsDuMur(...) }] (null : pas de parc) ; `version` : version de NovaLCT relevée
 // dans le parc ; `pliage` : pliageSortie de Canvas ; `courbe` : une zone courbe ou pliée ; `parc` : { nom, aCode } du parc
-// actif (étape 18a), le code lui-même n'entre jamais dans le pas à pas.
-export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, configs = null, version = null, pliage = null, courbe = false, parc = null }) {
+// actif (étape 18a), le code lui-même n'entre jamais dans le pas à pas. `systeme` : choix « Mon ordinateur » (mac ou
+// windows, étape 19a) ; sans choix, le texte de Windows d'avant l'étape 19.
+export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, configs = null, version = null, pliage = null, courbe = false, parc = null, systeme = null }) {
   const proc = evaluation?.processeur;
   if (!proc || proc.logiciel !== 'NovaLCT') return null;
   const groupe = groupeVideo(proc);
@@ -366,6 +376,13 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
   const lct55 = (ref) => src('lct-5-5-0', ref);
   const lct58 = (ref) => src('lct-5-8-1', ref);
   const codeParc = parc?.aCode && parc.nom ? String(parc.nom) : null;
+  // Ton ordinateur (étape 19a) : sur Mac, l'alerte de NovaLCT ; port de contrôle et adresse du modèle, chemin du système.
+  const mac = systeme === 'mac';
+  const controle = controleProcesseur(proc);
+  const sys = mac ? 'mac' : 'windows';
+  const texteControle = controle.inconnu ? ` ${controle.texte.replace(/\.$/, `, ${A_VERIFIER}.`)}`
+    : ` En Ethernet : câble entre le port ${controle.ethernet} du ${modele} et ton ordinateur (adaptateur USB-C Ethernet sur un Mac).`
+      + `${controle.adresse ? ` ${controle.adresse} ; donne à l'ordinateur la même plage.` : ` Où lire son adresse : ${A_VERIFIER} ; donne à l'ordinateur la même plage.`}`;
 
   // Partie 0 : avant de partir et sur place.
   const fichiersTexte = cfg.aucunParc ? CHOISIS_PARC : [
@@ -374,18 +391,21 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
   ].join(' ; ');
   const partie0 = [
     etape('0.1', [
-      'NovaLCT tourne sous Windows : prends un PC Windows avec NovaLCT.',
+      mac ? ALERTE_NOVALCT : 'NovaLCT tourne sous Windows : prends un PC Windows avec NovaLCT.',
+      mac && controle.web ? 'Dépannage sans Windows : sa page web, à vérifier.' : null,
       vcan ? `V-Can (Windows ou Mac) pour régler l'entrée du ${modele}.` : null,
       groupe.id === 'vx-pro' ? `VICP ou Unico pour le ${modele} : ${A_VERIFIER}.` : null,
       ver.note ?? `Noms des menus d'après les manuels V5.5.0 et V5.8.1, ceux de la V${ver.premiere} en premier.`,
-    ].filter(Boolean).join(' '), [lct55('§ 1, p. 1'), ...(vcan ? [src('vcan-3-8-0', '§ 2.2, p. 2')] : [])],
-    { valeurs: { premiere: ver.premiere, note: ver.note, groupe: groupe.id } }),
+    ].filter(Boolean).join(' '), [lct55('§ 1, p. 1'), ...(mac ? SOURCES_ALERTE_NOVALCT.map((s) => src(s.id, s.ref)) : []),
+      ...(mac && controle.web ? controle.sources.map((s) => src(s.id, s.ref)) : []), ...(vcan ? [src('vcan-3-8-0', '§ 2.2, p. 2')] : [])],
+    { valeurs: { premiere: ver.premiere, note: ver.note, groupe: groupe.id }, aVerifier: mac ? 'chez toi, avant ta première presta' : false }),
     etape('0.2', `Sur le PC de régie : ${fichiersTexte.replace(/\.$/, '')}.${cfg.alertes.length ? ` ${cfg.alertes.join(' ')}` : ''} `
       + 'Prends aussi le .scr ou le .scfg déjà faits pour ce mur, s\'il y en a.',
     [src('cdc'), lct55('§ 5.1, p. 6')], { valeurs: { fichiers: cfg.fichiers, lxy: cfg.lxy, aucunParc: cfg.aucunParc } }),
     etape('0.3', `Branche le PC au ${modele} avec le câble de contrôle, en USB ou en Ethernet. View Details of Device donne `
-      + `le port de communication et le nombre de cartes d'envoi vues : ${nb} attendue${nb > 1 ? 's' : ''} (${nb} × ${modele}).`,
-    [lct55('§ 3, p. 3'), lct58('§ 3, p. 4')], { valeurs: { nb } }),
+      + `le port de communication et le nombre de cartes d'envoi vues : ${nb} attendue${nb > 1 ? 's' : ''} (${nb} × ${modele}).${texteControle}`,
+    [lct55('§ 3, p. 3'), lct58('§ 3, p. 4'), lct58('§ 3.1, p. 4'), ...controle.sources.map((s) => src(s.id, s.ref))],
+    { valeurs: { nb }, aVerifier: controle.inconnu || controle.aVerifier, connexion: { chemin: cheminIP(sys), autre: cheminIP(autreSysteme(sys)) } }),
     etape('0.4', `Mur allumé, tout en ligne : Settings > Hardware Information, Refresh All, puis Refresh, et note les versions du ${modele} `
       + 'et des cartes de réception (onglet Base, version du parc).',
     [lct55('§ 9.5, p. 116 et 117'), lct58('§ 9.5, p. 125 et 126'), src('cdc')]),
@@ -778,7 +798,8 @@ export function ficheNovaLCT(resultat, cases, { presta = '', mur = '', date = ne
     { libelle: '', valeur: e.texte },
     ...(e.tableau?.lignes ?? []).map((l) => ({ libelle: `Redondance, port ${l[1]}`, valeur: `carte principale ${l[0]}, port ${l[1]} ; carte de secours ${l[2]}, port ${l[3]}` })),
     ...(e.alerte ? [{ libelle: 'Alerte', valeur: e.alerte }] : []),
-    ...(e.aVerifier ? [{ libelle: 'À vérifier', valeur: 'en formation' }] : []),
+    ...(e.connexion ? [{ libelle: e.connexion.chemin.titre, valeur: [...e.connexion.chemin.etapes, e.connexion.chemin.apres].map((x) => x.texte).join(' ') }] : []),
+    ...(e.aVerifier ? [{ libelle: 'À vérifier', valeur: verifierOu(e) }] : []),
     { libelle: 'Source', valeur: sourcesTexte(e) || 'aucune source lue' },
   ];
   return {
@@ -851,7 +872,8 @@ export function processeursABlanc(processeurs = []) {
 // `dalles`, `processeurs` : fiches résolues de la base ; `liaisons` : liaisons résolues. Rend le mur, l'évaluation, la
 // variante conseillée, la source conseillée, le pas à pas et sa description ; null si la dalle ou le processeur manque.
 // `parc` : { nom, aCode } du parc actif, pour le code admin de l'étape 0.5 (étape 18a).
-export function murABlanc({ dalles = [], processeurs = [], liaisons = [], processeur = MUR_A_BLANC.processeur, redondance = false, parc = null }) {
+// `systeme` : choix « Mon ordinateur » (étape 19a).
+export function murABlanc({ dalles = [], processeurs = [], liaisons = [], processeur = MUR_A_BLANC.processeur, redondance = false, parc = null, systeme = null }) {
   const dalle = dalles.find((d) => d.id === MUR_A_BLANC.dalle);
   const proc = processeurs.find((p) => p.id === processeur);
   if (!dalle || !proc) return null;
@@ -862,7 +884,7 @@ export function murABlanc({ dalles = [], processeurs = [], liaisons = [], proces
   const c = cablageData(m, dalle, evaluation, { depart });
   const variante = c.variantes.find((x) => x.mode === c.conseil) ?? null;
   const source = sourceConseillee(evaluation, liaisons, frequenceHz);
-  const resultat = etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, parc });
+  const resultat = etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, parc, systeme });
   return {
     mur: m, dalle, evaluation, variante, source, depart, resultat,
     description: `Mur d'exemple : ${colonnes} × ${lignes} ${dalle.nom}, ${evaluation.nombre} × ${proc.modele}, ${nombre(frequenceHz)} Hz, ${bits} bits`

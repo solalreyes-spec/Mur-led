@@ -15,6 +15,7 @@ import * as prestas from '../src/prestas.js';
 import * as fichesMetier from '../src/fiches-metier.js';
 import * as pdf from '../src/pdf.js';
 import * as novalct from '../src/novalct.js';
+import * as connexion from '../src/connexion.js';
 import { nombre } from '../src/format.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
@@ -8921,6 +8922,200 @@ export const REGLES = [
       const e = calculs.evaluerProcesseur(m, DALLE_64, processeurDeBase(contexte, 'colorlight-x16e'), { frequenceHz: 60, bits: 8 });
       v.egal('Colorlight X16E : rien dans la base', imposerData(contexte, { dalle: DALLE_64, m, e }, { ports: 2, fibre: true }).imposee?.fibre.texte,
         `Aucun convertisseur fibre dans la base pour le ${e.processeur.modele} : à vérifier.`);
+    },
+  },
+  {
+    id: 'R394',
+    titre: 'Adresse de l\'ordinateur (19a, spec § 3.1, `adresseOrdinateur`) : mêmes trois premiers nombres que le processeur, dernier nombre 100 ou le premier libre au-dessus, masque 255.255.255.0, passerelle vide ; virgules du clavier lues comme des points ; .0 et .255 refusés, plages différentes refusées, texte illisible refusé avec la raison, 169.254 en alerte AutoIP, deux processeurs à la même adresse en alerte ; sans saisie, l\'exemple de la marque (Brompton 192.168.0.50, Novastar 192.168.0.10 du manuel VX1000), aucun pour les autres',
+    etape: '19a',
+    verifier(v) {
+      const a = (x, o) => connexion.adresseOrdinateur(x, o);
+      const r = a('192.168.0.10');
+      v.egal('192.168.0.10 donne .100', [r.ok, r.adresse, r.masque, r.passerelle, r.exemple, r.processeurs], [true, '192.168.0.100', '255.255.255.0', '', false, ['192.168.0.10']]);
+      v.egal('.100 pris : .101', a('192.168.0.100').adresse, '192.168.0.101');
+      v.egal('.100 et .101 pris : .102', a('192.168.0.100 ; 192.168.0.101').adresse, '192.168.0.102');
+      v.egal('liste d\'adresses', a(['10.0.0.100', '10.0.0.101']).adresse, '10.0.0.102');
+      v.egal('de 100 à 254 pris : le premier libre en dessous', a(Array.from({ length: 155 }, (_, i) => `10.1.1.${100 + i}`)).adresse, '10.1.1.99');
+      v.egal('virgules et espaces', [connexion.lireAdresses(' 192,168,0,10 '), a('192,168,0,10').adresse], [['192.168.0.10'], '192.168.0.100']);
+      v.egal('deux adresses séparées par une virgule', connexion.lireAdresses('192.168.0.10, 192.168.0.11'), ['192.168.0.10', '192.168.0.11']);
+      const ILLISIBLE = 'Tape l\'adresse lue sur le processeur, quatre nombres de 0 à 255 séparés par des points (192.168.0.10).';
+      v.egal('texte illisible', ['abc', '192.168.0', '300.1.1.1', '192.168.0.1.5'].map((x) => [a(x).ok, a(x).erreur, a(x).adresse]), Array(4).fill([false, ILLISIBLE, null]));
+      for (const x of ['192.168.0.0', '192.168.0.255']) {
+        v.vrai(`${x} refusé`, !a(x).ok && (a(x).erreur ?? '').includes('adresse de réseau ou de diffusion'), a(x).erreur);
+      }
+      v.egal('deux plages', [a('192.168.0.10 192.168.1.10').ok, a('192.168.0.10 192.168.1.10').erreur],
+        [false, 'Tes processeurs ne sont pas dans la même plage : règle-les d\'abord dans la même.']);
+      const auto = a('169.254.12.7');
+      v.vrai('169.254 : alerte AutoIP, pas d\'adresse proposée', auto.autoIP === true && auto.adresse === null
+        && (auto.alertes ?? []).some((t) => t.includes('ne s\'est pas donné d\'adresse fixe') && t.includes('DHCP')), (auto.alertes ?? []).join(' | '));
+      v.vrai('même adresse sur deux processeurs : alerte', (a('192.168.0.10 192.168.0.10').alertes ?? []).some((t) => t.includes('même adresse')));
+      v.vrai('masque supposé', (r.note ?? '').includes('si le processeur affiche un autre masque, recopie-le'), r.note);
+      v.vrai('sources : choix de conception et règle commune', ['conception', 'tessera-3-5', 'vx1000-1-5-0'].every((id) => (r.sources ?? []).some((s) => s.id === id)),
+        (r.sources ?? []).map((s) => s.id).join(', '));
+      const br = a('', { marque: 'brompton' });
+      v.egal('vide, Brompton : 192.168.0.50 de la fiche', [br.ok, br.exemple, br.processeurs, br.adresse], [true, true, ['192.168.0.50'], '192.168.0.100']);
+      const ns = a('', { marque: 'novastar' });
+      v.vrai('vide, Novastar : exemple du VX1000, lis la tienne', ns.exemple === true && ns.processeurs?.[0] === '192.168.0.10' && ns.adresse === '192.168.0.100'
+        && (ns.message ?? '').includes('lis la tienne'), ns.message);
+      for (const marque of ['coex', 'megapixel', 'colorlight', 'autres', 'toutes', null]) {
+        const x = a('', { marque });
+        v.egal(`vide, ${marque} : pas d'exemple`, [x.ok, x.adresse, x.message],
+          [false, null, 'Lis l\'adresse sur l\'écran du processeur et tape-la : l\'appli te donne celle de ton ordinateur.']);
+      }
+    },
+  },
+  {
+    id: 'R395',
+    titre: 'Port de contrôle et adresse de chaque processeur (19a, spec § 3.1, `CONTROLE_PROCESSEURS`) : MCTRL4K, MCTRL660 PRO, MCTRL R5, VX1000, MX40 Pro, Tessera (SX40, S8, S4, M2, T1) et HELIOS, chaque entrée sourcée par le manuel ou la fiche du modèle ; page web en dépannage pour le MCTRL4K et le MCTRL660 PRO ; un modèle absent : « vois la fiche du processeur », à vérifier',
+    etape: '19a',
+    verifier(v, contexte) {
+      const table = connexion.CONTROLE_PROCESSEURS ?? [];
+      const ids = table.flatMap((c) => c.ids);
+      v.egal('modèles couverts', [...ids].sort(), ['brompton-m2', 'brompton-s4', 'brompton-s8', 'brompton-sx40', 'brompton-t1', 'coex-mx40-pro',
+        'megapixel-helios-4k', 'megapixel-helios-8k', 'megapixel-helios-jr', 'novastar-mctrl-r5', 'novastar-mctrl4k', 'novastar-mctrl660-pro', 'novastar-vx1000']);
+      const base = baseProcesseurs(contexte).processeurs.map((p) => p.id);
+      v.egal('modèles de la base', ids.filter((id) => !base.includes(id)), []);
+      v.egal('chaque entrée a une source connue', table.filter((c) => !c.sources.length || c.sources.some((s) => !connexion.SOURCES_CONNEXION[s.id])).map((c) => c.nom), []);
+      const k4 = connexion.controleProcesseur('novastar-mctrl4k');
+      v.vrai('MCTRL4K : Control ETHERNET, adresse en haut à droite, page web', k4.port.includes('Control ETHERNET') && k4.adresse.includes('en haut à droite de son écran d\'accueil')
+        && k4.web === true && k4.sources.some((s) => s.id === 'mctrl4k-manuel-1-2-1'), JSON.stringify(k4));
+      v.egal('page web : MCTRL4K et MCTRL660 PRO seulement', table.filter((c) => c.web).flatMap((c) => c.ids), ['novastar-mctrl4k', 'novastar-mctrl660-pro']);
+      const t = connexion.controleProcesseur('brompton-s8');
+      v.vrai('Tessera : 192.168.0.50 par défaut', t.adresse.includes('192.168.0.50') && t.sources.some((s) => s.id === 'tessera-3-5'), t.adresse);
+      v.vrai('VX1000 : façade et V-Can', connexion.controleProcesseur('novastar-vx1000').reglage.includes('V-Can'));
+      v.vrai('HELIOS : écran LCD de la façade', connexion.controleProcesseur('megapixel-helios-4k').adresse.includes('LCD'));
+      v.egal('adresse affichée à vérifier : MCTRL660 PRO et MX40 Pro', table.filter((c) => c.aVerifier).flatMap((c) => c.ids), ['novastar-mctrl660-pro', 'coex-mx40-pro']);
+      const inconnu = connexion.controleProcesseur('novastar-mctrl660');
+      v.egal('MCTRL660 classique : à vérifier', [inconnu.inconnu, inconnu.aVerifier, inconnu.texte], [true, true, 'Port de contrôle et adresse : vois la fiche du processeur.']);
+      v.egal('aucun processeur : pareil', connexion.controleProcesseur(null).inconnu, true);
+    },
+  },
+  {
+    id: 'R396',
+    titre: 'Chemin de l\'adresse IP sur Mac et sur Windows (19a, spec § 2.3, `cheminIP`) : aide Apple (Réglages Système > Réseau > le service > Détails > TCP/IP > Configurer IPv4 : Manuellement, adresse du routeur vide, OK ; retour en Utilisation de DHCP ; adaptateur Ethernet du manuel Tessera), aide Microsoft (Paramètres > Réseau & Internet > Ethernet > Attribution d\'adresse IP : Modifier > Manuel > IPv4, Passerelle vide, Enregistrer ; Adresse IPv4 ; retour en automatique), chemin du Panneau de configuration (manuel Tessera, annexe C) ; chaque étape sourcée',
+    etape: '19a',
+    verifier(v) {
+      const texte = (c) => c.etapes.map((e) => e.texte).join(' ');
+      const mac = connexion.cheminIP('mac', { adresse: '192.168.0.100' });
+      v.egal('Mac : système et titre', [mac.systeme, mac.titre], ['mac', 'Sur ton Mac']);
+      v.egal('Mac : libellés d\'Apple', ['adaptateur', 'Réglages Système', 'Réseau', 'Détails', 'TCP/IP', 'Configurer IPv4 : Manuellement', '192.168.0.100', '255.255.255.0',
+        'adresse du routeur', 'OK'].filter((m) => !texte(mac).includes(m)), []);
+      v.vrai('Mac : retour en Utilisation de DHCP', mac.apres.texte.includes('Utilisation de DHCP'), mac.apres.texte);
+      const win = connexion.cheminIP('windows', { adresse: '192.168.0.100' });
+      v.egal('Windows : système et titre', [win.systeme, win.titre], ['windows', 'Sur Windows']);
+      v.egal('Windows : libellés de Microsoft et chemin du Panneau de configuration', ['Paramètres', 'Réseau & Internet', 'Ethernet', 'Attribution d\'adresse IP', 'Modifier', 'Manuel', 'IPv4',
+        'Adresse IP', 'Masque de sous-réseau', 'Passerelle', 'Enregistrer', 'Adresse IPv4', '192.168.0.100', 'Panneau de configuration'].filter((m) => !texte(win).includes(m)), []);
+      v.vrai('Windows : retour en automatique (DHCP)', win.apres.texte.includes('DHCP'), win.apres.texte);
+      v.egal('chaque étape sourcée', [mac, win].flatMap((c) => [...c.etapes, c.apres])
+        .filter((e) => !e.sources.length || e.sources.some((s) => !connexion.SOURCES_CONNEXION[s.id])).map((e) => e.texte), []);
+      const ids = (c) => c.etapes.flatMap((e) => e.sources.map((s) => s.id));
+      v.vrai('sources : Apple et Tessera pour le Mac, Microsoft et Tessera pour Windows', ['apple-tcpip-saisir', 'tessera-3-5'].every((id) => ids(mac).includes(id))
+        && ['ms-reseau', 'tessera-3-5'].every((id) => ids(win).includes(id)), `${ids(mac)} / ${ids(win)}`);
+      v.vrai('sans adresse : la même plage que le processeur', texte(connexion.cheminIP('mac')).includes('même plage que le processeur'), texte(connexion.cheminIP('mac')));
+      v.egal('système inconnu : Mac', connexion.cheminIP('linux').systeme, 'mac');
+    },
+  },
+  {
+    id: 'R397',
+    titre: 'Logiciels sur Mac (19a, spec § 2.1 et 2.2, `logicielsConnexion`) : NovaLCT Windows seulement, avec l\'alerte (Windows 11 pour Arm dans Parallels, pas de Boot Camp, pilote, Ethernet à essayer, PC Windows de secours) et la page web des MCTRL4K et MCTRL660 PRO ; V-Can macOS 12, VMP macOS 10.15 et Windows pour Arm refusé, Tessera Remote de même version que le processeur, interface web de HELIOS ; LEDVISION et Linsn, Kystar, Mooncell à vérifier ; chacun dit comment il montre le processeur trouvé',
+    etape: '19a',
+    verifier(v) {
+      const l = connexion.logicielsConnexion();
+      const par = (id) => l.find((x) => x.id === id) ?? {};
+      v.egal('logiciels', l.map((x) => x.id), ['novalct', 'v-can', 'vmp', 'tessera-remote', 'helios', 'ledvision', 'autres']);
+      v.egal('sur Mac', l.map((x) => x.mac), [false, true, true, true, true, null, null]);
+      const n = par('novalct');
+      v.egal('NovaLCT : alerte', ['Windows seulement', 'Windows 11 pour Arm dans Parallels', 'pas de Boot Camp', 'pilote', 'Ethernet', 'PC Windows de secours']
+        .filter((m) => !(n.alerte ?? '').includes(m)), []);
+      v.vrai('NovaLCT : page web du MCTRL4K et du MCTRL660 PRO, à vérifier', ['MCTRL4K', 'MCTRL660 PRO', 'à vérifier'].every((m) => (n.pageWeb ?? '').includes(m)), n.pageWeb);
+      v.egal('NovaLCT : sources Apple, Microsoft et Novastar', ['apple-boot-camp', 'ms-mac-arm', 'ms-emulation-arm', 'ms-faq-arm', 'lct-5-8-1', 'vmp-1-5-0']
+        .filter((id) => !(n.sources ?? []).some((s) => s.id === id)), []);
+      v.vrai('VMP : macOS 10.15, Windows pour Arm refusé', ['macOS 10.15', 'Windows pour Arm refusé'].every((m) => (par('vmp').conditions ?? '').includes(m)), par('vmp').conditions);
+      v.vrai('V-Can : macOS 12', (par('v-can').conditions ?? '').includes('macOS 12'), par('v-can').conditions);
+      v.vrai('Tessera Remote : même version que le processeur', (par('tessera-remote').conditions ?? '').includes('même version que le processeur'), par('tessera-remote').conditions);
+      v.egal('LEDVISION, Linsn, Kystar, Mooncell : à vérifier, sans source', ['ledvision', 'autres'].map((id) => [par(id).aVerifier, par(id).sources?.length]), [[true, 0], [true, 0]]);
+      v.egal('les autres sourcés', l.filter((x) => !x.aVerifier && (!x.sources.length || x.sources.some((s) => !connexion.SOURCES_CONNEXION[s.id]))).map((x) => x.id), []);
+      v.egal('chacun dit comment il montre le processeur trouvé', l.filter((x) => !x.aVerifier && !x.verifie).map((x) => x.id), []);
+    },
+  },
+  {
+    id: 'R398',
+    titre: 'Fiche « Brancher l\'ordinateur au processeur » (19a, spec § 3.5, `ficheConnexion`, `texteConnexion`, `feuilleConnexion`) : réponse (« Mets ton ordinateur en 192.168.0.100, masque 255.255.255.0, passerelle vide. »), puis le câble, le chemin du système choisi, la vérification dans le logiciel de la marque, le retour en DHCP et les logiciels sur Mac (NovaLCT en tête) ; l\'autre système à part ; texte copié une information par ligne, sans tiret ; feuille du PDF',
+    etape: '19a',
+    verifier(v) {
+      const f = connexion.ficheConnexion({ systeme: 'mac', marque: 'novastar', modele: 'novastar-mctrl4k', adresses: '' });
+      v.egal('réponse', f.reponse, 'Mets ton ordinateur en 192.168.0.100, masque 255.255.255.0, passerelle vide.');
+      v.egal('étapes', f.etapes.map((e) => e.titre), ['Le câble', 'Sur ton Mac', 'Vérifie dans le logiciel', 'Après la presta', 'Ton logiciel sur Mac ?']);
+      v.egal('autre système à part', f.autre.systeme, 'windows');
+      const lignes = (e) => e.lignes.map((l) => l.texte).join(' ');
+      v.vrai('câble : Control ETHERNET du MCTRL4K, adaptateur sur le Mac', ['Control ETHERNET', 'MCTRL4K', 'adaptateur'].every((m) => lignes(f.etapes[0]).includes(m)), lignes(f.etapes[0]));
+      v.vrai('vérifier : NovaLCT d\'abord', f.etapes[2].lignes[0].texte.startsWith('NovaLCT'), f.etapes[2].lignes[0].texte);
+      v.vrai('après la presta : DHCP', lignes(f.etapes[3]).includes('Utilisation de DHCP'), lignes(f.etapes[3]));
+      v.vrai('logiciels sur Mac : NovaLCT en tête avec son alerte', f.etapes[4].lignes[0].texte.startsWith('NovaLCT') && f.etapes[4].lignes[0].texte.includes('PC Windows de secours'), f.etapes[4].lignes[0].texte);
+      v.vrai('chaque ligne sourcée ou à vérifier', f.etapes.flatMap((e) => e.lignes).every((l) => l.sources.length || l.aVerifier));
+      const w = connexion.ficheConnexion({ systeme: 'windows', marque: 'brompton', adresses: '192.168.0.50' });
+      v.egal('Windows, Brompton', [w.etapes[1].titre, w.reponse, w.autre.systeme], ['Sur Windows', 'Mets ton ordinateur en 192.168.0.100, masque 255.255.255.0, passerelle vide.', 'mac']);
+      v.vrai('Brompton : câble direct, pas de Wi-Fi, Tessera Remote', ['Cat 5e', 'Wi-Fi'].every((m) => lignes(w.etapes[0]).includes(m)) && w.etapes[2].lignes[0].texte.startsWith('Tessera Remote'), lignes(w.etapes[0]));
+      const toutes = connexion.ficheConnexion({ systeme: 'mac', marque: 'toutes' });
+      v.vrai('Toutes : pas d\'exemple, chaque logiciel', toutes.adresse.ok === false && toutes.etapes[2].lignes.length >= 6, toutes.reponse);
+      const autres = connexion.ficheConnexion({ systeme: 'mac', marque: 'autres' });
+      v.vrai('Autres : vois la fiche, à vérifier', autres.etapes[2].lignes.some((l) => l.texte.includes('vois la fiche du processeur') && l.aVerifier));
+      v.egal('saisie illisible : la raison à la place de la réponse', connexion.ficheConnexion({ systeme: 'mac', marque: 'novastar', adresses: 'abc' }).reponse,
+        'Tape l\'adresse lue sur le processeur, quatre nombres de 0 à 255 séparés par des points (192.168.0.10).');
+      const t = connexion.texteConnexion(f);
+      const tl = t.split('\n');
+      v.egal('texte : titre', tl[0], 'BRANCHER L\'ORDINATEUR AU PROCESSEUR');
+      v.egal('texte : sans tiret de liste, tiret long ni ligne vide', tl.filter((x) => !x.trim() || /^[-•]/.test(x) || /[—–]/.test(x)), []);
+      v.vrai('texte : réponse, chemin du Mac, sources', t.includes(f.reponse) && t.includes('Réglages Système') && t.includes('Source :'), t);
+      const p = connexion.feuilleConnexion(f, { date: new Date(2026, 9, 22) });
+      v.vrai('PDF : titre, en-tête, blocs', p.titre === 'Brancher l\'ordinateur au processeur' && p.entete.some(([l, x]) => l === 'Mon ordinateur' && x === 'Mac')
+        && p.entete.some(([l, x]) => l === 'Date' && x === '22/10/2026') && p.blocs.length === 5, JSON.stringify(p.entete));
+    },
+  },
+  {
+    id: 'R399',
+    titre: 'Pas à pas NovaLCT et ton ordinateur (19a, spec § 3.3) : étape 0.1 sur Mac (Windows 11 pour Arm dans Parallels, pas de Boot Camp, pilote, Ethernet, PC Windows de secours, à vérifier chez toi ; page web des MCTRL4K et MCTRL660 PRO), inchangée sur Windows ou sans choix ; étape 0.3 avec le port de contrôle et l\'adresse du modèle, le chemin du système choisi et l\'autre à part, « vois la fiche du processeur » pour un modèle hors de la table ; signatures inchangées ; texte copié, PDF et à blanc',
+    etape: '19a',
+    verifier(v, contexte) {
+      const k4 = (systeme) => pasAPasNovaLCT(contexte, { procId: 'novastar-mctrl4k', options: systeme ? { systeme } : {} });
+      const sans = k4(null);
+      const mac = k4('mac');
+      const win = k4('windows');
+      const aujourdhui = etapeNovaLCT(sans, '0.1').texte;
+      v.vrai('sans choix : 0.1 d\'aujourd\'hui', aujourdhui.startsWith('NovaLCT tourne sous Windows : prends un PC Windows avec NovaLCT.'), aujourdhui);
+      v.egal('Windows : 0.1 d\'aujourd\'hui', [etapeNovaLCT(win, '0.1').texte, etapeNovaLCT(win, '0.1').aVerifier], [aujourdhui, false]);
+      const m01 = etapeNovaLCT(mac, '0.1');
+      v.egal('Mac : 0.1', ['NovaLCT tourne sous Windows seulement.', 'Windows 11 pour Arm dans Parallels', 'pas de Boot Camp sur une puce Apple', 'pilote', 'essaie l\'Ethernet',
+        'garde un PC Windows de secours', 'Dépannage sans Windows : sa page web, à vérifier.'].filter((m) => !m01.texte.includes(m)), []);
+      v.egal('Mac : à vérifier chez toi', m01.aVerifier, 'chez toi, avant ta première presta');
+      v.egal('Mac : sources connues du pas à pas', m01.sources.filter((s) => !novalct.SOURCES_NOVALCT[s.id]).map((s) => s.id), []);
+      v.vrai('Mac : sources Apple et Microsoft', ['apple-boot-camp', 'ms-mac-arm', 'ms-emulation-arm'].every((id) => m01.sources.some((s) => s.id === id)), m01.sources.map((s) => s.id).join(', '));
+      const signatures = (r) => r.parties.flatMap((p) => p.etapes.map((e) => e.signature));
+      v.egal('signatures : Mac et Windows identiques', signatures(mac), signatures(win));
+      v.egal('signatures : Windows et sans choix identiques', signatures(win), signatures(sans));
+      const m03 = etapeNovaLCT(mac, '0.3');
+      v.vrai('0.3 : Control ETHERNET et adresse du MCTRL4K', m03.texte.includes('En Ethernet : câble entre le port Control ETHERNET du MCTRL4K et ton ordinateur (adaptateur USB-C Ethernet sur un Mac).')
+        && m03.texte.includes('Son adresse s\'affiche en haut à droite de son écran d\'accueil ; donne à l\'ordinateur la même plage.'), m03.texte);
+      v.egal('0.3 : chemin du système choisi, l\'autre à part', [m03.connexion?.chemin.systeme, m03.connexion?.autre.systeme, etapeNovaLCT(win, '0.3').connexion?.chemin.systeme,
+        etapeNovaLCT(sans, '0.3').connexion?.chemin.systeme], ['mac', 'windows', 'windows', 'windows']);
+      v.vrai('0.3 : sources NovaLCT V5.8.1 § 3.1 et manuel MCTRL4K', m03.sources.some((s) => s.id === 'lct-5-8-1' && s.ref === '§ 3.1, p. 4') && m03.sources.some((s) => s.id === 'mctrl4k-manuel-1-2-1'),
+        m03.sources.map((s) => `${s.id} ${s.ref}`).join(', '));
+      const p660 = pasAPasNovaLCT(contexte, { options: { systeme: 'mac' } });
+      const e660 = etapeNovaLCT(p660, '0.3');
+      v.vrai('MCTRL660 classique : vois la fiche, à vérifier', e660.texte.includes('Port de contrôle et adresse : vois la fiche du processeur, à vérifier en formation.') && e660.aVerifier === true, e660.texte);
+      v.vrai('MCTRL660 classique : pas de page web', !etapeNovaLCT(p660, '0.1').texte.includes('page web'));
+      v.vrai('MCTRL660 PRO : page web', etapeNovaLCT(pasAPasNovaLCT(contexte, { procId: 'novastar-mctrl660-pro', options: { systeme: 'mac' } }), '0.1').texte.includes('sa page web'));
+      const tm = novalct.texteNovaLCT(mac, {});
+      v.vrai('texte copié : le chemin du Mac seulement', tm.includes('Configurer IPv4 : Manuellement') && !tm.includes('Réseau & Internet'));
+      v.vrai('texte copié : le chemin de Windows', novalct.texteNovaLCT(win, {}).includes('Réseau & Internet'));
+      const lignes0 = novalct.ficheNovaLCT(mac, {}).blocs[0].lignes;
+      v.vrai('PDF : le chemin et « à vérifier chez toi »', lignes0.some((l) => (l.valeur ?? '').includes('Configurer IPv4 : Manuellement'))
+        && lignes0.some((l) => l.libelle === 'À vérifier' && l.valeur === 'chez toi, avant ta première presta'));
+      const bd = baseDalles(contexte);
+      const bp = baseProcesseurs(contexte);
+      const a = novalct.murABlanc({ dalles: bd.dalles.map((f) => calculs.resoudreFiche(f, bd.sources)), processeurs: bp.processeurs.map((f) => calculs.resoudreFiche(f, bp.sources)),
+        liaisons: liaisonsDeBase(contexte), systeme: 'mac' });
+      v.vrai('à blanc : Mac', etapeNovaLCT(a.resultat, '0.1').texte.includes('Parallels') && etapeNovaLCT(a.resultat, '0.3').connexion?.chemin.systeme === 'mac');
     },
   },
 ];

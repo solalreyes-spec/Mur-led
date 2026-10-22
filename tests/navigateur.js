@@ -4504,6 +4504,179 @@ export const NAVIGATEUR = [
       v.egal('SX40 : ses XD, comme avant', repereSchema('data', { evaluation: sx40, distanceM: 150, fibre: fsx }), { lignes: ['XD', 'fibre 150 m'] });
     },
   },
+  {
+    id: 'N98',
+    titre: 'Fiche « Brancher l\'ordinateur au processeur » dans Apprendre (19a, spec § 3.2 et 3.5) : carte juste avant « NovaLCT à blanc », choix « Mon ordinateur » (Mac coché, Windows gardé par son action), autre système replié, marque du processeur de Data, champ des adresses en clavier décimal (virgules acceptées) et sa réponse, Copier et PDF ; cibles de 48 px (60 en grand affichage), rien ne dépasse à 375 px, texte à 4,5:1 en sombre et en rouge',
+    etape: '19a',
+    async verifier(v, contexte) {
+      const ap = await moduleAppli(v, '../src/ecran-apprendre.js');
+      const cx = await moduleAppli(v, '../src/ecran-connexion.js');
+      if (!ap || !cx) return;
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const { mode, taille } = html.dataset;
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      const gardes = [];
+      const copies = [];
+      let pdf = 0;
+      try {
+        const carte = () => cx.carteConnexion({
+          systeme: 'mac', garderSysteme: (s) => gardes.push(s), marque: 'novastar', modele: 'novastar-mctrl4k', enLigne: () => false,
+          copier: async (t) => { copies.push(t); return true; }, pdf: async () => { pdf += 1; return 'partage'; },
+        });
+        const ecran = ap.monterApprendre(racine, { pourquoi: contexte.pourquoi, entrainement: contexte.entrainement, stockage: null, enLigne: () => false, ouvrirFiche: () => {}, ouvrirEntrainement: () => {},
+          connexion: { carte }, novalct: { ouvrir: () => {}, processeurs: { groupes: [], defaut: 'novastar-mctrl660' } } });
+        await ecran.pret;
+        const c = racine.querySelector('.ap-connexion');
+        v.egal('carte juste avant NovaLCT à blanc, titre', [c?.nextElementSibling?.classList.contains('ap-novalct'), texteDe(c?.querySelector('h3'))], [true, 'Brancher l\'ordinateur au processeur']);
+        if (!c) return;
+        const radio = (x) => c.querySelector(`input[name="cx-systeme"][value="${x}"]`);
+        v.egal('Mac coché', [radio('mac')?.checked, radio('windows')?.checked], [true, false]);
+        v.egal('marque de Data', c.querySelector('select[name="cx-marque"]')?.value, 'novastar');
+        const autre = () => c.querySelector('details.cx-autre');
+        v.vrai('chemin du Mac, Windows replié', texteDe(c.querySelector('.cx-etapes')).includes('Réglages Système') && texteDe(autre()?.querySelector('summary')) === 'Sur Windows' && !autre().open);
+        v.vrai('réponse sans saisie : l\'exemple', texteDe(c.querySelector('.cx-reponse')).startsWith('Mets ton ordinateur en 192.168.0.100'), texteDe(c.querySelector('.cx-reponse')));
+        const champ = c.querySelector('input[name="cx-adresses"]');
+        v.egal('champ : clavier décimal, étiquette', [champ?.getAttribute('inputmode'), texteDe(c.querySelector(`label[for="${champ?.id}"]`))], ['decimal', 'Adresses des processeurs (lues sur leur écran)']);
+        champ.value = '192,168,1,20';
+        champ.dispatchEvent(new Event('input', { bubbles: true }));
+        v.egal('réponse', texteDe(c.querySelector('.cx-reponse')), 'Mets ton ordinateur en 192.168.1.100, masque 255.255.255.0, passerelle vide.');
+        radio('windows').click();
+        v.egal('Windows gardé', gardes, ['windows']);
+        v.vrai('chemin de Windows, Mac replié', texteDe(c.querySelector('.cx-etapes')).includes('Réseau & Internet') && texteDe(autre()?.querySelector('summary')) === 'Sur ton Mac');
+        v.vrai('adresse saisie gardée', texteDe(c.querySelector('.cx-reponse')).includes('192.168.1.100'));
+        boutonTexte(c, 'Copier')?.click();
+        await attendre();
+        v.vrai('Copier : le texte de la fiche', (copies[0] ?? '').startsWith('BRANCHER L\'ORDINATEUR AU PROCESSEUR') && copies[0].includes('Réseau & Internet'), copies[0]);
+        boutonTexte(c, 'PDF')?.click();
+        await attendre();
+        v.egal('PDF', pdf, 1);
+        c.querySelectorAll('details').forEach((d) => { d.open = true; });
+        for (const [rouge, grand] of [[false, false], [true, false], [false, true]]) {
+          if (rouge) html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          if (grand) html.dataset.taille = 'grand';
+          else delete html.dataset.taille;
+          const nom = `${rouge ? 'mode rouge' : 'sombre'}${grand ? ', grand affichage' : ''}`;
+          const cible = grand ? 59.5 : 47.5;
+          const cibles = [...c.querySelectorAll('button, select, input:not([type="radio"]), summary'), ...[...c.querySelectorAll('input[type="radio"]')].map((x) => x.closest('label'))];
+          v.egal(`${nom} : cibles`, cibles.filter((x) => x.getBoundingClientRect().height < cible).map((x) => texteDe(x) || x.name), []);
+          const bord = racine.getBoundingClientRect().right;
+          v.egal(`${nom} : rien ne dépasse`, [...c.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > bord + 0.5)
+            .map((x) => `${x.tagName.toLowerCase()}.${x.className}`), []);
+          const textes = [...c.querySelectorAll('*')].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && x.getBoundingClientRect().width > 0);
+          v.egal(`${nom} : texte à 4,5:1`, textes.filter((x) => contraste(rgbVersHex(getComputedStyle(x).color), fondDe(x)) < 4.5).map((x) => texteDe(x).slice(0, 40)), []);
+        }
+      } finally {
+        if (mode) html.dataset.mode = mode;
+        else delete html.dataset.mode;
+        if (taille) html.dataset.taille = taille;
+        else delete html.dataset.taille;
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N99',
+    titre: 'Dépannage, T10.3 (19a, spec § 3.4) : sous la ligne 1 (« même plage d\'adresses IP »), le bloc de l\'appli « Comment faire sur ton Mac », marqué « Ajouté par l\'appli », avec l\'adresse à saisir selon la marque, le chemin du système, l\'autre système replié, le lien vers la fiche d\'Apprendre et ses propres sources ; rien dans les autres étapes ni dans la table des sources du Dépannage ; Windows choisi : « Comment faire sur Windows » ; 375 px, contrastes en sombre et en rouge, grand affichage',
+    etape: '19a',
+    async verifier(v, contexte) {
+      const module = await moduleDepannage(v);
+      const cx = await moduleAppli(v, '../src/ecran-connexion.js');
+      if (!module || !cx) return;
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const { mode, taille } = html.dataset;
+      const fiches = [];
+      const choix = { systeme: 'mac' };
+      const ajouts = { 'T10.3:1': () => cx.blocDepannage({ systeme: choix.systeme, marque: 'brompton', ouvrirFiche: () => fiches.push('connexion'), enLigne: () => false }) };
+      const { racine, ecran, retirer: enlever } = monterDepannage(module, contexte.depannage, { projet: { marque: 'brompton', nom: 'S8' }, enLigne: () => false, ajouts });
+      try {
+        ecran.afficher('T10.3');
+        const bloc = racine.querySelector('.cx-depannage');
+        v.egal('bloc dans l\'étape 1, après sa ligne', [texteDe(bloc?.closest('.element-numerote')?.querySelector('.numero-liste')),
+          bloc?.previousElementSibling?.matches('.dep-ligne') ?? false], ['1.', true]);
+        if (!bloc) return;
+        v.egal('marqué, titre', [texteDe(bloc.querySelector('.cx-ajout')), texteDe(bloc.querySelector('h3'))], ['Ajouté par l\'appli', 'Comment faire sur ton Mac']);
+        v.vrai('adresse Brompton', texteDe(bloc).includes('192.168.0.100') && texteDe(bloc).includes('192.168.0.50'), texteDe(bloc));
+        v.vrai('chemin du Mac, Windows replié', texteDe(bloc).includes('Réglages Système') && texteDe(bloc.querySelector('details > summary')) === 'Sur Windows' && !bloc.querySelector('details').open);
+        v.vrai('sources du bloc', texteDe(bloc.querySelector('.cx-sources')).includes('Aide Apple'), texteDe(bloc.querySelector('.cx-sources')));
+        boutonTexte(bloc, 'Fiche Brancher l\'ordinateur')?.click();
+        v.egal('lien vers la fiche', fiches, ['connexion']);
+        bloc.querySelectorAll('details').forEach((d) => { d.open = true; });
+        for (const [rouge, grand] of [[false, false], [true, false], [false, true]]) {
+          if (rouge) html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          if (grand) html.dataset.taille = 'grand';
+          else delete html.dataset.taille;
+          const nom = `${rouge ? 'mode rouge' : 'sombre'}${grand ? ', grand affichage' : ''}`;
+          const bord = racine.getBoundingClientRect().right;
+          v.egal(`${nom} : rien ne dépasse`, [...bloc.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > bord + 0.5)
+            .map((x) => `${x.tagName.toLowerCase()}.${x.className}`), []);
+          const textes = [...bloc.querySelectorAll('*')].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && x.getBoundingClientRect().width > 0);
+          v.egal(`${nom} : texte à 4,5:1`, textes.filter((x) => contraste(rgbVersHex(getComputedStyle(x).color), fondDe(x)) < 4.5).map((x) => texteDe(x).slice(0, 40)), []);
+          v.egal(`${nom} : cibles`, [...bloc.querySelectorAll('summary, button')].filter((x) => x.getBoundingClientRect().height < (grand ? 59.5 : 47.5)).map(texteDe), []);
+          if (grand) v.egal('grand affichage : texte à 19 px', textes.filter((x) => parseFloat(getComputedStyle(x).fontSize) < 18.5).map((x) => texteDe(x).slice(0, 40)), []);
+        }
+        delete html.dataset.mode;
+        delete html.dataset.taille;
+        ecran.afficher('T10.2');
+        v.egal('autre étape : rien', racine.querySelector('.cx-depannage'), null);
+        ecran.sources();
+        v.vrai('table des sources du Dépannage inchangée', racine.querySelectorAll('.dep-source-entree').length === contexte.depannage.sources.length && !texteDe(racine).includes('Aide Apple'));
+        choix.systeme = 'windows';
+        ecran.afficher('T10.3');
+        v.egal('Windows choisi', texteDe(racine.querySelector('.cx-depannage h3')), 'Comment faire sur Windows');
+      } finally {
+        if (mode) html.dataset.mode = mode;
+        else delete html.dataset.mode;
+        if (taille) html.dataset.taille = taille;
+        else delete html.dataset.taille;
+        enlever();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N100',
+    titre: 'Pas à pas NovaLCT sur Mac (19a, spec § 3.3) : étape 0.1 « À vérifier chez toi, avant ta première presta » ; étape 0.3 avec le chemin du Mac replié, Windows replié à part et « Fiche Brancher l\'ordinateur » qui appelle son action, cibles de 48 px ; sans choix d\'ordinateur, l\'étape 0.1 sans badge',
+    etape: '19a',
+    async verifier(v, contexte) {
+      const en = await moduleAppli(v, '../src/ecran-novalct.js');
+      const nl = await moduleAppli(v, '../src/novalct.js');
+      if (!en || !nl) return;
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const ouvertures = [];
+      try {
+        const m = calculs.mur(DALLE_CAS_13, 12, 6);
+        const evaluation = calculs.evaluerProcesseur(m, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl4k'), { frequenceHz: 60, bits: 8 });
+        const c = calculs.cablageData(m, DALLE_CAS_13, evaluation, { depart: 'bas-gauche' });
+        const pasAPas = (options) => nl.etapesNovaLCT({ mur: m, dalle: DALLE_CAS_13, evaluation, variante: c.variantes.find((x) => x.mode === c.conseil), source: null, ...options });
+        const pas = en.monterNovaLCT(racine, { actions: { cocher: async () => {}, compris: async () => {}, toutDecocher: async () => {}, dessinPort: () => null, ouvrirConnexion: () => ouvertures.push('connexion') } });
+        pas.afficher({ resultat: pasAPas({ systeme: 'mac' }), cases: {}, avis: null });
+        const carte = (id) => racine.querySelector(`.nl-etape[data-etape="${id}"]`);
+        v.egal('0.1 : à vérifier chez toi', texteDe(carte('0.1')?.querySelector('.nl-a-verifier')), 'À vérifier chez toi, avant ta première presta');
+        const c03 = carte('0.3');
+        const chemins = [...(c03?.querySelectorAll('details.nl-chemin') ?? [])];
+        v.egal('0.3 : deux chemins repliés, le Mac d\'abord', chemins.map((d) => [texteDe(d.querySelector('summary')), d.open]), [['Sur ton Mac : le chemin', false], ['Sur Windows', false]]);
+        v.vrai('chemin du Mac', texteDe(chemins[0]).includes('Configurer IPv4 : Manuellement'), texteDe(chemins[0]));
+        boutonTexte(c03, 'Fiche Brancher l\'ordinateur')?.click();
+        v.egal('lien vers la fiche', ouvertures, ['connexion']);
+        chemins.forEach((d) => { d.open = true; });
+        v.egal('cibles de 48 px', [...(c03?.querySelectorAll('summary, button') ?? [])].filter((x) => x.getBoundingClientRect().height < 47.5).map(texteDe), []);
+        pas.afficher({ resultat: pasAPas({}), cases: {}, avis: null });
+        v.egal('sans choix : 0.1 sans badge', carte('0.1')?.querySelector('.nl-a-verifier'), null);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
 ];
 
 // Bloc « Ma config » (18c2) monté seul à 375 px, ouvert, tous ses champs visibles : cibles de 48 px et débordement,

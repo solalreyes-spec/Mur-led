@@ -22,9 +22,11 @@ export function marqueDuProcesseur(processeur) {
 
 // Monte l'écran dans `racine`. `projet` : { marque, nom } du processeur retenu dans Data quand des saisies sont gardées,
 // sinon null (choix de marque demandé). `enLigne` : les liens web des sources ne servent qu'en ligne.
+// `ajouts` : aide ajoutée par l'appli sous une ligne, hors des données transcrites (étape 19a, T10.3) :
+// { 'T10.3:1': (marque) => élément }, appelé à chaque affichage de l'étape avec la marque du moment.
 export function monterDepannage(racine, donnees, {
   projet = null, enLigne = () => navigator.onLine, defiler = () => {}, ouvrirMire = null,
-  liensPourquoi = [], ouvrirPourquoi = null, ouvrirListePourquoi = null,
+  liensPourquoi = [], ouvrirPourquoi = null, ouvrirListePourquoi = null, ajouts = {},
 } = {}) {
   const noeuds = new Map(donnees.noeuds.map((n) => [n.id, n]));
   const annexes = new Map(donnees.annexes.map((a) => [a.id, a]));
@@ -36,6 +38,8 @@ export function monterDepannage(racine, donnees, {
   // Mots de l'étape affichée qui ouvrent une fiche « pourquoi » (« EDID » en T5.3, « HDCP » en T6.6…) : leur première
   // occurrence dans les lignes de l'étape (ou dans l'avertissement de son arbre) devient un lien.
   let motsActifs = [];
+  // Étape affichée, pour les ajouts de l'appli sous ses lignes.
+  let noeudAffiche = null;
   const motsLies = new Set();
   function lierMots(chaine) {
     const morceaux = [];
@@ -122,7 +126,7 @@ export function monterDepannage(racine, donnees, {
     // Numéros écrits par l'appli : une étape qui commence par un encadré de marque garde son numéro (N37).
     return listeNumerotee({ class: 'dep-etapes' }, etapes.map((e) => ({
       numero: e.numero,
-      contenu: el('div', { class: 'dep-lignes' }, ...e.lignes.map(ligne)),
+      contenu: el('div', { class: 'dep-lignes' }, ...e.lignes.map(ligne), ajouts[`${noeudAffiche}:${e.numero}`]?.(etat.marque) ?? null),
       attributs: { class: `dep-etape${e.lignes[0].marque === null || e.lignes[0].marque === undefined ? '' : ' commence-par-encadre'}` },
     })));
   }
@@ -176,6 +180,7 @@ export function monterDepannage(racine, donnees, {
     racine.dataset.ecran = 'noeud';
     racine.dataset.noeud = n.id;
     delete racine.dataset.annexe;
+    noeudAffiche = n.id;
     const arbre = arbres.get(n.arbre);
     const marques = n.lignes.some((l) => l.marque !== null && l.marque !== undefined);
     if (n.type === 'fin') {

@@ -15,7 +15,7 @@ const FAMILLES_IMAGES = ['donnees', 'electricite', 'image', 'accroche'];
 const ETATS_POINTS = { 1: 'revoir', 2: 'encours', 3: 'acquise' };
 
 export function monterApprendre(racine, {
-  pourquoi, entrainement, stockage, enLigne = () => navigator.onLine, ouvrirFiche = () => {}, ouvrirEntrainement = () => {}, novalct = null,
+  pourquoi, entrainement, stockage, enLigne = () => navigator.onLine, ouvrirFiche = () => {}, ouvrirEntrainement = () => {}, novalct = null, connexion = null,
 }) {
   const questions = entrainement?.questions ?? [];
   const fiches = new Map(pourquoi.fiches.map((f) => [f.id, f]));
@@ -69,6 +69,8 @@ export function monterApprendre(racine, {
         el('span', { class: 'ap-compte' }, String(f.fiches.length))))));
   }
 
+  // Brancher l'ordinateur au processeur (étape 19a) : `connexion.carte()` (carteConnexion de ecran-connexion.js, montée
+  // par l'appli avec le choix « Mon ordinateur » et le processeur de Data), juste avant « NovaLCT à blanc ».
   // NovaLCT à blanc (étape 17c2) : le pas à pas sur un mur d'exemple, processeur et redondance au choix ; en dernier (la
   // carte S'entraîner et les quatre images restent en tête). `novalct.ouvrir({ processeur, redondance })`.
   // Étape 18b : `novalct.processeurs` (processeursABlanc de novalct.js) donne tous les processeurs réglés dans NovaLCT,
@@ -117,7 +119,7 @@ export function monterApprendre(racine, {
 
   function dessinerAccueil() {
     racine.dataset.vue = 'accueil';
-    remplacer(racine, carteEntrainement(), images(), familles(), carteNovaLCT());
+    remplacer(racine, carteEntrainement(), images(), familles(), connexion?.carte() ?? null, carteNovaLCT());
   }
 
   function dessinerFamille() {
@@ -162,6 +164,18 @@ export function monterApprendre(racine, {
     afficherAccueil() {
       etat.vue = 'accueil';
       dessiner();
+    },
+    // Accueil, la fiche « Brancher l'ordinateur au processeur » à l'écran (liens du pas à pas et du Dépannage).
+    // Fiche « Brancher l'ordinateur au processeur » refaite (processeur de Data, choix de l'ordinateur), à sa place.
+    actualiserConnexion() {
+      const ancienne = racine.querySelector('.ap-connexion');
+      const nouvelle = ancienne ? connexion?.carte() : null;
+      if (nouvelle) ancienne.replaceWith(nouvelle);
+    },
+    afficherConnexion() {
+      etat.vue = 'accueil';
+      dessiner();
+      racine.querySelector('.ap-connexion')?.scrollIntoView({ block: 'start' });
     },
     afficherFamille(id) {
       etat.vue = 'famille';

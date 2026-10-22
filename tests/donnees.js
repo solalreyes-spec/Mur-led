@@ -4,6 +4,8 @@
 import * as calculs from '../src/calculs.js';
 import { baseDalles as lireBase, baseProcesseurs, baseConnectique, baseRegies, baseAppareils } from './base.js';
 import { listeCache, fichiersCharges } from './fichiers.js';
+import * as connexion from '../src/connexion.js';
+import { SOURCES_NOVALCT } from '../src/novalct.js';
 
 function fichiersAppli(contexte) {
   if (!contexte?.fichiers) throw new Error(`fichiers de l'appli non lus${contexte?.erreurFichiers ? ` : ${contexte.erreurFichiers}` : ''}`);
@@ -2246,6 +2248,31 @@ export const DONNEES = [
       v.egal('CVT310', portee('novastar-cvt310'), [550, ['550 novastar-cvt310-v2-3-4']]);
       v.egal('CVT320', portee('novastar-cvt320'), [20000, ['20000 novastar-cvt320-v2-3-3']]);
       v.egal('portée : la plus courte retenue', calculs.PLUS_DEFAVORABLE.porteeFibreM, 'min');
+    },
+  },
+  {
+    id: 'D68',
+    titre: 'Brancher l\'ordinateur au processeur (19a, spec § 3.1) : chaque source du module a un titre, un libellé court et une confiance, un lien https quand elle en a ; aucun nom de fichier ni transcription sans son numéro (D54 cherche les noms internes) ; les manuels communs avec le pas à pas NovaLCT y ont le même titre et le même lien ; chaque étape des chemins, chaque entrée de CONTROLE_PROCESSEURS et chaque logiciel non « à vérifier » renvoie à une source du module ; src/connexion.js et src/ecran-connexion.js dans le cache du service worker',
+    etape: '19a',
+    verifier(v, contexte) {
+      const sources = connexion.SOURCES_CONNEXION ?? {};
+      const liste = Object.entries(sources);
+      v.vrai('sources présentes', liste.length >= 15, String(liste.length));
+      v.egal('titre, libellé court, confiance', liste.filter(([, s]) => !s.titre || !s.court || !s.confiance).map(([id]) => id), []);
+      v.egal('liens https', liste.filter(([, s]) => s.url && !s.url.startsWith('https://')).map(([id]) => id), []);
+      // Noms des documents internes : contrôlés par D54 sur tous les fichiers publiés, sans les écrire ici.
+      const interdit = /\.(md|txt)\b|transcription(?! \d)/i;
+      v.egal('aucune source interne', liste.filter(([, s]) => interdit.test(`${s.titre} ${s.court}`)).map(([id]) => id), []);
+      v.egal('formation : « Formation (transcription n) »', liste.filter(([, s]) => s.confiance === 'formation' && !/^Formation \(transcription \d+\)$/.test(s.court)).map(([id]) => id), []);
+      v.egal('mêmes titres et liens que le pas à pas', liste.filter(([id, s]) => SOURCES_NOVALCT[id] && (SOURCES_NOVALCT[id].titre !== s.titre || SOURCES_NOVALCT[id].url !== s.url)).map(([id]) => id), []);
+      const inconnues = (l) => l.filter((s) => !sources[s.id]).map((s) => s.id);
+      const chemins = ['mac', 'windows'].map((x) => connexion.cheminIP(x));
+      v.egal('étapes des chemins sourcées', chemins.flatMap((c) => [...c.etapes, c.apres]).filter((e) => !e.sources?.length || inconnues(e.sources).length).map((e) => e.texte), []);
+      v.egal('CONTROLE_PROCESSEURS sourcé', (connexion.CONTROLE_PROCESSEURS ?? []).filter((c) => !c.sources?.length || inconnues(c.sources).length).map((c) => c.nom), []);
+      v.egal('logiciels sourcés', connexion.logicielsConnexion().filter((l) => !l.aVerifier && (!l.sources?.length || inconnues(l.sources).length)).map((l) => l.id), []);
+      const f = fichiersAppli(contexte);
+      const cache = listeCache(f['sw.js']);
+      v.egal('fichiers dans le cache', ['src/connexion.js', 'src/ecran-connexion.js'].filter((x) => !cache.includes(x)), []);
     },
   },
 ];
