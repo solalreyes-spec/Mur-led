@@ -14,10 +14,13 @@ const minuscule = (t) => (/^(Port|Ligne) /.test(t) ? t.charAt(0).toLowerCase() +
 // Étapes data : une par port de la variante affichée (calculs.cablageData), dans l'ordre du Schéma.
 // Config imposée en fibre (étape 18c3) : chaque câble de tête part du convertisseur au pied du mur, et la fibre entre
 // dans la signature du port (passer en fibre ou revenir au cuivre décoche la case) ; sans fibre, signature d'avant.
-export function etapesData(variante, { depart = 'haut-gauche' } = {}) {
+// Provenance du signal (19b3, `provenance` de chaineSchema) : la phrase dit d'où vient le signal de l'appareil au pied du
+// mur, et « Branche d'abord… » à son premier port sur une liaison ; la signature ne change pas.
+export function etapesData(variante, { depart = 'haut-gauche', provenance = null } = {}) {
   if (!variante?.processeurs?.length) return [];
   const plusieurs = variante.processeurs.length > 1;
   const fibre = variante.mode === 'imposee' && variante.fibre?.possible && !variante.fibre.deja ? variante.fibre : null;
+  const provenances = new Map((provenance ?? []).map((x) => [x.cle, x]));
   let rang = 0;
   return variante.processeurs.flatMap((p) => p.ports.map((port) => {
     const couleur = couleurPort(rang);
@@ -37,11 +40,22 @@ export function etapesData(variante, { depart = 'haut-gauche' } = {}) {
       dalles: [...port.dalles],
       premiere,
       derniere,
-      phrase: `${pluriel(port.dalles.length, 'dalle', 'dalles')}, de ${premiere} à ${derniere}. `
+      phrase: `${pluriel(port.dalles.length, 'dalle', 'dalles')}, de ${premiere} à ${derniere}. ${texteProvenance(provenances.get(`p${p.numero}-${port.numero}`))}`
         + `Câble de tête du ${port.libelle}${fibre ? `${fibre.origine},` : ''} jusqu'à ${premiere}, puis suis les numéros.${secours}`,
       signature: `${depart}|${processeur}|${port.libelle}|${port.dalles.join(',')}${fibre ? `|fibre ${fibre.designation}` : ''}`,
     };
   }));
+}
+
+// « Branche d'abord la fibre OPT1 du MCTRL4K (50 m) sur le CVT4K. », « Le XD 1 reçoit la fibre du SX40 (150 m). »,
+// « Branche d'abord la fibre du MCTRL660 (50 m) sur la paire de CVT310 de ce port. » ; sans longueur, sans parenthèse.
+function texteProvenance(pv) {
+  if (!pv) return '';
+  const longueur = pv.longueurM > 0 ? ` (${nombreCourt(pv.longueurM, 1)} m)` : '';
+  const de = `${pv.materiau === 'fibre' ? `la fibre${pv.fibre ? ` ${pv.fibre}` : ''}` : `le ${pv.materiau}`} du ${pv.processeur}${longueur}`;
+  if (pv.paire) return `Branche d'abord ${de} sur la paire de ${pv.type === 'transceiver' ? 'transceivers fibre' : pv.type} de ce port. `;
+  if (pv.premier) return `Branche d'abord ${de} sur le ${pv.appareil}${pv.fibreSecours ? `, et ${pv.fibreSecours} en secours` : ''}. `;
+  return `Le ${pv.appareil} reçoit ${de}. `;
 }
 
 // D'où part une ligne (distribution de l'étape 12c) : boîtier et prise, armoire, ou prise à trouver ; sans distribution,

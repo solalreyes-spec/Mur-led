@@ -12,6 +12,7 @@ import { creerStockage } from '../src/stockage.js';
 import * as couleurs from '../src/couleurs.js';
 import * as dessinSchema from '../src/dessin-schema.js';
 import { el } from '../src/dom.js';
+import * as exportImage from '../src/export.js';
 
 const DALLE_192 = { id: 'fictive-192', nom: 'Dalle 500 mm, 192 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
 
@@ -4677,7 +4678,438 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N101',
+    titre: 'Chaîne dans le Schéma, cadres (19b2, spec § 4.3) : un cadre par processeur sur le bord de départ, plus loin du mur que les départs et au droit de ses départs ; appareils au pied du mur (CVT4K, XD 1, XD miroir 1, paires de CVT310, transceivers) entre les départs et le processeur, au droit de leurs ports ; sans appareil « régie à 20 m » ; accroche, câblage par rangées et mur en zones ; au-delà de 6 processeurs, un seul cadre au coin (repère « 7 × MCTRL660 »)',
+    etape: '19b2',
+    verifier(v, contexte) {
+      try {
+        const noms = (x) => cadresChaine(x.svg).map((c) => [c.role, c.nom]);
+        // 1. Cuivre seul : le processeur et la distance de la régie, sous le mur en stack, au-dessus en accroche.
+        const cuivre = chaineDessinee(contexte, { distanceM: 20 });
+        v.egal('cuivre : un cadre, le processeur et la régie', cadresChaine(cuivre.svg).map((c) => [c.role, c.lignes]), [['processeur', ['MCTRL4K', 'régie à 20 m']]]);
+        v.egal('cuivre : plus de repère au coin', cuivre.svg.querySelectorAll('.repere').length, 0);
+        v.egal('cuivre : le chemin des câbles de tête', cuivre.svg.querySelectorAll('.chaine .chemin-tete').length, 1);
+        const deps = (x, filtre = () => true) => [...departsDe(x.svg)].filter(([cle]) => filtre(cle)).map(([, c]) => c);
+        const [p] = cadresChaine(cuivre.svg);
+        v.vrai('stack : le cadre sous le mur, plus loin que les départs', p.y > cuivre.geo.hauteur && p.y > Math.max(...deps(cuivre).map((c) => c.cy + c.r)));
+        v.vrai('au droit de ses départs', auDroit(p, deps(cuivre), 'colonnes'));
+        const accroche = chaineDessinee(contexte, { distanceM: 20, coin: 'haut-droite' });
+        const [pa] = cadresChaine(accroche.svg);
+        v.vrai('accroche : le cadre au-dessus du mur, plus loin que les départs', pa && pa.y + pa.h < 0 && pa.y + pa.h < Math.min(...deps(accroche).map((c) => c.cy - c.r)));
+        // 2. Deux processeurs : un cadre chacun, au droit de ses ports, sans se toucher.
+        const deux = chaineDessinee(contexte, { procId: 'novastar-mctrl660', colonnes: 18, distanceM: 20 });
+        const [c1, c2] = cadresChaine(deux.svg);
+        v.egal('deux processeurs : un cadre chacun', noms(deux), [['processeur', 'MCTRL660 n° 1'], ['processeur', 'MCTRL660 n° 2']]);
+        v.vrai('chacun au droit de ses départs, sans se toucher', c1 && c2 && auDroit(c1, deps(deux, (k) => k.startsWith('p1-')), 'colonnes')
+          && auDroit(c2, deps(deux, (k) => k.startsWith('p2-')), 'colonnes') && !chevauchent(c1, c2));
+        // 3. Appareils au pied du mur : entre les départs et le processeur.
+        const k4 = chaineDessinee(contexte, { imposee: { ports: 2, fibre: true } });
+        v.egal('cas 17 en fibre : le CVT4K, puis le MCTRL4K', noms(k4), [['appareil', 'CVT4K'], ['processeur', 'MCTRL4K']]);
+        const [cvt, mctrl] = cadresChaine(k4.svg);
+        v.vrai('CVT4K plus loin que les départs, MCTRL4K plus loin que le CVT4K', cvt && mctrl && cvt.y > Math.max(...deps(k4).map((c) => c.cy + c.r)) && mctrl.y > cvt.y + cvt.h);
+        v.egal('le MCTRL4K sans la régie (la fibre la dit)', mctrl?.lignes, ['MCTRL4K']);
+        const sx = chaineDessinee(contexte, { dalleId: 'roe-bp2-v2', procId: 'brompton-sx40', colonnes: 22, rangees: 6, reglages: { bits: 12 } });
+        v.egal('SX40 : 3 XD et le SX40', noms(sx), [['appareil', 'XD 1'], ['appareil', 'XD 2'], ['appareil', 'XD 3'], ['processeur', 'SX40']]);
+        const xd = cadresChaine(sx.svg).filter((c) => c.role === 'appareil');
+        const portsXd = (k) => (cle) => Math.ceil(Number(cle.split('-')[1]) / 10) === k;
+        v.vrai('chaque XD au droit de ses ports', xd.length === 3 && xd.every((c, i) => auDroit(c, deps(sx, portsXd(i + 1)), 'colonnes')));
+        const red = chaineDessinee(contexte, { dalleId: 'roe-bp2-v2', procId: 'brompton-sx40', colonnes: 20, rangees: 6, reglages: { bits: 12, redondance: true } });
+        const tous = cadresChaine(red.svg);
+        const de = (nom) => tous.find((c) => c.nom === nom);
+        v.egal('SX40 en redondance : XD et XD miroirs', tous.filter((c) => c.role === 'appareil').map((c) => c.nom).sort(), ['XD 1', 'XD 2', 'XD miroir 1', 'XD miroir 2']);
+        v.vrai('chaque XD miroir à côté de son XD, sur la même rangée', ['1', '2'].every((k) => de(`XD miroir ${k}`) && de(`XD ${k}`)
+          && Math.abs(de(`XD miroir ${k}`).cy - de(`XD ${k}`).cy) < 1e-6
+          && Math.abs(de(`XD miroir ${k}`).cx - de(`XD ${k}`).cx) < Math.abs(de(`XD miroir ${k}`).cx - de(`XD ${k === '1' ? '2' : '1'}`).cx)));
+        const m660 = chaineDessinee(contexte, { procId: 'novastar-mctrl660', imposee: { ports: 2, fibre: true } });
+        v.egal('MCTRL660 en fibre : ses paires de CVT310', noms(m660), [['appareil', '2 paires de CVT310'], ['processeur', 'MCTRL660']]);
+        const s8 = chaineDessinee(contexte, { dalleId: 'roe-bp2-v2', procId: 'brompton-s8', colonnes: 6, rangees: 4, reglages: { bits: 12, redondance: true }, imposee: { ports: 3, fibre: true } });
+        v.egal('S8 en fibre : ses transceivers', noms(s8), [['appareil', '6 paires de transceivers fibre'], ['processeur', 'S8']]);
+        // 4. Câblage par rangées : à côté du mur, au droit des départs.
+        const rangees = chaineDessinee(contexte, { mode: 'rangees', distanceM: 20 });
+        const [pr] = cadresChaine(rangees.svg);
+        v.vrai('par rangées : le cadre à gauche du mur, plus loin que les départs', pr && pr.x + pr.w < 0 && pr.x + pr.w < Math.min(...deps(rangees).map((c) => c.cx - c.r)));
+        v.vrai('par rangées : au droit des départs', pr && auDroit(pr, deps(rangees), 'rangees'));
+        // 5. Mur en zones : un cadre par processeur, sur le bord de départ du dessin.
+        const zones = chaineDessinee(contexte, { procId: 'novastar-mctrl660', zones: [{ nom: 'A', colonnes: 4, rangees: 6 }, { nom: 'B', colonnes: 3, rangees: 6 }] });
+        const cz = cadresChaine(zones.svg);
+        v.vrai(`mur en zones : un cadre par processeur (${zones.e.nombre})`, cz.length === zones.e.nombre && cz.every((c) => c.role === 'processeur' && c.y > zones.geo.hauteur));
+        // 6. Au-delà de 6 processeurs : un seul cadre, le repère du coin.
+        const sept = chaineDessinee(contexte, { procId: 'novastar-mctrl660', colonnes: 48, rangees: 8, distanceM: 20 });
+        v.egal('7 MCTRL660 : pas de cadre par processeur', [sept.e.nombre, sept.g, cadresChaine(sept.svg).length], [7, null, 0]);
+        v.egal('7 MCTRL660 : un seul cadre au coin', dessinSchema.repereChaine?.(sept.chaine.aval[0]), { lignes: ['7 × MCTRL660', 'régie à 20 m'] });
+        const sx7 = { ...sx.chaine.aval[0], nom: '7 × SX40', nombre: 7, appareils: [{ nom: '21 XD' }], liaison: { texte: '21 fibres (une par XD), 50 m' } };
+        v.egal('regroupé avec appareils : nom, appareils, liaison', dessinSchema.repereChaine?.(sx7), { lignes: ['7 × SX40', '21 XD au pied du mur', '21 fibres (une par XD), 50 m'] });
+      } finally {
+        document.querySelectorAll('body > svg').forEach((s) => s.remove());
+      }
+    },
+  },
+  {
+    id: 'N102',
+    titre: 'Chaîne dans le Schéma, liaisons (19b2, spec § 4.3, choix b à d) : fibre en tirets longs, couleur des contours, du processeur à chaque appareil, avec une étiquette par processeur plus loin que son cadre (« fibre OPT1, 50 m », fibres de secours dans l\'étiquette) ; cuivre 10G du SX40 en trait plein ; câbles de tête partis de l\'appareil, couleur du port ; retours de secours reliés au XD miroir ; cuivre direct : le chemin des câbles de tête',
+    etape: '19b2',
+    verifier(v, contexte) {
+      try {
+        const liaisons = (x) => [...x.svg.querySelectorAll('.liaison-chaine')];
+        const etiquettes = (x) => [...x.svg.querySelectorAll('.etiquette-liaison')].map((t) => t.dataset.texte);
+        const bouts = (l) => sommets(l).filter((_, i, liste) => i === 0 || i === liste.length - 1);
+        const surBord = (pt, c) => pt[0] >= c.x - 1e-6 && pt[0] <= c.x + c.w + 1e-6 && pt[1] >= c.y - 1e-6 && pt[1] <= c.y + c.h + 1e-6;
+        const relie = (l, a, b) => { const [u, w] = bouts(l); return (surBord(u, a) && surBord(w, b)) || (surBord(u, b) && surBord(w, a)); };
+        const k4 = chaineDessinee(contexte, { imposee: { ports: 2, fibre: true } });
+        const [cvt, mctrl] = cadresChaine(k4.svg);
+        const [fibre] = liaisons(k4);
+        v.vrai('cas 17 : une fibre du MCTRL4K au CVT4K', liaisons(k4).length === 1 && fibre.classList.contains('fibre') && relie(fibre, cvt, mctrl));
+        const [tiret, blanc] = (fibre?.getAttribute('stroke-dasharray') ?? '').split(/[\s,]+/).map(Number);
+        v.vrai('fibre en tirets longs (3 fois le trait au moins), couleur des contours', tiret >= 3 * Number(fibre?.getAttribute('stroke-width')) && blanc > 0
+          && fibre?.style.stroke === PALETTE_EXPORT.contour.replace(/^#(..)(..)(..)$/, (_, r, g, b) => `rgb(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)})`));
+        v.egal('cas 17 : étiquette', etiquettes(k4), ['fibre OPT1, 50 m']);
+        const lab = k4.svg.querySelector('.etiquette-liaison')?.getBBox();
+        v.vrai('étiquette plus loin du mur que le cadre du processeur', lab && lab.y > mctrl.y + mctrl.h);
+        const red = chaineDessinee(contexte, { reglages: { redondance: true }, imposee: { ports: 2, fibre: true } });
+        v.egal('redondance Novastar : une fibre dessinée, les secours dans l\'étiquette', [liaisons(red).length, etiquettes(red)], [1, ['fibres OPT1 et OPT2, OPT3 et OPT4 en secours, 50 m']]);
+        v.egal('redondance Novastar : bouts de secours non reliés', red.svg.querySelectorAll('.depuis-appareil.secours').length, 0);
+        const xsx = { dalleId: 'roe-bp2-v2', procId: 'brompton-sx40', colonnes: 22, rangees: 6, reglages: { bits: 12 } };
+        const sx = chaineDessinee(contexte, xsx);
+        const cs = cadresChaine(sx.svg);
+        const proc = cs.find((c) => c.role === 'processeur');
+        v.vrai('SX40 : une fibre vers chaque XD', liaisons(sx).length === 3 && cs.filter((c) => c.role === 'appareil').every((a) => liaisons(sx).some((l) => l.classList.contains('fibre') && relie(l, a, proc))));
+        v.egal('SX40 : une étiquette', etiquettes(sx), ['3 fibres (une par XD), 50 m']);
+        const cu = chaineDessinee(contexte, { ...xsx, reseau: { cuivre10G: { categorie: 'Cat6A', longueurM: 40 } } });
+        v.vrai('cuivre 10G : trait plein', liaisons(cu).length === 3 && liaisons(cu).every((l) => l.classList.contains('cuivre-10g') && !l.getAttribute('stroke-dasharray')));
+        v.egal('cuivre 10G : étiquette', etiquettes(cu), ['3 câbles cuivre 10G Cat6A (un par XD), 40 m']);
+        // Câbles de tête : de l'appareil au départ, couleur du port.
+        const xdDe = (cle) => cs.find((c) => c.nom === `XD ${Math.ceil(Number(cle.split('-')[1]) / 10)}`);
+        const fautes = [...sx.svg.querySelectorAll('[data-trajet]')].filter((g) => {
+          const lignes = [...g.querySelectorAll('.depuis-appareil')];
+          const dep = g.querySelector('.depart');
+          const [u, w] = lignes[0] ? bouts(lignes[0]) : [[NaN, NaN], [NaN, NaN]];
+          return lignes.length !== 1 || !surBord(u, xdDe(g.dataset.trajet)) || Math.hypot(w[0] - Number(dep.getAttribute('cx')), w[1] - Number(dep.getAttribute('cy'))) > 1e-6
+            || lignes[0].style.stroke !== g.querySelector('polyline.trajet').style.stroke;
+        }).map((g) => g.dataset.trajet);
+        v.egal('SX40 : chaque câble de tête part de son XD, couleur du port', fautes, []);
+        const sr = chaineDessinee(contexte, { dalleId: 'roe-bp2-v2', procId: 'brompton-sx40', colonnes: 20, rangees: 6, reglages: { bits: 12, redondance: true } });
+        const csr = cadresChaine(sr.svg);
+        const secoursFautes = [...sr.svg.querySelectorAll('[data-trajet]')].filter((g) => {
+          const l = g.querySelector('.depuis-appareil.secours');
+          const b = g.querySelector('.bout-secours');
+          if (!l || !b) return true;
+          const [u, w] = bouts(l);
+          const miroir = csr.find((c) => c.nom === `XD miroir ${Math.ceil(Number(g.dataset.trajet.split('-')[1]) / 10)}`);
+          return !surBord(u, miroir) || Math.hypot(w[0] - Number(b.getAttribute('cx')), w[1] - Number(b.getAttribute('cy'))) > 1e-6;
+        }).map((g) => g.dataset.trajet);
+        v.egal('SX40 en redondance : chaque retour de secours relié à son XD miroir', secoursFautes, []);
+        const cuivre = chaineDessinee(contexte, { distanceM: 20 });
+        v.egal('cuivre direct : ni fibre ni câble depuis un appareil, le chemin des câbles de tête', [liaisons(cuivre).length, cuivre.svg.querySelectorAll('.depuis-appareil').length,
+          cuivre.svg.querySelectorAll('.chaine .chemin-tete').length], [0, 0, 1]);
+      } finally {
+        document.querySelectorAll('body > svg').forEach((s) => s.remove());
+      }
+    },
+  },
+  {
+    id: 'N103',
+    titre: 'Chaîne dans le Schéma, lisibilité (19b2, spec § 4.3, comme N7) : aucun nom de dalle, rond de départ, bout de secours ni numéro sous un cadre ou une étiquette de la chaîne ; cadres et étiquettes sans se toucher, hors du mur, dans le dessin ; aucune liaison ni câble de tête sur un autre cadre ; vue physique, vue pixels, grand affichage, accroche, rangées et dessin simplifié',
+    etape: '19b2',
+    verifier(v, contexte) {
+      const bp2 = { dalleId: 'roe-bp2-v2', reglages: { bits: 12 } };
+      const murs = [
+        ['2 × MCTRL660 en cuivre', { procId: 'novastar-mctrl660', colonnes: 18, distanceM: 20 }],
+        ['cas 17 en fibre', { imposee: { ports: 2, fibre: true } }],
+        ['MCTRL4K en redondance, fibre', { reglages: { redondance: true }, imposee: { ports: 2, fibre: true } }],
+        ['SX40 et 3 XD', { ...bp2, procId: 'brompton-sx40', colonnes: 22, rangees: 6 }],
+        ['SX40 en redondance', { ...bp2, procId: 'brompton-sx40', colonnes: 20, rangees: 6, reglages: { bits: 12, redondance: true } }],
+        ['S8 et transceivers', { ...bp2, procId: 'brompton-s8', colonnes: 6, rangees: 4, reglages: { bits: 12, redondance: true }, imposee: { ports: 3, fibre: true } }],
+        ['MCTRL660 et CVT310', { procId: 'novastar-mctrl660', imposee: { ports: 2, fibre: true } }],
+        ['par rangées', { mode: 'rangees', distanceM: 20 }],
+      ];
+      const essais = [];
+      for (const [nom, o] of murs) {
+        for (const coin of ['bas-gauche', 'haut-droite']) {
+          for (const vue of ['physique', 'pixels']) {
+            for (const grand of [false, true]) essais.push([`${nom}, ${coin}, ${vue}${grand ? ', grand' : ''}`, { ...o, coin, vue, grand }]);
+          }
+        }
+      }
+      essais.push(['SX40 et 3 XD, dessin simplifié', { ...murs[3][1], simplifie: true }], ['cas 17, dessin simplifié', { ...murs[1][1], simplifie: true }]);
+      const fautes = [];
+      try {
+        for (const [nom, o] of essais) {
+          const x = chaineDessinee(contexte, o);
+          const cadres = cadresChaine(x.svg);
+          if (!cadres.length) { fautes.push(`${nom} : aucun cadre`); x.svg.remove(); continue; }
+          const etiquettes = [...x.svg.querySelectorAll('.etiquette-liaison')].map((t) => t.getBBox());
+          const obstacles = [...cadres, ...etiquettes];
+          const boite = (c) => ({ x: c.cx - c.r, y: c.cy - c.r, w: 2 * c.r, h: 2 * c.r });
+          const proteges = [
+            ...[...x.svg.querySelectorAll('.etiquette-dalle, .numero-sur-trajet rect, .numero-trajet, .numero-secours')].map((t) => (t.tagName === 'rect' ? boiteRect(t) : bb(t.getBBox()))),
+            ...disquesDe(x.svg, '.depart, .bout-secours').map(boite),
+          ];
+          obstacles.forEach((a, i) => obstacles.slice(i + 1).forEach((b) => { if (chevauchent(bb(a), bb(b))) fautes.push(`${nom} : deux éléments de la chaîne se touchent`); }));
+          if (obstacles.some((a) => proteges.some((p) => chevauchent(bb(a), p)))) fautes.push(`${nom} : un numéro ou un nom sous la chaîne`);
+          if (cadres.some((c) => chevauchent(c, { x: 0, y: 0, w: x.geo.largeur, h: x.geo.hauteur }))) fautes.push(`${nom} : un cadre sur le mur`);
+          const [vx, vy, vw, vh] = x.svg.getAttribute('viewBox').split(/\s+/).map(Number);
+          if (obstacles.some((a) => { const b = bb(a); return b.x < vx || b.y < vy || b.x + b.w > vx + vw || b.y + b.h > vy + vh; })) fautes.push(`${nom} : hors du dessin`);
+          // Liaisons et câbles de tête : jamais sur un autre cadre ni sur une étiquette (bouts exclus) ; un câble de tête
+          // ne passe sur aucun rond de départ ni bout de secours, sauf le sien au bout.
+          const ronds = [...x.svg.querySelectorAll('.depart, .bout-secours')].map((c) => ({ ...disquesDe(c.parentNode, `.${c.getAttribute('class')}`)[0], g: c.parentNode }));
+          for (const l of x.svg.querySelectorAll('.liaison-chaine, .depuis-appareil')) {
+            const s = sommets(l);
+            const points = s.slice(1).flatMap(([x2, y2], k) => {
+              const [x1, y1] = s[k];
+              return Array.from({ length: 19 }, (_, i) => [x1 + ((x2 - x1) * (i + 1)) / 20, y1 + ((y2 - y1) * (i + 1)) / 20]);
+            }).slice(0, -1);
+            const touche = obstacles.filter((a) => { const b = bb(a); return points.some(([px, py]) => px > b.x && px < b.x + b.w && py > b.y && py < b.y + b.h); });
+            if (touche.length) fautes.push(`${nom} : un trait passe sur un cadre ou une étiquette (${l.getAttribute('class')})`);
+            if (l.classList.contains('depuis-appareil')) {
+              const fin = s[s.length - 1];
+              // Les ronds des autres ports (le bout de secours de son propre port, posé sur son câble, reste au-dessus).
+              const autres = ronds.filter((c) => c.g !== l.parentNode);
+              if (points.some(([px, py]) => autres.some((c) => Math.hypot(px - c.cx, py - c.cy) < c.r))) fautes.push(`${nom} : un câble de tête passe sur un autre rond`);
+            }
+          }
+          x.svg.remove();
+        }
+        v.egal(`${essais.length} dessins : chaîne lisible`, [...new Set(fautes)], []);
+      } finally {
+        document.querySelectorAll('body > svg').forEach((s) => s.remove());
+      }
+    },
+  },
+  {
+    id: 'N104',
+    titre: 'Chaîne dans le Schéma, contrastes (19b2, spec § 4.3, comme N11) : trait de la fibre et du cuivre (couleur des contours) à 3:1 au moins sur le fond hors du mur, textes des cadres et des étiquettes à 4,5:1, en sombre, en mode rouge et à l\'export ; le dessin prend ces couleurs',
+    etape: '19b2',
+    async verifier(v, contexte) {
+      const jetons = await jetonsStyles();
+      for (const [theme, j] of [['sombre', jetons.sombre], ['rouge', jetons.rouge]]) {
+        v.vrai(`${theme} : liaisons à 3:1 sur le fond (${contraste(j['--trait-schema'], j['--fond']).toFixed(2)})`, contraste(j['--trait-schema'], j['--fond']) >= 3);
+        v.vrai(`${theme} : textes de la chaîne à 4,5:1 sur le fond (${contraste(j['--texte'], j['--fond']).toFixed(2)})`, contraste(j['--texte'], j['--fond']) >= 4.5);
+      }
+      v.vrai('export : liaisons à 3:1 sur le blanc', contraste(PALETTE_EXPORT.contour, PALETTE_EXPORT.fond) >= 3);
+      v.vrai('export : textes à 4,5:1 sur le blanc', contraste(PALETTE_EXPORT.texte, PALETTE_EXPORT.fond) >= 4.5);
+      try {
+        const x = chaineDessinee(contexte, { imposee: { ports: 2, fibre: true }, palette: PALETTE_ECRAN });
+        const styles = [...x.svg.querySelectorAll('.cadre-chaine rect, .cadre-chaine text, .liaison-chaine, .etiquette-liaison')].map((e) => e.getAttribute('style'));
+        v.egal('écran : cadres sur le fond, textes en couleur du texte, liaisons en couleur des contours', [...new Set(styles)].sort(),
+          ['fill: none; stroke: var(--trait-schema)', 'fill: var(--fond); stroke: var(--trait-schema)', 'fill: var(--texte)'].sort());
+      } finally {
+        document.querySelectorAll('body > svg').forEach((s) => s.remove());
+      }
+    },
+  },
+  {
+    id: 'N105',
+    titre: 'Chaîne dans le Schéma, export (19b2, spec § 4.3) : cadre complet agrandi du côté du départ seulement, de ce qu\'il faut, pour contenir la chaîne ; l\'image de 2000 px suit ce cadre ; sans chaîne, le cadre d\'avant',
+    etape: '19b2',
+    async verifier(v, contexte) {
+      try {
+        for (const [nom, o] of [['cas 17, stack', { imposee: { ports: 2, fibre: true } }], ['cas 17, accroche', { imposee: { ports: 2, fibre: true }, coin: 'haut-droite' }],
+          ['SX40, stack', { dalleId: 'roe-bp2-v2', procId: 'brompton-sx40', colonnes: 22, rangees: 6, reglages: { bits: 12 } }]]) {
+          const x = chaineDessinee(contexte, o);
+          const base = dessinSchema.cadreComplet(x.geo);
+          const avec = dessinSchema.cadreComplet(x.geo, x.g);
+          const obstacles = [...cadresChaine(x.svg), ...[...x.svg.querySelectorAll('.etiquette-liaison')].map((t) => bb(t.getBBox()))];
+          const enHaut = (o.coin ?? 'bas-gauche').startsWith('haut');
+          const cote = Math.min(...[...x.geo.rects.values()].map((r) => Math.min(r.w, r.h)));
+          const bord = enHaut ? avec.y : avec.y + avec.h;
+          const loin = enHaut ? Math.min(...obstacles.map((b) => b.y)) : Math.max(...obstacles.map((b) => b.y + b.h));
+          v.vrai(`${nom} : le côté opposé au départ ne bouge pas`, enHaut ? Math.abs(avec.y + avec.h - (base.y + base.h)) < 1e-6 : Math.abs(avec.y - base.y) < 1e-6);
+          v.vrai(`${nom} : la chaîne dans le cadre, marge de 0,25 dalle au plus au-delà`, obstacles.length > 0 && obstacles.every((b) => b.x >= avec.x && b.x + b.w <= avec.x + avec.w
+            && b.y >= avec.y && b.y + b.h <= avec.y + avec.h) && (avec.h === base.h || Math.abs(bord - loin) <= cote * 0.25 + 1e-6));
+          v.egal(`${nom} : image de 2000 px sur ce cadre`, [x.svg.getAttribute('viewBox'), Number(x.svg.getAttribute('height'))],
+            [`${avec.x} ${avec.y} ${avec.w} ${avec.h}`, Math.round((2000 * avec.h) / avec.w)]);
+          if (nom === 'SX40, stack') {
+            const png = await decoder(await schemaEnPng(x.svg, { largeurPx: 2000, titre: 'Mur LED', lignes: [] }));
+            v.vrai(`${nom} : PNG de 2000 px, plus haut que le dessin`, png.width === 2000 && png.height >= Math.round((2000 * avec.h) / avec.w));
+          }
+          x.svg.remove();
+        }
+        const geo = chaineDessinee(contexte, {}).geo;
+        v.egal('sans chaîne : le cadre d\'avant', dessinSchema.cadreComplet(geo, null), dessinSchema.cadreComplet(geo));
+      } finally {
+        document.querySelectorAll('body > svg').forEach((s) => s.remove());
+      }
+    },
+  },
+  {
+    id: 'N106',
+    titre: 'Bande « Chaîne » du Schéma (19b3, spec § 4.4) : liste ordonnée lue comme une liste (nœuds et liaisons de gauche à droite, flèches cachées aux lecteurs d\'écran), régie en tête avec sa sortie, source conseillée signalée, lien « Modifier dans Canvas » de 48 px au bout ; sans chaîne de Canvas, les processeurs et « Chaîne à régler dans Canvas. »',
+    etape: '19b3',
+    async verifier(v, contexte) {
+      if (!dessinSchema.bandeChaine) { v.vrai('bandeChaine exportée par dessin-schema.js', false); return; }
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      try {
+        const monter = (amont) => { racine.replaceChildren(dessinSchema.bandeChaine(amont)); return racine.firstElementChild; };
+        const lus = (b) => [...b.querySelectorAll('ol > li')].map((li) => {
+          const copie = li.cloneNode(true);
+          copie.querySelectorAll('[aria-hidden="true"]').forEach((x) => x.remove());
+          return texteDe(copie);
+        });
+        const convertisseurs = [{ nom: 'Convertisseur A', liaison: '12g-sdi', longueurM: 80 }];
+        const b = monter(amontEssai(contexte, { convertisseurs }));
+        const liste = b.querySelector('ol');
+        v.vrai('une liste ordonnée nommée « Chaîne »', liste && /^Chaîne/.test(liste.getAttribute('aria-label') ?? ''), liste?.getAttribute('aria-label'));
+        v.egal('nœuds et liaisons dans l\'ordre', lus(b), ['Source 3840 × 2160 60 Hz', 'HDMI 2.0, 5 m', 'Convertisseur A', '12G-SDI, 80 m', 'MCTRL4K']);
+        v.egal('liaisons : une flèche cachée aux lecteurs d\'écran', [...b.querySelectorAll('ol > li.bc-lien')].map((li) => li.querySelector('[aria-hidden="true"]')?.textContent), ['→', '→']);
+        const lien = b.querySelector('a.bc-modifier');
+        v.egal('lien vers Canvas au bout', [texteDe(lien), lien?.getAttribute('href'), b.lastElementChild === lien], ['Modifier dans Canvas', '#canvas', true]);
+        v.vrai('lien de 48 px', lien && lien.getBoundingClientRect().height >= 47.5, String(lien?.getBoundingClientRect().height));
+        const regie = regieDeBase(contexte, 'barco-e2-gen2');
+        const br = monter(amontEssai(contexte, { regie }));
+        v.vrai('régie en tête, avec sa sortie', lus(br)[0].startsWith(`Régie ${regie.nom} (sa source n'est pas saisie)`) && lus(br)[0].includes('sortie 3840 × 2160, 60 Hz'), lus(br)[0]);
+        v.egal('source conseillée signalée', lus(monter(amontEssai(contexte, { conseillee: true })))[0], 'Source 3840 × 2160 60 Hz, source conseillée (Canvas)');
+        const sans = monter(amontEssai(contexte, { sansChaine: true }));
+        v.egal('sans chaîne de Canvas : les processeurs et la note', [lus(sans), texteDe(sans.querySelector('.bc-note')), texteDe(sans.querySelector('a.bc-modifier'))],
+          [['MCTRL4K'], 'Chaîne à régler dans Canvas.', 'Modifier dans Canvas']);
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N107',
+    titre: 'Bande « Chaîne » à 375 px (19b3, spec § 4.4) : une longue chaîne (régie, trois convertisseurs) passe à la ligne sans défilement de côté, en normal et en grand affichage ; textes à 4,5:1 sur leur fond réel, en sombre et en mode rouge',
+    etape: '19b3',
+    async verifier(v, contexte) {
+      if (!dessinSchema.bandeChaine) { v.vrai('bandeChaine exportée par dessin-schema.js', false); return; }
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:343px' });
+      document.body.append(racine);
+      const html = document.documentElement;
+      const avant = { taille: html.dataset.taille, mode: html.dataset.mode };
+      try {
+        const convertisseurs = [1, 2, 3].map((k) => ({ nom: `Convertisseur fibre ${k}`, liaison: '12g-sdi', longueurM: 80 * k }));
+        racine.append(dessinSchema.bandeChaine(amontEssai(contexte, { regie: regieDeBase(contexte, 'barco-e2-gen2'), convertisseurs })));
+        const b = racine.firstElementChild;
+        for (const taille of ['normal', 'grand']) {
+          if (taille === 'grand') html.dataset.taille = 'grand'; else delete html.dataset.taille;
+          const cadre = racine.getBoundingClientRect();
+          const items = [...b.querySelectorAll('ol > li, a.bc-modifier')];
+          v.vrai(`${taille} : pas de défilement de côté`, b.scrollWidth <= b.clientWidth + 1 && items.every((x) => x.getBoundingClientRect().right <= cadre.right + 0.5),
+            `${b.scrollWidth} > ${b.clientWidth}`);
+          v.vrai(`${taille} : la bande passe à la ligne`, new Set(items.map((x) => Math.round(x.getBoundingClientRect().top))).size >= 2);
+        }
+        delete html.dataset.taille;
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') html.dataset.mode = 'rouge'; else delete html.dataset.mode;
+          const textes = [...b.querySelectorAll('ol > li, ol > li *, a.bc-modifier')].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()));
+          const faibles = textes.map((x) => [texteDe(x), contraste(rgbVersHex(getComputedStyle(x).color), fondDe(x))]).filter(([, c]) => c < 4.5);
+          v.egal(`${mode} : textes à 4,5:1`, faibles.map(([t, c]) => `${t} (${c.toFixed(2)})`), []);
+        }
+      } finally {
+        if (avant.taille) html.dataset.taille = avant.taille; else delete html.dataset.taille;
+        if (avant.mode) html.dataset.mode = avant.mode; else delete html.dataset.mode;
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N108',
+    titre: 'Export PNG du Schéma avec la bande « Chaîne » (19b3, spec § 4.4) : la bande en haut de l\'image, sous le titre et au-dessus du mur ; l\'image garde ses 2000 px de large et grandit de la hauteur de la bande ; verifierTailleSchema compte la bande (un mur tout juste sous la limite sans bande est refusé avec elle, avec la raison)',
+    etape: '19b3',
+    async verifier(v, contexte) {
+      if (!exportImage.hauteurBandeSchema) { v.vrai('hauteurBandeSchema exportée par export.js', false); return; }
+      try {
+        const amont = amontEssai(contexte, { convertisseurs: [{ nom: 'Convertisseur A', liaison: '12g-sdi', longueurM: 80 }] });
+        const x = chaineDessinee(contexte, { imposee: { ports: 2, fibre: true } });
+        const hb = exportImage.hauteurBandeSchema(amont, 2000);
+        v.vrai(`bande d'une rangée au moins (${hb} px)`, hb >= 40);
+        const sans = await decoder(await schemaEnPng(x.svg, { largeurPx: 2000, titre: 'Mur LED', lignes: [] }));
+        const blob = await schemaEnPng(x.svg, { largeurPx: 2000, titre: 'Mur LED', lignes: [], bande: amont });
+        const avec = await decoder(blob);
+        v.egal('2000 px de large, plus haute de la bande', [avec.width, avec.height - sans.height], [2000, hb]);
+        // La bande est dessinée entre le titre et le mur : des pixels sombres dans sa hauteur.
+        const c = el('canvas', { width: 2000, height: avec.height });
+        const ctx = c.getContext('2d');
+        ctx.drawImage(avec, 0, 0);
+        const haut = 40 + Math.round(36 * 1.6);
+        const zone = ctx.getImageData(0, haut, 2000, hb).data;
+        let sombres = 0;
+        for (let i = 0; i < zone.length; i += 4) if (zone[i] + zone[i + 1] + zone[i + 2] < 200) sombres += 1;
+        v.vrai(`la bande est dessinée sous le titre (${sombres} pixels sombres)`, sombres > 500);
+        // Limite de surface : la plus grande hauteur de dessin acceptée sans bande, refusée avec elle.
+        const passe = (h, bande) => { try { exportImage.verifierTailleSchema(2000, 2000, h, { titre: true, bande }); return true; } catch { return false; } };
+        let bas = 1000;
+        let hautH = 20000;
+        while (hautH - bas > 1) { const m = Math.floor((bas + hautH) / 2); if (passe(m, null)) bas = m; else hautH = m; }
+        v.vrai('tout juste sous la limite : accepté sans bande, refusé avec', passe(bas, null) && !passe(bas, amont));
+        let raison = '';
+        try { exportImage.verifierTailleSchema(2000, 2000, bas, { titre: true, bande: amont }); } catch (erreur) { raison = erreur.message; }
+        v.vrai('refus avec la raison', raison.includes('limite des navigateurs'), raison);
+        x.svg.remove();
+      } finally {
+        document.querySelectorAll('body > svg').forEach((s) => s.remove());
+      }
+    },
+  },
 ];
+
+// Bande « Chaîne » (19b3) : amont de `chaineSchema` sur l'exercice (Upad IV 2.6 en 4 × 4 sur MCTRL4K), chaîne de Canvas
+// comme `chaineAffichee` la donne (source, liaison, convertisseurs, régie, source conseillée), ou sans chaîne.
+function amontEssai(contexte, { convertisseurs = [], regie = null, conseillee = false, sansChaine = false } = {}) {
+  const dalle = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+  const m = calculs.mur(dalle, 4, 4);
+  const e = calculs.evaluerProcesseur(m, dalle, processeurDeBase(contexte, 'novastar-mctrl4k'), { frequenceHz: 60, bits: 8 });
+  const source = { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60 };
+  const c = calculs.controleChaine({ source: { nom: 'Source', ...source }, liaison: 'hdmi-2.0', longueurM: 5, convertisseurs },
+    { evaluation: e, liaisons: liaisonsDeBase(contexte), frequenceCalculHz: 60, regie });
+  const chaine = sansChaine ? null : { maillons: c.maillons, source, regie: regie ? { nom: regie.nom } : null, conseillee };
+  return calculs.chaineSchema({ chaine, evaluation: e }).amont;
+}
+
+// Chaîne dans le Schéma (19b2) : mur d'essai (Upad IV 2.6 en 4 × 4 sur MCTRL4K par défaut), variante retenue (config
+// imposée comprise), aval de `chaineSchema`, géométrie de la chaîne et dessin d'export de 2000 px monté hors de l'écran.
+function chaineDessinee(contexte, {
+  dalleId = 'unilumin-upad-iv-2-6', procId = 'novastar-mctrl4k', colonnes = 4, rangees = 4, reglages = {}, imposee = null, coin = 'bas-gauche', mode = null,
+  vue = 'physique', distanceM = 50, reseau = null, palette = PALETTE_EXPORT, grand = false, simplifie = null, zones = null,
+} = {}) {
+  const dalle = zones ? DALLE_CAS_13 : dalleDeBase(contexte, dalleId);
+  const m = zones ? calculs.murZones(DALLE_CAS_13, zones, { ecarts: 'main', ecartsPx: [84] }) : calculs.mur(dalle, colonnes, rangees);
+  const e = calculs.evaluerProcesseur(m, dalle, processeurDeBase(contexte, procId), { frequenceHz: 60, bits: 8, ...reglages });
+  const b = baseProcesseurs(contexte);
+  const distributeurs = b.distributeurs.map((d) => calculs.resoudreFiche(d, b.sources));
+  const t = calculs.cablageData(m, dalle, e, { depart: coin, distributeurs, imposee });
+  const vd = t.variantes.find((x) => x.mode === (mode ?? t.retenue ?? t.conseil));
+  const chaine = calculs.chaineSchema({ chaine: null, evaluation: e, variante: vd, distanceM, reseau });
+  const vueSchema = { vue, canvasVue: 'mur', cablage: 'data' };
+  const geo = geometrieSchema(vueSchema, m, dalle, calculs.pixelMap(m, dalle, e));
+  const trajets = trajetsSchema(vueSchema, vd, null, null);
+  const g = dessinSchema.geometrieChaine?.(geo, coin, trajets, chaine.aval, { grand }) ?? null;
+  const { svg } = construireSvg({ geo, trajets, coin, blocs: [], palette, largeurPx: 2000, chaine: g, grand, simplifie });
+  svg.style.position = 'absolute';
+  svg.style.left = '-5000px';
+  document.body.append(svg);
+  return { svg, geo, g, m, e, vd, chaine, trajets };
+}
+// Sommets d'un trait : ligne (x1, y1, x2, y2) ou polyligne.
+const sommets = (l) => (l.tagName === 'line' ? [['x1', 'y1'], ['x2', 'y2']].map((a) => a.map((k) => Number(l.getAttribute(k))))
+  : l.getAttribute('points').trim().split(/\s+/).map((p) => p.split(',').map(Number)));
+const boiteRect = (r) => ({ x: Number(r.getAttribute('x')), y: Number(r.getAttribute('y')), w: Number(r.getAttribute('width')), h: Number(r.getAttribute('height')) });
+const bb = (b) => ({ x: b.x, y: b.y, w: b.w ?? b.width, h: b.h ?? b.height });
+const chevauchent = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+// Cadres de la chaîne : rôle, nom, lignes de texte et rectangle.
+function cadresChaine(svg) {
+  return [...svg.querySelectorAll('.cadre-chaine')].map((g) => {
+    const b = boiteRect(g.querySelector('rect'));
+    return { role: g.dataset.role, nom: g.dataset.nom, lignes: [...g.querySelectorAll('text')].map(texteDe), ...b, cx: b.x + b.w / 2, cy: b.y + b.h / 2 };
+  });
+}
+const disquesDe = (svg, sel) => [...svg.querySelectorAll(sel)].map((c) => ({ cx: Number(c.getAttribute('cx')), cy: Number(c.getAttribute('cy')), r: Number(c.getAttribute('r')) }));
+// Rond de départ de chaque trajet, par clé.
+const departsDe = (svg) => new Map([...svg.querySelectorAll('[data-trajet]')].map((g) => [g.dataset.trajet, disquesDe(g, '.depart')[0]]));
+// Cadre au droit de ses départs : son étendue le long du bord croise celle des départs.
+function auDroit(c, departs, orientation) {
+  if (!c || !departs.length) return false;
+  const [a, l, k] = orientation === 'rangees' ? [c.y, c.h, 'cy'] : [c.x, c.w, 'cx'];
+  const min = Math.min(...departs.map((d) => d[k]));
+  const max = Math.max(...departs.map((d) => d[k]));
+  return a <= max && a + l >= min;
+}
 
 // Bloc « Ma config » (18c2) monté seul à 375 px, ouvert, tous ses champs visibles : cibles de 48 px et débordement,
 // en thème sombre puis en mode rouge.

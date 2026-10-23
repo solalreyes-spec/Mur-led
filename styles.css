@@ -733,6 +733,15 @@ input[type="file"] { color: var(--texte); min-height: var(--cible); }
 
 .recap-mur { margin: 0 0 8px; color: var(--texte-doux); font-size: 0.9rem; }
 .recap-mur a { display: inline-flex; align-items: center; min-height: var(--cible); padding: 0 4px; vertical-align: middle; }
+/* Bande « Chaîne » du Schéma (étape 19b3) : nœuds encadrés et liaisons de gauche à droite, à la ligne à 375 px,
+   lien « Modifier dans Canvas » au bout, sans agrandir la bande plus qu'il ne faut. */
+.bande-chaine { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; margin: 8px 0; font-size: 0.8rem; }
+.bc-liste { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; list-style: none; margin: 0; padding: 0; min-width: 0; max-width: 100%; }
+.bc-liste li { max-width: 100%; overflow-wrap: anywhere; }
+.bc-noeud { padding: 2px 8px; border: 1px solid var(--bordure); border-radius: 8px; background: var(--surface-2); color: var(--texte); }
+.bc-detail, .bc-lien, .bc-note { color: var(--texte-doux); }
+.bc-note { margin: 0; }
+.bande-chaine .bc-modifier { display: inline-flex; align-items: center; min-height: var(--cible); padding: 0 4px; }
 /* Zone d'appui de 48 px gardée, sans agrandir la ligne (11d : le dessin du Schéma reste dans le premier écran). */
 .recap-mur a { margin-block: calc((1.5em - var(--cible)) / 2); }
 .bloc-resultats h3 { display: flex; align-items: center; gap: 10px; margin: 24px 0 8px; }

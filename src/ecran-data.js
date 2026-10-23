@@ -902,6 +902,8 @@ function mettreAJour() {
     // Config imposée (étape 18c), pour le câblage du Schéma ; fiches des convertisseurs pour la fibre.
     imposee: e.imposee,
     distributeurs: [...distributeurs.values()],
+    // Réseau Brompton saisi (19b), pour la liaison du SX40 à ses XD dans la chaîne du Schéma.
+    reseau: e.reseau,
   });
 }
 

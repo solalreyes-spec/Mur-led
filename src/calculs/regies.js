@@ -249,8 +249,8 @@ export function controleCadence(sourceHz, calculHz, { appareil = null } = {}) {
 
 // Réseau Brompton (aide en ligne Tessera, Connection Guidelines 13.1.2 et annexe B), consultée le 26/09/2026.
 const AIDE_TESSERA_CONNEXION = 'aide en ligne Tessera, Connection Guidelines';
-const AIDE_TESSERA_CABLES = 'aide en ligne Tessera, annexe B';
-const CUIVRE_10G_BROMPTON_M = { Cat6A: 60, Cat5e: 30 };
+export const AIDE_TESSERA_CABLES = 'aide en ligne Tessera, annexe B';
+export const CUIVRE_10G_BROMPTON_M = { Cat6A: 60, Cat5e: 30 };
 export function reseauBrompton({
   xd = 0, switches = 0, convertisseursFibre = 0, switchManageable = false, switch10G = false, fibre = null, cuivre10G = null, distributeur = null,
 } = {}) {

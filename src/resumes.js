@@ -641,7 +641,8 @@ export function resumePoids(r, { dalle, mur: m }) {
 // Câblage data et élec d'une variante chacun (celle conseillée par défaut) : une ligne par port ou par ligne,
 // avec sa première et sa dernière dalle. L'élec est marquée indicative.
 // `montage` : état du guide pas à pas (« 1 port sur 2 branché (port 1) »), une ligne par câblage.
-export function resumeCablage({ data = null, modeData = null, elec = null, modeElec = null, montage = null, distribution = null }) {
+// `chaine` (chaineSchema, 19b3) : ses lignes sous « Câbles » du data ; sans chaîne, le texte d'avant.
+export function resumeCablage({ data = null, modeData = null, elec = null, modeElec = null, montage = null, distribution = null, chaine = null }) {
   const lignes = ['CÂBLAGE'];
   const choisir = (t, mode) => t?.variantes.find((x) => x.mode === (mode ?? t.retenue ?? t.conseil)) ?? null;
   const vd = choisir(data, modeData);
@@ -652,6 +653,7 @@ export function resumeCablage({ data = null, modeData = null, elec = null, modeE
     if (vd.ecart) lignes.push(`Note : ${vd.ecart}`);
     lignes.push(`Ports : ${vd.ports}${vd.portsSecours ? `, plus ${vd.portsSecours} de secours` : ''}, charge maxi ${nombre(vd.chargeMax * 100, 1)} %`);
     lignes.push(`Câbles : ${vd.cablesTete} câbles de tête, ${vd.liaisons} liaisons entre dalles`);
+    if (chaine?.texte?.length) lignes.push(...chaine.texte);
     const couleurs = portsEnCouleurs(vd);
     let rang = 0;
     for (const p of vd.processeurs) {

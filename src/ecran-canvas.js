@@ -21,6 +21,8 @@ let appareils = { serveurs: [], convertisseurs: [] };
 let etatData = null;
 // Sortie du serveur pliée (9b7) : le Schéma et la mire suivent le format choisi ici.
 let surSortie = () => {};
+// Chaîne complète dans le Schéma (19b) : prévenu après chaque contrôle.
+let surChaine = () => {};
 // Tant que l'utilisateur n'a pas touché au format de la source, elle suit la source conseillée.
 let sourceModifiee = false;
 const CHAMPS_SOURCE = ['largeurPx', 'hauteurPx', 'frequenceHz', 'liaison'];
@@ -273,7 +275,20 @@ export function sourceAffichee() {
   };
 }
 
+// Chaîne de la source aux processeurs pour le Schéma (19b) : maillons du contrôle, source, régie, source conseillée
+// (pas touchée à la main) ou non ; null sans contrôle (aucun processeur, saisie illisible).
+export function chaineAffichee() {
+  if (!dernier?.chaine) return null;
+  const { largeurPx, hauteurPx, frequenceHz } = dernier.source;
+  return { maillons: dernier.chaine.maillons, source: { largeurPx, hauteurPx, frequenceHz }, regie: dernier.regie ? { nom: dernier.regie.nom } : null, conseillee: !sourceModifiee };
+}
+
 function mettreAJour() {
+  controler();
+  surChaine(chaineAffichee());
+}
+
+function controler() {
   dernier = null;
   if (!etatData) return;
   surSortie(lireFormulaire().sortie);
@@ -464,9 +479,11 @@ export function actualiserRegies(nouvelles, sourcesRegies = {}) {
   mettreAJour();
 }
 
-// `base` : { liaisons, regies, sourcesRegies } déjà résolues.
-export function initialiserCanvas(base, { surSortieModifiee = () => {} } = {}) {
+// `base` : { liaisons, regies, sourcesRegies } déjà résolues. `surSortieModifiee(format)` et `surChaineModifiee(chaine)`
+// préviennent le Schéma.
+export function initialiserCanvas(base, { surSortieModifiee = () => {}, surChaineModifiee = () => {} } = {}) {
   surSortie = surSortieModifiee;
+  surChaine = surChaineModifiee;
   liaisons = base.liaisons;
   regies = base.regies ?? [];
   regieSources = Object.fromEntries(Object.entries(base.sourcesRegies ?? {}).map(([id, s]) => [id, sourceCourte(s)]));

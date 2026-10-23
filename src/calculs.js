@@ -6,7 +6,7 @@
 // Point d'entrée : le code est réparti en modules par domaine dans src/calculs/ (étape 10a). Ce fichier réexporte
 // tout ce que les écrans et les tests utilisent. Couches, de la plus basse à la plus haute : commun, valeurs-sourcees,
 // mur, morceaux, forme-reelle, mur-zones, capacites, ports, decoupage, processeur, elec, poids, pixel-map, config-imposee, cablage,
-// distribution, materiel, stock, canvas, regies. Un module n'importe que des couches plus basses et ne lit au chargement aucune valeur
+// distribution, materiel, stock, canvas, regies, chaine-schema. Un module n'importe que des couches plus basses et ne lit au chargement aucune valeur
 // d'un autre module, sauf de commun.js : pas d'import circulaire.
 
 export { ErreurSaisie, COINS, LIBELLES_COIN, LIBELLE_IMPOSEE } from './calculs/commun.js';
@@ -38,3 +38,4 @@ export { RESOLUTIONS_STANDARD, frequencePixel, controleLiaison, controleEntree, 
 export { modesSortieRegie, budgetRegie, uniteCouche, sortiesTypesRegie, champsManquantsRegie, controleRegie,
   latenceChaine, controleCadence, reseauBrompton, SEUILS_LONGUEUR_M, controleLongueur, controleLongueurLiaison,
   FAMILLES_APPAREILS, maillonDepuisFiche, CONVERTISSEURS_MAX, controleChaine } from './calculs/regies.js';
+export { PROCESSEURS_CADRES_MAX, chaineSchema } from './calculs/chaine-schema.js';

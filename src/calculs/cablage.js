@@ -221,11 +221,16 @@ export function cablageData(m, dalle, evaluation, {
 
   // Cartes à zones (Z8t, X100 Pro, série H) : convertisseurs numérotés carte par carte, dans l'ordre des ports ;
   // sinon par groupes de `sorties` ports.
+  // `distributeur` (19b1) : le même boîtier en champ structuré, pour le Schéma ; null en cuivre direct.
   let numerotation = null;
-  const libellePort = (n, miroir = false) => {
-    if (!surDistributeur) return `port ${n}`;
+  const distributeurPort = (n, miroir = false) => {
+    if (!surDistributeur) return null;
     const x = numerotation?.[n - 1] ?? { conv: Math.ceil(n / sorties), port: ((n - 1) % sorties) + 1 };
-    return `${modeleDistributeur}${miroir ? ' miroir' : ''} ${x.conv}, port ${x.port}`;
+    return { type: modeleDistributeur, numero: x.conv, port: x.port, miroir, paire: false };
+  };
+  const libellePort = (n, miroir = false) => {
+    const x = distributeurPort(n, miroir);
+    return x ? `${x.type}${miroir ? ' miroir' : ''} ${x.numero}, port ${x.port}` : `port ${n}`;
   };
   const numerotationParCartes = (groupes) => {
     const carte = proc.carteSortie;
@@ -258,10 +263,19 @@ export function cablageData(m, dalle, evaluation, {
   const convention = redondance && !proc.portsRedondance && !pairesBrompton;
   // Numéro et libellé d'un port principal (rang p) et de son secours.
   const portEtSecours = (p, nb) => {
-    if (!redondance) return { numero: p, libelle: libellePort(p), secours: null };
-    if (proc.portsRedondance) return { numero: p, libelle: libellePort(p), secours: { numero: nb + p, libelle: libellePort(p, true), convention: false } };
-    if (pairesBrompton) return { numero: 2 * p - 1, libelle: `port ${2 * p - 1}`, secours: { numero: 2 * p, libelle: `port ${2 * p}`, convention: false } };
-    return { numero: p, libelle: libellePort(p), secours: { numero: p + moitie, libelle: `port ${p + moitie}`, convention: true } };
+    const principal = { numero: p, libelle: libellePort(p), distributeur: distributeurPort(p) };
+    if (!redondance) return { ...principal, secours: null };
+    if (proc.portsRedondance) return { ...principal, secours: { numero: nb + p, libelle: libellePort(p, true), distributeur: distributeurPort(p, true), convention: false } };
+    if (pairesBrompton) {
+      return { numero: 2 * p - 1, libelle: `port ${2 * p - 1}`, distributeur: null, secours: { numero: 2 * p, libelle: `port ${2 * p}`, distributeur: null, convention: false } };
+    }
+    return { ...principal, secours: { numero: p + moitie, libelle: `port ${p + moitie}`, distributeur: distributeurPort(p + moitie), convention: true } };
+  };
+  // Fibre imposée (18c3) : convertisseur de chaque port, secours compris ; même numéro de port sur un convertisseur
+  // en copie (CVT4K), une paire par port (CVT310 ou CVT320, transceivers des Brompton).
+  const distributeurFibre = (fibreImp, n) => {
+    if (fibreImp.type === 'copie') return { type: fibreImp.modele, numero: Math.ceil(n / sorties), port: ((n - 1) % sorties) + 1, miroir: false, paire: false };
+    return { type: fibreImp.type === 'transceivers' ? 'transceiver' : fibreImp.modele, numero: n, port: null, miroir: false, paire: true };
   };
   const mou = 1 + margeMou;
 
@@ -365,6 +379,10 @@ export function cablageData(m, dalle, evaluation, {
         const px = grp.reduce((s, p) => s + poids(p), 0);
         const trajet = trajetDepuisCoin(m, depart, tuile(grp[0]));
         const base = portEtSecours(j + 1, nb);
+        if (mode === 'imposee' && enFibre) {
+          base.distributeur = distributeurFibre(fibreImp, base.numero);
+          if (base.secours) base.secours.distributeur = distributeurFibre(fibreImp, base.secours.numero);
+        }
         if (base.secours) {
           // Retour de secours le long de la structure ; long quand la chaîne finit loin du bord de départ.
           const derniere = tuile(grp[grp.length - 1]);

@@ -9118,7 +9118,250 @@ export const REGLES = [
       v.vrai('à blanc : Mac', etapeNovaLCT(a.resultat, '0.1').texte.includes('Parallels') && etapeNovaLCT(a.resultat, '0.3').connexion?.chemin.systeme === 'mac');
     },
   },
+  {
+    id: 'R400',
+    titre: 'Champ `distributeur` des ports (19b1, spec § 4.1) : XD du SX40 (numéro, port, miroirs en redondance), CVT10 de la série H numérotés carte par carte, convertisseurs de la fibre imposée (CVT4K, paires de CVT310, transceivers des Brompton), secours compris ; rien en cuivre direct ; libellés des ports inchangés',
+    etape: '19b1',
+    verifier(v, contexte) {
+      const d = (type, numero, port, miroir = false, paire = false) => ({ type, numero, port, miroir, paire });
+      const ports = (variante) => variante?.processeurs.flatMap((p) => p.ports) ?? [];
+      const sx = varianteSchema(contexte, xBp2(contexte, 'brompton-sx40', 22, 6));
+      v.egal('SX40, 22 ports : ports 1, 10, 11 et 22', [1, 10, 11, 22].map((n) => ports(sx).find((p) => p.numero === n)?.distributeur),
+        [d('XD', 1, 1), d('XD', 1, 10), d('XD', 2, 1), d('XD', 3, 2)]);
+      v.egal('SX40 : libellés inchangés', ports(sx).map((p) => p.libelle), Array.from({ length: 22 }, (_, i) => `XD ${Math.floor(i / 10) + 1}, port ${(i % 10) + 1}`));
+      const red = varianteSchema(contexte, xBp2(contexte, 'brompton-sx40', 20, 6, { redondance: true }));
+      v.egal('SX40 en redondance : port 1 et son miroir, port 20 et son miroir', [1, 20].flatMap((n) => {
+        const p = ports(red).find((x) => x.numero === n);
+        return [p?.distributeur, p?.secours?.distributeur, p?.secours?.libelle];
+      }), [d('XD', 1, 1), d('XD', 1, 1, true), 'XD miroir 1, port 1', d('XD', 2, 10), d('XD', 2, 10, true), 'XD miroir 2, port 10']);
+      const h5 = varianteSchema(contexte, exercice(contexte, 60, 8, 'novastar-h5', { carteSortie: 'h-4xfiber' }));
+      v.egal('H5, carte H_4xfiber : CVT10 de 8 ports, carte par carte', [1, 8, 9, 30].map((n) => ports(h5).find((p) => p.numero === n)?.distributeur),
+        [d('CVT10', 1, 1), d('CVT10', 1, 8), d('CVT10', 2, 1), d('CVT10', 4, 6)]);
+      v.egal('H5 : libellés inchangés', [9, 30].map((n) => ports(h5).find((p) => p.numero === n)?.libelle), ['CVT10 2, port 1', 'CVT10 4, port 6']);
+      const cuivre = varianteSchema(contexte, exercice(contexte, 4, 4, 'novastar-mctrl4k', { redondance: true }));
+      v.egal('MCTRL4K en cuivre, redondance : aucun distributeur', ports(cuivre).flatMap((p) => [p.distributeur, p.secours?.distributeur]), [null, null]);
+      const k4 = varianteSchema(contexte, exercice(contexte), { imposee: { ports: 2, fibre: true } });
+      v.egal('cas 17, fibre imposée : CVT4K, même numéro de port', ports(k4).map((p) => p.distributeur), [d('CVT4K', 1, 1), d('CVT4K', 1, 2)]);
+      v.egal('cas 17 : libellés inchangés', ports(k4).map((p) => p.libelle), ['port 1', 'port 2']);
+      const k4r = varianteSchema(contexte, exercice(contexte, 4, 4, 'novastar-mctrl4k', { redondance: true }), { imposee: { ports: 2, fibre: true } });
+      v.egal('fibre imposée en redondance : secours 9 et 10 sur le CVT4K', ports(k4r).map((p) => [p.secours?.numero, p.secours?.distributeur]), [[9, d('CVT4K', 1, 9)], [10, d('CVT4K', 1, 10)]]);
+      const m660 = varianteSchema(contexte, exercice(contexte, 4, 4, 'novastar-mctrl660'), { imposee: { ports: 2, fibre: true } });
+      v.egal('MCTRL660 en fibre : une paire de CVT310 par port', ports(m660).map((p) => p.distributeur), [d('CVT310', 1, null, false, true), d('CVT310', 2, null, false, true)]);
+      const s8 = varianteSchema(contexte, xBp2(contexte, 'brompton-s8', 6, 4, { redondance: true }), { imposee: { ports: 3, fibre: true } });
+      v.egal('S8 en redondance, fibre : transceivers, secours compris (ports 1, 3, 5 et secours 2, 4, 6)', ports(s8).flatMap((p) => [p.distributeur, p.secours?.distributeur]),
+        [1, 2, 3, 4, 5, 6].map((n) => d('transceiver', n, null, false, true)));
+      const t = calculs.cablageData(exercice(contexte).m, exercice(contexte).dalle, exercice(contexte).e, { depart: 'bas-gauche', distributeurs: distributeursDeBase(contexte), imposee: { ports: 2, fibre: true } });
+      v.egal('fibre imposée : le conseil reste en cuivre direct', ports(t.variantes.find((x) => x.mode === 'colonnes')).map((p) => p.distributeur), [null]);
+    },
+  },
+  {
+    id: 'R401',
+    titre: 'Chaîne du Schéma, amont (19b1, spec § 4.1 et 4.2, `chaineSchema`) : source avec sa résolution et sa fréquence (« source conseillée (Canvas) » quand elle n\'est pas réglée), liaison et longueur (« longueur non saisie »), régie en tête sans sa source, chaque convertisseur, processeurs « 2 × MCTRL660 » ; sans chaîne de Canvas, les processeurs seuls avec « Chaîne à régler dans Canvas. »',
+    etape: '19b1',
+    verifier(v, contexte) {
+      const x = exercice(contexte);
+      const variante = varianteSchema(contexte, x);
+      const noeuds = (r) => r.amont.noeuds.map((n) => n.texte);
+      const liens = (r) => r.amont.liens.map((l) => l.texte);
+      const simple = calculs.chaineSchema({ chaine: chaineCanvas(contexte, x), evaluation: x.e, variante });
+      v.egal('source, liaison, processeur', [noeuds(simple), liens(simple), simple.amont.note], [['Source 3840 × 2160 60 Hz', 'MCTRL4K'], ['HDMI 2.0, 5 m'], null]);
+      v.egal('rôles', simple.amont.noeuds.map((n) => n.role), ['source', 'processeur']);
+      const vide = calculs.chaineSchema({ chaine: chaineCanvas(contexte, x, { longueurM: null }), evaluation: x.e, variante });
+      v.egal('longueur non saisie', liens(vide), ['HDMI 2.0, longueur non saisie']);
+      const conseil = calculs.chaineSchema({ chaine: chaineCanvas(contexte, x, { conseillee: true, source: { largeurPx: 1920, hauteurPx: 1080, frequenceHz: 59.94 } }), evaluation: x.e, variante });
+      v.egal('source conseillée', noeuds(conseil)[0], 'Source 1920 × 1080 59,94 Hz, source conseillée (Canvas)');
+      const regie = regieDeBase(contexte, 'barco-e2-gen2');
+      const avecRegie = calculs.chaineSchema({ chaine: chaineCanvas(contexte, x, { regie }), evaluation: x.e, variante });
+      v.egal('régie en tête, sans sa source', [noeuds(avecRegie)[0], avecRegie.amont.noeuds[0].role, avecRegie.amont.noeuds[0].detail],
+        [`Régie ${regie.nom} (sa source n'est pas saisie)`, 'regie', 'sortie 3840 × 2160, 60 Hz']);
+      const convertisseurs = [{ nom: 'Convertisseur A', liaison: '12g-sdi', longueurM: 80 }, { nom: 'Convertisseur B', liaison: '12g-sdi', longueurM: null }];
+      const deux = calculs.chaineSchema({ chaine: chaineCanvas(contexte, x, { convertisseurs, liaison: 'hdmi-2.0' }), evaluation: x.e, variante });
+      v.egal('deux convertisseurs', [noeuds(deux), liens(deux)],
+        [['Source 3840 × 2160 60 Hz', 'Convertisseur A', 'Convertisseur B', 'MCTRL4K'], ['HDMI 2.0, 5 m', '12G-SDI, 80 m', '12G-SDI, longueur non saisie']]);
+      const x2 = exercice(contexte, 18, 4, 'novastar-mctrl660');
+      const deuxProc = calculs.chaineSchema({ chaine: chaineCanvas(contexte, x2), evaluation: x2.e, variante: varianteSchema(contexte, x2) });
+      v.egal('deux processeurs', noeuds(deuxProc).at(-1), '2 × MCTRL660');
+      const sans = calculs.chaineSchema({ chaine: null, evaluation: x.e, variante });
+      v.egal('sans chaîne de Canvas', [noeuds(sans), liens(sans), sans.amont.note], [['MCTRL4K'], [], 'Chaîne à régler dans Canvas.']);
+      v.egal('texte : la chaîne', simple.texte[0], 'Chaîne : Source 3840 × 2160 à 60 Hz, HDMI 2.0 5 m, MCTRL4K.');
+      v.egal('texte : régie et convertisseurs', [avecRegie.texte[0], deux.texte[0]], [`Chaîne : Régie ${regie.nom} (sa source n'est pas saisie), sortie 3840 × 2160 à 60 Hz, HDMI 2.0 5 m, MCTRL4K.`,
+        'Chaîne : Source 3840 × 2160 à 60 Hz, HDMI 2.0 5 m, Convertisseur A, 12G-SDI 80 m, Convertisseur B, 12G-SDI longueur non saisie, MCTRL4K.']);
+      v.egal('texte sans chaîne', sans.texte[0], 'Chaîne : MCTRL4K (chaîne à régler dans Canvas).');
+    },
+  },
+  {
+    id: 'R402',
+    titre: 'Chaîne du Schéma, aval Novastar (19b1, spec § 4.2) : cuivre seul (« câbles de tête, régie à 20 m »), CVT4K de la fibre imposée (cas 17, « fibre OPT1, 50 m »), en redondance avec les fibres qui portent les secours et leurs fibres de secours, un élément par processeur numéroté quand ils sont plusieurs ; texte d\'une ligne par processeur',
+    etape: '19b1',
+    verifier(v, contexte) {
+      const aval = (x, options = {}, distanceM = 50) => calculs.chaineSchema({ chaine: null, evaluation: x.e, variante: varianteSchema(contexte, x, options), distanceM });
+      const x = exercice(contexte);
+      const cuivre = aval(x, {}, 20);
+      v.egal('cuivre seul', cuivre.aval.map((p) => [p.nom, p.numero, p.appareils.length, p.liaison, p.versDalles]), [['MCTRL4K', null, 0, null, 'câbles de tête, régie à 20 m']]);
+      v.egal('cuivre : texte', cuivre.texte[1], 'MCTRL4K : câbles de tête, régie à 20 m.');
+      v.egal('distance non saisie', aval(x, {}, null).aval[0].versDalles, 'câbles de tête');
+      const k4 = aval(x, { imposee: { ports: 2, fibre: true } });
+      const p = k4.aval[0];
+      v.egal('cas 17 : CVT4K au pied du mur', p.appareils.map((a) => [a.type, a.nom, a.numero, a.ports]), [['CVT4K', 'CVT4K', 1, [1, 2]]]);
+      v.egal('cas 17 : fibre OPT1, 50 m', [p.liaison?.genre, p.liaison?.texte, p.liaison?.longueurM, p.versDalles], ['fibre', 'fibre OPT1, 50 m', 50, 'câbles de tête']);
+      v.egal('cas 17 : texte', k4.texte[1], 'MCTRL4K : fibre OPT1 50 m jusqu\'au CVT4K au pied du mur, puis câbles de tête.');
+      const red = aval(exercice(contexte, 4, 4, 'novastar-mctrl4k', { redondance: true }), { imposee: { ports: 2, fibre: true } }).aval[0];
+      v.egal('redondance : OPT1 et OPT2 (ports 1, 2, 9 et 10), OPT3 et OPT4 en secours', [red.appareils[0]?.ports, red.liaison?.texte],
+        [[1, 2, 9, 10], 'fibres OPT1 et OPT2, OPT3 et OPT4 en secours, 50 m']);
+      v.egal('fibre sans distance', aval(x, { imposee: { ports: 2, fibre: true } }, null).aval[0].liaison?.texte, 'fibre OPT1, longueur non saisie');
+      const x2 = exercice(contexte, 18, 4, 'novastar-mctrl660');
+      const deux = aval(x2, {}, 20);
+      v.egal('deux processeurs numérotés', deux.aval.map((q) => [q.nom, q.numero]), [['MCTRL660 n° 1', 1], ['MCTRL660 n° 2', 2]]);
+      v.egal('deux processeurs : une ligne chacun', deux.texte.slice(1), ['MCTRL660 n° 1 : câbles de tête, régie à 20 m.', 'MCTRL660 n° 2 : câbles de tête, régie à 20 m.']);
+    },
+  },
+  {
+    id: 'R403',
+    titre: 'Chaîne du Schéma, aval du SX40 (19b1, spec § 4.2 et 4.3, choix a) : un XD par groupe de 10 ports (« XD 1 », « XD 2 », « XD 3 »), une fibre par XD ; le cuivre 10G saisi dans le réseau Brompton de Data avec le rappel « Cat6A 60 m au plus » (aide en ligne Tessera, annexe B) ; en redondance, les XD miroirs avec les ports de secours',
+    etape: '19b1',
+    verifier(v, contexte) {
+      const x = xBp2(contexte, 'brompton-sx40', 22, 6);
+      const variante = varianteSchema(contexte, x);
+      const r = calculs.chaineSchema({ chaine: null, evaluation: x.e, variante, distanceM: 150 });
+      const p = r.aval[0];
+      v.egal('SX40 : 3 XD et leurs ports', p.appareils.map((a) => [a.nom, a.ports]), [['XD 1', suiteDe(1, 10)], ['XD 2', suiteDe(11, 20)], ['XD 3', [21, 22]]]);
+      v.egal('une fibre par XD', [p.nom, p.liaison?.genre, p.liaison?.texte, p.liaison?.rappel], ['SX40', 'fibre', '3 fibres (une par XD), 150 m', null]);
+      v.egal('texte', r.texte[1], 'SX40 : 3 fibres (une par XD) 150 m jusqu\'aux XD 1, XD 2 et XD 3 au pied du mur, puis câbles de tête.');
+      const cu = calculs.chaineSchema({ chaine: null, evaluation: x.e, variante, distanceM: 150, reseau: { cuivre10G: { categorie: 'Cat6A', longueurM: 40 } } }).aval[0];
+      v.egal('cuivre 10G du réseau Brompton', [cu.liaison?.genre, cu.liaison?.texte, cu.liaison?.rappel],
+        ['cuivre', '3 câbles cuivre 10G Cat6A (un par XD), 40 m', 'Cat6A 60 m au plus (aide en ligne Tessera, annexe B).']);
+      const un = xBp2(contexte, 'brompton-sx40', 8, 6);
+      v.egal('un seul XD : « fibre »', calculs.chaineSchema({ chaine: null, evaluation: un.e, variante: varianteSchema(contexte, un), distanceM: 150 }).aval[0].liaison?.texte, 'fibre, 150 m');
+      const xr = xBp2(contexte, 'brompton-sx40', 20, 6, { redondance: true });
+      const red = calculs.chaineSchema({ chaine: null, evaluation: xr.e, variante: varianteSchema(contexte, xr), distanceM: 150 }).aval[0];
+      v.egal('redondance : XD et XD miroirs', red.appareils.map((a) => [a.nom, a.miroir, a.ports]),
+        [['XD 1', false, suiteDe(1, 10)], ['XD 2', false, suiteDe(11, 20)], ['XD miroir 1', true, suiteDe(21, 30)], ['XD miroir 2', true, suiteDe(31, 40)]]);
+      v.egal('redondance : une fibre par XD, miroirs compris', red.liaison?.texte, '4 fibres (une par XD), 150 m');
+    },
+  },
+  {
+    id: 'R404',
+    titre: 'Chaîne du Schéma, paires et transceivers de la fibre imposée (19b1, spec § 4.2) : MCTRL660 et ses paires de CVT310 (CVT320 au choix), S8 et ses paires de transceivers fibre (secours compris), une fibre par paire',
+    etape: '19b1',
+    verifier(v, contexte) {
+      const aval = (x, imposee) => calculs.chaineSchema({ chaine: null, evaluation: x.e, variante: varianteSchema(contexte, x, { imposee }), distanceM: 50 });
+      const m660 = aval(exercice(contexte, 4, 4, 'novastar-mctrl660'), { ports: 2, fibre: true });
+      const p = m660.aval[0];
+      v.egal('MCTRL660 : 2 paires de CVT310', [p.appareils.map((a) => [a.nom, a.paires, a.ports]), p.liaison?.texte], [[['2 paires de CVT310', 2, [1, 2]]], '2 fibres (une par paire), 50 m']);
+      v.egal('MCTRL660 : texte', m660.texte[1], 'MCTRL660 : 2 fibres (une par paire) 50 m jusqu\'aux 2 paires de CVT310 au pied du mur, puis câbles de tête.');
+      const cvt320 = aval(exercice(contexte, 4, 4, 'novastar-mctrl660'), { ports: 2, fibre: true, paire: 'novastar-cvt320' }).aval[0];
+      v.egal('CVT320 au choix', cvt320.appareils[0]?.nom, '2 paires de CVT320');
+      const un = aval(exercice(contexte, 4, 4, 'novastar-mctrl660'), { ports: 1, fibre: true });
+      v.egal('une seule paire', [un.aval[0].appareils[0]?.nom, un.aval[0].liaison?.texte, un.texte[1]],
+        ['1 paire de CVT310', 'fibre, 50 m', 'MCTRL660 : fibre 50 m jusqu\'à sa paire de CVT310 au pied du mur, puis câbles de tête.']);
+      const s8 = aval(xBp2(contexte, 'brompton-s8', 6, 4, { redondance: true }), { ports: 3, fibre: true }).aval[0];
+      v.egal('S8 en redondance : 6 paires de transceivers, secours compris', [s8.appareils.map((a) => [a.nom, a.paires]), s8.liaison?.texte],
+        [[['6 paires de transceivers fibre', 6]], '6 fibres (une par paire), 50 m']);
+    },
+  },
+  {
+    id: 'R405',
+    titre: 'Chaîne du Schéma, grands murs et texte (19b1, spec § 4.2 et 4.6) : au-delà de 6 processeurs, un seul élément « 7 × MCTRL660 » dans l\'aval et la chaîne ; mur en zones : un élément par processeur ; texte copié sans tiret de liste ni tiret long',
+    etape: '19b1',
+    verifier(v, contexte) {
+      const x = exercice(contexte, 48, 8, 'novastar-mctrl660');
+      v.egal('48 × 8 : 7 MCTRL660', x.e.nombre, 7);
+      const r = calculs.chaineSchema({ chaine: chaineCanvas(contexte, x), evaluation: x.e, variante: varianteSchema(contexte, x), distanceM: 20 });
+      v.egal('un seul élément', r.aval.map((p) => [p.nom, p.numero, p.nombre, p.versDalles]), [['7 × MCTRL660', null, 7, 'câbles de tête, régie à 20 m']]);
+      v.egal('texte', r.texte, ['Chaîne : Source 3840 × 2160 à 60 Hz, HDMI 2.0 5 m, 7 × MCTRL660.', '7 × MCTRL660 : câbles de tête, régie à 20 m.']);
+      const xs = xBp2(contexte, 'brompton-sx40', 22, 6);
+      const six = calculs.chaineSchema({ chaine: null, evaluation: { ...xs.e, nombre: 7, groupes: Array(7).fill(xs.e.groupes[0]) },
+        variante: { ...varianteSchema(contexte, xs), processeurs: Array.from({ length: 7 }, (_, i) => ({ ...varianteSchema(contexte, xs).processeurs[0], numero: i + 1 })) }, distanceM: 150 }).aval;
+      v.egal('regroupé : appareils comptés', [six.length, six[0].appareils.map((a) => a.nom), six[0].liaison?.texte], [1, ['21 XD'], '21 fibres (une par XD), 150 m']);
+      const z = calculs.murZones(DALLE_CAS_13, [{ nom: 'A', colonnes: 4, rangees: 6 }, { nom: 'B', colonnes: 3, rangees: 6 }], { ecarts: 'main', ecartsPx: [84] });
+      const ez = calculs.evaluerProcesseur(z, DALLE_CAS_13, processeurDeBase(contexte, 'novastar-mctrl660'), NOVASTAR_60_8);
+      const tz = calculs.cablageData(z, DALLE_CAS_13, ez, { depart: 'bas-gauche' });
+      const rz = calculs.chaineSchema({ chaine: null, evaluation: ez, variante: tz.variantes.find((y) => y.mode === tz.conseil), distanceM: 20 });
+      v.egal('mur en zones : un élément par processeur', rz.aval.length, ez.nombre);
+      const k4 = calculs.chaineSchema({ chaine: chaineCanvas(contexte, exercice(contexte)), evaluation: exercice(contexte).e, variante: varianteSchema(contexte, exercice(contexte), { imposee: { ports: 2, fibre: true } }), distanceM: 50 });
+      v.egal('sans tiret de liste, tiret long ni ligne vide', [...r.texte, ...k4.texte].filter((l) => !l.trim() || /^[-•]/.test(l) || /[—–]/.test(l)), []);
+    },
+  },
+  {
+    id: 'R406',
+    titre: 'Phrases du guide avec la provenance du signal (19b3, spec § 4.5) : un appareil entre le processeur et les dalles, la phrase dit d\'où vient son signal (« Le CVT4K reçoit la fibre OPT1 du MCTRL4K (50 m). »), et au premier port de l\'appareil sur une fibre « Branche d\'abord… » ; XD du SX40 (fibre ou cuivre 10G), paires de CVT310 et transceivers, fibres de secours ; au-delà de 6 processeurs, chaque processeur nommé (choix b) ; sans longueur, sans parenthèse (choix e) ; signatures inchangées, cuivre direct inchangé',
+    etape: '19b3',
+    verifier(v, contexte) {
+      const guide = (x, { imposee = null, distanceM = 50, reseau = null, variante = null } = {}) => {
+        const vd = variante ?? varianteSchema(contexte, x, { imposee });
+        const evaluation = variante ? { ...x.e, nombre: vd.processeurs.length } : x.e;
+        const r = calculs.chaineSchema({ chaine: null, evaluation, variante: vd, distanceM, reseau });
+        return { avec: montage.etapesData(vd, { depart: 'bas-gauche', provenance: r.provenance }), sans: montage.etapesData(vd, { depart: 'bas-gauche' }) };
+      };
+      const phrase = (etapes, cle) => etapes.find((e) => e.cle === cle)?.phrase ?? `${cle} absente`;
+      const memesSignatures = (g) => g.avec.length === g.sans.length && g.avec.every((e, i) => e.signature === g.sans[i].signature);
+      const x = exercice(contexte);
+      const k4 = guide(x, { imposee: { ports: 2, fibre: true } });
+      v.egal('cas 17, port 1 : branche d\'abord la fibre OPT1', phrase(k4.avec, 'p1-1'),
+        '8 dalles, de C1 R4 à C2 R4. Branche d\'abord la fibre OPT1 du MCTRL4K (50 m) sur le CVT4K. Câble de tête du port 1 du CVT4K, au pied du mur, jusqu\'à C1 R4, puis suis les numéros.');
+      v.vrai('cas 17, port 2 : le CVT4K reçoit la fibre OPT1', phrase(k4.avec, 'p1-2').includes('. Le CVT4K reçoit la fibre OPT1 du MCTRL4K (50 m). Câble de tête du port 2 du CVT4K, au pied du mur, jusqu\'à '), phrase(k4.avec, 'p1-2'));
+      v.vrai('cas 17 : signatures inchangées', memesSignatures(k4));
+      v.vrai('sans longueur : sans parenthèse', phrase(guide(x, { imposee: { ports: 2, fibre: true }, distanceM: null }).avec, 'p1-1').includes('Branche d\'abord la fibre OPT1 du MCTRL4K sur le CVT4K. '));
+      const red = guide(exercice(contexte, 4, 4, 'novastar-mctrl4k', { redondance: true }), { imposee: { ports: 2, fibre: true } });
+      v.vrai('redondance : la fibre de secours au premier port', phrase(red.avec, 'p1-1').includes('Branche d\'abord la fibre OPT1 du MCTRL4K (50 m) sur le CVT4K, et OPT3 en secours. '), phrase(red.avec, 'p1-1'));
+      v.vrai('redondance : le retour de secours garde sa phrase', phrase(red.avec, 'p1-1').endsWith(phrase(red.sans, 'p1-1').split('. ').at(-1)) && phrase(red.sans, 'p1-1').includes('Retour de secours'));
+      const xs = xBp2(contexte, 'brompton-sx40', 22, 6);
+      const sx = guide(xs, { distanceM: 150 });
+      v.vrai('SX40, port 1 : branche d\'abord la fibre sur le XD 1', phrase(sx.avec, 'p1-1').includes('. Branche d\'abord la fibre du SX40 (150 m) sur le XD 1. Câble de tête du XD 1, port 1 jusqu\'à '), phrase(sx.avec, 'p1-1'));
+      v.vrai('SX40, port 2 : le XD 1 reçoit la fibre', phrase(sx.avec, 'p1-2').includes('. Le XD 1 reçoit la fibre du SX40 (150 m). Câble de tête du XD 1, port 2 jusqu\'à '), phrase(sx.avec, 'p1-2'));
+      v.vrai('SX40, port 11 : premier port du XD 2', phrase(sx.avec, 'p1-11').includes('. Branche d\'abord la fibre du SX40 (150 m) sur le XD 2. '), phrase(sx.avec, 'p1-11'));
+      v.vrai('SX40 : signatures inchangées', memesSignatures(sx));
+      const cu = guide(xs, { distanceM: 150, reseau: { cuivre10G: { categorie: 'Cat6A', longueurM: 40 } } });
+      v.vrai('cuivre 10G du réseau Brompton', phrase(cu.avec, 'p1-1').includes('. Branche d\'abord le câble cuivre 10G Cat6A du SX40 (40 m) sur le XD 1. '), phrase(cu.avec, 'p1-1'));
+      const m660 = guide(exercice(contexte, 4, 4, 'novastar-mctrl660'), { imposee: { ports: 2, fibre: true } });
+      v.vrai('paires de CVT310 : chaque port sa paire', ['p1-1', 'p1-2'].every((cle) => phrase(m660.avec, cle).includes('. Branche d\'abord la fibre du MCTRL660 (50 m) sur la paire de CVT310 de ce port. Câble de tête du port ')),
+        phrase(m660.avec, 'p1-2'));
+      const s8 = guide(xBp2(contexte, 'brompton-s8', 6, 4, { redondance: true }), { imposee: { ports: 3, fibre: true } });
+      v.vrai('S8 : paire de transceivers fibre', phrase(s8.avec, 'p1-1').includes('. Branche d\'abord la fibre du S8 (50 m) sur la paire de transceivers fibre de ce port. '), phrase(s8.avec, 'p1-1'));
+      const v1 = varianteSchema(contexte, xs);
+      const sept = guide(xs, { distanceM: 150, variante: { ...v1, processeurs: Array.from({ length: 7 }, (_, i) => ({ ...v1.processeurs[0], numero: i + 1 })) } });
+      v.vrai('7 SX40 : le processeur nommé dans la phrase (choix b)', phrase(sept.avec, 'p7-1').includes('. Branche d\'abord la fibre du SX40 n° 7 (150 m) sur le XD 1. '), phrase(sept.avec, 'p7-1'));
+      const cuivre = guide(x, { distanceM: 20 });
+      v.egal('cuivre direct : phrases inchangées', cuivre.avec.map((e) => e.phrase), cuivre.sans.map((e) => e.phrase));
+      v.egal('sans provenance : la phrase d\'avant (R390)', phrase(k4.sans, 'p1-1'), '8 dalles, de C1 R4 à C2 R4. Câble de tête du port 1 du CVT4K, au pied du mur, jusqu\'à C1 R4, puis suis les numéros.');
+    },
+  },
+  {
+    id: 'R407',
+    titre: 'Texte copié du Schéma avec la chaîne (19b3, spec § 4.6) : « Chaîne : … » puis une ligne par processeur, sous la ligne « Câbles », sans tiret de liste ni tiret long ; sans chaîne, le texte d\'avant',
+    etape: '19b3',
+    verifier(v, contexte) {
+      const x = exercice(contexte);
+      const t = imposerData(contexte, x, { ports: 2, fibre: true });
+      const vd = t.variantes.find((y) => y.mode === t.retenue);
+      const chaine = calculs.chaineSchema({ chaine: chaineCanvas(contexte, x), evaluation: x.e, variante: vd, distanceM: 50 });
+      const avec = resumes.resumeCablage({ data: t, modeData: t.retenue, chaine }).split('\n');
+      const sans = resumes.resumeCablage({ data: t, modeData: t.retenue }).split('\n');
+      const i = avec.findIndex((l) => l.startsWith('Câbles : '));
+      v.egal('sous « Câbles », la chaîne puis le processeur', avec.slice(i + 1, i + 3),
+        ['Chaîne : Source 3840 × 2160 à 60 Hz, HDMI 2.0 5 m, MCTRL4K.', 'MCTRL4K : fibre OPT1 50 m jusqu\'au CVT4K au pied du mur, puis câbles de tête.']);
+      v.egal('le reste inchangé', avec.filter((l) => !chaine.texte.includes(l)), sans);
+      v.egal('sans chaîne : aucune ligne « Chaîne »', sans.filter((l) => l.startsWith('Chaîne')), []);
+      v.egal('sans tiret de liste ni tiret long', avec.filter((l) => /^[-•]/.test(l) || /[—–]/.test(l)), []);
+    },
+  },
 ];
+
+// Chaîne du Schéma (19b1) : variante retenue du câblage (la config imposée quand elle passe), mur de BP2 V2 en 12 bits,
+// chaîne de Canvas comme `chaineAffichee` la donne (contrôle de la chaîne, source, régie, source conseillée ou non).
+function varianteSchema(contexte, x, options = {}) {
+  const t = imposerData(contexte, x, options.imposee ?? null, { depart: 'bas-gauche', ...options, imposee: undefined });
+  return t.variantes.find((y) => y.mode === (t.retenue ?? t.conseil));
+}
+function xBp2(contexte, procId, colonnes, rangees, reglages = {}) {
+  return exercice(contexte, colonnes, rangees, procId, { bits: 12, ...reglages }, 'roe-bp2-v2');
+}
+function chaineCanvas(contexte, x, { liaison = 'hdmi-2.0', longueurM = 5, convertisseurs = [], regie = null, conseillee = false, source = { largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60 } } = {}) {
+  const c = calculs.controleChaine({ source: { nom: 'Source', ...source }, liaison, longueurM, convertisseurs },
+    { evaluation: x.e, liaisons: liaisonsDeBase(contexte), frequenceCalculHz: 60, regie });
+  return { maillons: c.maillons, source, regie: regie ? { nom: regie.nom } : null, conseillee };
+}
+const suiteDe = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
 
 
 // Config imposée (18c) : mur de Upad IV 2.6 (exercice : 4 × 4 sur MCTRL4K, 60 Hz, 8 bits) et convertisseurs de la base.

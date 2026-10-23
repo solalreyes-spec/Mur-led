@@ -15,7 +15,7 @@ const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 
 // Sorties fibre en copie, port par port : fibre principale, ports qu'elle porte, fibre de secours.
 // MCTRL4K : fiche V1.2.1 p. 4, manuel V1.2.1 p. 4 et 8 ; NovaPro UHD : manuel V1.2.0 ; MCTRL660 PRO : fiche V1.4.1 p. 4.
-const FIBRES_SORTIE = {
+export const FIBRES_SORTIE = {
   'novastar-mctrl4k': [{ nom: 'OPT1', ports: [1, 8], secours: 'OPT3' }, { nom: 'OPT2', ports: [9, 16], secours: 'OPT4' }],
   'novastar-novapro-uhd': [{ nom: 'OPT1', ports: [1, 8], secours: 'OPT3' }, { nom: 'OPT2', ports: [9, 16], secours: 'OPT4' }],
   'novastar-mctrl660-pro': [{ nom: 'OPT1', ports: [1, 6], secours: 'OPT2' }],

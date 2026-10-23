@@ -3,7 +3,7 @@
 
 import {
   dallesDuMur, pixelMap, cablageData, cablageElec, distributionElec, tuilesImage, coinDepart, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie, pliageSortie, pixelMapPliee,
-  positionsDalles, texteCSV, texteOBJ,
+  positionsDalles, texteCSV, texteOBJ, chaineSchema,
 } from './calculs.js';
 import { resumeCablage } from './resumes.js';
 import { nombre, nombreCourt, lireNombre } from './format.js';
@@ -11,7 +11,7 @@ import { el, svg, remplacer } from './dom.js';
 import { barreCharge } from './look.js';
 import {
   trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT, tiretsMotif, cadrageGuide as calculerCadrageGuide,
-  SEUIL_DESSIN_SIMPLIFIE, geometrieGuide, cadreComplet,
+  SEUIL_DESSIN_SIMPLIFIE, geometrieGuide, cadreComplet, geometrieChaine, repereChaine, bandeChaine,
 } from './dessin-schema.js';
 import {
   pixelMapEnCanvas, canvasEnPng, schemaEnPng, verifierTailleSchema, telecharger, enregistrer, modeEnregistrement, fichierTexte,
@@ -133,11 +133,15 @@ function distributionDe(ve, elec, e) {
 const boitiersDessin = (d) => (d?.boitiers.length ? d.boitiers.map((b) => ({ nom: b.nom, trajets: b.lignes.map((l) => `l${l.numero}`) })) : null);
 
 // Dessin à l'écran : couleurs du thème, cadrage courant (zoom), gestes branchés.
-function dessin(e, geo, trajets, coin, blocs, repere, boitiers = null) {
-  const cle = `${e.vue}|${e.canvasVue}|${geo.largeur}x${geo.hauteur}`;
+function dessin(e, geo, trajets, coin, blocs, repere, boitiers = null, chaineAval = null) {
+  const grand = grandAffichage();
+  const chaine = chaineAval ? geometrieChaine(geo, coin, trajets, chaineAval, { grand }) : null;
+  // Le cadre complet change avec la chaîne (19b2) : le zoom repart du dessin entier.
+  const tout = cadreComplet(geo, chaine);
+  const cle = `${e.vue}|${e.canvasVue}|${geo.largeur}x${geo.hauteur}|${tout.x},${tout.y},${tout.w},${tout.h}`;
   const { svg: racine, complet } = construireSvg({
     geo, trajets, coin, blocs, palette: PALETTE_ECRAN, cadrage: cle === cleDessin ? cadrage : null, selection, dalleChoisie, repere,
-    grand: grandAffichage(), boitiers,
+    grand, boitiers, chaine,
   });
   if (cle !== cleDessin) {
     cadrage = { ...complet };
@@ -475,19 +479,20 @@ function afficherExports(contexte) {
 
 function exporterSchema() {
   if (!contexteExport) return;
-  const { e, geo, trajets, coin, blocs, repere, data, vd, elec, ve, boitiers, distribution } = contexteExport;
+  const { e, geo, trajets, coin, blocs, repere, data, vd, elec, ve, boitiers, distribution, chaineAval, bande } = contexteExport;
   const d = new Date();
   const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const nom = `mur-led-schema-${e.cablage === 'aucun' ? 'mur' : e.cablage}-${jour}.png`;
   // Image trop grande : refus tout de suite, avant de construire le dessin (11-0).
-  const cadre = cadreComplet(geo);
+  const chaine = chaineAval ? geometrieChaine(geo, coin, trajets, chaineAval) : null;
+  const cadre = cadreComplet(geo, chaine);
   try {
-    verifierTailleSchema(2000, cadre.w, cadre.h, { titre: true });
+    verifierTailleSchema(2000, cadre.w, cadre.h, { titre: true, bande });
   } catch (erreur) {
     produire(nom, async () => { throw erreur; });
     return;
   }
-  const { svg: image } = construireSvg({ geo, trajets, coin, blocs, repere, palette: PALETTE_EXPORT, largeurPx: 2000, boitiers });
+  const { svg: image } = construireSvg({ geo, trajets, coin, blocs, repere, palette: PALETTE_EXPORT, largeurPx: 2000, boitiers, chaine });
   const sujet = { data: vd ? `câblage data ${vd.libelle}, départ ${LIBELLES_COIN[data.depart]}` : null, elec: ve ? `câblage élec ${ve.libelle}, départ ${LIBELLES_COIN[elec.depart]}` : null }[e.cablage];
   const texte = e.cablage === 'data' && vd ? resumeCablage({ data, modeData: vd.mode })
     : e.cablage === 'elec' && ve ? resumeCablage({ elec, modeElec: ve.mode, distribution }) : '';
@@ -495,6 +500,7 @@ function exporterSchema() {
     largeurPx: 2000,
     titre: `Mur LED${sujet ? `, ${sujet}` : ''}`,
     lignes: texte ? texte.split('\n').slice(1) : [],
+    bande,
   }));
 }
 
@@ -657,6 +663,10 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
   const ve = varianteChoisie(elec, e.varianteElec);
   const distribution = distributionDe(ve, elec, e);
   dernier = { data, modeData: vd?.mode ?? null, elec, modeElec: ve?.mode ?? null, distribution };
+  // Chaîne complète (19b) : amont de Canvas, aval de la variante data retenue (dessiné dans le mur depuis la 19b2).
+  dernier.chaine = etatData?.choisie?.groupes?.length
+    ? chaineSchema({ chaine: etatChaine, evaluation: etatData.choisie, variante: vd, distanceM: e.distanceRegieM, reseau: etatData.reseau ?? null })
+    : null;
 
   const evaluation = etatData?.mur === mur ? etatData.choisie : null;
   const pliage = formatSortie && evaluation?.groupes?.length ? pliageSortie(mur, dalle, evaluation, formatSortie, { depart: e.departData }) : null;
@@ -683,8 +693,11 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
   const trajets = trajetsSchema(e, vd, ve, vueCanvas);
   const coin = e.cablage === 'elec' ? e.departElec : e.departData;
   const blocs = blocsSchema(geo, pm, { vueCanvas, cablage: e.cablage });
-  // Repère du processeur ou de l'armoire au coin de départ, sur la vue de tout le mur.
-  const repere = vueCanvas ? null : repereSchema(e.cablage, {
+  // Chaîne (19b2), vue de tout le mur en câblage data : un cadre par processeur et ses appareils au pied du mur ; au-delà
+  // de 6 processeurs, un seul cadre au coin. Sinon (élec, data sans chaîne), le repère du processeur ou de l'armoire.
+  const chaineAval = !vueCanvas && e.cablage === 'data' && dernier.chaine?.aval.length ? dernier.chaine.aval : null;
+  const regroupee = chaineAval?.length === 1 && chaineAval[0].nombre > 1;
+  const repere = vueCanvas || (chaineAval && !regroupee) ? null : regroupee ? repereChaine(chaineAval[0]) : repereSchema(e.cablage, {
     evaluation: etatData?.choisie ?? null,
     distanceM: e.cablage === 'elec' ? e.distanceArmoireM : e.distanceRegieM,
     // Config imposée en fibre (étape 18c) : le convertisseur au pied du mur.
@@ -692,10 +705,12 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
   });
   // Boîtiers de la distribution, sur la vue de tout le mur en câblage élec.
   const boitiers = e.cablage === 'elec' && !vueCanvas ? boitiersDessin(distribution) : null;
-  afficherExports({ pm, e, geo, trajets, coin, blocs, repere, data, vd, elec, ve, mur, dalle, evaluation, pliage, boitiers, distribution });
+  // Bande « Chaîne » (19b3) : en câblage data, sous le dessin et en haut de l'export.
+  const amont = e.cablage === 'data' ? dernier.chaine?.amont ?? null : null;
+  afficherExports({ pm, e, geo, trajets, coin, blocs, repere, data, vd, elec, ve, mur, dalle, evaluation, pliage, boitiers, distribution, chaineAval, bande: amont });
   // Guide pas à pas : étapes du câblage affiché (data et élec), pour le bouton, le bandeau et le texte copié.
   etapesCourantes = {
-    data: etapesData(vd, { depart: data?.depart ?? e.departData }),
+    data: etapesData(vd, { depart: data?.depart ?? e.departData, provenance: dernier.chaine?.provenance ?? null }),
     elec: etapesElec(ve, { depart: elec?.depart ?? e.departElec, distribution }),
   };
   contexteGuide = { mur, dalle, pm, vd, ve, departData: data?.depart ?? e.departData, departElec: elec?.depart ?? e.departElec, boitiers: boitiersDessin(distribution) };
@@ -742,7 +757,7 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
     alertes.push(alerte(`Mur de ${nombreCourt(mur.dalles.total)} dalles : dessin simplifié au-delà de ${nombreCourt(SEUIL_DESSIN_SIMPLIFIE)} dalles, `
       + 'un rectangle par segment de port.', 'alerte-info'));
   }
-  const racine = dessin(eVue, geo, trajets, coin, blocs, repere, boitiers);
+  const racine = dessin(eVue, geo, trajets, coin, blocs, repere, boitiers, chaineAval);
   const typeGuide = e.cablage === 'aucun' ? null : e.cablage;
   const etapesGuide = typeGuide ? etapesCourantes[typeGuide] : [];
   const rapprochement = typeGuide ? rapprocherMontage(montage[typeGuide], etapesGuide) : null;
@@ -775,6 +790,8 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
     entete,
     alertes,
     el('div', { class: 'schema-cadre' }, outils, el('div', { class: 'schema-dessin' }, racine, zoom)),
+    // Bande « Chaîne » sous le dessin (19b3, choix de l'utilisateur : au-dessus, elle sortait le dessin du premier écran).
+    amont ? bandeChaine(amont) : null,
     el('p', { class: 'source' }, `${geo.unite === 'mm' ? 'Vue physique à l\'échelle, en millimètres' : 'Vue en pixels, pixel (0,0) en haut à gauche'}. `
       + `${simplifie ? 'Appuie' : 'Appuie sur une dalle pour sa position,'} sur un trajet pour le mettre en évidence ; deux doigts pour zoomer.`),
     dalleChoisie ? ficheDalle(dalleChoisie, pm, e.cablage === 'data' ? vd : null, e.cablage === 'elec' ? ve : null) : null,
@@ -1105,6 +1122,23 @@ export function sortieModifieePourSchema(format) {
   if (nouveau === (formatSortie ? formatSortie.join('x') : '')) return;
   formatSortie = format;
   mettreAJour();
+}
+
+// Chaîne de Canvas (19b, `chaineAffichee`) ou null ; rien n'est refait si elle n'a pas changé.
+let etatChaine = null;
+let cleChaine = 'null';
+export function chaineModifieePourSchema(chaine) {
+  const cle = JSON.stringify(chaine ? { maillons: chaine.maillons.map((m) => [m.role, m.nom, m.liaisonNom, m.longueurM]), source: chaine.source, regie: chaine.regie, conseillee: chaine.conseillee } : null);
+  if (cle === cleChaine) return;
+  cleChaine = cle;
+  etatChaine = chaine;
+  mettreAJour();
+}
+
+// Chaîne complète du dernier calcul (19b), pour le texte copié, l'export et les bancs ; null sans processeur.
+export function chaineDuSchema() {
+  assurerCalcul();
+  return dernier?.chaine ?? null;
 }
 
 export function elecModifiePourSchema(etat) {

@@ -15,7 +15,7 @@ import { initialiserCanvas, actualiserRegies, donneesModifiees, resumeOngletCanv
 import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec, resumeOngletElec } from './ecran-elec.js';
 import {
   initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema, revenirAMaConfig,
-  cablageRetenu, sortieModifieePourSchema, definirStockageMontage, rechargerMontage, entreesMateriel, dessinPortNovaLCT,
+  cablageRetenu, sortieModifieePourSchema, chaineModifieePourSchema, definirStockageMontage, rechargerMontage, entreesMateriel, dessinPortNovaLCT,
 } from './ecran-schema.js';
 import { initialiserPoids, actualiserBumpers, murModifiePourPoids, poidsRetenu, resumeOngletPoids } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
@@ -574,7 +574,7 @@ initialiserSchema({
 });
 if (connectique) {
   initialiserCanvas({ ...connectique, regies: courant.regies, sourcesRegies: courant.sourcesRegies, erreurRegies, appareils },
-    { surSortieModifiee: sortieModifieePourSchema });
+    { surSortieModifiee: sortieModifieePourSchema, surChaineModifiee: chaineModifieePourSchema });
 }
 if (depart.processeurs) {
   initialiserData(pourData(), (etat) => {

@@ -4,7 +4,7 @@
 
 import { dallesDuMur, MODELES_DISTRIBUTEUR, formeReelle, aFormeReelle, coinsTournes } from './calculs.js';
 import { nombre, nombreCourt } from './format.js';
-import { svg } from './dom.js';
+import { svg, el } from './dom.js';
 import { couleurPort, stylesLignes } from './couleurs.js';
 
 // Ports et lignes : leur numéro d'abord (au départ et sur chaque colonne du trajet), puis leur couleur (src/couleurs.js :
@@ -357,10 +357,246 @@ export function cadrageGuide(geo, dalles, aspect, { coin = 'haut-gauche', orient
 // coordonnées de dalle) et le guide ne dessine que le port en cours ; mêmes ports, départs et couleurs.
 export const SEUIL_DESSIN_SIMPLIFIE = 2000;
 
-// Cadre complet d'un dessin : le mur et une marge de 12 % de son plus grand côté.
-export function cadreComplet(geo) {
+// Cadre complet d'un dessin : le mur et une marge de 12 % de son plus grand côté ; avec la chaîne (19b2), agrandi de ce
+// qu'il faut pour la contenir, du côté du départ seulement.
+export function cadreComplet(geo, chaine = null) {
   const marge = 0.12 * Math.max(geo.largeur, geo.hauteur);
-  return { x: -marge, y: -marge, w: geo.largeur + 2 * marge, h: geo.hauteur + 2 * marge };
+  const base = { x: -marge, y: -marge, w: geo.largeur + 2 * marge, h: geo.hauteur + 2 * marge };
+  if (!chaine?.boite) return base;
+  const b = chaine.boite;
+  const x = Math.min(base.x, b.x);
+  const y = Math.min(base.y, b.y);
+  return { x, y, w: Math.max(base.x + base.w, b.x + b.w) - x, h: Math.max(base.y + base.h, b.y + b.h) - y };
+}
+
+// Départ d'un trajet (rond numéroté au bord de départ, au droit de sa première dalle) et bout de son retour de secours,
+// au droit de sa dernière dalle ; sur le départ de sa chaîne (une colonne par port), le bout passe plus loin du mur et le
+// pointillé longe le trait principal sans le cacher. Partagé par le dessin des trajets et la chaîne (19b2).
+const rayonDepart = (police, etiquette) => police * (etiquette.length > 3 ? 1.2 : 0.95);
+function pointsTrajet(t, rects, { bordX, bordY, police, trait, versExterieurX, versExterieurY }) {
+  const ids = t.dalles.filter((id) => rects.has(id));
+  if (ids.length === 0) return null;
+  const points = ids.map((id) => centre(rects.get(id)));
+  const [x0, y0] = points[0];
+  const [xn, yn] = points[points.length - 1];
+  const parRangees = t.orientation === 'rangees';
+  const [xd, yd] = parRangees ? [bordX, y0] : [x0, bordY];
+  let [xs, ys] = parRangees ? [bordX, yn] : [xn, bordY];
+  const rDepart = rayonDepart(police, t.etiquette);
+  const rSecours = t.etiquetteSecours ? rayonDepart(police, t.etiquetteSecours) : 0;
+  const surDepart = Boolean(t.secours) && Math.hypot(xs - xd, ys - yd) < rDepart + rSecours;
+  const decalage = surDepart ? trait * 1.6 : 0;
+  if (surDepart) {
+    if (parRangees) {
+      xs += versExterieurX * (rDepart + rSecours + trait);
+      ys += decalage;
+    } else {
+      ys += versExterieurY * (rDepart + rSecours + trait);
+      xs += decalage;
+    }
+  }
+  return { ids, points, x0, y0, xn, yn, xd, yd, xs, ys, rDepart, rSecours, surDepart, decalage };
+}
+
+// Cadres côte à côte le long d'un bord : chacun au plus près de son centre voulu, sans se toucher (écart `ecart`) ; les
+// cadres qui se gênent forment un groupe centré sur la moyenne de leurs centres voulus. Renvoie les centres, dans l'ordre.
+function espacer(items, ecart) {
+  const ordre = items.map((it, i) => ({ ...it, i })).sort((a, b) => a.centre - b.centre || a.i - b.i);
+  const placer = (g) => {
+    let decalage = 0;
+    const offsets = g.membres.map((m) => {
+      const o = decalage + m.taille / 2;
+      decalage += m.taille + ecart;
+      return o;
+    });
+    g.debut = g.membres.reduce((s, m, k) => s + m.centre - offsets[k], 0) / g.membres.length;
+    g.total = decalage - ecart;
+    g.offsets = offsets;
+    return g;
+  };
+  let groupes = ordre.map((m) => placer({ membres: [m] }));
+  for (let k = 0; k < groupes.length - 1;) {
+    const [a, b] = [groupes[k], groupes[k + 1]];
+    if (a.debut + a.total + ecart > b.debut + 1e-9) {
+      groupes = [...groupes.slice(0, k), placer({ membres: [...a.membres, ...b.membres] }), ...groupes.slice(k + 2)];
+      k = Math.max(0, k - 1);
+    } else {
+      k += 1;
+    }
+  }
+  const centres = new Array(items.length);
+  for (const g of groupes) g.membres.forEach((m, k) => { centres[m.i] = g.debut + g.offsets[k]; });
+  return centres;
+}
+
+// Étiquette d'une liaison coupée après ses virgules, en lignes de 24 caractères au plus quand c'est possible.
+function couperEtiquette(texte, max = 24) {
+  const lignes = [];
+  for (const morceau of texte.split(/(?<=,) /)) {
+    const derniere = lignes[lignes.length - 1];
+    if (derniere && derniere.length + 1 + morceau.length <= max) lignes[lignes.length - 1] = `${derniere} ${morceau}`;
+    else lignes.push(morceau);
+  }
+  return lignes;
+}
+
+// Taille d'un cadre de texte : première ligne en gras (0,7 de la taille par caractère), les suivantes à 0,85 de la taille.
+function tailleCadre(lignes, taille) {
+  const plusLong = Math.max(...lignes.map((l, i) => l.length * (i === 0 ? 0.7 : 0.85 * 0.6)));
+  return { w: plusLong * taille + taille * 1.2, h: taille * (1.25 * lignes.length + 0.6) };
+}
+
+// Chaîne dans le dessin du mur (19b2, spec § 4.3), vue de tout le mur en câblage data : un cadre par processeur sur le
+// bord de départ, au droit de ses départs, plus loin du mur que les ronds des départs (et les bouts de secours qui y
+// passent) ; ses appareils au pied du mur (`aval` de chaineSchema : CVT, XD, XD miroirs, paires, transceivers) entre les
+// départs et lui, chacun au droit de ses ports, et une liaison (fibre ou cuivre 10G) du processeur à chacun, avec une
+// étiquette par processeur plus loin que son cadre ; les câbles de tête partent de l'appareil (les retours de secours
+// d'un XD miroir aussi) ; sans appareil, le chemin des câbles de tête le long du bord. Au-delà de PROCESSEURS_CADRES_MAX,
+// rien ici : un seul cadre au coin (`repereChaine`). Renvoie les cadres, liaisons, étiquettes, chemins, le point
+// d'attache de chaque trajet et la boîte de l'ensemble (pour `cadreComplet`), ou null.
+export function geometrieChaine(geo, coin, trajets, aval, { grand = false } = {}) {
+  if (!aval?.length || !trajets?.length || (aval.length === 1 && aval[0].nombre > 1)) return null;
+  const { largeur, hauteur, rects } = geo;
+  const marge = 0.12 * Math.max(largeur, hauteur);
+  const cote = Math.min(...[...rects.values()].map((r) => Math.min(r.w, r.h)));
+  const police = cote * 0.2;
+  const trait = cote * 0.07 * (grand && geo.unite !== 'px' ? 1.35 : 1);
+  const parRangees = trajets[0].orientation === 'rangees';
+  const bordY = coin.startsWith('haut') ? -marge * 0.35 : hauteur + marge * 0.35;
+  const bordX = coin.endsWith('gauche') ? -marge * 0.35 : largeur + marge * 0.35;
+  const versExterieurY = coin.startsWith('haut') ? -1 : 1;
+  const versExterieurX = coin.endsWith('gauche') ? -1 : 1;
+  const bord = parRangees ? bordX : bordY;
+  const s = parRangees ? versExterieurX : versExterieurY;
+  // Point à `le` le long du bord de départ et `hors` plus loin du mur que lui.
+  const pt = (le, hors) => (parRangees ? [bord + s * hors, le] : [le, bord + s * hors]);
+  const leDe = ([x, y]) => (parRangees ? y : x);
+  const horsDe = ([x, y]) => s * ((parRangees ? x : y) - bord);
+  const points = new Map(trajets.map((t) => [t.cle, pointsTrajet(t, rects, { bordX, bordY, police, trait, versExterieurX, versExterieurY })]));
+  // Profondeur des départs : ronds et bouts de secours qui passent plus loin du mur.
+  let profondeur = 0;
+  for (const p of points.values()) {
+    if (!p) continue;
+    profondeur = Math.max(profondeur, horsDe([p.xd, p.yd]) + p.rDepart);
+    if (p.rSecours) profondeur = Math.max(profondeur, horsDe([p.xs, p.ys]) + p.rSecours);
+  }
+  const taille = police * (grand ? 1.1 : 1);
+  const tailleEtiquette = taille * 0.85;
+  const dims = (lignes) => {
+    const { w, h } = tailleCadre(lignes, taille);
+    return { w, h, le: parRangees ? h : w, hors: parRangees ? w : h };
+  };
+  const numeroPort = (t) => Number(t.cle.split('-')[1]);
+  const processeurs = [...new Set(trajets.map((t) => t.processeur))];
+  const milieu = (valeurs) => (Math.min(...valeurs) + Math.max(...valeurs)) / 2;
+
+  const elements = aval.map((e, i) => {
+    const siens = trajets.filter((t) => t.processeur === processeurs[i] && points.get(t.cle));
+    const departs = siens.map((t) => leDe([points.get(t.cle).xd, points.get(t.cle).yd]));
+    const appareils = e.appareils.map((a) => {
+      const principaux = siens.filter((t) => a.ports.includes(numeroPort(t)));
+      const secours = siens.filter((t) => t.secours && a.ports.includes(t.secours.numero));
+      const le = [...principaux.map((t) => leDe([points.get(t.cle).xd, points.get(t.cle).yd])),
+        ...secours.map((t) => leDe([points.get(t.cle).xs, points.get(t.cle).ys]))];
+      return { a, principaux, secours: a.miroir ? secours : [], voulu: le.length ? milieu(le) : milieu(departs), lignes: [a.nom], ...dims([a.nom]) };
+    });
+    const lignes = appareils.length ? [e.nom] : [e.nom, e.versDalles.replace(/^câbles de tête(, )?/, '')].filter(Boolean);
+    const etiquette = e.liaison && appareils.length ? couperEtiquette(e.liaison.texte) : null;
+    const etiquetteDims = etiquette ? (() => {
+      const w = Math.max(...etiquette.map((l) => l.length)) * 0.6 * tailleEtiquette;
+      const h = etiquette.length * 1.2 * tailleEtiquette;
+      return { w, h, le: parRangees ? h : w, hors: parRangees ? w : h };
+    })() : null;
+    return { e, siens, departs, appareils, lignes, ...dims(lignes), voulu: departs.length ? milieu(departs) : 0, etiquette, etiquetteDims };
+  });
+  const tousAppareils = elements.flatMap((x) => x.appareils);
+  const ecart = police * 0.5;
+  espacer(tousAppareils.map((a) => ({ centre: a.voulu, taille: a.le })), ecart).forEach((c, k) => { tousAppareils[k].centre = c; });
+  espacer(elements.map((x) => ({ centre: x.voulu, taille: Math.max(x.le, x.etiquetteDims?.le ?? 0) })), ecart).forEach((c, k) => { elements[k].centre = c; });
+  // Câbles de tête partis d'un appareil (et retours d'un XD miroir) : chacun son point d'attache sur le côté de l'appareil
+  // tourné vers le mur, dans l'ordre de ses départs ; il sort droit de l'appareil jusqu'à son niveau, longe le bord
+  // jusqu'au droit de son départ, puis arrive droit sur son rond (jamais sur un autre). Niveaux : le plus long câble le
+  // plus près des appareils, deux câbles qui se recouvrent le long du bord jamais au même niveau.
+  const cables = tousAppareils.flatMap((a) => {
+    const cibles = [...a.principaux.map((t) => ({ t, carte: 'principal', vers: [points.get(t.cle).xd, points.get(t.cle).yd] })),
+      ...a.secours.map((t) => ({ t, carte: 'secours', vers: [points.get(t.cle).xs, points.get(t.cle).ys] }))]
+      .sort((u, w) => leDe(u.vers) - leDe(w.vers));
+    // Départ en face de l'appareil : le câble sort en face de lui, tout droit.
+    return cibles.map((c, k) => {
+      const cible = leDe(c.vers);
+      const enFace = cibles.length === 1 && Math.abs(cible - a.centre) <= a.le * 0.35;
+      return { ...c, appareil: a, cible, attache: enFace ? cible : a.centre - a.le * 0.35 + (cibles.length > 1 ? (a.le * 0.7 * k) / (cibles.length - 1) : a.le * 0.35) };
+    });
+  });
+  const niveaux = [];
+  const marge2 = police * 0.3;
+  for (const c of [...cables].sort((u, w) => Math.abs(w.cible - w.attache) - Math.abs(u.cible - u.attache))) {
+    const [bas, haut] = [Math.min(c.cible, c.attache) - marge2, Math.max(c.cible, c.attache) + marge2];
+    let n = niveaux.findIndex((pris) => pris.every(([b, h]) => h <= bas || b >= haut));
+    if (n < 0) n = niveaux.push([]) - 1;
+    niveaux[n].push([bas, haut]);
+    c.niveau = n;
+  }
+  // Rangée des appareils au-delà de la bande des câbles, puis celle des processeurs ; leurs étiquettes plus loin encore.
+  const pas = trait * 1.6;
+  const hors0 = profondeur + police * 0.4 + pas * (niveaux.length + 1);
+  const horsAppareils = tousAppareils.length ? Math.max(...tousAppareils.map((a) => a.hors)) : 0;
+  const centreAppareils = hors0 + horsAppareils / 2;
+  const horsProcesseurs = Math.max(...elements.map((x) => x.hors));
+  const centreProcesseurs = (tousAppareils.length ? hors0 + horsAppareils + police * 2 : hors0) + horsProcesseurs / 2;
+
+  const boite = (le, hors, d) => {
+    const [cx, cy] = pt(le, hors);
+    return { cx, cy, x: cx - d.w / 2, y: cy - d.h / 2, w: d.w, h: d.h };
+  };
+  const cadres = [];
+  const liaisons = [];
+  const etiquettes = [];
+  const chemins = [];
+  const appareilDe = new Map();
+  const secoursDe = new Map();
+  for (const c of cables) {
+    const niveau = hors0 - pas * (c.niveau + 1);
+    (c.carte === 'principal' ? appareilDe : secoursDe).set(c.t.cle,
+      [pt(c.attache, centreAppareils - c.appareil.hors / 2), pt(c.attache, niveau), pt(c.cible, niveau)]);
+  }
+  for (const x of elements) {
+    // Cadres dans l'ordre, du mur vers l'extérieur : les appareils, puis le processeur.
+    const versMur = pt(x.centre, centreProcesseurs - x.hors / 2);
+    for (const a of x.appareils) {
+      cadres.push({ role: 'appareil', nom: a.a.nom, lignes: a.lignes, taille, ...boite(a.centre, centreAppareils, a) });
+      liaisons.push({ genre: x.e.liaison?.genre ?? 'fibre', de: versMur, a: pt(a.centre, centreAppareils + a.hors / 2) });
+    }
+    cadres.push({ role: 'processeur', nom: x.e.nom, lignes: x.lignes, taille, ...boite(x.centre, centreProcesseurs, x) });
+    if (x.etiquette) {
+      const d = x.etiquetteDims;
+      const b = boite(x.centre, centreProcesseurs + x.hors / 2 + taille * 0.4 + d.hors / 2, d);
+      etiquettes.push({ texte: x.e.liaison.texte, lignes: x.etiquette, taille: tailleEtiquette, ancre: parRangees ? 'start' : 'middle', ...b });
+    }
+    if (!x.appareils.length && x.departs.length) {
+      // Câbles de tête du processeur : jusqu'au bord, puis le long du bord jusqu'au départ le plus loin.
+      const bas = Math.min(x.centre, ...x.departs);
+      const haut = Math.max(x.centre, ...x.departs);
+      chemins.push([[versMur, pt(x.centre, 0)], [pt(bas, 0), pt(haut, 0)]]);
+    }
+  }
+  const boites = [...cadres, ...etiquettes];
+  const pad = police * 0.5;
+  const bx = Math.min(...boites.map((b) => b.x)) - pad;
+  const by = Math.min(...boites.map((b) => b.y)) - pad;
+  return {
+    cadres, liaisons, etiquettes, chemins, appareilDe, secoursDe,
+    boite: { x: bx, y: by, w: Math.max(...boites.map((b) => b.x + b.w)) + pad - bx, h: Math.max(...boites.map((b) => b.y + b.h)) + pad - by },
+  };
+}
+
+// Au-delà de PROCESSEURS_CADRES_MAX processeurs (19b2) : un seul cadre au coin de départ, le repère d'avant, avec le nom
+// (« 7 × MCTRL660 »), les appareils au pied du mur et la liaison, ou la régie sans appareil.
+export function repereChaine(e) {
+  if (!e.appareils?.length) return { lignes: [e.nom, e.versDalles.replace(/^câbles de tête(, )?/, '')].filter(Boolean) };
+  const noms = e.appareils.map((a) => a.nom);
+  const liste = noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0];
+  return { lignes: [e.nom, `${liste} au pied du mur`, e.liaison?.texte].filter(Boolean) };
 }
 
 // Guide pas à pas d'un grand mur : seulement les dalles du port en cours, dans le cadre du mur entier.
@@ -415,11 +651,11 @@ function sansPointsAlignes(points) {
 
 export function construireSvg({
   geo, trajets, coin, blocs = [], palette = PALETTE_ECRAN, cadrage = null, selection = null, dalleChoisie = null, largeurPx = null,
-  repere = null, ordre = null, grand = false, simplifie = null, boitiers = null,
+  repere = null, ordre = null, grand = false, simplifie = null, boitiers = null, chaine = null,
 }) {
   const { largeur, hauteur, rects } = geo;
   const marge = 0.12 * Math.max(largeur, hauteur);
-  const complet = cadreComplet(geo);
+  const complet = cadreComplet(geo, chaine);
   const simple = simplifie ?? rects.size > SEUIL_DESSIN_SIMPLIFIE;
   const vue = cadrage ?? complet;
   const cote = Math.min(...[...rects.values()].map((r) => Math.min(r.w, r.h)));
@@ -517,7 +753,6 @@ export function construireSvg({
   const bordX = coin.endsWith('gauche') ? -marge * 0.35 : largeur + marge * 0.35;
   const versExterieurY = coin.startsWith('haut') ? -1 : 1;
   const versExterieurX = coin.endsWith('gauche') ? -1 : 1;
-  const rayon = (etiquette) => police * (etiquette.length > 3 ? 1.2 : 0.95);
   const departs = [];
   // Distribution (étape 12c) : `boitiers` = [{ nom: 'B1', trajets: ['l1', 'l4', …] }]. Chaque boîtier est un petit cadre
   // hors du mur, sur le bord de départ, au droit de ses lignes et plus loin que leurs départs ; ses lignes partent de lui.
@@ -593,33 +828,18 @@ export function construireSvg({
       }, libelle));
   });
   const lignes = trajets.map((t) => {
-    const ids = t.dalles.filter((id) => rects.has(id));
-    const points = ids.map((id) => centre(rects.get(id)));
-    if (points.length === 0) return null;
-    const [x0, y0] = points[0];
-    const [xn, yn] = points[points.length - 1];
+    // Bout du retour de secours, numéroté comme les départs (`pointsTrajet`).
+    const pts = pointsTrajet(t, rects, { bordX, bordY, police, trait, versExterieurX, versExterieurY });
+    if (!pts) return null;
+    const { ids, points, x0, y0, xn, yn, xd, yd, xs, ys, rSecours, decalage } = pts;
     const parRangees = t.orientation === 'rangees';
-    const [xd, yd] = parRangees ? [bordX, y0] : [x0, bordY];
-    let [xs, ys] = parRangees ? [bordX, yn] : [xn, bordY];
     departs.push(parRangees ? yd : xd);
+    // Câbles de tête partis d'un boîtier (élec, 12c) ou d'un appareil au pied du mur (data, 19b2).
     const boitier = boitierDe.get(t.cle);
-    if (!boitier) departsDirects.push(parRangees ? yd : xd);
-    // Bout du retour de secours, numéroté comme les départs ; sur le départ de sa chaîne (une colonne par port),
-    // le numéro passe plus loin du mur et le pointillé longe le trait principal sans le cacher.
-    const rDepart = rayon(t.etiquette);
-    const rSecours = t.etiquetteSecours ? rayon(t.etiquetteSecours) : 0;
-    const surDepart = t.secours && Math.hypot(xs - xd, ys - yd) < rDepart + rSecours;
-    const decalage = surDepart ? trait * 1.6 : 0;
+    // Appareil au pied du mur (data, 19b2) : point d'attache et coude du câble de tête (`geometrieChaine`).
+    const appareil = chaine?.appareilDe.get(t.cle);
+    if (!boitier && !appareil) departsDirects.push(parRangees ? yd : xd);
     const [xn2, yn2] = parRangees ? [xn, yn + decalage] : [xn + decalage, yn];
-    if (surDepart) {
-      if (parRangees) {
-        xs += versExterieurX * (rDepart + rSecours + trait);
-        ys += decalage;
-      } else {
-        ys += versExterieurY * (rDepart + rSecours + trait);
-        xs += decalage;
-      }
-    }
     const actif = selection === null || selection === t.cle;
     // Trajet mis en évidence : 1,8 fois le trait normal, en grand affichage aussi (il ressort déjà, et ne mord pas sur les noms).
     const largeurTrait = selection === t.cle ? cote * 0.07 * 1.8 : trait;
@@ -643,8 +863,20 @@ export function construireSvg({
         'stroke-linecap': 'round', 'stroke-dasharray': tirets,
       }),
     ] : null;
+    const depuisAppareil = appareil ? svg('polyline', {
+      class: 'depuis-appareil', points: [...appareil, [xd, yd]].map((p) => p.join(',')).join(' '), style,
+      'stroke-width': largeurTrait * 0.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-dasharray': tirets,
+    }) : null;
+    // Retour de secours relié à son XD miroir (19b2, choix b).
+    const miroir = chaine?.secoursDe.get(t.cle);
+    const versMiroir = miroir && t.etiquetteSecours ? svg('polyline', {
+      class: 'depuis-appareil secours', points: [...miroir, [xs, ys]].map((p) => p.join(',')).join(' '), style: `fill: none; stroke: ${palette.secours}`,
+      'stroke-width': largeurTrait * 0.6, 'stroke-linejoin': 'round', 'stroke-dasharray': `${trait * 1.2} ${trait * 1.2}`,
+    }) : null;
     return svg('g', { 'data-trajet': t.cle, class: actif ? null : 'attenue' },
       depuisBoitier,
+      depuisAppareil,
+      versMiroir,
       lisere ? svg('line', { class: 'lisere', x1: xd, y1: yd, x2: x0, y2: y0, style: lisere, 'stroke-width': largeurTrait * 1.5, 'stroke-linecap': 'round' }) : null,
       lisere ? svg('polyline', {
         class: 'lisere', points: listePoints, style: lisere, 'stroke-width': largeurTrait * 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
@@ -666,7 +898,7 @@ export function construireSvg({
         class: 'numero-secours', x: xs, y: ys, 'font-size': police * (t.etiquetteSecours.length > 3 ? 0.62 : 0.95), style: `fill: ${palette.secours}`,
         'font-weight': 700, 'text-anchor': 'middle', 'dominant-baseline': 'central',
       }, t.etiquetteSecours) : null,
-      svg('circle', { class: 'depart', cx: xd, cy: yd, r: police * (t.etiquette.length > 3 ? 1.2 : 0.95), style: `fill: ${couleur}; stroke: ${contour}`, 'stroke-width': trait * 0.6 }),
+      svg('circle', { class: 'depart', cx: xd, cy: yd, r: rayonDepart(police, t.etiquette), style: `fill: ${couleur}; stroke: ${contour}`, 'stroke-width': trait * 0.6 }),
       svg('text', {
         class: 'numero-trajet', x: xd, y: yd, 'font-size': police * (t.etiquette.length > 3 ? 0.62 : 0.95), style: `fill: ${texteNumero}`,
         'font-weight': 700, 'text-anchor': 'middle', 'dominant-baseline': 'central',
@@ -726,6 +958,32 @@ export function construireSvg({
       }, texte)));
   }
 
+  // Chaîne (19b2) : liaisons sous les cadres, chemins des câbles de tête en pointillés comme ceux du repère.
+  const dessinChaine = chaine ? svg('g', { class: 'chaine' },
+    chaine.chemins.map((segments) => svg('path', {
+      class: 'chemin-tete', d: segments.map(([a, b]) => `M${a.join(',')} L${b.join(',')}`).join(' '), fill: 'none',
+      style: `stroke: ${palette.contour}`, 'stroke-width': trait * 0.5, 'stroke-dasharray': `${trait * 0.3} ${trait * 0.9}`, 'stroke-linecap': 'round',
+    })),
+    chaine.liaisons.map((l) => svg('line', {
+      class: `liaison-chaine ${l.genre === 'fibre' ? 'fibre' : 'cuivre-10g'}`, x1: l.de[0], y1: l.de[1], x2: l.a[0], y2: l.a[1],
+      style: `fill: none; stroke: ${palette.contour}`, 'stroke-width': trait * (l.genre === 'fibre' ? 0.6 : 0.45),
+      'stroke-dasharray': l.genre === 'fibre' ? `${trait * 3} ${trait * 1.2}` : null,
+    })),
+    chaine.cadres.map((c) => svg('g', { class: 'cadre-chaine', 'data-role': c.role, 'data-nom': c.nom },
+      svg('rect', {
+        x: c.x, y: c.y, width: c.w, height: c.h, rx: c.taille * 0.3,
+        style: `fill: ${palette.fond}; stroke: ${palette.contour}`, 'stroke-width': trait * 0.5,
+      }),
+      c.lignes.map((texte, i) => svg('text', {
+        x: c.cx, y: c.cy + (i - (c.lignes.length - 1) / 2) * c.taille * 1.25, 'font-size': c.taille * (i === 0 ? 1 : 0.85),
+        style: `fill: ${palette.texte}`, 'font-weight': i === 0 ? 700 : 400, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+      }, texte)))),
+    chaine.etiquettes.map((e) => svg('g', { class: 'etiquette-liaison', 'data-texte': e.texte, style: `fill: ${palette.texte}` },
+      e.lignes.map((texte, i) => svg('text', {
+        x: e.ancre === 'start' ? e.x : e.cx, y: e.y + e.taille * 1.2 * (i + 0.5), 'font-size': e.taille,
+        'text-anchor': e.ancre, 'dominant-baseline': 'central',
+      }, texte))))) : null;
+
   const hauteurPx = largeurPx ? Math.round((largeurPx * complet.h) / complet.w) : null;
   const racine = svg('svg', {
     class: simple ? 'simplifie' : null,
@@ -745,6 +1003,22 @@ export function construireSvg({
   // Cadre du mur ; en zones, seulement en vue pixels (le cadre de la pixel map, vides compris).
   geo.zones && geo.unite !== 'px' ? null
     : svg('rect', { x: 0, y: 0, width: largeur, height: hauteur, style: `fill: none; stroke: ${palette.texteDoux}`, 'stroke-width': cote * 0.02 }),
-  absentes, tuiles, plis, contours, nomsZones, courbures, dessinRepere, dessinBoitiers, lignes);
+  absentes, tuiles, plis, contours, nomsZones, courbures, dessinRepere, dessinBoitiers, dessinChaine, lignes);
   return { svg: racine, complet };
+}
+
+// Bande « Chaîne » sous le dessin (étape 19b3, spec § 4.4 ; au-dessus, elle sortait le dessin du premier écran) : `amont` de chaineSchema en liste ordonnée, nœuds
+// encadrés et liaisons « → HDMI 2.0, 5 m » (flèche cachée aux lecteurs d'écran), qui passe à la ligne ; la note
+// « Chaîne à régler dans Canvas. » sans chaîne, puis le lien « Modifier dans Canvas » au bout. Le rôle « list » garde
+// la liste pour les lecteurs d'écran (Safari l'oublie quand la puce est retirée).
+export function bandeChaine(amont) {
+  const elements = amont.noeuds.flatMap((n, i) => [
+    el('li', { class: `bc-noeud bc-${n.role}` }, el('span', { class: 'bc-nom' }, n.texte), n.detail ? el('span', { class: 'bc-detail' }, ` ${n.detail}`) : null),
+    amont.liens[i] && i < amont.noeuds.length - 1
+      ? el('li', { class: 'bc-lien' }, el('span', { class: 'bc-fleche', 'aria-hidden': 'true' }, '→'), ` ${amont.liens[i].texte}`) : null,
+  ]);
+  return el('div', { class: 'bande-chaine' },
+    el('ol', { class: 'bc-liste', role: 'list', 'aria-label': 'Chaîne vidéo, de la source aux processeurs' }, elements),
+    amont.note ? el('p', { class: 'bc-note' }, amont.note) : null,
+    el('a', { class: 'bc-modifier', href: '#canvas' }, 'Modifier dans Canvas'));
 }

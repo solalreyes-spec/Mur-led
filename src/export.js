@@ -133,19 +133,52 @@ function couperLignes(ctx, lignes, largeur) {
 // Schéma de câblage (SVG construit avec la palette d'export) en PNG : un titre, le dessin, puis le texte du câblage.
 // Mise en page de l'image d'un schéma : marges, taille du texte, interligne (px).
 const PAGE_SCHEMA = { marge: 40, taille: 26, interligne: 36 };
-function hauteurImageSchema(hauteurDessin, avecTitre, nbLignes) {
+function hauteurImageSchema(hauteurDessin, avecTitre, nbLignes, hauteurBande = 0) {
   const { marge, interligne } = PAGE_SCHEMA;
-  return Math.ceil(marge + (avecTitre ? interligne * 1.6 : 0) + hauteurDessin + marge / 2 + nbLignes * interligne + marge);
+  return Math.ceil(marge + (avecTitre ? interligne * 1.6 : 0) + hauteurBande + hauteurDessin + marge / 2 + nbLignes * interligne + marge);
+}
+
+// Bande « Chaîne » en haut de l'image (étape 19b3, `amont` de chaineSchema) : nœuds encadrés et liaisons « → HDMI 2.0,
+// 5 m » de gauche à droite, à la ligne quand la rangée est pleine, la note « Chaîne à régler dans Canvas. » au bout.
+const BANDE_SCHEMA = { taille: 24, pad: 10, ecart: 14, rangee: 60 };
+function morceauxBande(amont) {
+  const morceaux = amont.noeuds.flatMap((n, i) => [
+    { cadre: true, texte: n.detail ? `${n.texte}, ${n.detail}` : n.texte },
+    ...(amont.liens[i] && i < amont.noeuds.length - 1 ? [{ cadre: false, texte: `→ ${amont.liens[i].texte}` }] : []),
+  ]);
+  return amont.note ? [...morceaux, { cadre: false, texte: amont.note }] : morceaux;
+}
+function disposerBande(ctx, amont, largeur) {
+  const { taille, pad, ecart, rangee } = BANDE_SCHEMA;
+  ctx.font = `${taille}px Helvetica, Arial, sans-serif`;
+  let x = 0;
+  let y = 0;
+  const places = morceauxBande(amont).map((m) => {
+    const w = Math.min(ctx.measureText(m.texte).width + (m.cadre ? 2 * pad : 0), largeur);
+    if (x > 0 && x + w > largeur) {
+      x = 0;
+      y += rangee;
+    }
+    const place = { ...m, x, y, w };
+    x += w + ecart;
+    return place;
+  });
+  return { places, hauteur: places.length ? y + rangee : 0 };
+}
+export function hauteurBandeSchema(amont, largeurPx = 2000) {
+  if (!amont) return 0;
+  return disposerBande(document.createElement('canvas').getContext('2d'), amont, largeurPx - 2 * PAGE_SCHEMA.marge).hauteur;
 }
 
 // Image d'un schéma au moins aussi grande que son dessin (vue de `vbL` × `vbH`), titre compris : au-delà de la limite
 // de surface, l'erreur de `nouveauCanvas` est levée tout de suite, avant de construire le dessin (11-0).
-export function verifierTailleSchema(largeurPx, vbL, vbH, { titre = false } = {}) {
-  const hauteur = hauteurImageSchema(Math.round((largeurPx * vbH) / vbL), titre, 0);
+// La bande « Chaîne » (`bande`, 19b3) compte dans la hauteur.
+export function verifierTailleSchema(largeurPx, vbL, vbH, { titre = false, bande = null } = {}) {
+  const hauteur = hauteurImageSchema(Math.round((largeurPx * vbH) / vbL), titre, 0, hauteurBandeSchema(bande, largeurPx));
   if (largeurPx * hauteur > SURFACE_MAX_IMAGE) nouveauCanvas(largeurPx, hauteur);
 }
 
-export async function schemaEnPng(svgElement, { largeurPx = 2000, titre = '', lignes = [] } = {}) {
+export async function schemaEnPng(svgElement, { largeurPx = 2000, titre = '', lignes = [], bande = null } = {}) {
   const [, , vbL, vbH] = svgElement.getAttribute('viewBox').split(/\s+/).map(Number);
   const hauteurDessin = Math.round((largeurPx * vbH) / vbL);
   const xml = new XMLSerializer().serializeToString(svgElement);
@@ -159,7 +192,9 @@ export async function schemaEnPng(svgElement, { largeurPx = 2000, titre = '', li
     mesure.font = `${taille}px Helvetica, Arial, sans-serif`;
     let texte = couperLignes(mesure, lignes, largeurPx - 2 * marge);
     const hauteurTitre = titre ? interligne * 1.6 : 0;
-    const hauteurDe = (n) => hauteurImageSchema(hauteurDessin, Boolean(titre), n);
+    const disposition = bande ? disposerBande(mesure, bande, largeurPx - 2 * marge) : { places: [], hauteur: 0 };
+    mesure.font = `${taille}px Helvetica, Arial, sans-serif`;
+    const hauteurDe = (n) => hauteurImageSchema(hauteurDessin, Boolean(titre), n, disposition.hauteur);
     // Texte trop long pour la limite de surface : il est tronqué, la suite reste dans « Copier les résultats ».
     while (texte.length > 0 && largeurPx * hauteurDe(texte.length) > SURFACE_MAX_IMAGE) texte = texte.slice(0, -2);
     if (texte.length < lignes.length && texte.length > 0) texte.push('… suite dans « Copier les résultats ».');
@@ -173,9 +208,22 @@ export async function schemaEnPng(svgElement, { largeurPx = 2000, titre = '', li
       ctx.font = `700 ${Math.round(taille * 1.3)}px Helvetica, Arial, sans-serif`;
       ctx.fillText(titre, marge, marge);
     }
-    ctx.drawImage(image, 0, marge + hauteurTitre, largeurPx, hauteurDessin);
+    // Bande « Chaîne » sous le titre, au-dessus du mur : cadres et texte en couleur du titre, liaisons en gris foncé.
+    const { taille: tb, pad } = BANDE_SCHEMA;
+    ctx.font = `${tb}px Helvetica, Arial, sans-serif`;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#1d2330';
+    for (const p of disposition.places) {
+      const y = marge + hauteurTitre + p.y;
+      if (p.cadre) ctx.strokeRect(marge + p.x + 1, y + 1, p.w - 2, tb + 2 * pad - 2);
+      ctx.fillStyle = p.cadre ? '#1d2330' : '#3d4452';
+      ctx.fillText(p.texte, marge + p.x + (p.cadre ? pad : 0), y + pad, p.w - (p.cadre ? 2 * pad : 0));
+    }
+    const hautDessin = marge + hauteurTitre + disposition.hauteur;
+    ctx.fillStyle = '#1d2330';
+    ctx.drawImage(image, 0, hautDessin, largeurPx, hauteurDessin);
     ctx.font = `${taille}px Helvetica, Arial, sans-serif`;
-    texte.forEach((ligne, i) => ctx.fillText(ligne, marge, marge + hauteurTitre + hauteurDessin + marge / 2 + i * interligne));
+    texte.forEach((ligne, i) => ctx.fillText(ligne, marge, hautDessin + hauteurDessin + marge / 2 + i * interligne));
     return await canvasEnPng(canvas);
   } finally {
     URL.revokeObjectURL(url);
