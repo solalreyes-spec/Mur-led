@@ -138,7 +138,7 @@ function dessin(e, geo, trajets, coin, blocs, repere, boitiers = null, chaineAva
   const grand = grandAffichage();
   const chaine = chaineAval ? geometrieChaine(geo, coin, trajets, chaineAval, { grand }) : null;
   // Le cadre complet change avec la chaîne (19b2) : le zoom repart du dessin entier.
-  const tout = cadreComplet(geo, chaine);
+  const tout = cadreComplet(geo, chaine, { coin, trajets, grand });
   const cle = `${e.vue}|${e.canvasVue}|${geo.largeur}x${geo.hauteur}|${tout.x},${tout.y},${tout.w},${tout.h}`;
   const { svg: racine, complet } = construireSvg({
     geo, trajets, coin, blocs, palette: PALETTE_ECRAN, cadrage: cle === cleDessin ? cadrage : null, selection, dalleChoisie, repere,
@@ -486,7 +486,7 @@ function exporterSchema() {
   const nom = `mur-led-schema-${e.cablage === 'aucun' ? 'mur' : e.cablage}-${jour}.png`;
   // Image trop grande : refus tout de suite, avant de construire le dessin (11-0).
   const chaine = chaineAval ? geometrieChaine(geo, coin, trajets, chaineAval) : null;
-  const cadre = cadreComplet(geo, chaine);
+  const cadre = cadreComplet(geo, chaine, { coin, trajets });
   try {
     verifierTailleSchema(2000, cadre.w, cadre.h, { titre: true, bande });
   } catch (erreur) {

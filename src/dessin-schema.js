@@ -124,6 +124,8 @@ export function legendeSecours(trajets) {
 // droit de sa dernière dalle comme le bout du retour, sans retour de secours ; couleur du port gardée.
 export const trajetSecoursInverse = (t) => ({
   ...t, dalles: [...t.dalles].reverse(), etiquette: t.etiquetteSecours ?? t.etiquette, secours: null, etiquetteSecours: null, inverse: true,
+  // Repères du retour du principal : le départ du secours est sur la rangée de ses bouts (22e).
+  retourDe: { etiquette: t.etiquette, etiquetteSecours: t.etiquetteSecours ?? '' },
 });
 
 // Géométrie de la vue : rectangles des dalles (mm ou px) et taille du cadre.
@@ -379,9 +381,18 @@ export const SEUIL_DESSIN_SIMPLIFIE = 2000;
 
 // Cadre complet d'un dessin : le mur et une marge de 12 % de son plus grand côté ; avec la chaîne (19b2), agrandi de ce
 // qu'il faut pour la contenir, du côté du départ seulement.
-export function cadreComplet(geo, chaine = null) {
+export function cadreComplet(geo, chaine = null, secours = null) {
   const marge = 0.12 * Math.max(geo.largeur, geo.hauteur);
   const base = { x: -marge, y: -marge, w: geo.largeur + 2 * marge, h: geo.hauteur + 2 * marge };
+  // Rangée des bouts de secours (22e), plus loin du mur que les départs : le cadre y va, du côté du départ seulement.
+  const loin = secours ? rangeeSecours(geo, secours) : null;
+  if (loin) {
+    const { coin, trajets } = secours;
+    const sens = (trajets[0].orientation === 'rangees' ? coin.endsWith('gauche') : coin.startsWith('haut')) ? -1 : 1;
+    const dehors = loin.bord + sens * loin.hors;
+    const [cle, taille] = trajets[0].orientation === 'rangees' ? ['x', 'w'] : ['y', 'h'];
+    if (sens < 0 && dehors < base[cle]) { base[taille] += base[cle] - dehors; base[cle] = dehors; } else if (sens > 0) base[taille] = Math.max(base[taille], dehors - base[cle]);
+  }
   if (!chaine?.boite) return base;
   const b = chaine.boite;
   const x = Math.min(base.x, b.x);
@@ -393,28 +404,49 @@ export function cadreComplet(geo, chaine = null) {
 // au droit de sa dernière dalle ; sur le départ de sa chaîne (une colonne par port), le bout passe plus loin du mur et le
 // pointillé longe le trait principal sans le cacher. Partagé par le dessin des trajets et la chaîne (19b2).
 const rayonDepart = (police, etiquette) => police * (etiquette.length > 3 ? 1.2 : 0.95);
-function pointsTrajet(t, rects, { bordX, bordY, police, trait, versExterieurX, versExterieurY }) {
+
+// Rangée des bouts de secours (22e) : distance du bord de départ au centre des bouts, pour toute redondance ; plus loin du
+// mur que les ronds des départs (et que la ligne des câbles de tête qui longe le bord), jamais sur eux.
+function horsBoutsSecours(trajets, police, trait) {
+  const avec = trajets.filter((t) => t.secours || t.retourDe).map((t) => t.retourDe ?? t);
+  if (!avec.length) return 0;
+  return Math.max(...avec.map((t) => rayonDepart(police, t.etiquette)))
+    + Math.max(...avec.map((t) => rayonDepart(police, t.etiquetteSecours ?? '')))
+    + trait * 1.5;
+}
+
+// Étendue de la rangée des bouts pour le cadre complet : `bord` (bord de départ, sur l'axe du départ) et `hors` (du bord
+// au dehors des bouts, avec une demi-police de marge), ou null sans retour de secours.
+function rangeeSecours(geo, { coin, trajets, grand = false }) {
+  if (!trajets?.some((t) => t.secours || t.retourDe)) return null;
+  const { largeur, hauteur, rects } = geo;
+  const marge = 0.12 * Math.max(largeur, hauteur);
+  const cote = Math.min(...[...rects.values()].map((r) => Math.min(r.w, r.h)));
+  const police = cote * 0.2;
+  const trait = cote * 0.07 * (grand && geo.unite !== 'px' ? 1.35 : 1);
+  const parRangees = trajets[0].orientation === 'rangees';
+  const bord = parRangees ? (coin.endsWith('gauche') ? -marge * 0.35 : largeur + marge * 0.35) : (coin.startsWith('haut') ? -marge * 0.35 : hauteur + marge * 0.35);
+  const rS = Math.max(...trajets.filter((t) => t.secours || t.retourDe).map((t) => rayonDepart(police, (t.retourDe ?? t).etiquetteSecours ?? '')));
+  return { bord, hors: horsBoutsSecours(trajets, police, trait) + rS + police * 0.5 };
+}
+function pointsTrajet(t, rects, { bordX, bordY, police, trait, versExterieurX, versExterieurY, horsBouts = 0 }) {
   const ids = t.dalles.filter((id) => rects.has(id));
   if (ids.length === 0) return null;
   const points = ids.map((id) => centre(rects.get(id)));
   const [x0, y0] = points[0];
   const [xn, yn] = points[points.length - 1];
   const parRangees = t.orientation === 'rangees';
-  const [xd, yd] = parRangees ? [bordX, y0] : [x0, bordY];
-  let [xs, ys] = parRangees ? [bordX, yn] : [xn, bordY];
+  // Port d'un processeur de secours (inverse) : son départ est au bout du retour du principal, sur la rangée des bouts.
+  const [xd, yd] = t.inverse ? (parRangees ? [bordX + versExterieurX * horsBouts, y0] : [x0, bordY + versExterieurY * horsBouts])
+    : parRangees ? [bordX, y0] : [x0, bordY];
   const rDepart = rayonDepart(police, t.etiquette);
   const rSecours = t.etiquetteSecours ? rayonDepart(police, t.etiquetteSecours) : 0;
-  const surDepart = Boolean(t.secours) && Math.hypot(xs - xd, ys - yd) < rDepart + rSecours;
+  // Bout du retour sur sa propre rangée (22e), plus loin du mur que les départs ; sur la ligne de sa première dalle
+  // (une colonne ou une rangée par port), le retour longe le trait principal sans le cacher.
+  const surDepart = Boolean(t.secours) && Math.abs(parRangees ? yn - y0 : xn - x0) < trait;
   const decalage = surDepart ? trait * 1.6 : 0;
-  if (surDepart) {
-    if (parRangees) {
-      xs += versExterieurX * (rDepart + rSecours + trait);
-      ys += decalage;
-    } else {
-      ys += versExterieurY * (rDepart + rSecours + trait);
-      xs += decalage;
-    }
-  }
+  const [xs, ys] = !t.secours ? (parRangees ? [bordX, yn] : [xn, bordY])
+    : parRangees ? [bordX + versExterieurX * horsBouts, yn + decalage] : [xn + decalage, bordY + versExterieurY * horsBouts];
   return { ids, points, x0, y0, xn, yn, xd, yd, xs, ys, rDepart, rSecours, surDepart, decalage };
 }
 
@@ -492,7 +524,8 @@ export function geometrieChaine(geo, coin, trajets, aval, { grand = false } = {}
   const pt = (le, hors) => (parRangees ? [bord + s * hors, le] : [le, bord + s * hors]);
   const leDe = ([x, y]) => (parRangees ? y : x);
   const horsDe = ([x, y]) => s * ((parRangees ? x : y) - bord);
-  const points = new Map(trajets.map((t) => [t.cle, pointsTrajet(t, rects, { bordX, bordY, police, trait, versExterieurX, versExterieurY })]));
+  const horsBouts = horsBoutsSecours(trajets, police, trait);
+  const points = new Map(trajets.map((t) => [t.cle, pointsTrajet(t, rects, { bordX, bordY, police, trait, versExterieurX, versExterieurY, horsBouts })]));
   // Profondeur des départs : ronds et bouts de secours qui passent plus loin du mur.
   let profondeur = 0;
   for (const p of points.values()) {
@@ -547,23 +580,30 @@ export function geometrieChaine(geo, coin, trajets, aval, { grand = false } = {}
   // jusqu'au droit de son départ, puis arrive droit sur son rond (jamais sur un autre). Niveaux : le plus long câble le
   // plus près des appareils, deux câbles qui se recouvrent le long du bord jamais au même niveau.
   const cables = tousAppareils.flatMap((a) => {
-    const cibles = [...a.principaux.map((t) => ({ t, carte: 'principal', vers: [points.get(t.cle).xd, points.get(t.cle).yd] })),
-      ...a.secours.map((t) => ({ t, carte: 'secours', vers: [points.get(t.cle).xs, points.get(t.cle).ys] }))]
+    const cibles = a.principaux.map((t) => ({ t, vers: [points.get(t.cle).xd, points.get(t.cle).yd] }))
       .sort((u, w) => leDe(u.vers) - leDe(w.vers));
     // Départ en face de l'appareil : le câble sort en face de lui, tout droit.
     return cibles.map((c, k) => {
       const cible = leDe(c.vers);
       const enFace = cibles.length === 1 && Math.abs(cible - a.centre) <= a.le * 0.35;
-      return { ...c, appareil: a, cible, attache: enFace ? cible : a.centre - a.le * 0.35 + (cibles.length > 1 ? (a.le * 0.7 * k) / (cibles.length - 1) : a.le * 0.35) };
+      const attache = enFace ? cible : a.centre - a.le * 0.35 + (cibles.length > 1 ? (a.le * 0.7 * k) / (cibles.length - 1) : a.le * 0.35);
+      return { ...c, carte: 'principal', appareil: a, cible, attache, bas: Math.min(cible, attache), haut: Math.max(cible, attache) };
     });
-  }).concat(tousSecours.flatMap((sc) => {
-    const cibles = sc.retours.map((t) => ({ t, carte: 'secours', duSecours: true, vers: [points.get(t.cle).xs, points.get(t.cle).ys] })).sort((u, w) => leDe(u.vers) - leDe(w.vers));
-    return cibles.map((c, k) => ({ ...c, appareil: sc, cible: leDe(c.vers), attache: sc.centre - sc.le * 0.35 + (cibles.length > 1 ? (sc.le * 0.7 * k) / (cibles.length - 1) : sc.le * 0.35) }));
-  }));
+  });
+  // Retours de secours (22e) : un tronc commun par XD miroir ou par processeur de secours. Il part du cadre (queue droite
+  // jusqu'à son niveau), longe le bord au droit de tous les bouts de ses retours ; chaque bout y descend par un petit trait.
+  const troncs = [
+    ...tousAppareils.filter((a) => a.secours.length).map((a) => ({ appareil: a, du: 'appareil', retours: a.secours })),
+    ...tousSecours.map((sc) => ({ appareil: sc, du: 'secours', retours: sc.retours })),
+  ].map((tr) => {
+    const bouts = tr.retours.map((t) => ({ t, cible: leDe([points.get(t.cle).xs, points.get(t.cle).ys]) }));
+    const toutes = [tr.appareil.centre, ...bouts.map((b) => b.cible)];
+    return { ...tr, bouts, bas: Math.min(...toutes), haut: Math.max(...toutes) };
+  });
   const niveaux = [];
   const marge2 = police * 0.3;
-  for (const c of [...cables].sort((u, w) => Math.abs(w.cible - w.attache) - Math.abs(u.cible - u.attache))) {
-    const [bas, haut] = [Math.min(c.cible, c.attache) - marge2, Math.max(c.cible, c.attache) + marge2];
+  for (const c of [...cables, ...troncs].sort((u, w) => (w.haut - w.bas) - (u.haut - u.bas))) {
+    const [bas, haut] = [c.bas - marge2, c.haut + marge2];
     let n = niveaux.findIndex((pris) => pris.every(([b, h]) => h <= bas || b >= haut));
     if (n < 0) n = niveaux.push([]) - 1;
     niveaux[n].push([bas, haut]);
@@ -586,11 +626,23 @@ export function geometrieChaine(geo, coin, trajets, aval, { grand = false } = {}
   const etiquettes = [];
   const chemins = [];
   const appareilDe = new Map();
-  const secoursDe = new Map();
+  const descentes = new Map();
+  const dessinsTroncs = [];
   for (const c of cables) {
     const niveau = hors0 - pas * (c.niveau + 1);
-    (c.carte === 'principal' ? appareilDe : secoursDe).set(c.t.cle,
-      [pt(c.attache, (c.duSecours ? centreProcesseurs : centreAppareils) - c.appareil.hors / 2), pt(c.attache, niveau), pt(c.cible, niveau)]);
+    appareilDe.set(c.t.cle, [pt(c.attache, centreAppareils - c.appareil.hors / 2), pt(c.attache, niveau), pt(c.cible, niveau)]);
+  }
+  for (const tr of troncs) {
+    const niveau = hors0 - pas * (tr.niveau + 1);
+    const centreRangee = tr.du === 'secours' ? centreProcesseurs : centreAppareils;
+    dessinsTroncs.push({
+      queue: [pt(tr.appareil.centre, centreRangee - tr.appareil.hors / 2), pt(tr.appareil.centre, niveau)],
+      rail: tr.bas < tr.haut ? [pt(tr.bas, niveau), pt(tr.haut, niveau)] : null,
+    });
+    for (const b of tr.bouts) {
+      const p = points.get(b.t.cle);
+      descentes.set(b.t.cle, [pt(b.cible, niveau), pt(b.cible, horsDe([p.xs, p.ys]) + p.rSecours)]);
+    }
   }
   for (const x of elements) {
     // Cadres dans l'ordre, du mur vers l'extérieur : les appareils, puis le processeur.
@@ -618,7 +670,7 @@ export function geometrieChaine(geo, coin, trajets, aval, { grand = false } = {}
   const bx = Math.min(...boites.map((b) => b.x)) - pad;
   const by = Math.min(...boites.map((b) => b.y)) - pad;
   return {
-    cadres, liaisons, etiquettes, chemins, appareilDe, secoursDe,
+    cadres, liaisons, etiquettes, chemins, appareilDe, troncs: dessinsTroncs, descentes,
     boite: { x: bx, y: by, w: Math.max(...boites.map((b) => b.x + b.w)) + pad - bx, h: Math.max(...boites.map((b) => b.y + b.h)) + pad - by },
   };
 }
@@ -688,7 +740,7 @@ export function construireSvg({
 }) {
   const { largeur, hauteur, rects } = geo;
   const marge = 0.12 * Math.max(largeur, hauteur);
-  const complet = cadreComplet(geo, chaine);
+  const complet = cadreComplet(geo, chaine, { coin, trajets, grand });
   const simple = simplifie ?? rects.size > SEUIL_DESSIN_SIMPLIFIE;
   const vue = cadrage ?? complet;
   const cote = Math.min(...[...rects.values()].map((r) => Math.min(r.w, r.h)));
@@ -860,9 +912,10 @@ export function construireSvg({
         x: cx, y: cy, 'font-size': policeOrdre, 'font-weight': 700, 'text-anchor': 'middle', 'dominant-baseline': 'central', style: `fill: ${texteNumero}`,
       }, libelle));
   });
+  const horsBouts = horsBoutsSecours(trajets, police, trait);
   const lignes = trajets.map((t) => {
     // Bout du retour de secours, numéroté comme les départs (`pointsTrajet`).
-    const pts = pointsTrajet(t, rects, { bordX, bordY, police, trait, versExterieurX, versExterieurY });
+    const pts = pointsTrajet(t, rects, { bordX, bordY, police, trait, versExterieurX, versExterieurY, horsBouts });
     if (!pts) return null;
     const { ids, points, x0, y0, xn, yn, xd, yd, xs, ys, rSecours, decalage } = pts;
     const parRangees = t.orientation === 'rangees';
@@ -900,16 +953,16 @@ export function construireSvg({
       class: 'depuis-appareil', points: [...appareil, [xd, yd]].map((p) => p.join(',')).join(' '), style,
       'stroke-width': largeurTrait * 0.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-dasharray': tirets,
     }) : null;
-    // Retour de secours relié à son XD miroir (19b2, choix b).
-    const miroir = chaine?.secoursDe.get(t.cle);
-    const versMiroir = miroir && t.etiquetteSecours ? svg('polyline', {
-      class: 'depuis-appareil secours', points: [...miroir, [xs, ys]].map((p) => p.join(',')).join(' '), style: `fill: none; stroke: ${palette.secours}`,
-      'stroke-width': largeurTrait * 0.6, 'stroke-linejoin': 'round', 'stroke-dasharray': `${trait * 1.2} ${trait * 1.2}`,
+    // Bout du retour relié au tronc commun de son XD miroir ou de son processeur de secours (22e) : un petit trait.
+    const descente = chaine?.descentes.get(t.cle);
+    const versTronc = descente && t.etiquetteSecours ? svg('line', {
+      class: 'descente-secours', x1: descente[0][0], y1: descente[0][1], x2: descente[1][0], y2: descente[1][1], style: `fill: none; stroke: ${palette.secours}`,
+      'stroke-width': largeurTrait * 0.6, 'stroke-linecap': 'round', 'stroke-dasharray': `${trait * 1.2} ${trait * 1.2}`,
     }) : null;
     return svg('g', { 'data-trajet': t.cle, class: actif ? null : 'attenue' },
       depuisBoitier,
       depuisAppareil,
-      versMiroir,
+      versTronc,
       lisere ? svg('line', { class: 'lisere', x1: xd, y1: yd, x2: x0, y2: y0, style: lisere, 'stroke-width': largeurTrait * 1.5, 'stroke-linecap': 'round' }) : null,
       lisere ? svg('polyline', {
         class: 'lisere', points: listePoints, style: lisere, 'stroke-width': largeurTrait * 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
@@ -997,6 +1050,15 @@ export function construireSvg({
       class: 'chemin-tete', d: segments.map(([a, b]) => `M${a.join(',')} L${b.join(',')}`).join(' '), fill: 'none',
       style: `stroke: ${palette.contour}`, 'stroke-width': trait * 0.5, 'stroke-dasharray': `${trait * 0.3} ${trait * 0.9}`, 'stroke-linecap': 'round',
     })),
+    chaine.troncs.map((tr) => svg('g', { class: 'troncs-secours' },
+      tr.rail ? svg('line', {
+        class: 'tronc-secours', x1: tr.rail[0][0], y1: tr.rail[0][1], x2: tr.rail[1][0], y2: tr.rail[1][1], style: `fill: none; stroke: ${palette.secours}`,
+        'stroke-width': trait * 0.6, 'stroke-linecap': 'round', 'stroke-dasharray': `${trait * 1.2} ${trait * 1.2}`,
+      }) : null,
+      svg('line', {
+        class: 'queue-secours', x1: tr.queue[0][0], y1: tr.queue[0][1], x2: tr.queue[1][0], y2: tr.queue[1][1], style: `fill: none; stroke: ${palette.secours}`,
+        'stroke-width': trait * 0.6, 'stroke-linecap': 'round', 'stroke-dasharray': `${trait * 1.2} ${trait * 1.2}`,
+      }))),
     chaine.liaisons.map((l) => svg('line', {
       class: `liaison-chaine ${l.genre === 'fibre' ? 'fibre' : 'cuivre-10g'}`, x1: l.de[0], y1: l.de[1], x2: l.a[0], y2: l.a[1],
       style: `fill: none; stroke: ${palette.contour}`, 'stroke-width': trait * (l.genre === 'fibre' ? 0.6 : 0.45),

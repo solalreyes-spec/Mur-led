@@ -4799,15 +4799,26 @@ export const NAVIGATEUR = [
         v.egal('SX40 : chaque câble de tête part de son XD, couleur du port', fautes, []);
         const sr = chaineDessinee(contexte, { dalleId: 'roe-bp2-v2', procId: 'brompton-sx40', colonnes: 20, rangees: 6, reglages: { bits: 12, redondance: true } });
         const csr = cadresChaine(sr.svg);
+        // Retours de secours (22e) : tronc commun du XD miroir (queue du cadre, rail), une descente du rail au bord de chaque bout.
+        const surSegment = (p, [a, c]) => {
+          const [dx, dy] = [c[0] - a[0], c[1] - a[1]];
+          const long = dx * dx + dy * dy;
+          const t = long === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / long));
+          return Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]) < 1e-6;
+        };
+        const rails = [...sr.svg.querySelectorAll('.tronc-secours')].map(bouts);
+        const queues = [...sr.svg.querySelectorAll('.queue-secours')].map(bouts);
         const secoursFautes = [...sr.svg.querySelectorAll('[data-trajet]')].filter((g) => {
-          const l = g.querySelector('.depuis-appareil.secours');
+          const d = g.querySelector('.descente-secours');
           const b = g.querySelector('.bout-secours');
-          if (!l || !b) return true;
-          const [u, w] = bouts(l);
+          if (!d || !b) return true;
+          const [haut, bas] = bouts(d);
           const miroir = csr.find((c) => c.nom === `XD miroir ${Math.ceil(Number(g.dataset.trajet.split('-')[1]) / 10)}`);
-          return !surBord(u, miroir) || Math.hypot(w[0] - Number(b.getAttribute('cx')), w[1] - Number(b.getAttribute('cy'))) > 1e-6;
+          const rail = rails.find((r) => surSegment(haut, r));
+          const queue = queues.find((q) => surBord(q[0], miroir));
+          return !rail || !queue || !surSegment(queue[1], rail) || Math.abs(Math.hypot(bas[0] - Number(b.getAttribute('cx')), bas[1] - Number(b.getAttribute('cy'))) - Number(b.getAttribute('r'))) > 1e-6;
         }).map((g) => g.dataset.trajet);
-        v.egal('SX40 en redondance : chaque retour de secours relié à son XD miroir', secoursFautes, []);
+        v.egal('SX40 en redondance : chaque bout de retour relié par une descente au tronc de son XD miroir', secoursFautes, []);
         const cuivre = chaineDessinee(contexte, { distanceM: 20 });
         v.egal('cuivre direct : ni fibre ni câble depuis un appareil, le chemin des câbles de tête', [liaisons(cuivre).length, cuivre.svg.querySelectorAll('.depuis-appareil').length,
           cuivre.svg.querySelectorAll('.chaine .chemin-tete').length], [0, 0, 1]);
@@ -5256,13 +5267,8 @@ export const NAVIGATEUR = [
         v.egal('cadres : le principal et son secours', cadres.map((c) => [c.role, c.lignes[0]]), [['processeur', 'MCTRL4K'], ['secours', 'MCTRL4K secours n° 2']]);
         v.vrai('même rangée, sans se toucher', Math.abs(principal.cy - secours.cy) < 1e-6 && !chevauchent(principal, secours), [principal, secours]);
         v.vrai('hors du mur', !chevauchent(secours, { x: 0, y: 0, w: un.geo.largeur, h: un.geo.hauteur }), secours);
-        const liens = [...un.svg.querySelectorAll('[data-trajet] .depuis-appareil.secours')];
-        v.egal('un retour relié par port', liens.length, 4);
-        const bouts = disquesDe(un.svg, '.bout-secours');
-        const finit = liens.every((l) => { const p = sommets(l).at(-1); return bouts.some((b) => Math.hypot(b.cx - p[0], b.cy - p[1]) < 1e-6); });
-        const part = liens.every((l) => { const [x, y] = sommets(l)[0]; return x >= secours.x - 1e-6 && x <= secours.x + secours.w + 1e-6 && Math.abs(y - secours.y) < 1e-6; });
-        v.vrai('du cadre du secours jusqu\'au bout de chaque retour', finit && part, liens.map((l) => sommets(l)));
-        v.vrai('pointillés couleur secours', liens.every((l) => Boolean(l.getAttribute('stroke-dasharray')) && l.getAttribute('style').includes(PALETTE_EXPORT.secours)));
+        // Les retours sont reliés au cadre par un tronc commun et une descente par bout (22e, N120).
+        v.egal('un tronc relie le cadre du secours aux bouts', [un.svg.querySelectorAll('.queue-secours').length, un.svg.querySelectorAll('.tronc-secours').length], [1, 1]);
       } finally {
         un.svg.remove();
       }
@@ -5525,6 +5531,91 @@ export const NAVIGATEUR = [
       } finally {
         principal.remove();
         secours.remove();
+      }
+    },
+  },
+  {
+    id: 'N119',
+    titre: 'Bouts des retours de secours sur leur propre rangée (22e, choix b de l\'utilisateur, 26/10/2026) : pour toute redondance (secours dans le même processeur, second processeur Novastar, XD miroir Brompton), le rond de chaque bout est plus loin du mur que les ronds des départs, sans toucher aucun rond de départ, et la ligne des câbles de tête (le long du bord de départ) ne le traverse pas',
+    etape: '22e',
+    verifier(v, contexte) {
+      // Bas : plus loin du mur = y plus grand (coin de départ en bas).
+      const controle = (nom, x) => {
+        try {
+          const departs = disquesDe(x.svg, '.depart');
+          const bouts = disquesDe(x.svg, '.bout-secours');
+          v.vrai(`${nom} : des bouts de secours`, bouts.length > 0, bouts.length);
+          const departsMax = Math.max(...departs.map((d) => d.cy + d.r));
+          v.vrai(`${nom} : tous les bouts plus loin du mur que les départs`, bouts.every((b) => b.cy - b.r > departsMax), { departsMax, bouts: bouts.map((b) => b.cy - b.r) });
+          v.vrai(`${nom} : un seul niveau de bouts`, new Set(bouts.map((b) => b.cy.toFixed(6))).size === 1, bouts.map((b) => b.cy));
+          const tetes = [...x.svg.querySelectorAll('.chemin-tete')].flatMap((l) => (l.tagName === 'path'
+            ? (l.getAttribute('d').match(/-?[\d.]+(?:e-?\d+)?/g) ?? []).map(Number).reduce((a, n, k) => (k % 2 ? [...a.slice(0, -1), [a.at(-1), n]] : [...a, n]), [])
+            : sommets(l)));
+          v.vrai(`${nom} : la ligne des câbles de tête ne traverse aucun bout`, tetes.every(([, y]) => bouts.every((b) => Math.abs(y - b.cy) > b.r)), tetes);
+        } finally {
+          x.svg.remove();
+        }
+      };
+      controle('secours dans le même processeur (8 × 6)', chaineDessinee(contexte, { colonnes: 8, rangees: 6, reglages: { redondance: true }, distanceM: 20 }));
+      controle('second processeur (8 × 6)', chaineDessinee(contexte, { colonnes: 8, rangees: 6, reglages: { redondance: true, secours: 'processeur' }, distanceM: 20 }));
+      controle('second processeur, deux principaux (32 × 8)', chaineDessinee(contexte, { colonnes: 32, rangees: 8, reglages: { redondance: true, secours: 'processeur' }, distanceM: 20 }));
+      controle('XD miroir Brompton (SX40, 20 × 6)', chaineDessinee(contexte, { dalleId: 'roe-bp2-v2', procId: 'brompton-sx40', colonnes: 20, rangees: 6, reglages: { bits: 12, redondance: true } }));
+    },
+  },
+  {
+    id: 'N120',
+    titre: 'Tronc commun des retours de secours (22e, choix a et c de l\'utilisateur) : une seule ligne en tirets couleur secours par processeur de secours ou par XD miroir, reliée à son cadre par une queue, qui longe le mur ; chaque bout y descend par un petit trait (plus de polyligne par retour) ; secours dans le même processeur : pas de tronc',
+    etape: '22e',
+    verifier(v, contexte) {
+      const sur = (p, pts) => pts.slice(1).some((b, k) => {
+        const a = pts[k];
+        const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
+        const long = dx * dx + dy * dy;
+        const t = long === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / long));
+        return Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]) < 1e-6;
+      });
+      const un = chaineDessinee(contexte, { colonnes: 8, rangees: 6, reglages: { redondance: true, secours: 'processeur' }, distanceM: 20 });
+      try {
+        const secours = cadresChaine(un.svg).find((c) => c.role === 'secours');
+        const troncs = [...un.svg.querySelectorAll('.tronc-secours')];
+        v.egal('un seul tronc', troncs.length, 1);
+        v.egal('plus de polyligne par retour', un.svg.querySelectorAll('.depuis-appareil.secours').length, 0);
+        const tronc = troncs.flatMap((l) => sommets(l));
+        const queues = [...un.svg.querySelectorAll('.queue-secours')];
+        v.egal('une queue du cadre au tronc', queues.length, 1);
+        const [depart, arrivee] = sommets(queues[0]);
+        v.vrai('la queue part du cadre du secours et joint le tronc', Boolean(secours) && depart[0] >= secours.x - 1e-6 && depart[0] <= secours.x + secours.w + 1e-6 && Math.abs(depart[1] - secours.y) < 1e-6 && sur(arrivee, tronc), [depart, arrivee, secours]);
+        v.vrai('couleur secours, en tirets', troncs.every((l) => Boolean(l.getAttribute('stroke-dasharray')) && l.getAttribute('style').includes(PALETTE_EXPORT.secours)));
+        const cote = Math.min(...[...un.geo.rects.values()].map((r) => Math.min(r.w, r.h)));
+        const bouts = disquesDe(un.svg, '.bout-secours');
+        const descentes = [...un.svg.querySelectorAll('[data-trajet] .descente-secours')];
+        v.egal('une descente par bout', descentes.length, bouts.length);
+        const fautes = descentes.filter((d) => {
+          const [haut, bas] = sommets(d);
+          const bout = bouts.find((b) => Math.abs(b.cx - bas[0]) < 1e-6);
+          const long = Math.hypot(haut[0] - bas[0], haut[1] - bas[1]);
+          return !sur(haut, tronc) || !bout || Math.abs(Math.hypot(bas[0] - bout.cx, bas[1] - bout.cy) - bout.r) > 1e-6 || long > cote;
+        });
+        v.egal('chaque descente va du tronc au bord de son bout, en moins d\'une dalle', fautes.length, 0);
+      } finally {
+        un.svg.remove();
+      }
+      const ports = chaineDessinee(contexte, { colonnes: 8, rangees: 6, reglages: { redondance: true }, distanceM: 20 });
+      try {
+        v.egal('secours dans le même processeur : ni tronc ni descente', [ports.svg.querySelectorAll('.tronc-secours').length, ports.svg.querySelectorAll('.descente-secours').length], [0, 0]);
+      } finally {
+        ports.svg.remove();
+      }
+      const sx = chaineDessinee(contexte, { dalleId: 'roe-bp2-v2', procId: 'brompton-sx40', colonnes: 20, rangees: 6, reglages: { bits: 12, redondance: true } });
+      try {
+        const cadres = cadresChaine(sx.svg).filter((c) => c.nom?.startsWith('XD miroir') || c.lignes[0].startsWith('XD miroir'));
+        const troncs = [...sx.svg.querySelectorAll('.tronc-secours')];
+        v.egal('XD miroir : un tronc par XD miroir', troncs.length, cadres.length);
+        const queues = [...sx.svg.querySelectorAll('.queue-secours')];
+        v.vrai('… chacun relié à son cadre par une queue', queues.length === cadres.length && queues.every((q) => { const [x, y] = sommets(q)[0]; return cadres.some((c) => x >= c.x - 1e-6 && x <= c.x + c.w + 1e-6 && Math.abs(y - c.y) < 1e-6) && troncs.some((t) => sur(sommets(q)[1], sommets(t))); }), queues.map((q) => sommets(q)));
+        v.egal('… une descente par bout, plus de polyligne par retour', [sx.svg.querySelectorAll('[data-trajet] .descente-secours').length, sx.svg.querySelectorAll('.depuis-appareil.secours').length], [disquesDe(sx.svg, '.bout-secours').length, 0]);
+      } finally {
+        sx.svg.remove();
       }
     },
   },
