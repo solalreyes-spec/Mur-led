@@ -41,7 +41,7 @@ const lignesTexte = (texte) => String(texte).split('\n').slice(1).filter((l) => 
 // Lignes de Data utiles à la régie : processeurs, réglages, processeur n° i (et sa sortie dans la pixel map, ses zones),
 // mapping, découpage, réglage des zones, config imposée (ports, fibre, refus ; étape 18c3) ; ni capacités, ni ports du
 // câblage (leur couleur), ni alertes.
-const LIBELLES_DATA_REGIE = ['Processeur', 'Configuration', 'Réglages', 'Profondeur réseau', 'Mapping', 'Découpage', 'Variantes', 'Réglage des zones',
+const LIBELLES_DATA_REGIE = ['Processeur', 'Configuration', 'Réglages', 'Redondance', 'Processeurs avec les secours', 'Profondeur réseau', 'Mapping', 'Découpage', 'Variantes', 'Réglage des zones',
   'Ports', 'Fibre (imposée)', 'Config imposée refusée'];
 export function lignesDataRegie(texteData) {
   return lignesTexte(texteData).filter((l) => LIBELLES_DATA_REGIE.includes(l.libelle)
@@ -53,6 +53,14 @@ function lignesSection(liste, id) {
   const s = liste?.sections.find((x) => x.id === id);
   if (!s) return [];
   return [...s.lignes.map((l) => ({ libelle: `${l.quantite} × ${libelleLigne(l)}`, valeur: l.detail ?? '' })), ...s.notes.map((n) => ({ libelle: 'Note', valeur: n }))];
+}
+
+// Processeurs de secours (étape 22) : liaison des boîtiers à l'ordinateur, lignes « controle| » de la liste de
+// matériel, pour la régie ; rien sans elles.
+function lignesControle(materiel) {
+  const s = materiel?.liste?.sections.find((x) => x.id === 'data');
+  const lignes = (s?.lignes ?? []).filter((l) => l.cle?.startsWith('controle|'));
+  return lignes.length ? [{ titre: 'Liaison des processeurs à l\'ordinateur' }, ...lignes.map((l) => ({ libelle: `${l.quantite} × ${libelleLigne(l)}`, valeur: l.detail ?? '' }))] : [];
 }
 
 // Texte d'un onglet, ou « calcul non valide » quand l'onglet n'avait pas de calcul valide.
@@ -72,7 +80,7 @@ const estGrave = (l) => ['Refus', 'Impossible', 'Manque de stock'].includes(l.li
 const SYNTHESE = [
   ['mur', ['Dalle', 'Dalles', 'Demi-dalles', 'Zones', 'Taille', 'Taille réelle', 'Taille développée', 'Résolution', 'Pixel map']],
   ['dalles'],
-  ['data', ['Processeur', 'Ports en colonnes entières', 'Ports avec la redondance', 'Ports', 'Fibre (imposée)', 'Config imposée refusée']],
+  ['data', ['Processeur', 'Redondance', 'Ports en colonnes entières', 'Ports avec la redondance', 'Ports', 'Fibre (imposée)', 'Config imposée refusée']],
   ['elec', ['Puissance totale', 'Arrivée', 'Lignes en colonnes entières', 'Lignes', 'Config imposée refusée']],
   ['poids', ['Mode', 'Total suspendu', 'Total']],
 ];
@@ -103,7 +111,7 @@ function lignesMur(metier, fiche, materiel) {
   if (metier === 'rigger') return [...texteOuManque(textes, 'poids', lignesTexte), ...materielOuManque(materiel, 'Matériel d\'accroche', 'accroche')];
   if (metier === 'electricien') return [...texteOuManque(textes, 'elec', lignesTexte), ...materielOuManque(materiel, 'Matériel électrique', 'elec')];
   if (metier === 'regie') {
-    return [...texteOuManque(textes, 'canvas', lignesTexte), { titre: 'Data' }, ...texteOuManque(textes, 'data', lignesDataRegie),
+    return [...texteOuManque(textes, 'canvas', lignesTexte), { titre: 'Data' }, ...texteOuManque(textes, 'data', lignesDataRegie), ...lignesControle(materiel),
       // Pas à pas NovaLCT (étape 17c1) : son résumé, quand le processeur du mur se règle dans NovaLCT.
       ...(textes.novalct ? [{ titre: 'Pas à pas NovaLCT' }, ...lignesTexte(textes.novalct)] : []),
       { titre: 'Exports à demander dans le Schéma' }, ...EXPORTS];

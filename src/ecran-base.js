@@ -11,6 +11,8 @@ import {
   fichiersJoints, tailleFichiersJoints, alerteTailleFichier, migrerFichiersConfig, logicielDuProcesseur, reglerLogicielParc,
   logicielParc, fichesRetirees, retirerFicheRetiree, arbreDalles, reglerQuantiteParc, quantitesParc,
   FAMILLES_LONGUEURS, LIBELLES_LONGUEURS, reglerLongueursParc, reglerCaseParc, reglerCodeNovaLCT, codeNovaLCT, CODE_NOVALCT_MAX,
+  NOMS_LOGICIEL, idConfig, ajouterConfigLot, nommerFichierConfig, titreConfig, texteCritereDuNom, ajoutConfig, proposerPourLot,
+  enregistrerConfigFormulaire, ajouterConfigNovaLCT, doublonsNovaLCT,
 } from './fiches.js';
 import { stockageDisponible, ecrireFichier, lireFichier, supprimerFichier, listerFichiers } from './stockage.js';
 import { choixPartageFichier, partagerFichier, telecharger, NOTE_TELECHARGEMENT_CONFIG } from './export.js';
@@ -376,11 +378,10 @@ function taille(octets) {
   return `${nombreCourt(octets > 0 ? Math.max(octets / 1024, 0.1) : 0, 1)} ko`;
 }
 
-const NOMS_LOGICIEL = { NovaLCT: 'NovaLCT (Novastar)', VMP: 'VMP (COEX)', LEDVISION: 'LEDVISION (Colorlight)', Tessera: 'Tessera (Brompton)' };
 // Logiciel proposé d'abord, selon la marque de la carte de réception.
 const LOGICIEL_DE_MARQUE = { brompton: 'Tessera', novastar: 'NovaLCT', coex: 'VMP', colorlight: 'LEDVISION' };
 const CHAMPS_CONFIG_FORMULAIRE = {
-  NovaLCT: ['nomFichier', 'version', 'date', 'provenance', 'firmware', 'multiBatch', 'autreFichier', 'notes'],
+  NovaLCT: ['nomFichier', 'frequenceHz', 'luminositeMax', 'version', 'date', 'provenance', 'firmware', 'multiBatch', 'autreFichier', 'notes'],
   VMP: ['nomFichier', 'version', 'date', 'provenance', 'firmware', 'autreFichier', 'notes'],
   LEDVISION: ['nomFichier', 'version', 'date', 'provenance', 'firmware', 'autreFichier', 'notes'],
   Tessera: ['typeFixture', 'firmwareDalle', 'fixturePack', 'version', 'date', 'provenance', 'calibration', 'firmware', 'autreFichier', 'notes'],
@@ -394,6 +395,8 @@ const TEXTES_OPTION = { standard: 'standard', personnalisé: 'personnalisé par 
 function libelleConfig(logiciel, champ) {
   return {
     nomFichier: `Fichier de config (${(EXTENSIONS_CONFIG[logiciel] ?? []).join(' ou ')})`,
+    frequenceHz: 'Fréquence (Hz)',
+    luminositeMax: 'Luminosité maxi (cd/m²)',
     version: 'Version de la config',
     date: 'Date de la config',
     provenance: 'Provenance (fabricant, loueur…)',
@@ -424,8 +427,25 @@ function champConfig(prefixe, logiciel, nom, valeur) {
         (nom === 'firmware' ? FIRMWARES : CALIBRATIONS_TESSERA)
           .map((o) => el('option', { value: o, selected: valeur === o ? '' : null }, TEXTES_OPTION[o] ?? o))));
   }
+  // Fréquence et luminosité maxi du fichier (NovaLCT, étape 20) : facultatives, virgule décimale à l'affichage.
+  if (nom === 'frequenceHz') return champTexte(id, nom, libelleConfig(logiciel, nom), valeurCritere(valeur), { inputmode: 'decimal' });
+  if (nom === 'luminositeMax') {
+    return [champTexte(id, nom, libelleConfig(logiciel, nom), valeurCritere(valeur), { inputmode: 'numeric' }), el('p', { class: 'note' }, AIDE_CRITERES)];
+  }
   return champTexte(id, nom, libelleConfig(logiciel, nom), valeur, nom === 'date' ? { type: 'date' } : {});
 }
+const valeurCritere = (n) => (typeof n === 'number' ? String(n).replace('.', ',') : n ?? null);
+const AIDE_CRITERES = 'Vide : fichier valable pour toute fréquence ; luminosité maxi d\'après le nom du fichier ou la fiche de la dalle.';
+// Identifiant d'une config utilisable dans un attribut id (l'identifiant déduit d'une config d'avant contient « : »).
+const idHtml = (configId) => String(configId).replace(/[^\w-]/g, '-');
+// Messages d'une proposition du nom non appliquée (doublon), gardés jusqu'à la prochaine action sur la config :
+// l'écran est redessiné après l'enregistrement. Les valeurs appliquées se lisent dans la phrase de la marque.
+const refusDuNom = new Map();
+const garderRefus = (configId, messages) => {
+  const refus = messages.filter((m) => /non (appliquée|proposée)/.test(m));
+  if (refus.length) refusDuNom.set(configId, refus);
+  else refusDuNom.delete(configId);
+};
 
 // Applique un changement de ma base ; une saisie refusée s'affiche dans la zone, sans rien enregistrer.
 function essayer(zone, changer) {
@@ -449,29 +469,41 @@ async function effacerFichiers(liste) {
   if (surAppareil) surAppareil = surAppareil.filter((f) => !ids.has(f.id));
 }
 
-const fichiersDe = (parcId, dalleId, lotId = null, logiciel = undefined) => fichiersJoints(ctx.base).filter((f) => f.parcId === parcId
-  && (dalleId === null || f.dalleId === dalleId) && (lotId === null || f.lotId === lotId) && (logiciel === undefined || f.logiciel === logiciel));
+const fichiersDe = (parcId, dalleId, lotId = null, configId = undefined) => fichiersJoints(ctx.base).filter((f) => f.parcId === parcId
+  && (dalleId === null || f.dalleId === dalleId) && (lotId === null || f.lotId === lotId) && (configId === undefined || f.configId === configId));
 const avecFichiers = (liste) => (liste.length
   ? ` et ${liste.length > 1 ? `ses ${liste.length} fichiers joints` : 'son fichier joint'} (${taille(liste.reduce((s, f) => s + (f.taille ?? 0), 0))}) de cet appareil`
   : '');
 
-// Le sélecteur laisse tout choisir (Safari iOS grise les types qu'il ne connaît pas) : l'extension est vérifiée ici.
-async function joindre(parc, brute, lot, logiciel, role, champ, zone, ancien) {
-  const fichier = champ.files?.[0];
-  if (!fichier) return;
-  champ.value = '';
-  if (!essayer(zone, () => verifierFichierJoint(logiciel, role, fichier.name))) return;
-  zone.textContent = `Lecture de ${fichier.name}…`;
+// Contenu d'un fichier choisi rangé sur l'appareil ; rend ce que la base en garde (nom, taille, date).
+async function stockerFichier(fichier) {
   const contenu = await fichier.arrayBuffer();
-  const config = configLot(ctx.base, parc.id, brute.id, lot.id, logiciel) ?? { logiciel };
-  // Le champ texte du rôle prend le nom du fichier joint.
-  let nouvelle = essayer(zone, () => reglerConfigLot(ctx.base, parc.id, brute.id, lot.id, { ...config, [CHAMP_DU_ROLE[role]]: fichier.name }));
-  if (!nouvelle) return;
   const id = `fichier-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const infos = { id, nom: fichier.name, taille: contenu.byteLength, date: new Date().toISOString() };
   await ecrireFichier(id, { nom: fichier.name, type: fichier.type || 'application/octet-stream', contenu });
   surAppareil?.push(infos);
-  nouvelle = joindreFichier(nouvelle, parc.id, brute.id, lot.id, logiciel, role, infos);
+  return infos;
+}
+
+// Le sélecteur laisse tout choisir (Safari iOS grise les types qu'il ne connaît pas) : l'extension est vérifiée ici.
+// La config est visée par son identifiant (plusieurs configs NovaLCT par lot, étape 20).
+async function joindre(parc, brute, lot, config, role, champ, zone, ancien) {
+  const fichier = champ.files?.[0];
+  if (!fichier) return;
+  champ.value = '';
+  const { logiciel } = config;
+  const cible = idConfig(config, lot.id);
+  if (!essayer(zone, () => verifierFichierJoint(logiciel, role, fichier.name))) return;
+  zone.textContent = `Lecture de ${fichier.name}…`;
+  // Le champ texte du rôle prend le nom du fichier joint ; le fichier de config NovaLCT propose aussi sa fréquence et sa
+  // luminosité maxi d'après son nom (étape 20).
+  const nommee = essayer(zone, () => (role === 'fichier'
+    ? nommerFichierConfig(ctx.base, parc.id, brute.id, lot.id, cible, fichier.name)
+    : { base: reglerConfigLot(ctx.base, parc.id, brute.id, lot.id, { ...config, id: cible, [CHAMP_DU_ROLE[role]]: fichier.name }), messages: [] }));
+  if (!nommee) return;
+  const infos = await stockerFichier(fichier);
+  const nouvelle = joindreFichier(nommee.base, parc.id, brute.id, lot.id, cible, role, infos);
+  garderRefus(cible, nommee.messages);
   if (ancien) await effacerFichiers([ancien]);
   await enregistrer(nouvelle);
 }
@@ -508,10 +540,11 @@ function elementFichierJoint(parc, brute, lot, config, role) {
   const { logiciel } = config;
   const joint = config[ROLES_FICHIER[role]];
   const zone = el('div', { class: 'etat-copie', 'aria-live': 'polite' });
-  const id = `joindre-${parc.id}-${brute.id}-${lot.id}-${logiciel}-${role}`;
+  const cible = idConfig(config, lot.id);
+  const id = `joindre-${parc.id}-${brute.id}-${lot.id}-${idHtml(cible)}-${role}`;
   // Aucun filtre « accept » : voir joindre().
   const choix = el('input', { id, type: 'file' });
-  choix.addEventListener('change', () => joindre(parc, brute, lot, logiciel, role, choix, zone, joint));
+  choix.addEventListener('change', () => joindre(parc, brute, lot, config, role, choix, zone, joint));
   const extensions = { fichier: ` (${EXTENSIONS_CONFIG[logiciel]?.join(' ou ')})`, fixturePack: ' (.tfp)', multiBatch: ' (.lxy)' }[role] ?? '';
   if (!joint) {
     return el('li', {},
@@ -524,7 +557,7 @@ function elementFichierJoint(parc, brute, lot, config, role) {
   retirer.addEventListener('click', async () => {
     if (!confirm(`Retirer ${joint.nom} et l'effacer de cet appareil ?`)) return;
     await effacerFichiers([joint]);
-    enregistrer(detacherFichier(ctx.base, parc.id, brute.id, lot.id, logiciel, role));
+    enregistrer(detacherFichier(ctx.base, parc.id, brute.id, lot.id, cible, role));
   });
   const trop = alerteTailleFichier(joint.taille);
   return el('li', {},
@@ -551,9 +584,22 @@ function elementConfigReprise(parc, brute, lot, config) {
     const rangement = extensions && extensions.some((e) => nom.toLowerCase().endsWith(e)) ? { nomFichier: nom }
       : logiciel === 'Tessera' && nom.toLowerCase().endsWith('.tfp') ? { fixturePack: nom }
         : { notes: `Ancien réglage « fichier de config » : ${nom}` };
+    // NovaLCT (étape 20) : une nouvelle config, contrôlée contre les doublons, sans fusion ; les autres logiciels
+    // rejoignent la config déjà en place.
+    const sansReprise = supprimerConfigLot(ctx.base, parc.id, brute.id, lot.id, null);
+    if (logiciel === 'NovaLCT') {
+      const r = essayer(zone, () => {
+        const ajout = ajouterConfigNovaLCT(sansReprise, parc.id, brute.id, lot.id, { nomFichier: rangement.nomFichier ?? '' });
+        return rangement.notes ? { ...ajout, base: reglerConfigLot(ajout.base, parc.id, brute.id, lot.id, { ...configLot(ajout.base, parc.id, brute.id, lot.id, ajout.id), id: ajout.id, notes: rangement.notes }) } : ajout;
+      });
+      if (!r) return;
+      garderRefus(r.id, r.messages);
+      enregistrer(r.base);
+      return;
+    }
     const existante = configLot(ctx.base, parc.id, brute.id, lot.id, logiciel) ?? {};
     const notes = [existante.notes, rangement.notes].filter(Boolean).join(' ; ');
-    const nouvelle = essayer(zone, () => reglerConfigLot(supprimerConfigLot(ctx.base, parc.id, brute.id, lot.id, null), parc.id, brute.id, lot.id,
+    const nouvelle = essayer(zone, () => reglerConfigLot(sansReprise, parc.id, brute.id, lot.id,
       { ...existante, ...rangement, logiciel, notes }));
     if (nouvelle) enregistrer(nouvelle);
   });
@@ -566,30 +612,40 @@ function elementConfigReprise(parc, brute, lot, config) {
 function elementConfig(parc, brute, lot, config) {
   if (!config.logiciel) return elementConfigReprise(parc, brute, lot, config);
   const { logiciel } = config;
+  // Config visée par son identifiant : un lot peut avoir plusieurs configs NovaLCT (étape 20).
+  const cible = idConfig(config, lot.id);
+  const titre = titreConfig(config);
   const zone = el('div', { 'aria-live': 'polite' });
   const champs = CHAMPS_CONFIG_FORMULAIRE[logiciel];
   const formulaire = el('form', { class: 'formulaire', novalidate: '' },
-    champs.map((nom) => champConfig(`config-${parc.id}-${brute.id}-${lot.id}-${logiciel}`, logiciel, nom, config[nom])),
+    champs.flatMap((nom) => champConfig(`config-${parc.id}-${brute.id}-${lot.id}-${idHtml(cible)}`, logiciel, nom, config[nom])),
     el('button', { class: 'bouton bouton-principal', type: 'submit', 'data-icone': 'enregistrer' }, 'Enregistrer la config'));
   formulaire.addEventListener('submit', (evenement) => {
     evenement.preventDefault();
     const donnees = new FormData(formulaire);
-    const nouvelle = essayer(zone, () => reglerConfigLot(ctx.base, parc.id, brute.id, lot.id,
-      { logiciel, ...Object.fromEntries(champs.map((n) => [n, donnees.get(n)])) }));
-    if (nouvelle) enregistrer(nouvelle);
+    const r = essayer(zone, () => enregistrerConfigFormulaire(ctx.base, parc.id, brute.id, lot.id, cible,
+      Object.fromEntries(champs.map((n) => [n, donnees.get(n)]))));
+    if (!r) return;
+    garderRefus(cible, r.messages);
+    enregistrer(r.base);
   });
-  const retirer = el('button', { type: 'button', class: 'bouton bouton-danger' }, `Retirer la config ${logiciel}`);
+  const retirer = el('button', { type: 'button', class: 'bouton bouton-danger' }, titre.retirer);
   retirer.addEventListener('click', async () => {
-    const joints = fichiersDe(parc.id, brute.id, lot.id, logiciel);
-    if (!confirm(`Retirer la config ${logiciel} du lot « ${lot.identifiant} »${avecFichiers(joints)} ?`)) return;
+    const joints = fichiersDe(parc.id, brute.id, lot.id, cible);
+    if (!confirm(`Retirer la config ${titre.badge} du lot « ${lot.identifiant} »${avecFichiers(joints)} ?`)) return;
     await effacerFichiers(joints);
-    enregistrer(supprimerConfigLot(ctx.base, parc.id, brute.id, lot.id, logiciel));
+    refusDuNom.delete(cible);
+    enregistrer(supprimerConfigLot(ctx.base, parc.id, brute.id, lot.id, cible));
   });
+  // Valeurs lues dans le nom du fichier, à vérifier tant que le formulaire n'a pas été enregistré (étape 20).
+  const duNom = texteCritereDuNom(config);
   // Firmware personnalisé (NovaLCT) : le rappel N6, sous le formulaire.
   const n6 = logiciel === 'NovaLCT' && config.firmware === 'personnalisé' ? rappelFirmwarePersonnalise() : null;
   return el('div', { class: 'config-lot' },
-    el('h5', {}, NOMS_LOGICIEL[logiciel]),
+    el('h5', {}, titre.titre),
     formulaire,
+    duNom ? alerte(duNom, 'alerte-info') : null,
+    (refusDuNom.get(cible) ?? []).map((m) => alerte(m)),
     n6 ? el('div', { class: 'alerte alerte-info' }, el('strong', {}, `${n6.titre} : `),
       n6.textes.map((t) => el('p', { class: 'rappel-texte' }, t.texte.replace(/« /g, '«\u00a0').replace(/ »/g, '\u00a0»'),
         el('span', { class: 'source' }, ` (${sourceCourte(t.source)}${t.section ? `, ${t.section}` : ''}${t.source.confiance === 'tiers' ? ', source tierce' : ''})`)))) : null,
@@ -597,6 +653,84 @@ function elementConfig(parc, brute, lot, config) {
     el('p', { class: 'compte' }, 'Fichiers joints : ils restent sur cet appareil, jamais publiés.'),
     el('ul', { class: 'fichiers-joints' }, ROLES_JOINTS[logiciel].map((role) => elementFichierJoint(parc, brute, lot, config, role))),
     el('div', { class: 'actions' }, retirer));
+}
+
+// Deuxième config NovaLCT d'un lot (étape 20, spec § 5.1) : fichier de config (nom tapé ou fichier joint), fréquence et
+// luminosité maxi, pré-remplies d'après le nom tant que l'utilisateur ne les a pas changées (choix a du lot 20b).
+function formulaireAjoutNovaLCT(parc, brute, lot, ajout, cleAjout) {
+  const prefixe = `ajout-novalct-${parc.id}-${brute.id}-${lot.id}`;
+  const zone = el('div', { 'aria-live': 'polite' });
+  const phrase = el('p', { class: 'note', 'aria-live': 'polite' });
+  const nom = champTexte(`${prefixe}-nomFichier`, 'nomFichier', libelleConfig('NovaLCT', 'nomFichier'), null);
+  const choix = el('input', { id: `${prefixe}-fichier`, type: 'file' });
+  const frequence = champTexte(`${prefixe}-frequenceHz`, 'frequenceHz', libelleConfig('NovaLCT', 'frequenceHz'), null, { inputmode: 'decimal' });
+  const luminosite = champTexte(`${prefixe}-luminositeMax`, 'luminositeMax', libelleConfig('NovaLCT', 'luminositeMax'), null, { inputmode: 'numeric' });
+  const [champNom, champFrequence, champLuminosite] = [nom, frequence, luminosite].map((c) => c.querySelector('input'));
+  let enAttente = null;
+  // Valeurs mises par la proposition : un champ vide, ou encore à sa valeur proposée, suit le nom du fichier.
+  const auto = { frequenceHz: null, luminositeMax: null };
+  const proposer = () => {
+    const p = proposerPourLot(lot, champNom.value);
+    const lu = {};
+    for (const [cle, champ] of [['frequenceHz', champFrequence], ['luminositeMax', champLuminosite]]) {
+      if (champ.value.trim() === '' || champ.value === auto[cle]) {
+        champ.value = p[cle] === null ? '' : valeurCritere(p[cle]);
+        auto[cle] = champ.value || null;
+      }
+      if (auto[cle] && champ.value === auto[cle]) lu[cle] = p[cle];
+    }
+    phrase.textContent = texteCritereDuNom({ logiciel: 'NovaLCT', ...lu, critereDuNom: { frequence: 'frequenceHz' in lu, luminosite: 'luminositeMax' in lu } }) ?? '';
+  };
+  champNom.addEventListener('input', () => {
+    if (enAttente && champNom.value !== enAttente.name) {
+      enAttente = null;
+      choix.value = '';
+    }
+    proposer();
+  });
+  choix.addEventListener('change', () => {
+    const fichier = choix.files?.[0];
+    if (!fichier) return;
+    if (!essayer(zone, () => verifierFichierJoint('NovaLCT', 'fichier', fichier.name))) {
+      choix.value = '';
+      return;
+    }
+    remplacer(zone);
+    enAttente = fichier;
+    champNom.value = fichier.name;
+    proposer();
+  });
+  const annuler = el('button', { type: 'button', class: 'bouton bouton-discret' }, 'Annuler');
+  const formulaire = el('form', { class: 'formulaire ajout-config-novalct', novalidate: '', hidden: ouvertes.has(cleAjout) ? null : '' },
+    el('h5', {}, 'Nouvelle config NovaLCT'),
+    ajout.aide ? alerte(ajout.aide, 'alerte-info') : null,
+    nom,
+    el('div', { class: 'champ' }, el('label', { for: `${prefixe}-fichier` }, 'ou joins le fichier'), choix),
+    frequence,
+    luminosite,
+    el('p', { class: 'note' }, AIDE_CRITERES),
+    phrase,
+    zone,
+    el('div', { class: 'actions' },
+      el('button', { class: 'bouton bouton-principal', type: 'submit', 'data-icone': 'ajouter' }, 'Ajouter la config'), annuler));
+  annuler.addEventListener('click', () => {
+    formulaire.hidden = true;
+    ouvertes.delete(cleAjout);
+  });
+  formulaire.addEventListener('submit', async (evenement) => {
+    evenement.preventDefault();
+    const r = essayer(zone, () => ajouterConfigNovaLCT(ctx.base, parc.id, brute.id, lot.id,
+      { nomFichier: champNom.value, frequenceHz: champFrequence.value, luminositeMax: champLuminosite.value }));
+    if (!r) return;
+    let nouvelle = r.base;
+    if (enAttente && enAttente.name.trim() === champNom.value.trim()) {
+      nouvelle = joindreFichier(nouvelle, parc.id, brute.id, lot.id, r.id, 'fichier', await stockerFichier(enAttente));
+    }
+    garderRefus(r.id, r.messages);
+    ouvertes.delete(cleAjout);
+    await enregistrer(nouvelle);
+  });
+  return formulaire;
 }
 
 function elementLot(parc, brute, resolue, lot) {
@@ -617,13 +751,22 @@ function elementLot(parc, brute, resolue, lot) {
   });
 
   const configs = lot.configs ?? [];
-  const libres = LOGICIELS.filter((l) => !configs.some((c) => c.logiciel === l));
+  // VMP, LEDVISION et Tessera une fois par lot ; NovaLCT toujours proposé, par le petit formulaire quand le lot en a déjà.
+  const ajout = ajoutConfig(lot);
+  const cleAjout = `ajout-novalct:${parc.id}:${brute.id}:${lot.id}`;
   const conseille = LOGICIEL_DE_MARQUE[normaliser(reglageDalleParc(ctx.base, parc.id, brute.id)?.carteReceptionMarque ?? resolue.carteReceptionMarque)];
   const choix = el('select', { 'aria-label': `Logiciel de la nouvelle config du lot ${lot.identifiant}` },
-    [...libres.filter((l) => l === conseille), ...libres.filter((l) => l !== conseille)].map((l) => el('option', { value: l }, NOMS_LOGICIEL[l])));
+    [...ajout.logiciels.filter((l) => l === conseille), ...ajout.logiciels.filter((l) => l !== conseille)].map((l) => el('option', { value: l }, NOMS_LOGICIEL[l])));
+  const ajoutNovaLCT = ajout.petitFormulaire ? formulaireAjoutNovaLCT(parc, brute, lot, ajout, cleAjout) : null;
   const ajouter = el('button', { type: 'button', class: 'bouton', 'data-icone': 'ajouter' }, 'Ajouter une config');
   ajouter.addEventListener('click', () => {
-    const nouvelle = essayer(zone, () => reglerConfigLot(ctx.base, parc.id, brute.id, lot.id, { logiciel: choix.value }));
+    if (ajoutNovaLCT && choix.value === 'NovaLCT') {
+      ajoutNovaLCT.hidden = false;
+      ouvertes.add(cleAjout);
+      ajoutNovaLCT.querySelector('input[name=nomFichier]').focus();
+      return;
+    }
+    const nouvelle = essayer(zone, () => ajouterConfigLot(ctx.base, parc.id, brute.id, lot.id, { logiciel: choix.value }));
     if (nouvelle) enregistrer(nouvelle);
   });
   const supprimer = el('button', { type: 'button', class: 'bouton bouton-danger' }, 'Supprimer le lot');
@@ -639,12 +782,15 @@ function elementLot(parc, brute, resolue, lot) {
       el('span', { class: 'cas-titre' }, `Lot ${lot.identifiant}`),
       el('span', { class: 'puces' },
         badge(lot.quantite === null || lot.quantite === undefined ? 'quantité non saisie' : pluriel(lot.quantite, 'dalle', 'dalles'), 'badge-a-venir'),
-        configs.map((c) => badge(c.logiciel ?? 'config à ranger', c.logiciel ? 'badge-info' : 'badge-alerte')))),
+        configs.map((c) => badge(c.logiciel ? titreConfig(c).badge : 'config à ranger', c.logiciel ? 'badge-info' : 'badge-alerte')))),
     el('div', { class: 'cas-corps' },
       formulaire,
       zone,
+      // Doublons venus d'un fichier importé (l'appli les refuse à la saisie).
+      doublonsNovaLCT(lot).map((a) => alerte(a)),
       configs.map((c) => elementConfig(parc, brute, lot, c)),
-      libres.length ? el('div', { class: 'actions' }, choix, ajouter) : null,
+      el('div', { class: 'actions' }, choix, ajouter),
+      ajoutNovaLCT,
       el('div', { class: 'actions' }, supprimer)));
   details.addEventListener('toggle', () => (details.open ? ouvertes.add(cle) : ouvertes.delete(cle)));
   return el('li', {}, details);

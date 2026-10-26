@@ -5,6 +5,7 @@
 
 import { couleurPort, stylesLignes } from './couleurs.js';
 import { nombre, nombreCourt } from './format.js';
+import { texteSecoursPort } from './secours.js';
 
 const pluriel = (n, singulier, plurielForme) => `${nombre(n)} ${n > 1 ? plurielForme : singulier}`;
 const majuscule = (t) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -29,7 +30,7 @@ export function etapesData(variante, { depart = 'haut-gauche', provenance = null
     const derniere = port.dalles[port.dalles.length - 1];
     const processeur = `${p.modele} n° ${p.numero}`;
     const secours = port.secours
-      ? ` Retour de secours jusqu'au ${port.secours.libelle}${port.secours.retourM ? `, ${nombreCourt(port.secours.retourM, 1)} m` : ''}.`
+      ? ` Retour de secours jusqu'au ${texteSecoursPort(port.secours, p.modele)}${port.secours.retourM ? `, ${nombreCourt(port.secours.retourM, 1)} m` : ''}.`
       : '';
     return {
       cle: `p${p.numero}-${port.numero}`,

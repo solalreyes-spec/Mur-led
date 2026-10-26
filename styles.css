@@ -720,6 +720,11 @@ textarea {
 input[type="file"] { color: var(--texte); min-height: var(--cible); }
 .compte { color: var(--texte-doux); font-size: 0.85rem; }
 .groupe { margin: 0; padding: 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); min-width: 0; }
+/* Secours par un second processeur (étape 22), sous la case Redondance de Data. */
+.groupe-secours { display: grid; gap: 12px; margin: 0 0 12px 0; }
+/* Libellés longs : chaque choix sur sa ligne à 375 px, son texte passe à la ligne plutôt que de dépasser. */
+.groupe-secours .segments label { flex: 1 1 12rem; min-width: 0; }
+.groupe-secours .segments span { white-space: normal; text-align: center; padding: 4px 8px; }
 .groupe legend { padding: 0 6px; color: var(--texte-doux); font-size: 0.9rem; }
 .rapport-fiche h4, .cas-corps h4, #rapport-import h4 { margin: 12px 0 6px; font-size: 0.95rem; }
 .cas-corps .case { min-height: 40px; }
@@ -1299,7 +1304,7 @@ main section h3 .badge { font-variant-caps: normal; letter-spacing: 0; }
 .ap-novalct { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .ap-novalct > * { margin: 0; }
 .ap-novalct > .bouton { justify-self: start; }
-.ap-novalct-aucun:empty { display: none; }
+.ap-novalct-aucun:empty, .ap-novalct-refus:empty { display: none; }
 /* Brancher l'ordinateur au processeur (étape 19a, src/ecran-connexion.js) : carte d'Apprendre, bloc ajouté par l'appli
    sous la ligne 1 de T10.3 du Dépannage, chemins repliés de l'étape 0.3 du pas à pas NovaLCT. */
 .ap-connexion { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
@@ -1641,3 +1646,15 @@ code.nl-menu { font-family: var(--police-chiffres); font-size: 0.9em; padding: 0
 /* PDF et Copier du pas à pas (étape 17c1). */
 .nl-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .nl-actions .nl-note { flex-basis: 100%; margin: 0; }
+
+/* Plusieurs arrivées (étape 21b) : cartes de saisie des arrivées ajoutées dans le formulaire d'Élec, cartes des
+   arrivées dans les résultats, liste « Arrivée » de chaque ligne. */
+.arrivee-ajoutee { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--bordure); border-radius: 12px; background: var(--surface-2); min-width: 0; }
+.arrivee-ajoutee h4, .carte-arrivee h4 { margin: 0; }
+.carte-arrivee { display: grid; gap: 8px; padding: 12px; margin-top: 12px; border: 1px solid var(--bordure); border-radius: 12px; min-width: 0; }
+.carte-arrivee p { margin: 0; }
+.lignes-arrivees td, .lignes-arrivees th { vertical-align: middle; }
+.choix-arrivee { min-height: var(--cible); min-width: 9.5em; }
+.lignes-arrivees td { white-space: nowrap; }
+#autres-arrivees { display: grid; gap: 12px; }
+#autres-arrivees:empty { display: none; }

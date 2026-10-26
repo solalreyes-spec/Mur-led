@@ -11,8 +11,9 @@ import { el, svg, remplacer } from './dom.js';
 import { barreCharge } from './look.js';
 import {
   trajetsSchema, geometrieSchema, blocsSchema, construireSvg, repereSchema, PALETTE_ECRAN, PALETTE_EXPORT, tiretsMotif, cadrageGuide as calculerCadrageGuide,
-  SEUIL_DESSIN_SIMPLIFIE, geometrieGuide, cadreComplet, geometrieChaine, repereChaine, bandeChaine,
+  SEUIL_DESSIN_SIMPLIFIE, geometrieGuide, cadreComplet, geometrieChaine, repereChaine, bandeChaine, legendeSecours, trajetSecoursInverse,
 } from './dessin-schema.js';
+import { texteSecoursPort } from './secours.js';
 import {
   pixelMapEnCanvas, canvasEnPng, schemaEnPng, verifierTailleSchema, telecharger, enregistrer, modeEnregistrement, fichierTexte,
 } from './export.js';
@@ -317,7 +318,7 @@ function legende(trajets) {
     return g === 'Lignes' ? `Lignes, ${nom} (monophasé)` : `${g}, ${nom}`;
   };
   return el('div', { class: 'legende-trajets' },
-    trajets.some((t) => t.secours) ? el('p', { class: 'legende-groupe' }, el('span', { class: 'legende-cle' }, trait(PALETTE_ECRAN.secours, true), 'retours de secours')) : null,
+    legendeSecours(trajets) ? el('p', { class: 'legende-groupe' }, el('span', { class: 'legende-cle' }, trait(PALETTE_ECRAN.secours, true), legendeSecours(trajets))) : null,
     groupes.flatMap((g) => [
     el('p', { class: 'legende-groupe' }, titre(g)),
     ...trajets.filter((t) => t.groupe === g).map((t) => {
@@ -356,7 +357,7 @@ function ficheDalle(id, pm, vd, ve) {
     el('div', {}, `Pixels dans le mur : x ${d.px.x} à ${d.px.x + d.px.largeur - 1}, y ${d.px.y} à ${d.px.y + d.px.hauteur - 1}`),
     dansCanvas ? el('div', {}, `Canvas du processeur n° ${canvas.numero} : x ${dansCanvas.x[0]} à ${dansCanvas.x[1]}, y ${dansCanvas.y[0]} à ${dansCanvas.y[1]}`) : null,
     port ? el('div', {}, `Data : ${port.p.modele} n° ${port.p.numero}, ${port.x.libelle}, dalle ${port.x.dalles.indexOf(id) + 1} sur ${port.x.dalles.length}`
-      + `${port.x.secours ? ` (secours ${port.x.secours.libelle})` : ''}`) : null,
+      + `${port.x.secours ? ` (secours ${port.x.secours.processeur ? 'sur le ' : ''}${texteSecoursPort(port.x.secours, port.p.modele)})` : ''}`) : null,
     ligne ? el('div', {}, `Élec : ligne ${ligne.numero}${ve.phases.length > 1 ? `, phase L${ligne.phase}` : ''}, dalle ${ligne.dalles.indexOf(id) + 1} sur ${ligne.dalles.length}`) : null);
 }
 
@@ -517,6 +518,8 @@ export function cablageRetenu() {
 // dans l'ordre du câble, autres trajets atténués), cadré sur le port au format 4:3, sans geste ni encart. `id` : étape
 // « P1.B.7.2 » (processeur 1, port 2). Null si le Schéma n'a pas ce port.
 // `autre` (étape 17c2, à blanc) : { mur, dalle, evaluation, variante, depart } d'un mur qui n'est pas celui du Schéma.
+// Processeur de secours n + N (étape 22c, sans cascade) : « P3.B.7.1 » est le port 1 du principal n° 1 en sens inversé,
+// numéroté depuis sa dernière dalle (`trajetSecoursInverse`).
 export function dessinPortNovaLCT(id, autre = null) {
   const m = /^P(\d+)\.B\.7\.(\d+)$/.exec(id ?? '');
   if (!m) return null;
@@ -531,12 +534,16 @@ export function dessinPortNovaLCT(id, autre = null) {
     etapes = etapesCourantes.data;
   }
   if (!contexte) return null;
-  const etape = etapes.find((x) => x.cle === `p${m[1]}-${m[2]}`);
+  // Principaux : les processeurs du câblage (les secours n'y ont pas d'étape à eux).
+  const principaux = new Set(etapes.map((x) => /^p(\d+)-/.exec(x.cle)?.[1]).filter(Boolean)).size;
+  const numero = Number(m[1]);
+  const secours = numero > principaux;
+  const etape = etapes.find((x) => x.cle === `p${secours ? numero - principaux : numero}-${m[2]}`);
   if (!etape) return null;
   const { mur, dalle, pm, vd, departData } = contexte;
   const vue = { vue: 'physique', canvasVue: 'mur', cablage: 'data' };
   const geo = geometrieGuide(geometrieSchema(vue, mur, dalle, pm), etape.dalles);
-  const trajets = trajetsSchema(vue, vd, null, null);
+  const trajets = trajetsSchema(vue, vd, null, null).map((x) => (secours && x.cle === etape.cle ? trajetSecoursInverse(x) : x));
   const t = trajets.find((x) => x.cle === etape.cle);
   const calcul = calculerCadrageGuide(geo, etape.dalles, 4 / 3, { coin: departData, orientation: t?.orientation ?? 'colonnes', repere: null });
   const cadrage = calcul?.cadrage ?? null;
@@ -577,7 +584,9 @@ export function dessinPortNovaLCT(id, autre = null) {
     parent.insertBefore(svg('g', { class: 'nl-contexte-groupe', 'aria-hidden': 'true' }, fond, ...noms), premiere ?? null);
   }
   image.setAttribute('role', 'img');
-  image.setAttribute('aria-label', `${etape.titre} : ${etape.phrase}`);
+  image.setAttribute('aria-label', secours
+    ? `Port ${m[2]} du processeur de secours n° ${numero} : les dalles du port ${m[2]} du processeur n° ${numero - principaux}, depuis la dernière (chemin inversé)`
+    : `${etape.titre} : ${etape.phrase}`);
   return image;
 }
 

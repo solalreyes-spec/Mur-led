@@ -243,8 +243,33 @@
             </div>
           </fieldset>
         </div>
+        <!-- Luminosité maxi du fichier NovaLCT (étape 20) : visible quand un lot du mur a des fichiers de luminosités
+             différentes ; la valeur retenue est gardée dans le champ caché (les choix de la liste changent). -->
+        <div id="bloc-luminosite" class="champ" hidden>
+          <label for="luminosite-choix">Luminosité maxi</label>
+          <select id="luminosite-choix"></select>
+        </div>
+        <input type="hidden" name="luminosite" value="">
 
         <label class="case"><input type="checkbox" name="redondance"><span>Redondance (ports doublés)</span></label>
+        <!-- Secours par un second processeur (étape 22) : avec la redondance, pour la marque Novastar ou un processeur
+             réglé dans NovaLCT ; cachés, les choix gardent leur valeur et ne comptent pas. -->
+        <div id="bloc-secours" class="groupe-secours" hidden>
+          <fieldset class="segmente">
+            <legend>Secours</legend>
+            <div class="segments">
+              <label><input type="radio" name="secours" value="ports" checked><span>Dans le même processeur (ports doublés)</span></label>
+              <label><input type="radio" name="secours" value="processeur"><span>Par un second processeur</span></label>
+            </div>
+          </fieldset>
+          <fieldset id="bloc-liaison-secours" class="segmente" hidden>
+            <legend>Liaison des deux processeurs</legend>
+            <div class="segments">
+              <label><input type="radio" name="liaisonSecours" value="sansCascade" checked><span>Sans cascade (Primary et Backup)</span></label>
+              <label><input type="radio" name="liaisonSecours" value="cascade"><span>Cascade (tableau)</span></label>
+            </div>
+          </fieldset>
+        </div>
         <label class="case" data-famille="brompton" hidden><input type="checkbox" name="ull"><span>ULL, Ultra Low Latency (capacité divisée par 2)</span></label>
         <div id="bloc-distributeur" class="champ" data-famille="brompton" data-sx40 hidden>
           <label for="distributeur">Distributeur du SX40</label>
@@ -561,7 +586,7 @@
 
       <form id="form-elec" class="carte formulaire" novalidate>
         <fieldset class="segmente">
-          <legend>Arrivée</legend>
+          <legend id="legende-arrivee">Arrivée</legend>
           <div class="segments">
             <label><input type="radio" name="typeArrivee" value="mono"><span>Mono</span></label>
             <label><input type="radio" name="typeArrivee" value="tri" checked><span>Tri</span></label>
@@ -577,6 +602,21 @@
             <input id="arrivee-libre" name="arriveeLibre" inputmode="decimal" autocomplete="off" placeholder="Powerlock, groupe…">
           </div>
         </div>
+        <!-- Plusieurs arrivées (étape 21b) : branchement de l'arrivée 1 (32 A tri), arrivées ajoutées (cartes sans nom,
+             gardées dans le champ caché autresArrivees) et arrivée choisie à la main pour des lignes (arriveesLignes). -->
+        <fieldset class="segmente" id="bloc-branchement" hidden>
+          <legend>Branchement</legend>
+          <div class="segments">
+            <label><input type="radio" name="branchement1" value="armoire" checked><span>Armoire</span></label>
+            <label><input type="radio" name="branchement1" value="boitier"><span>En direct sur un boîtier 32 A tri</span></label>
+          </div>
+        </fieldset>
+        <div id="autres-arrivees"></div>
+        <div class="actions">
+          <button id="ajouter-arrivee" class="bouton" type="button" data-icone="ajouter">Ajouter une arrivée</button>
+        </div>
+        <input type="hidden" name="autresArrivees" value="">
+        <input type="hidden" name="arriveesLignes" value="">
         <div class="paire">
           <div class="champ">
             <label for="depart-a">Départs (A)</label>

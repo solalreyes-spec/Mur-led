@@ -5,6 +5,7 @@
 // `distributeur` de chaque port).
 // Module de src/calculs.js, le point d'entrée qui réexporte tout : fonctions pures, sans accès à l'interface.
 import { nombreCourt } from '../format.js';
+import { portsDoubles } from './commun.js';
 import { FIBRES_SORTIE } from './config-imposee.js';
 import { AIDE_TESSERA_CABLES, CUIVRE_10G_BROMPTON_M } from './regies.js';
 
@@ -19,10 +20,12 @@ const plurielPremier = (mot) => mot.replace(/^(\S+)/, '$1s');
 const compter = (nombre, materiau, unite) => (nombre === 1 ? materiau : `${nombre} ${plurielPremier(materiau)}${unite ? ` (${unite})` : ''}`);
 const nomPaires = (k, type) => `${k} paire${k > 1 ? 's' : ''} de ${type === 'transceiver' ? 'transceivers fibre' : type}`;
 
+// Processeurs de secours (étape 22) : « MCTRL4K + 1 de secours », « 2 × MCTRL4K + 2 de secours ».
 function nomProcesseurs(evaluation) {
   const n = evaluation.nombre ?? 1;
   const modele = evaluation.processeur.modele ?? evaluation.processeur.nom;
-  return n > 1 ? `${n} × ${modele}` : modele;
+  const secours = evaluation.nombreSecours > 0 ? ` + ${evaluation.nombreSecours} de secours` : '';
+  return `${n > 1 ? `${n} × ${modele}` : modele}${secours}`;
 }
 
 // Amont : la chaîne de Canvas (`chaine` : maillons de controleChaine, source, régie, source conseillée ou non) ; avec une
@@ -56,7 +59,8 @@ function amont(chaine, evaluation) {
 function appareilsDuProcesseur(p, numerote) {
   const entrees = [
     ...p.ports.map((x) => [x.numero, x.distributeur]),
-    ...p.ports.filter((x) => x.secours).map((x) => [x.secours.numero, x.secours.distributeur]),
+    // Un processeur de secours (étape 22) a ses propres appareils : ils ne sont pas ceux du principal.
+    ...p.ports.filter((x) => x.secours && !x.secours.processeur).map((x) => [x.secours.numero, x.secours.distributeur]),
   ].filter(([, d]) => d);
   const appareils = [];
   for (const [numero, d] of entrees) {
@@ -137,14 +141,20 @@ function aval(evaluation, variante, { distanceM, reseau }) {
   const n = evaluation.nombre ?? variante.processeurs.length;
   const modele = proc.modele ?? proc.nom;
   const obligatoire = Boolean(evaluation.distributeurObligatoire ?? proc.distributeurObligatoire);
-  const redondance = Boolean(evaluation.reglages?.redondance);
+  // Fibres de secours d'une sortie en copie : seulement avec les secours dans le même processeur (étape 22).
+  const redondance = portsDoubles(evaluation);
   const dalles = `câbles de tête${distanceM > 0 ? `, régie à ${nombreCourt(distanceM, 1)} m` : ''}`;
   const elements = variante.processeurs.map((p) => {
     const appareils = appareilsDuProcesseur(p, obligatoire);
     const liaison = appareils.length ? liaisonDuProcesseur(appareils, { proc, obligatoire, redondance, distanceM, reseau }) : null;
     const versDalles = appareils.length ? 'câbles de tête' : dalles;
     const nom = n > 1 ? `${modele} n° ${p.numero}` : modele;
-    return { numero: n > 1 ? p.numero : null, nombre: 1, nom, appareils, liaison, versDalles, texte: phraseAval(nom, appareils, liaison, versDalles) };
+    const element = { numero: n > 1 ? p.numero : null, nombre: 1, nom, appareils, liaison, versDalles, texte: phraseAval(nom, appareils, liaison, versDalles) };
+    // Processeur de secours (étape 22, cadre « MCTRL4K secours n° 3 ») : ses ports reçoivent les retours de secours.
+    const deSecours = p.ports.filter((x) => x.secours?.processeur);
+    if (!deSecours.length) return element;
+    const secours = { numero: deSecours[0].secours.processeur, nom: `${modele} secours n° ${deSecours[0].secours.processeur}`, ports: deSecours.map((x) => x.secours.numero) };
+    return { ...element, secours, texteSecours: `${secours.nom} : un retour de secours par port, depuis la dernière dalle de chaque port du ${nom}.` };
   });
   const provenance = variante.processeurs.flatMap((p, i) => provenanceDesPorts(p, elements[i], { proc, obligatoire, redondance }));
   if (elements.length <= PROCESSEURS_CADRES_MAX) return { elements, provenance };
@@ -170,7 +180,7 @@ function aval(evaluation, variante, { distanceM, reseau }) {
     const quoi = compter(nombre, premiere.materiau, premiere.unite);
     liaison = { ...premiere, nombre, texte: `${quoi}, ${longueur(premiere.longueurM)}`, enCopie: `${quoi} ${longueur(premiere.longueurM)}` };
   }
-  const nom = `${elements.length} × ${modele}`;
+  const nom = `${elements.length} × ${modele}${evaluation.nombreSecours > 0 ? ` + ${evaluation.nombreSecours} de secours` : ''}`;
   const versDalles = elements[0].versDalles;
   return { elements: [{ numero: null, nombre: elements.length, nom, appareils, liaison, versDalles, texte: phraseAval(nom, appareils, liaison, versDalles, true) }], provenance };
 }
@@ -207,5 +217,5 @@ export function chaineSchema({ chaine = null, evaluation, variante = null, dista
   const haut = amont(chaine, evaluation);
   const { elements: bas, provenance } = aval(evaluation, variante, { distanceM, reseau });
   const { texte, ...amontSeul } = haut;
-  return { amont: amontSeul, aval: bas, provenance, texte: [texte, ...bas.map((e) => e.texte)] };
+  return { amont: amontSeul, aval: bas, provenance, texte: [texte, ...bas.flatMap((e) => [e.texte, e.texteSecours].filter(Boolean))] };
 }

@@ -21,7 +21,8 @@ import { enregistrerFiche, fusionner, baseVide, nettoyerFiche, validerImport, fi
 export const VERSION_PRESTAS = 1;
 export const FORMAT_PRESTA = 'appli-mur-led/presta';
 // Formulaires dont les saisies sont gardées avec chaque mur (ceux de configuration.js).
-export const FORMULAIRES_SAISIES = ['form-mur', 'form-data', 'form-source', 'form-elec', 'form-poids', 'form-schema', 'form-mire'];
+// Distribution d'Élec (distance de l'arrivée 1 et son matériel) : oubliée jusqu'au lot 21b, perdue à l'import d'une presta.
+export const FORMULAIRES_SAISIES = ['form-mur', 'form-data', 'form-source', 'form-elec', 'form-distribution', 'form-poids', 'form-schema', 'form-mire'];
 export const LIMITES = { nomPresta: 60, nomMur: 40, lieu: 80, notes: 2000, horaire: 80, acces: 80, nomContact: 60, telephone: 30 };
 const SANS_NOM = 'Presta sans nom';
 

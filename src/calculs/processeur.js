@@ -2,7 +2,7 @@
 // gain en 10 bits.
 // Module de src/calculs.js, le point d'entrée qui réexporte tout : fonctions pures, sans accès à l'interface.
 import { nombreCourt } from '../format.js';
-import { EPS, quantite, minuscule, LIBELLES_COIN, suite, serpentin, remplirGlouton } from './commun.js';
+import { EPS, quantite, minuscule, LIBELLES_COIN, suite, serpentin, remplirGlouton, nombreBoitiers } from './commun.js';
 import { mur } from './mur.js';
 import { plusieursZones, mursDesZones, hauteurPortsPx } from './morceaux.js';
 import { FAMILLES_SANS_REGLE_VIDES, murZones } from './mur-zones.js';
@@ -134,9 +134,14 @@ function notesDistributeur(d, proc) {
   return { alertes, notes };
 }
 
+// Secours par un second processeur demandé sur un processeur qui n'est pas réglé dans NovaLCT (étape 22, spec § 5.2).
+export const NOTE_SECOURS_AUTRES_MARQUES = 'Secours par un second processeur : seulement pour les processeurs NovaLCT ; les autres sont comptés '
+  + 'avec le secours dans le même processeur (ports doublés), une protection différente.';
+
 // Évalue un processeur pour un mur : capacité, dalles par port, ports, contrôles, nombre de processeurs,
 // découpage, ports et distributeurs par processeur.
-// Réglages : frequenceHz, bits, ull (Brompton), cartesPro et modeOptique (MX40 Pro), redondance.
+// Réglages : frequenceHz, bits, ull (Brompton), cartesPro et modeOptique (MX40 Pro), redondance, et avec elle
+// `secours` ('ports' par défaut, ou 'processeur') et `liaisonSecours` ('sansCascade' par défaut, ou 'cascade').
 export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   // MX2000 Pro, MX6000 Pro : ports, convertisseurs et capacité selon la carte de sortie retenue.
   let avecCartes = procFiche.carteSortie1G || procFiche.carteSortie5G
@@ -148,6 +153,13 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     frequenceHz = 60, bits = BIT_DEPTH_PAR_DEFAUT[proc.famille], ull = false, cartesPro = false,
     redondance = false, modeOptique = false,
   } = reglages;
+  // Secours par un second processeur (étape 22) : processeurs réglés dans NovaLCT seulement ; ailleurs, ou sans
+  // redondance, le réglage ne compte pas (secours dans le même processeur, ports doublés).
+  const secoursDemande = redondance && reglages.secours === 'processeur';
+  const secoursProc = secoursDemande && proc.logiciel === 'NovaLCT';
+  const liaisonSecours = secoursProc ? (reglages.liaisonSecours === 'cascade' ? 'cascade' : 'sansCascade') : null;
+  const portsDoubles = redondance && !secoursProc;
+  const reglagesSecours = { secours: secoursProc ? 'processeur' : 'ports', liaisonSecours, portsDoubles };
   // SX40 : XD, XD-T ou XD-S au choix (onglet Data) ; 10 ports par unité avec un SX40.
   if (reglages.distributeur && procFiche.distributeursPossibles?.includes(reglages.distributeur)) {
     proc = { ...proc, distributeur: reglages.distributeur };
@@ -190,8 +202,8 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     cartesPro: cartesPro && proc.cartesPro === true,
   };
   const vide = {
-    processeur: proc, reglages: { ...reglagesCapacite, redondance, modeOptique }, global: null, controles: {}, limites: [],
-    nombre: null, grille: null, unSeulSuffit: false, groupes: [], totaux: null, seuil: null, alertes: [], notes: [], aCompleter: [], manques: [],
+    processeur: proc, reglages: { ...reglagesCapacite, redondance, modeOptique, ...reglagesSecours }, global: null, controles: {}, limites: [],
+    nombre: null, nombreSecours: 0, nombreTotal: null, secoursProcesseur: null, grille: null, unSeulSuffit: false, groupes: [], totaux: null, seuil: null, alertes: [], notes: [], aCompleter: [], manques: [],
   };
   // SP60 Pro (sous-pixel) : fiche d'information, calcul hors appli.
   if (proc.calculHorsAppli) return { ...vide, impossible: `${proc.nom} : ${proc.calculHorsAppli}.` };
@@ -219,6 +231,8 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     };
   }
   if (megapixel?.refus) return { ...vide, impossible: megapixel.refus };
+  // Série H : l'USB sert à la mise à jour et à la config, pas à la cascade (fiche H9 V1.8.0, p. 13).
+  if (liaisonSecours === 'cascade' && proc.gamme === 'Série H') return { ...vide, impossible: 'La série H ne se cascade pas en USB : prends la liaison sans cascade.' };
   const manquants = champsManquants(proc);
   if (procFiche.statut === 'information') {
     return { ...vide, aCompleter: manquants, impossible: `${proc.nom} : fiche d'information, à compléter avec une fiche constructeur ; aucun calcul avec ce modèle.` };
@@ -296,6 +310,8 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   const notes = [];
   if (noteCapacite) notes.push(noteCapacite);
   notes.push(...(megapixel?.notes ?? []), ...(avecCartes?.notes ?? []));
+  if (secoursDemande && !secoursProc) notes.push(NOTE_SECOURS_AUTRES_MARQUES);
+  if (secoursProc && proc.sortiesParDistributeur) notes.push('Fibre du secours : chaque processeur de secours a ses propres convertisseurs, à vérifier.');
   if (proc.famille === 'megapixel' && redondance) {
     alertes.push('Redondance Megapixel (SeamlessLoop) : non modélisée par l\'appli ; ports doublés par prudence, vérifie la configuration dans HELIOS.');
   }
@@ -313,9 +329,10 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     notes.push(...r.notes);
   }
   // Capacité de l'appareil : ports utiles × capacité d'un port, plafonnée par le total de la fiche
-  // (VX4S : 4 × 650 000 = 2,6 M, mais 2,3 M au total). En redondance, les ports principaux seulement.
+  // (VX4S : 4 × 650 000 = 2,6 M, mais 2,3 M au total). En redondance, les ports principaux seulement (tous avec un
+  // processeur de secours).
   const portsSorties = optique && proc.portsOptionOptique ? proc.portsOptionOptique : proc.ports;
-  const portsAppareil = redondance ? (proc.portsRedondance ?? Math.floor(portsSorties / 2)) : portsSorties;
+  const portsAppareil = portsDoubles ? (proc.portsRedondance ?? Math.floor(portsSorties / 2)) : portsSorties;
   const sommePorts = portsAppareil * capacite;
   const capaciteAppareil = {
     ports: portsAppareil,
@@ -327,7 +344,7 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
   };
   const base = {
     ...vide,
-    reglages: { ...reglagesCapacite, redondance, modeOptique: optique },
+    reglages: { ...reglagesCapacite, redondance, modeOptique: optique, ...reglagesSecours },
     carteReception: cartesReception,
     // Convertisseurs obligatoires (XD du SX40, CVT10 du MX40 Pro en mode 40 ports), comptés par processeur.
     distributeurObligatoire: Boolean(proc.distributeurObligatoire || (optique && proc.distributeurObligatoireOptique)),
@@ -355,17 +372,18 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
       impossible: `Une dalle de ${nombreCourt(parPort < 1 ? pxParDalle : tropGrande)} px dépasse la capacité d'un port (${nombreCourt(entierInferieur(capacite))} px).`,
     };
   }
-  if (redondance && !proc.portsRedondance && proc.ports < 2) {
+  if (portsDoubles && !proc.portsRedondance && proc.ports < 2) {
     return { ...base, impossible: `Le ${proc.nom} n'a qu'un seul port : pas de redondance possible.` };
   }
 
   // En redondance, nombre pair de colonnes par port pour que chaque chaîne revienne au bord de départ,
   // sauf s'il coûte un processeur : alors le plus de colonnes par port, et des retours de secours longs.
+  // Avec un processeur de secours, ports non doublés : `redondance` du contexte vaut « ports doublés ».
   // Variante de découpage retenue dans Data (9b2, Z20), en zones seulement.
   const variantes = ['zonesEntieres', 'unParZone'];
   const decoupage = plusieursZones(m) && m.zones.length > 1 && variantes.includes(reglages.decoupage) ? reglages.decoupage : null;
   const contexte = {
-    parPort, capacite, redondance, modeOptique: optique, pair: redondance, ...(decoupage ? { decoupage } : {}),
+    parPort, capacite, redondance: portsDoubles, modeOptique: optique, pair: redondance, ...(decoupage ? { decoupage } : {}),
     // NovaLCT : une zone de forme libre charge chaque port du rectangle qui englobe ses dalles (Z21).
     charge: { capacite, pxParDalle, pxParDemi, plafond, ...chargeGeometrie(proc, dalle, m), ...(proc.logiciel === 'NovaLCT' ? { rectangle: true } : {}) },
   };
@@ -495,22 +513,50 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
       auPlusJuste: somme((g) => g.distributeurs.auPlusJuste),
       redondance: somme((g) => g.distributeurs.redondance),
       // Ports des convertisseurs qui ne servent pas (CVT10 d'un VX400 Pro : 6 sur 10).
-      portsNonUtilises: somme((g) => (redondance ? g.distributeurs.redondance * sorties - g.ports.redondance.colonnes
+      portsNonUtilises: somme((g) => (portsDoubles ? g.distributeurs.redondance * sorties - g.ports.redondance.colonnes
         : g.distributeurs.colonnes * sorties - g.ports.colonnes)),
     } : null,
-    cartesSortie: proc.carteSortie ? somme((g) => (redondance ? g.cartesSortie.redondance : g.cartesSortie.colonnes)) : null,
+    cartesSortie: proc.carteSortie ? somme((g) => (portsDoubles ? g.cartesSortie.redondance : g.cartesSortie.colonnes)) : null,
   };
   // MX2000 Pro, MX6000 Pro, série H : « MX6000 Pro + 2 cartes 4x10G + 6 CVT10 », « H5 + 2 cartes H_20xRJ45 ».
-  // Les convertisseurs n'y figurent que s'ils sont obligatoires.
+  // Les convertisseurs n'y figurent que s'ils sont obligatoires. Processeurs de secours : la même configuration.
   let configuration = null;
   if (proc.carteSortie && totaux) {
     const cartes = totaux.cartesSortie;
     const avecConvertisseurs = Boolean(proc.distributeurObligatoire && totaux.distributeurs);
-    const convertisseurs = avecConvertisseurs ? (redondance ? totaux.distributeurs.redondance : totaux.distributeurs.colonnes) : 0;
+    const convertisseurs = avecConvertisseurs ? (portsDoubles ? totaux.distributeurs.redondance : totaux.distributeurs.colonnes) : 0;
     const modeleConvertisseur = MODELES_DISTRIBUTEUR[proc.distributeur] ?? 'convertisseurs';
     configuration = `${d.nombre > 1 ? `${d.nombre} × ` : ''}${proc.modele} + ${cartes} carte${cartes > 1 ? 's' : ''} ${proc.carteSortie.nomCourt}`
-      + `${avecConvertisseurs ? ` + ${convertisseurs} ${modeleConvertisseur}` : ''}${d.nombre > 1 ? ' au total' : ''}`;
+      + `${avecConvertisseurs ? ` + ${convertisseurs} ${modeleConvertisseur}` : ''}${d.nombre > 1 ? ' au total' : ''}`
+      + `${secoursProc ? `, et ${d.nombre} de secours avec la même configuration` : ''}`;
   }
+  // Processeurs de secours (étape 22) : un par principal, numérotés n + N ; convertisseurs et cartes de sortie comptés
+  // par processeur, comme les principaux ; liaison de cascade face au maximum de la fiche (F10).
+  let secoursProcesseur = null;
+  if (secoursProc && totaux) {
+    let cascade = null;
+    if (liaisonSecours === 'cascade') {
+      const s = proc.sources?.cascadeMax;
+      const max = proc.cascadeMax > 0 ? proc.cascadeMax : null;
+      const page = s?.note?.match(/p\. \d+$/)?.[0];
+      const source = max && s ? `${minuscule(s.source.court)}${page ? `, ${page}` : ''}` : null;
+      cascade = { boitiers: 2 * d.nombre, max, depasse: max !== null && 2 * d.nombre > max, source };
+      if (cascade.depasse) {
+        alertes.push(`Cascade : ${cascade.boitiers} boîtiers (${d.nombre} + ${d.nombre} de secours), au-delà des ${max} du ${proc.modele} en cascade USB `
+          + `(${source}) : prends la liaison sans cascade.`);
+      }
+      if (max === null) notes.push(`Liaison de cascade du ${proc.modele} : nombre de boîtiers au plus, vois la fiche du processeur, à vérifier.`);
+    }
+    secoursProcesseur = {
+      nombre: d.nombre,
+      liaison: liaisonSecours,
+      texte: `par un second processeur (${liaisonSecours === 'cascade' ? 'cascade, tableau' : 'sans cascade, Primary et Backup'})`,
+      cascade,
+      distributeurs: totaux.distributeurs ? totaux.distributeurs.colonnes : null,
+      cartesSortie: totaux.cartesSortie,
+    };
+  }
+  const nombreSecours = secoursProcesseur ? d.nombre : 0;
 
   // Alerte de seuil processeur : colonnes à retirer pour économiser un processeur.
   let colonnesEnMoins = null;
@@ -640,6 +686,10 @@ export function evaluerProcesseur(m, dalle, procFiche, reglages = {}) {
     controles: d.controles,
     limites: d.limites,
     nombre: d.nombre,
+    // Processeurs de secours (étape 22) et boîtiers à sortir du dépôt (2N avec un processeur de secours).
+    nombreSecours,
+    nombreTotal: d.nombre === null ? null : d.nombre + nombreSecours,
+    secoursProcesseur,
     grille: d.grille,
     unSeulSuffit: d.nombre === 1,
     configuration,
@@ -712,10 +762,13 @@ export function evaluerToutesMarques(m, dalle, processeurs, reglages, { famille 
 // Processeur conseillé par défaut : ceux dont le parc a assez en tête (étape 15c ; `quantites` : nombre de chaque
 // processeur dans le parc, sans nombre : assez), puis le moins de processeurs, puis la plus petite capacité en pixels.
 // Aucun n'a assez : le conseil d'avant. Les évaluations portent déjà les réglages (redondance, mode optique).
-export function processeurConseille(evaluations, { quantites = null } = {}) {
-  const possibles = evaluations.filter((e) => e.nombre !== null);
-  const manque = (e) => Number(Number.isInteger(quantites?.[e.processeur.id]) && e.nombre > quantites[e.processeur.id]);
-  possibles.sort((a, b) => manque(a) - manque(b) || a.nombre - b.nombre || a.processeur.pixelsMax - b.processeur.pixelsMax);
+// Processeurs de secours (étape 22) : les boîtiers comptés avec eux (2N) ; `seulementNovaLCT` (marque Novastar avec un
+// processeur de secours) : les COEX, comptés en ports doublés, sortent du conseil.
+export function processeurConseille(evaluations, { quantites = null, seulementNovaLCT = false } = {}) {
+  const possibles = evaluations.filter((e) => e.nombre !== null && (!seulementNovaLCT || e.processeur.logiciel === 'NovaLCT'));
+  const total = nombreBoitiers;
+  const manque = (e) => Number(Number.isInteger(quantites?.[e.processeur.id]) && total(e) > quantites[e.processeur.id]);
+  possibles.sort((a, b) => manque(a) - manque(b) || total(a) - total(b) || a.processeur.pixelsMax - b.processeur.pixelsMax);
   return possibles[0] ?? null;
 }
 

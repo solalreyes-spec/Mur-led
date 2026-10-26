@@ -3,7 +3,7 @@
 // calcule rien et ne touche ni au stockage ni aux saisies.
 
 import { el, remplacer } from './dom.js';
-import { verifierOu } from './novalct.js';
+import { verifierOu, aideDepannageSecours, SOURCES_NOVALCT } from './novalct.js';
 import { cheminsPasAPas } from './ecran-connexion.js';
 
 const alerte = (texte, genre = '') => el('div', { class: `alerte ${genre}`.trim(), role: genre === 'alerte-erreur' ? 'alert' : null }, texte);
@@ -15,12 +15,13 @@ function bouton(texte, surClic, attributs = {}) {
 }
 
 // Carte « NovaLCT pas à pas » de l'onglet Data. `groupe` : groupe vidéo du processeur (novalct.groupeVideo) ;
-// `version` : ligne de version (vide : rien) ; `etat` : « Aucune étape faite sur 34. ».
-export function carteNovaLCT({ processeur, nombre, groupe, version, etat }, { ouvrir }) {
+// `version` : ligne de version (vide : rien) ; `etat` : « Aucune étape faite sur 34. ». `titre` (étape 22c) :
+// « 1 × MCTRL4K + 1 de secours » avec un processeur de secours, sinon « nombre × processeur ».
+export function carteNovaLCT({ processeur, nombre, titre = null, groupe, version, etat }, { ouvrir }) {
   const avant = groupe === 'v-can' ? ', et avant dans V-Can ou en façade' : '';
   return el('section', { class: 'bloc-resultats nl-carte' },
     el('h3', {}, 'NovaLCT pas à pas'),
-    el('p', { class: 'nl-carte-texte' }, `${nombre} × ${processeur} : ce qu'il faut faire dans NovaLCT${avant} pour ce mur, `
+    el('p', { class: 'nl-carte-texte' }, `${titre ?? `${nombre} × ${processeur}`} : ce qu'il faut faire dans NovaLCT${avant} pour ce mur, `
       + 'étape par étape, avec ses valeurs et la source de chaque étape.'),
     version ? el('p', { class: 'source' }, version) : null,
     el('p', { class: 'nl-etat' }, etat),
@@ -64,8 +65,9 @@ function texteAvecMenus(texte) {
   return morceaux;
 }
 
-// Nom court d'une partie dans le choix : Avant, V-Can, Processeur n, Contrôles.
-const nomPartie = (p) => (p.id === '0' ? 'Avant' : p.id === 'A' ? 'V-Can' : p.id === 'C' ? 'Contrôles' : `Processeur ${p.processeur}`);
+// Nom court d'une partie dans le choix : Avant, V-Can, Processeur n, Secours n° n (étape 22c), Contrôles.
+const nomPartie = (p) => (p.id === '0' ? 'Avant' : p.id === 'A' ? 'V-Can' : p.id === 'C' ? 'Contrôles'
+  : p.secours ? `Secours n° ${p.processeur}` : `Processeur ${p.processeur}`);
 const etatTexte = (faites, total) => (faites === 0
   ? `Aucune étape faite sur ${total}.`
   : `${faites} ${faites > 1 ? 'étapes' : 'étape'} sur ${total} ${faites > 1 ? 'faites' : 'faite'}.`);
@@ -172,12 +174,11 @@ export function monterNovaLCT(racine, { actions }) {
     const partie = parties[i];
     const { faites, total } = compterFaites(resultat, cases);
     const suivante = parties[i + 1];
-    const nombre = resultat.parties.filter((p) => p.processeur).length;
     zoneEtat = el('p', { class: 'nl-etat' }, etatTexte(faites, total));
     remplacer(racine,
       zoneErreur,
       el('div', { class: 'mat-tete' },
-        el('p', { class: 'pr-sur-titre' }, `${nombre} × ${resultat.processeur}`),
+        el('p', { class: 'pr-sur-titre' }, resultat.titreProcesseurs ?? `${resultat.parties.filter((p) => p.processeur).length} × ${resultat.processeur}`),
         zoneEtat),
       // PDF et texte copié (étape 17c1), secondaires : « Partie suivante » reste le seul bouton principal.
       actions.pdf || actions.copier ? el('div', { class: 'nl-actions' },
@@ -245,4 +246,26 @@ export function monterNovaLCT(racine, { actions }) {
       confirmation = false;
     },
   };
+}
+
+// Dépannage (étape 22c, spec § 7) : bloc « Ajouté par l'appli » de la clé « nœud:numéro d'étape » (aideDepannageSecours),
+// pour la marque du moment ; null hors Novastar. `projet` : { marque, nom, logiciel } du Dépannage ; bouton « Pas à pas
+// NovaLCT » quand le processeur du projet s'y règle et que l'appli donne `ouvrirPasAPas`. Liens des sources en ligne seulement.
+export function blocDepannageSecours(cle, { marque = null, projet = null, enLigne = () => navigator.onLine, ouvrirPasAPas = null } = {}) {
+  const aide = aideDepannageSecours(cle, marque);
+  if (!aide) return null;
+  const source = (liste) => {
+    const morceaux = ['Source : '];
+    liste.forEach((s, i) => {
+      const url = SOURCES_NOVALCT[s.id]?.url;
+      morceaux.push(i > 0 ? ' ; ' : '', url && enLigne() ? el('a', { href: url, target: '_blank', rel: 'noopener' }, s.court) : s.court, s.ref ? ` ${s.ref}` : '');
+    });
+    return el('p', { class: 'source cx-sources' }, ...morceaux);
+  };
+  const lien = aide.lienPasAPas && projet?.logiciel === 'NovaLCT' && ouvrirPasAPas ? bouton('Pas à pas NovaLCT', () => ouvrirPasAPas(), { class: 'bouton nl-ouvrir-pas-a-pas' }) : null;
+  return el('div', { class: 'cx-depannage nl-depannage', role: 'note' },
+    el('p', { class: 'cx-ajout' }, 'Ajouté par l\'appli'),
+    el('h3', { class: 'cx-titre' }, aide.titre),
+    aide.lignes.flatMap((l) => [el('p', { class: 'cx-texte' }, l.texte), source(l.sources)]),
+    lien);
 }

@@ -1,7 +1,7 @@
 // Calculs du mur LED, module 6, câblage du Schéma : câblage data et câblage élec, dalle par dalle.
 // Module de src/calculs.js, le point d'entrée qui réexporte tout : fonctions pures, sans accès à l'interface.
 import { nombreCourt } from '../format.js';
-import { EPS, ErreurSaisie, COINS, LIBELLE_IMPOSEE, suite, serpentin, remplirGlouton } from './commun.js';
+import { EPS, ErreurSaisie, COINS, LIBELLE_IMPOSEE, suite, serpentin, remplirGlouton, portsDoubles } from './commun.js';
 import { mur } from './mur.js';
 import { plusieursZones, ficheZone, mursDesZones } from './morceaux.js';
 import { entierInferieur, pixelsComptes, dallesParPort, repartir, penaliteGroupe, texteCable5G, MODELES_DISTRIBUTEUR } from './capacites.js';
@@ -159,10 +159,20 @@ const imposeeRefusee = (raison, propres) => ({
   mode: 'imposee', libelle: LIBELLE_IMPOSEE, orientation: 'colonnes', mention: null, ecart: null, possible: false, raison, alertes: [], ...propres,
 });
 
+// Note du câblage avec des processeurs de secours (étape 22) : n principaux, secours n° n + 1 à 2n.
+function noteProcesseurSecours(n) {
+  if (!n) return null;
+  const suiteCable = 'chaque port de secours part de la dernière dalle de la chaîne du même port du principal.';
+  return n === 1 ? `Secours : le processeur de secours n° 2 double le principal n° 1 ; ${suiteCable}`
+    : `Secours : les processeurs de secours n° ${n + 1} à ${2 * n} doublent les principaux n° 1 à ${n} (le secours de n est n + ${n}) ; ${suiteCable}`;
+}
+
 // Câblage data : pour chaque processeur (bloc du découpage de l'onglet Data), les ports en serpentin depuis le coin
 // de départ, dans chaque variante. Options : depart (un des COINS), distanceRegieM (facultatif), margeMou (0,10),
 // nomDistributeur. Secours en redondance : XD miroirs sur SX40 ; paires de ports voisins sur les autres Brompton
 // (impair principal, pair secours) ; ailleurs port p + moitié des ports, convention par défaut à régler dans le logiciel.
+// Processeur de secours (étape 22, NovaLCT) : le port k du secours n + N part de la dernière dalle de la chaîne du port k
+// du principal n ; les ports du principal ne sont pas divisés par deux.
 // Config imposée (18c) : `imposee` { ports, fibre, paire } ajoute en tête la variante « Ma config (imposée) », retenue
 // quand elle passe (`retenue`), et son résumé (`imposee`) ; le conseil ne change pas. `distributeurs` : fiches des
 // convertisseurs de la base, pour la fibre.
@@ -179,6 +189,8 @@ export function cablageData(m, dalle, evaluation, {
   }
   const proc = evaluation.processeur;
   const { redondance, modeOptique } = evaluation.reglages;
+  const doubles = portsDoubles(evaluation);
+  const secoursN = evaluation.secoursProcesseur ? evaluation.nombre : 0;
   const capacite = evaluation.capacite;
   const plafond = redondance && proc.maxDallesParBoucleRedondance ? proc.maxDallesParBoucleRedondance : Infinity;
   const dalles = new Map(dallesDuMur(m, dalle).map((d) => [d.id, d]));
@@ -235,7 +247,7 @@ export function cablageData(m, dalle, evaluation, {
   const numerotationParCartes = (groupes) => {
     const carte = proc.carteSortie;
     if (!surDistributeur || !(carte?.largeurMaxPx || carte?.pixelsMax)) return null;
-    const parCarte = redondance && !proc.portsRedondance ? Math.floor(carte.portsParCarte / 2) : carte.portsParCarte;
+    const parCarte = doubles && !proc.portsRedondance ? Math.floor(carte.portsParCarte / 2) : carte.portsParCarte;
     const tient = (z, n) => n <= parCarte && z.px <= (carte.pixelsMax ?? Infinity) + EPS
       && z.x1 - z.x0 <= (carte.largeurMaxPx ?? Infinity) && z.y1 - z.y0 <= (carte.hauteurMaxPx ?? Infinity);
     const zones = groupes.map((grp) => {
@@ -247,7 +259,7 @@ export function cablageData(m, dalle, evaluation, {
       };
     });
     const fusion = (a, b) => ({ x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), y0: Math.min(a.y0, b.y0), y1: Math.max(a.y1, b.y1), px: a.px + b.px });
-    const cartes = repartirSurCartes(zones, fusion, tient, optionsConvertisseurs(proc, redondance));
+    const cartes = repartirSurCartes(zones, fusion, tient, optionsConvertisseurs(proc, doubles));
     if (!cartes) return null;
     // Convertisseurs numérotés carte par carte, dans l'ordre des ports.
     const resultat = [];
@@ -258,13 +270,20 @@ export function cablageData(m, dalle, evaluation, {
     }
     return resultat;
   };
-  const pairesBrompton = redondance && proc.famille === 'brompton' && !proc.portsRedondance;
+  const pairesBrompton = doubles && proc.famille === 'brompton' && !proc.portsRedondance;
   const moitie = Math.floor((modeOptique && proc.portsOptionOptique ? proc.portsOptionOptique : proc.ports) / 2);
-  const convention = redondance && !proc.portsRedondance && !pairesBrompton;
-  // Numéro et libellé d'un port principal (rang p) et de son secours.
-  const portEtSecours = (p, nb) => {
+  const convention = doubles && !proc.portsRedondance && !pairesBrompton;
+  // Numéro et libellé d'un port principal (rang p) du processeur n° i + 1 et de son secours.
+  const portEtSecours = (p, nb, i) => {
     const principal = { numero: p, libelle: libellePort(p), distributeur: distributeurPort(p) };
     if (!redondance) return { ...principal, secours: null };
+    if (secoursN) {
+      // Convertisseurs du secours numérotés à la suite de ceux de son principal.
+      const n = i + 1 + secoursN;
+      const x = distributeurPort(p);
+      const avant = numerotation ? Math.max(...numerotation.map((y) => y.conv)) : Math.ceil(nb / sorties);
+      return { ...principal, secours: { processeur: n, numero: p, libelle: `secours n° ${n}, port ${p}`, distributeur: x && { ...x, numero: x.numero + avant }, convention: false } };
+    }
     if (proc.portsRedondance) return { ...principal, secours: { numero: nb + p, libelle: libellePort(p, true), distributeur: distributeurPort(p, true), convention: false } };
     if (pairesBrompton) {
       return { numero: 2 * p - 1, libelle: `port ${2 * p - 1}`, distributeur: null, secours: { numero: 2 * p, libelle: `port ${2 * p}`, distributeur: null, convention: false } };
@@ -279,8 +298,8 @@ export function cablageData(m, dalle, evaluation, {
   };
   const mou = 1 + margeMou;
 
-  const limite = redondance && proc.portsRedondance ? proc.portsRedondance : (modeOptique && proc.portsOptionOptique ? proc.portsOptionOptique : proc.ports);
-  const utilises = (nb) => (redondance && !proc.portsRedondance ? 2 * nb : nb);
+  const limite = doubles && proc.portsRedondance ? proc.portsRedondance : (modeOptique && proc.portsOptionOptique ? proc.portsOptionOptique : proc.ports);
+  const utilises = (nb) => (doubles && !proc.portsRedondance ? 2 * nb : nb);
   // Config imposée : ports de chaque processeur (ceux du conseil quand seule la fibre est cochée), fibre.
   const avecImposee = Boolean(imposee && ((imposee.ports ?? null) !== null || imposee.fibre));
   const plan = avecImposee ? planPortsImposes(m, evaluation, imposee.ports ?? null) : null;
@@ -368,7 +387,7 @@ export function cablageData(m, dalle, evaluation, {
 
       const nb = groupes.length;
       if (utilises(nb) > limite) {
-        raisons.push(`Le processeur n° ${i + 1} demande ${utilises(nb)} ports${redondance && proc.portsRedondance ? ' principaux' : ''}, `
+        raisons.push(`Le processeur n° ${i + 1} demande ${utilises(nb)} ports${doubles && proc.portsRedondance ? ' principaux' : ''}, `
           + `au-delà des ${limite} d'un ${proc.nom}.`);
       }
       numerotation = numerotationParCartes(groupes);
@@ -378,7 +397,7 @@ export function cablageData(m, dalle, evaluation, {
       const ports = groupes.map((grp, j) => {
         const px = grp.reduce((s, p) => s + poids(p), 0);
         const trajet = trajetDepuisCoin(m, depart, tuile(grp[0]));
-        const base = portEtSecours(j + 1, nb);
+        const base = portEtSecours(j + 1, nb, i);
         if (mode === 'imposee' && enFibre) {
           base.distributeur = distributeurFibre(fibreImp, base.numero);
           if (base.secours) base.secours.distributeur = distributeurFibre(fibreImp, base.secours.numero);
@@ -465,7 +484,7 @@ export function cablageData(m, dalle, evaluation, {
       noteSecours: convention
         ? `Secours : port p + ${moitie} sur chaque ${proc.modele} (le secours du port 1 est le port ${1 + moitie}), `
           + 'convention par défaut, à régler dans le logiciel du processeur.'
-        : null,
+        : noteProcesseurSecours(secoursN),
       alertes,
     };
   });

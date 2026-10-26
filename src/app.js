@@ -1,6 +1,6 @@
 // Point d'entrée de l'appli : charge la base de départ et ma base locale, lance les onglets et gère la navigation.
 
-import { resoudreFiche, listeMateriel, totalMateriel, stockPresta, ErreurSaisie } from './calculs.js';
+import { resoudreFiche, listeMateriel, totalMateriel, stockPresta, ErreurSaisie, mur as murDeDalles, evaluerProcesseur } from './calculs.js';
 import { el, remplacer } from './dom.js';
 import {
   baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc, quantitesParc, logicielParc, codeNovaLCT,
@@ -27,10 +27,11 @@ import { chargerPrestas, creerEnregistreur } from './prestas-appareil.js';
 import { monterPrestas, remplirBoutonPresta, fichierExportPresta } from './ecran-prestas.js';
 import { monterMateriel } from './ecran-materiel.js';
 import { monterFiches } from './ecran-fiches.js';
-import { monterNovaLCT, carteNovaLCT } from './ecran-novalct.js';
+import { monterNovaLCT, carteNovaLCT, blocDepannageSecours } from './ecran-novalct.js';
 import {
-  etapesNovaLCT, rapprocherNovaLCT, groupeVideo, versionReference, ficheNovaLCT, texteNovaLCT, resumeNovaLCT, murABlanc, processeursABlanc,
+  etapesNovaLCT, rapprocherNovaLCT, groupeVideo, versionReference, ficheNovaLCT, texteNovaLCT, resumeNovaLCT, murABlanc, processeursABlanc, MUR_A_BLANC,
 } from './novalct.js';
+import { texteProcesseurs } from './secours.js';
 import { METIERS, ficheMetier, texteFiche, nomFichierFiche } from './fiches-metier.js';
 import { pdfFiche } from './pdf.js';
 import { enregistrer, fichierTexte } from './export.js';
@@ -360,16 +361,28 @@ async function garderEcranNovaLCT() {
 }
 const nomsNovaLCT = () => (modeNovaLCT === 'blanc' ? { presta: 'Révision à blanc', mur: 'Mur d\'exemple' }
   : { presta: prestas.prestaOuverte(etatPrestas)?.nom ?? '', mur: prestas.murOuvert(etatPrestas)?.nom ?? '' });
+// Renvoie false quand le mur ouvert n'a pas de pas à pas NovaLCT.
 function ouvrirNovaLCT() {
   modeNovaLCT = 'mur';
   aBlancNovaLCT = null;
   const r = pasAPasNovaLCT();
   if (r) ouvrirPasAPas(r);
+  return Boolean(r);
 }
-// À blanc : le mur d'exemple de la base (processeur et redondance choisis dans Apprendre), son suivi relu à part.
-async function ouvrirNovaLCTABlanc({ processeur, redondance }) {
-  const a = murABlanc({ dalles: courant.dalles, processeurs: courant.processeurs, liaisons: connectique?.liaisons ?? [], processeur, redondance, parc: parcNovaLCT(), systeme: lireOrdinateur() });
-  if (!a) return;
+// À blanc : le mur d'exemple de la base (processeur, redondance, secours et liaison choisis dans Apprendre), son suivi
+// relu à part. Sans mur d'exemple (série H en cascade…), renvoie la raison, affichée dans la carte d'Apprendre.
+async function ouvrirNovaLCTABlanc({ processeur, redondance, secours = 'ports', liaisonSecours = 'sansCascade' }) {
+  const a = murABlanc({
+    dalles: courant.dalles, processeurs: courant.processeurs, liaisons: connectique?.liaisons ?? [], processeur, redondance, secours, liaisonSecours,
+    parc: parcNovaLCT(), systeme: lireOrdinateur(),
+  });
+  if (!a) {
+    const proc = courant.processeurs.find((p) => p.id === processeur);
+    const dalle = courant.dalles.find((d) => d.id === MUR_A_BLANC.dalle);
+    const e = proc && dalle ? evaluerProcesseur(murDeDalles(dalle, MUR_A_BLANC.colonnes, MUR_A_BLANC.lignes), dalle, proc,
+      { frequenceHz: MUR_A_BLANC.frequenceHz, bits: MUR_A_BLANC.bits, redondance, secours, liaisonSecours }) : null;
+    return e?.impossible ?? 'Pas de mur d\'exemple pour ce choix.';
+  }
   try {
     suiviABlanc = (await lire(CLE_NOVALCT_A_BLANC)) ?? SUIVI_NOVALCT_VIDE;
   } catch (erreur) {
@@ -442,7 +455,7 @@ const ecranNovaLCT = monterNovaLCT(document.getElementById('ecran-novalct'), {
   },
 });
 definirNovaLCT((choisie) => carteNovaLCT({
-  processeur: choisie.processeur.modele, nombre: choisie.nombre, groupe: groupeVideo(choisie.processeur)?.id ?? null,
+  processeur: choisie.processeur.modele, nombre: choisie.nombre, titre: texteProcesseurs(choisie), groupe: groupeVideo(choisie.processeur)?.id ?? null,
   version: texteVersionNovaLCT(versionNovaLCT(choisie.processeur)), etat: etatCarteNovaLCT(),
 }, { ouvrir: ouvrirNovaLCT }));
 document.getElementById('novalct-fermer').addEventListener('click', fermerNovaLCT);
@@ -1124,7 +1137,7 @@ initialiserCopie({
 async function projetDepannage() {
   if (!prestas.murOuvert(etatPrestas)?.configuration) return null;
   const processeur = processeurRetenu();
-  return processeur ? { marque: marqueDuProcesseur(processeur), nom: processeur.nom } : null;
+  return processeur ? { marque: marqueDuProcesseur(processeur), nom: processeur.nom, logiciel: processeur.logiciel ?? null } : null;
 }
 if (depannage) {
   ecranDepannage = monterDepannage(document.getElementById('ecran-depannage'), depannage,
@@ -1136,7 +1149,14 @@ if (depannage) {
       ouvrirPourquoi: ecranPourquoi ? ouvrirPourquoi : null,
       ouvrirListePourquoi: ecranApprendre ? () => allerApprendre() : null,
       // Étape 19a : sous la ligne 1 de T10.3, le chemin de ton ordinateur et le lien vers la fiche d'Apprendre.
-      ajouts: { 'T10.3:1': (marque) => blocDepannage({ systeme: lireOrdinateur(), marque, ouvrirFiche: ecranApprendre ? allerConnexion : null }) },
+      ajouts: {
+        'T10.3:1': (marque) => blocDepannage({ systeme: lireOrdinateur(), marque, ouvrirFiche: ecranApprendre ? allerConnexion : null }),
+        // Étape 22c : processeur de secours (Novastar), avec le bouton du pas à pas quand le projet se règle dans NovaLCT ;
+        // sans pas à pas calculé pour le mur ouvert, l'onglet Data.
+        ...Object.fromEntries(['T10.3:3', 'T11.1:3', 'T5.2:3'].map((cle) => [cle, (marque, projet) => blocDepannageSecours(cle, {
+          marque, projet, ouvrirPasAPas: () => { if (!ouvrirNovaLCT()) location.hash = '#data'; },
+        })])),
+      },
     });
   window.addEventListener('hashchange', async () => {
     if (location.hash === '#depannage') ecranDepannage.definirProjet(await projetDepannage());

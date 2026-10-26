@@ -8306,14 +8306,14 @@ export const REGLES = [
   },
   {
     id: 'R371',
-    titre: 'NovaLCT pas à pas (17b3, redondance) : B.11 en tableau à remplir (numéro de la carte d\'envoi principale, port principal, numéro de la carte d\'envoi de secours, port de secours ; même numéro dans un même processeur), secours par un second processeur chaîné (Set as Backup, son numéro dans la cascade) ; redondance non cochée : note en tête de chaque processeur',
+    titre: 'NovaLCT pas à pas (17b3, redondance) : B.11 en tableau à remplir (numéro de la carte d\'envoi principale, port principal, numéro de la carte d\'envoi de secours, port de secours ; même numéro dans un même processeur), le second processeur a son propre parcours depuis le lot 22c (B.11 n\'en parle plus, modifié avec l\'accord de l\'utilisateur) ; redondance non cochée : note en tête de chaque processeur',
     etape: '17b3',
     verifier(v, contexte) {
       const p = pasAPasNovaLCT(contexte, { reglages: { redondance: true } });
       const b11 = etapeNovaLCT(p, 'P1.B.11');
       v.egal('tableau : colonnes', b11?.tableau?.colonnes, ['Carte d\'envoi principale', 'Port principal', 'Carte d\'envoi de secours', 'Port de secours']);
       v.egal('tableau : une ligne par port, même carte d\'envoi', b11?.tableau?.lignes, [[1, 1, 1, 3], [1, 2, 1, 4]]);
-      v.vrai('second processeur : Set as Backup, numéro dans la cascade', ['Set as Backup', 'dans la cascade', '« enter the same value for serial numbers »'].every((x) => b11?.texte.includes(x)), b11?.texte ?? 'absente');
+      v.vrai('même numéro de carte d\'envoi ; plus de second processeur chaîné (lot 22c)', b11?.texte.includes('« enter the same value for serial numbers »') && !b11.texte.includes('Set as Backup, et dans le tableau'), b11?.texte ?? 'absente');
       v.vrai('sources : manuel V5.5.0 § 5.3, formation 12', b11?.sources.some((s) => s.id === 'lct-5-5-0' && s.ref === '§ 5.3, p. 27 et 28') && b11?.sources.some((s) => s.id === 'formation-12'));
       v.egal('redondance cochée : pas de note', p.parties.find((x) => x.id === 'P1').note ?? null, null);
       const sans = pasAPasNovaLCT(contexte);
@@ -8323,7 +8323,7 @@ export const REGLES = [
   },
   {
     id: 'R372',
-    titre: 'NovaLCT pas à pas (17c1, doutes de la relecture et formation) : multi-batch (avec le .lxy Apply Adjustment File, sans fichier Manual Adjustment) ; façade du VX en Custom sans Apply ; Refresh All puis Refresh ; chemin V-Can de la plage à vérifier ; câbles de secours branchés après la redondance ; fréquence de Canvas signalée si elle diffère de Data ; chaque port en vue de face (Formation, transcription 11)',
+    titre: 'NovaLCT pas à pas (17c1, doutes de la relecture et formation) : multi-batch (avec le .lxy Apply Adjustment File, sans fichier Manual Adjustment) ; façade du VX en Custom sans Apply ; Refresh All puis Refresh ; chemin V-Can de la plage à vérifier ; câbles de secours branchés avant le tableau de la redondance (ordre corrigé au lot 22c avec l\'accord de l\'utilisateur) ; fréquence de Canvas signalée si elle diffère de Data ; chaque port en vue de face (Formation, transcription 11)',
     etape: '17c1',
     verifier(v, contexte) {
       const config = { logiciel: 'NovaLCT', nomFichier: 'A.rcfgx', multiBatch: 'LOTS.lxy' };
@@ -8331,7 +8331,8 @@ export const REGLES = [
       const c6 = etapeNovaLCT(melanges, 'C.6').texte;
       v.vrai('C.6 : avec le fichier Apply Adjustment File, sans fichier Manual Adjustment', c6.includes('avec le fichier LOTS.lxy, Apply Adjustment File') && c6.includes('sans fichier, Manual Adjustment'), c6);
       v.vrai('0.4 : Refresh All, puis Refresh', etapeNovaLCT(melanges, '0.4').texte.includes('Refresh All, puis Refresh'), etapeNovaLCT(melanges, '0.4').texte);
-      v.vrai('B.11 : puis branche les câbles de secours', etapeNovaLCT(melanges, 'P1.B.11').texte.includes('puis branche les câbles de secours'), etapeNovaLCT(melanges, 'P1.B.11').texte);
+      const t11 = etapeNovaLCT(melanges, 'P1.B.11').texte;
+      v.vrai('B.11 : câbles de secours branchés avant le tableau', t11.indexOf('câbles de secours') >= 0 && t11.indexOf('câbles de secours') < t11.indexOf('Redundancy, Add') && !t11.includes('puis branche les câbles de secours'), t11);
       const b7 = etapeNovaLCT(melanges, 'P1.B.7.1').texte;
       v.vrai('port : vue de face, gauche et droite inversées derrière le mur', b7.includes('vue de face') && b7.includes('derrière le mur'), b7);
       const m = calculs.mur(DALLE_CAS_13, 12, 6);
@@ -9345,7 +9346,1179 @@ export const REGLES = [
       v.egal('sans tiret de liste ni tiret long', avec.filter((l) => /^[-•]/.test(l) || /[—–]/.test(l)), []);
     },
   },
+  {
+    id: 'R408',
+    titre: 'Plusieurs configs NovaLCT par lot (étape 20a, spec § 3.1) : identifiant, fréquence et luminosité maxi, doublon refusé, visée par le logiciel quand il n\'y en a qu\'une, fichiers et retrait d\'une seule config, valeurs illisibles ignorées',
+    etape: 'configs',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Parc test');
+      const parc = base.parcs[0].id;
+      const dalle = 'roe-bp2-v2';
+      base = fiches.ajouterLot(base, parc, dalle, { identifiant: 'A', quantite: '60' });
+      const lot = fiches.lotsDalleParc(base, parc, dalle)[0].id;
+      const configs = (b = base) => fiches.lotsDalleParc(b, parc, dalle)[0].configs;
+      base = fiches.reglerConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 800.rcfgx', frequenceHz: '60', luminositeMax: '800' });
+      v.egal('critères gardés en nombres', [configs()[0].frequenceHz, configs()[0].luminositeMax], [60, 800]);
+      v.egal('identifiant déduit d\'une config sans id', fiches.idConfig(configs()[0], lot), `${lot}:NovaLCT`);
+      v.egal('une seule config NovaLCT : visée par le logiciel', fiches.configLot(base, parc, dalle, lot, 'NovaLCT').nomFichier, 'essai 800.rcfgx');
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 1200.rcfgx', frequenceHz: '60', luminositeMax: '1200' });
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 50HZ 800.rcfgx', frequenceHz: '50', luminositeMax: '800' });
+      v.egal('trois configs NovaLCT dans le lot', configs().map((c) => c.nomFichier), ['essai 800.rcfgx', 'essai 1200.rcfgx', 'essai 50HZ 800.rcfgx']);
+      const id1200 = configs()[1].id;
+      const id800 = fiches.idConfig(configs()[0], lot);
+      v.vrai('identifiant écrit pour une config ajoutée', /^cfg-/.test(id1200) && id1200 !== configs()[2].id);
+      v.egal('doublon refusé', messageErreur(() => fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'x.rcfgx', frequenceHz: '50', luminositeMax: '800' })),
+        'Le lot A a déjà un fichier NovaLCT à 50 Hz et 800 cd/m² : change la fréquence ou la luminosité.');
+      const deuxVides = () => fiches.ajouterConfigLot(fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'a.rcfgx' }), parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'b.rcfgx' });
+      v.egal('doublon sans critère', messageErreur(deuxVides),
+        'Le lot A a déjà un fichier NovaLCT sans fréquence et sans luminosité notée : change la fréquence ou la luminosité.');
+      const modifiee = fiches.reglerConfigLot(base, parc, dalle, lot, { id: id1200, logiciel: 'NovaLCT', nomFichier: 'essai 1200 v2.rcfgx', frequenceHz: '60', luminositeMax: '1200' });
+      v.egal('modifiée par son id, à sa place, sans doublon avec elle-même', configs(modifiee).map((c) => c.nomFichier), ['essai 800.rcfgx', 'essai 1200 v2.rcfgx', 'essai 50HZ 800.rcfgx']);
+      v.egal('modifiée vers un doublon : refusé', messageErreur(() => fiches.reglerConfigLot(base, parc, dalle, lot, { id: id1200, logiciel: 'NovaLCT', frequenceHz: '60', luminositeMax: '800' })),
+        'Le lot A a déjà un fichier NovaLCT à 60 Hz et 800 cd/m² : change la fréquence ou la luminosité.');
+      const plusieurs = 'Plusieurs configs NovaLCT dans le lot A : précise laquelle.';
+      v.egal('visée par le logiciel à plusieurs : refusée', messageErreur(() => fiches.configLot(base, parc, dalle, lot, 'NovaLCT')), plusieurs);
+      v.egal('réglée sans id à plusieurs : refusée', messageErreur(() => fiches.reglerConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'y.rcfgx' })), plusieurs);
+      v.egal('59,94 avec la virgule', fiches.configLot(fiches.reglerConfigLot(base, parc, dalle, lot, { id: id1200, logiciel: 'NovaLCT', frequenceHz: '59,94', luminositeMax: '1200' }), parc, dalle, lot, id1200).frequenceHz, 59.94);
+      v.egal('fréquence hors plage', messageErreur(() => fiches.reglerConfigLot(base, parc, dalle, lot, { id: id1200, logiciel: 'NovaLCT', frequenceHz: '0' })),
+        'Fréquence du fichier : un nombre de 1 à 1000 Hz, ou vide.');
+      v.egal('luminosité non entière', messageErreur(() => fiches.reglerConfigLot(base, parc, dalle, lot, { id: id1200, logiciel: 'NovaLCT', luminositeMax: '800.5' })),
+        'Luminosité maxi du fichier : un nombre entier de 100 à 10 000 cd/m², ou vide.');
+      v.egal('critères refusés hors NovaLCT', messageErreur(() => fiches.reglerConfigLot(base, parc, dalle, lot, { logiciel: 'VMP', nomFichier: 'x.ncp', frequenceHz: '50' })),
+        'Fréquence et luminosité maxi : seulement pour une config NovaLCT.');
+      v.egal('une seule config VMP par lot', messageErreur(() => fiches.ajouterConfigLot(fiches.reglerConfigLot(base, parc, dalle, lot, { logiciel: 'VMP', nomFichier: 'x.ncp' }), parc, dalle, lot, { logiciel: 'VMP', nomFichier: 'y.ncp' })),
+        'Le lot A a déjà une config VMP.');
+      base = fiches.joindreFichier(base, parc, dalle, lot, id1200, 'fichier', { id: 'f-1200', nom: 'essai 1200.rcfgx', taille: 4, date: '2026-10-25' });
+      base = fiches.joindreFichier(base, parc, dalle, lot, id800, 'fichier', { id: 'f-800', nom: 'essai 800.rcfgx', taille: 4, date: '2026-10-25' });
+      v.egal('fichiers joints avec leur config', fiches.fichiersJoints(base).map((f) => [f.id, f.configId]), [['f-800', id800], ['f-1200', id1200]]);
+      v.egal('joindre par le logiciel à plusieurs : refusé', messageErreur(() => fiches.joindreFichier(base, parc, dalle, lot, 'NovaLCT', 'fichier', { id: 'f', nom: 'f.rcfgx', taille: 1, date: '2026-10-25' })), plusieurs);
+      const sans1200 = fiches.supprimerConfigLot(base, parc, dalle, lot, id1200);
+      v.egal('retrait d\'une seule config, avec ses seuls fichiers', [configs(sans1200).length, fiches.fichiersJoints(sans1200).map((f) => f.id)], [2, ['f-800']]);
+      v.egal('détacher le fichier d\'une seule config', fiches.fichiersJoints(fiches.detacherFichier(base, parc, dalle, lot, id800, 'fichier')).map((f) => f.id), ['f-1200']);
+      v.egal('critères illisibles d\'un fichier : ignorés', fiches.criteresConfig({ logiciel: 'NovaLCT', frequenceHz: 'abc', luminositeMax: 50 }), { frequenceHz: null, luminositeMax: null });
+      v.egal('critères lisibles', fiches.criteresConfig({ logiciel: 'NovaLCT', frequenceHz: 50, luminositeMax: 800 }), { frequenceHz: 50, luminositeMax: 800 });
+      v.egal('critères d\'une autre config : aucun', fiches.criteresConfig({ logiciel: 'VMP', frequenceHz: 50 }), { frequenceHz: null, luminositeMax: null });
+      const importe = { id: 'l', identifiant: 'A', configs: [
+        { logiciel: 'NovaLCT', id: 'c1', nomFichier: 'a.rcfgx', frequenceHz: 50, luminositeMax: 800 },
+        { logiciel: 'NovaLCT', id: 'c2', nomFichier: 'b.rcfgx', frequenceHz: 50, luminositeMax: 800 },
+      ] };
+      v.egal('doublon venu d\'un fichier : signalé', fiches.doublonsNovaLCT(importe), ['Deux fichiers NovaLCT à 50 Hz et 800 cd/m² dans le lot A : corrige l\'un des deux.']);
+      v.egal('sans doublon : rien', fiches.doublonsNovaLCT(fiches.lotsDalleParc(base, parc, dalle)[0]), []);
+    },
+  },
+  {
+    id: 'R409',
+    titre: 'Fréquence et luminosité maxi proposées d\'après le nom du fichier NovaLCT (étape 20a, spec § 3.2) : « 50HZ », « 800 », 60 Hz du stock, plages, morceaux ambigus, valeurs marquées, doublon évité',
+    etape: 'configs',
+    verifier(v) {
+      const p = (nom, autres = []) => fiches.proposerDepuisNom(nom, autres);
+      const rien = { frequenceHz: null, luminositeMax: null, soixante: [] };
+      v.egal('« essai 50HZ 800.rcfgx »', p('essai 50HZ 800.rcfgx'), { frequenceHz: 50, luminositeMax: 800, soixante: [] });
+      v.egal('format du stock, doubles espaces', p('ESSAI1234  50HZ  1200.rcfgx'), { frequenceHz: 50, luminositeMax: 1200, soixante: [] });
+      v.egal('« ESSAI1234 800.rcfgx » seul : sans fréquence', p('ESSAI1234 800.rcfgx'), { frequenceHz: null, luminositeMax: 800, soixante: [] });
+      const autres = [
+        { id: 'c800', nomFichier: 'ESSAI1234 800.rcfgx' },
+        { id: 'c59', nomFichier: 'dalle 59.94Hz.rcfgx' },
+        { id: 'c60', nomFichier: 'x.rcfgx', frequenceHz: 60 },
+      ];
+      v.egal('50 Hz : 60 Hz proposés aux autres sans « Hz » et sans fréquence', p('ESSAI1234  50HZ  800.rcfgx', autres).soixante, ['c800']);
+      v.egal('sans « Hz » dans un lot qui a déjà 50 Hz : 60 Hz', p('ESSAI1234 1200.rcfgx', [{ id: 'c50', nomFichier: 'ESSAI1234  50HZ  800.rcfgx', frequenceHz: 50 }]),
+        { frequenceHz: 60, luminositeMax: 1200, soixante: [] });
+      v.egal('« dalle_59.94Hz.rcfgx »', p('dalle_59.94Hz.rcfgx').frequenceHz, 59.94);
+      v.egal('virgule décimale', p('dalle 59,94Hz.rcfgx').frequenceHz, 59.94);
+      v.egal('« dalle 50 Hz (800).rcfgx »', p('dalle 50 Hz (800).rcfgx'), { frequenceHz: 50, luminositeMax: 800, soixante: [] });
+      v.egal('« ESSAI1234-P2.6.rcfgx » : rien', p('ESSAI1234-P2.6.rcfgx'), rien);
+      v.egal('« 3840Hz 800.rcfgx » : rafraîchissement ignoré', p('3840Hz 800.rcfgx'), { frequenceHz: null, luminositeMax: 800, soixante: [] });
+      v.egal('deux nombres (date) : rien', p('2022 1200.rcfgx').luminositeMax, null);
+      v.egal('« 1000nits », « 1000 cd »', [p('dalle 1000nits.rcfgx').luminositeMax, p('dalle 1000 cd.rcfgx').luminositeMax], [1000, 1000]);
+      v.egal('V5.4.3, 500x1000, 241101 : rien', ['V5.4.3', 'P3.9 500x1000 mm', '241101-CONFIG'].map((n) => p(`${n}.rcfgx`).luminositeMax), [null, null, null]);
+      // Nom du fichier enregistré : valeurs proposées pour les seuls critères vides, marquées, sans doublon.
+      let base = fiches.creerParc(fiches.baseVide(), 'Parc test');
+      const parc = base.parcs[0].id;
+      const dalle = 'roe-bp2-v2';
+      base = fiches.ajouterLot(base, parc, dalle, { identifiant: 'A' });
+      const lot = fiches.lotsDalleParc(base, parc, dalle)[0].id;
+      base = fiches.reglerConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT' });
+      const premier = fiches.idConfig(fiches.lotsDalleParc(base, parc, dalle)[0].configs[0], lot);
+      let r = fiches.nommerFichierConfig(base, parc, dalle, lot, premier, 'ESSAI1234 800.rcfgx');
+      v.egal('message d\'une valeur', r.messages, ['Luminosité maxi 800 cd/m² lue dans le nom du fichier : vérifie-la.']);
+      let c = fiches.configLot(r.base, parc, dalle, lot, premier);
+      v.egal('valeur proposée et marquée', [c.nomFichier, c.frequenceHz ?? null, c.luminositeMax, c.critereDuNom], ['ESSAI1234 800.rcfgx', null, 800, { luminosite: true }]);
+      v.egal('Mur : « d\'après le nom du fichier »', fiches.configsDuMur(r.base, parc, dalle, 10).lignes[1], 'Config NovaLCT : ESSAI1234 800.rcfgx (800 cd/m², d\'après le nom du fichier), lot A');
+      base = fiches.ajouterConfigLot(r.base, parc, dalle, lot, { logiciel: 'NovaLCT' });
+      const second = fiches.lotsDalleParc(base, parc, dalle)[0].configs[1].id;
+      r = fiches.nommerFichierConfig(base, parc, dalle, lot, second, 'ESSAI1234  50HZ  800.rcfgx');
+      v.egal('messages : la config, puis 60 Hz pour l\'autre', r.messages, [
+        'Fréquence 50 Hz et luminosité maxi 800 cd/m² lues dans le nom du fichier : vérifie-les.',
+        'Fréquence 60 Hz proposée pour ESSAI1234 800.rcfgx (sans « Hz » dans son nom) : vérifie-la.',
+      ]);
+      c = fiches.configLot(r.base, parc, dalle, lot, premier);
+      v.egal('60 Hz proposés à l\'autre config, marqués', [c.frequenceHz, c.critereDuNom], [60, { frequence: true, luminosite: true }]);
+      base = fiches.reglerConfigLot(r.base, parc, dalle, lot, { ...fiches.configLot(r.base, parc, dalle, lot, second), frequenceHz: '', luminositeMax: '1200', critereDuNom: undefined });
+      c = fiches.configLot(base, parc, dalle, lot, second);
+      v.egal('formulaire enregistré : critères saisis, marque effacée', [c.frequenceHz ?? null, c.luminositeMax, c.critereDuNom ?? null], [null, 1200, null]);
+      r = fiches.nommerFichierConfig(base, parc, dalle, lot, second, 'ESSAI1234  50HZ  800.rcfgx');
+      v.egal('nom inchangé : rien de reproposé', [r.messages, fiches.configLot(r.base, parc, dalle, lot, second).frequenceHz ?? null], [[], null]);
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT' });
+      const troisieme = fiches.lotsDalleParc(base, parc, dalle)[0].configs[2].id;
+      r = fiches.nommerFichierConfig(base, parc, dalle, lot, troisieme, 'copie 60HZ 800.rcfgx');
+      v.egal('proposition en doublon : non appliquée, avec la raison', r.messages,
+        ['Fréquence 60 Hz et luminosité maxi 800 cd/m² lues dans le nom du fichier, non appliquées : le lot A a déjà un fichier NovaLCT à 60 Hz et 800 cd/m².']);
+      c = fiches.configLot(r.base, parc, dalle, lot, troisieme);
+      v.egal('nom gardé, critères vides', [c.nomFichier, c.frequenceHz ?? null, c.luminositeMax ?? null], ['copie 60HZ 800.rcfgx', null, null]);
+    },
+  },
+  {
+    id: 'R410',
+    titre: 'Fichier NovaLCT retenu pour le mur (étape 20a, spec § 4) : fréquence de Data, la plus proche à 1 Hz, luminosité choisie ou à choisir, sans luminosité notée, ordre de la liste',
+    etape: 'configs',
+    verifier(v) {
+      const cfg = (id, nomFichier, frequenceHz = null, luminositeMax = null) => ({
+        logiciel: 'NovaLCT', id, nomFichier, ...(frequenceHz ? { frequenceHz } : {}), ...(luminositeMax ? { luminositeMax } : {}),
+      });
+      const lot = (...configs) => ({ id: 'l', identifiant: 'A', configs });
+      const stock = lot(cfg('a', 'essai 800.rcfgx', 60, 800), cfg('b', 'essai 1200.rcfgx', 60, 1200), cfg('c', 'essai 50HZ 800.rcfgx', 50, 800),
+        cfg('d', 'essai 50HZ 1200.rcfgx', 50, 1200), { logiciel: 'VMP', nomFichier: 'x.ncp' });
+      const choix = (l, frequenceHz, luminosite = null) => fiches.choisirConfigNovaLCT(l, { frequenceHz, luminosite });
+      const id = (r) => r.retenue?.id ?? null;
+      v.egal('60 Hz, 800', id(choix(stock, 60, 800)), 'a');
+      v.egal('50 Hz, 1200', id(choix(stock, 50, 1200)), 'd');
+      v.egal('autres : les trois autres NovaLCT', choix(stock, 60, 800).autres.map((c) => c.id), ['b', 'c', 'd']);
+      let r = choix(stock, 60);
+      v.egal('luminosité à choisir', [id(r), r.aChoisir, r.alertes, r.luminosites], [null, true, ['Lot A : choisis la luminosité maxi dans Data (800 ou 1200 cd/m²).'], [800, 1200]]);
+      r = choix(stock, 59.94, 1200);
+      v.egal('59,94 Hz : le fichier à 60 Hz, avec l\'alerte', [id(r), r.alertes], ['b', ['Aucun fichier NovaLCT à 59,94 Hz pour le lot A : pris celui à 60 Hz. Vérifie l\'image.']]);
+      r = choix(stock, 48, 800);
+      v.egal('48 Hz : aucun, alerte', [id(r), r.alertes], [null, ['Aucun fichier NovaLCT à 48 Hz pour le lot A (fichiers : essai 800.rcfgx à 60 Hz, essai 1200.rcfgx à 60 Hz, essai 50HZ 800.rcfgx à 50 Hz, essai 50HZ 1200.rcfgx à 50 Hz).']]);
+      v.egal('49 Hz : celui à 50 Hz', id(choix(stock, 49, 800)), 'c');
+      v.egal('59,5 Hz entre 59 et 60 : la plus basse', id(choix(lot(cfg('h', 'h.rcfgx', 60), cfg('g', 'g.rcfgx', 59)), 59.5)), 'g');
+      r = choix(stock, 60, 1000);
+      v.egal('luminosité choisie absente', [id(r), r.alertes], [null, ['Aucun fichier NovaLCT à 1000 cd/m² pour le lot A (fichiers à 800 et 1200 cd/m²).']]);
+      const seul = lot(cfg('s', 'BP2V2_A.rcfgx'));
+      v.egal('un seul fichier sans critère : retenu sans alerte, à toute fréquence', [50, 60, 59.94].map((f) => [id(choix(seul, f)), choix(seul, f).alertes]), [['s', []], ['s', []], ['s', []]]);
+      const cinquante = lot(cfg('c', 'essai 50HZ.rcfgx', 50));
+      r = choix(cinquante, 60);
+      v.egal('un seul fichier à 50 Hz, Data à 60 Hz : aucun', [id(r), r.alertes], [null, ['Aucun fichier NovaLCT à 60 Hz pour le lot A (fichiers : essai 50HZ.rcfgx à 50 Hz).']]);
+      const vide = lot(cfg('p', 'p.rcfgx', 60, 800), cfg('q', 'q.rcfgx', 60));
+      r = choix(vide, 60);
+      v.egal('sans luminosité notée : une luminosité de plus', [r.aChoisir, r.luminosites, r.alertes], [true, [800, null], ['Lot A : choisis la luminosité maxi dans Data (800 cd/m² ou sans luminosité notée).']]);
+      v.egal('« Sans luminosité notée » choisi', id(choix(vide, 60, 'aucune')), 'q');
+      r = choix(vide, 60, 1200);
+      v.egal('luminosité absente : celui sans luminosité notée', [id(r), r.alertes], ['q', ['Lot A : aucun fichier à 1200 cd/m², pris celui sans luminosité notée.']]);
+      const mixte = lot(cfg('m', 'm.rcfgx'), cfg('n', 'n.rcfgx', 60));
+      v.egal('fréquence exacte avant sans fréquence', [id(choix(mixte, 60)), choix(mixte, 60).alertes], ['n', []]);
+      r = choix(mixte, 50);
+      v.egal('ni exacte ni proche : celui sans fréquence notée', [id(r), r.alertes], ['m', ['Aucun fichier NovaLCT à 50 Hz pour le lot A : pris celui sans fréquence notée. Vérifie l\'image.']]);
+      v.egal('59,94 Hz : la plus proche n\'est pas masquée par une config sans fréquence', id(choix(lot(cfg('a', 'a.rcfgx', 60, 800), cfg('z', 'z.rcfgx', null, 1200)), 59.94, 800)), 'a');
+      r = choix(lot(cfg('u', 'u.rcfgx', 60, 800)), 60, 1200);
+      v.egal('une seule luminosité, autre choix dans Data : retenue, signalée', [id(r), r.alertes], ['u', ['Lot A : seul fichier à 800 cd/m² (choix de Data : 1200 cd/m²).']]);
+      v.egal('doublon importé : l\'ordre de la liste', id(choix(lot(cfg('x', 'x.rcfgx', 50, 800), cfg('y', 'y.rcfgx', 50, 800)), 50)), 'x');
+      r = choix(lot({ logiciel: 'VMP', nomFichier: 'x.ncp' }), 60);
+      v.egal('aucune config NovaLCT : rien de retenu, rien d\'autre', [id(r), r.autres, r.alertes], [null, [], []]);
+    },
+  },
+  {
+    id: 'R411',
+    titre: 'Lots et configs du mur avec la fréquence et la luminosité de Data (étape 20a, spec § 4) : par lot, ligne de la retenue et des autres fichiers, luminosités pour la liste, firmware du lot, lots mélangés ; sans fréquence, comme avant',
+    etape: 'configs',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Parc test');
+      const parc = base.parcs[0].id;
+      const dalle = 'roe-bp2-v2';
+      for (const [identifiant, quantite] of [['A', '60'], ['B', '40']]) base = fiches.ajouterLot(base, parc, dalle, { identifiant, quantite });
+      const [lotA, lotB] = fiches.lotsDalleParc(base, parc, dalle).map((l) => l.id);
+      base = fiches.reglerConfigLot(base, parc, dalle, lotA, { logiciel: 'NovaLCT', nomFichier: 'essai 800.rcfgx', frequenceHz: '60', luminositeMax: '800', multiBatch: 'essai.lxy' });
+      base = fiches.ajouterConfigLot(base, parc, dalle, lotA, { logiciel: 'NovaLCT', nomFichier: 'essai 1200.rcfgx', frequenceHz: '60', luminositeMax: '1200', firmware: 'personnalisé' });
+      base = fiches.ajouterConfigLot(base, parc, dalle, lotA, { logiciel: 'NovaLCT', nomFichier: 'essai 50HZ 800.rcfgx', frequenceHz: '50', luminositeMax: '800' });
+      let c = fiches.configsDuMur(base, parc, dalle, 50, { logiciel: 'NovaLCT', frequenceHz: 60, luminosite: 1200 });
+      v.egal('lignes : lots, la retenue, puis les autres fichiers', c.lignes, [
+        'Lots utilisés : A',
+        'Config NovaLCT : essai 1200.rcfgx (60 Hz, 1200 cd/m²), firmware personnalisé, lot A',
+        'Autres fichiers NovaLCT du lot A : essai 800.rcfgx (60 Hz, 800 cd/m²), essai 50HZ 800.rcfgx (50 Hz, 800 cd/m²)',
+      ]);
+      v.egal('par lot', c.parLot.map((p) => [p.lot.identifiant, p.retenue.nomFichier, p.autres.length, p.aChoisir]), [['A', 'essai 1200.rcfgx', 2, false]]);
+      v.egal('firmware personnalisé : une config du lot le dit', c.firmwarePersonnalise, true);
+      v.egal('luminosités pour la liste de Data', [c.luminosites, c.plusieursLuminosites], [[800, 1200], true]);
+      c = fiches.configsDuMur(base, parc, dalle, 50, { logiciel: 'NovaLCT', frequenceHz: 50 });
+      v.egal('50 Hz : un seul fichier, pas de liste', [c.lignes[1], c.luminosites, c.plusieursLuminosites, c.alertes], ['Config NovaLCT : essai 50HZ 800.rcfgx (50 Hz, 800 cd/m²), lot A', [800], false, []]);
+      c = fiches.configsDuMur(base, parc, dalle, 50, { logiciel: 'NovaLCT', frequenceHz: 60 });
+      v.egal('à choisir : alerte, les fichiers du lot sans retenue', [c.lignes, c.alertes], [[
+        'Lots utilisés : A',
+        'Fichiers NovaLCT du lot A : essai 800.rcfgx (60 Hz, 800 cd/m²), essai 1200.rcfgx (60 Hz, 1200 cd/m²), essai 50HZ 800.rcfgx (50 Hz, 800 cd/m²)',
+      ], ['Lot A : choisis la luminosité maxi dans Data (800 ou 1200 cd/m²).']]);
+      base = fiches.reglerConfigLot(base, parc, dalle, lotB, { logiciel: 'NovaLCT', nomFichier: 'essai B.rcfgx' });
+      c = fiches.configsDuMur(base, parc, dalle, 80, { logiciel: 'NovaLCT', frequenceHz: 60, luminosite: 800 });
+      v.egal('lots mélangés : chaque lot son fichier', c.parLot.map((p) => p.retenue?.nomFichier ?? null), ['essai 800.rcfgx', 'essai B.rcfgx']);
+      v.vrai('lots mélangés : l\'alerte d\'avant', c.melanges && c.alertes.some((a) => a.startsWith('Lots mélangés')));
+      const avant = fiches.configsDuMur(base, parc, dalle, 50, { logiciel: 'NovaLCT' });
+      v.egal('sans fréquence : toutes les configs, comme avant', [avant.lignes.length, avant.parLot ?? null], [4, null]);
+      v.egal('Mur : chaque config avec ses critères', fiches.configsDuMur(base, parc, dalle, 50).lignes[1], 'Config NovaLCT : essai 800.rcfgx (60 Hz, 800 cd/m²), multi-batch essai.lxy, lot A');
+      const vmp = fiches.reglerConfigLot(base, parc, dalle, lotA, { logiciel: 'VMP', nomFichier: 'essai.ncp' });
+      v.egal('autre logiciel : la fréquence n\'y change rien', fiches.configsDuMur(vmp, parc, dalle, 50, { logiciel: 'VMP', frequenceHz: 50 }).lignes, ['Lots utilisés : A', 'Config VMP : essai.ncp, lot A']);
+    },
+  },
+  {
+    id: 'R412',
+    titre: 'Check-list « Avant de partir » avec plusieurs fichiers NovaLCT (étape 20a, spec § 4) : le retenu marqué, les autres à prendre aussi, à choisir, aucun à cette fréquence, multi-batch du lot ; un seul fichier sans critère : les lignes d\'avant',
+    etape: 'configs',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Parc test');
+      const parc = base.parcs[0].id;
+      const dalle = 'roe-bp2-v2';
+      base = fiches.ajouterLot(base, parc, dalle, { identifiant: 'A', quantite: '60' });
+      const lot = fiches.lotsDalleParc(base, parc, dalle)[0].id;
+      base = fiches.reglerConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 800.rcfgx', frequenceHz: '60', luminositeMax: '800', multiBatch: 'essai.lxy' });
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 1200.rcfgx', frequenceHz: '60', luminositeMax: '1200', firmware: 'personnalisé' });
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 50HZ 800.rcfgx', frequenceHz: '50', luminositeMax: '800' });
+      const [c800, , c50] = fiches.lotsDalleParc(base, parc, dalle)[0].configs;
+      base = fiches.joindreFichier(base, parc, dalle, lot, fiches.idConfig(c800, lot), 'fichier', { id: 'f800', nom: 'essai 800.rcfgx', taille: 4, date: '2026-10-25' });
+      base = fiches.joindreFichier(base, parc, dalle, lot, c50.id, 'fichier', { id: 'f50', nom: 'essai 50HZ 800.rcfgx', taille: 4, date: '2026-10-25' });
+      const groupes = [{ dalleId: dalle, n: 50, coches: null, libelle: null }];
+      const mctrl = { id: 'novastar-mctrl4k', famille: 'novastar', logiciel: 'NovaLCT', nom: 'Novastar MCTRL4K' };
+      const lignes = (o) => fiches.avantDePartir(base, parc, groupes, mctrl, { presents: new Set(['f800']), ...o }).lignes;
+      const aussi = 'à prendre aussi si la fréquence ou la luminosité change sur place';
+      v.egal('1200 retenu, les autres à prendre aussi', lignes({ frequenceHz: 60, luminosite: 1200 }), [
+        { texte: 'Fichier de config essai 1200.rcfgx (lot A, retenu : 60 Hz, 1200 cd/m²) : pas joint dans l\'appli, prends-le avec toi', fait: false },
+        { texte: 'Firmware personnalisé (lot A) : ne lance pas la mise à jour en ligne des cartes', fait: null },
+        { texte: 'Multi-batch adjustment essai.lxy (lot A, avec la config essai 800.rcfgx) : pas joint dans l\'appli, prends-le avec toi', fait: false },
+        { texte: `Fichier de config essai 800.rcfgx (lot A, ${aussi}) : sur cet appareil`, fait: true },
+        { texte: `Fichier de config essai 50HZ 800.rcfgx (lot A, ${aussi}) : absent de cet appareil, joins-le de nouveau dans l'onglet Base`, fait: false },
+        { texte: 'Version de NovaLCT non relevée pour ce processeur : relève-la dans l\'onglet Base', fait: false },
+        { texte: 'Exporte ta base avec les fichiers joints avant de partir (onglet Base)', fait: null },
+      ]);
+      v.egal('800 retenu : son multi-batch sans renvoi', lignes({ frequenceHz: 60, luminosite: 800 }).slice(0, 3).map((l) => l.texte), [
+        'Fichier de config essai 800.rcfgx (lot A, retenu : 60 Hz, 800 cd/m²) : sur cet appareil',
+        'Firmware personnalisé (lot A) : ne lance pas la mise à jour en ligne des cartes',
+        'Multi-batch adjustment essai.lxy (lot A) : pas joint dans l\'appli, prends-le avec toi',
+      ]);
+      const aChoisir = lignes({ frequenceHz: 60 });
+      v.egal('à choisir : en tête, à faire', aChoisir[0], { texte: 'Fichier NovaLCT du lot A : à choisir (luminosité maxi dans Data)', fait: false });
+      v.egal('à choisir : les trois fichiers à prendre aussi', aChoisir.filter((l) => l.texte.includes(aussi)).length, 3);
+      v.egal('48 Hz : aucun fichier', lignes({ frequenceHz: 48, luminosite: 800 })[0], { texte: 'Fichier NovaLCT du lot A : aucun fichier à 48 Hz', fait: false });
+      v.egal('1000 cd/m² : aucun fichier', lignes({ frequenceHz: 60, luminosite: 1000 })[0], { texte: 'Fichier NovaLCT du lot A : aucun fichier à 1000 cd/m²', fait: false });
+      let simple = fiches.creerParc(fiches.baseVide(), 'Parc test');
+      simple = fiches.ajouterLot(simple, parc, dalle, { identifiant: 'A', quantite: '60' });
+      const lotSimple = fiches.lotsDalleParc(simple, parc, dalle)[0].id;
+      simple = fiches.reglerConfigLot(simple, parc, dalle, lotSimple, { logiciel: 'NovaLCT', nomFichier: 'seul.rcfgx' });
+      simple = fiches.joindreFichier(simple, parc, dalle, lotSimple, 'NovaLCT', 'fichier', { id: 'fs', nom: 'seul.rcfgx', taille: 4, date: '2026-10-25' });
+      const lignesSimple = (o) => fiches.avantDePartir(simple, parc, groupes, mctrl, { presents: new Set(['fs']), ...o }).lignes;
+      v.egal('un seul fichier sans critère : les lignes d\'avant, même avec la fréquence de Data', lignesSimple({ frequenceHz: 50 }), lignesSimple({}));
+      v.egal('… dont la ligne du fichier', lignesSimple({ frequenceHz: 50 })[0].texte, 'Fichier de config seul.rcfgx (lot A) : sur cet appareil');
+      const texte = resumes.resumeAvantDePartir(fiches.avantDePartir(base, parc, groupes, mctrl, { presents: new Set(['f800']), frequenceHz: 60, luminosite: 1200 }));
+      v.vrai('texte copié : le retenu, puis à prendre aussi', texte.includes('À faire : Fichier de config essai 1200.rcfgx (lot A, retenu : 60 Hz, 1200 cd/m²)')
+        && texte.includes(`OK : Fichier de config essai 800.rcfgx (lot A, ${aussi}) : sur cet appareil`));
+    },
+  },
+  {
+    id: 'R413',
+    titre: 'Pas à pas NovaLCT : fichiers retenus de chaque lot (étape 20a, spec § 4, `lireConfigs`) ; autres fichiers, multi-batch et firmware du lot ; sans `parLot`, la lecture d\'avant',
+    etape: 'novalct',
+    verifier(v) {
+      let base = fiches.creerParc(fiches.baseVide(), 'Parc test');
+      const parc = base.parcs[0].id;
+      const dalle = 'roe-bp2-v2';
+      base = fiches.ajouterLot(base, parc, dalle, { identifiant: 'A', quantite: '60' });
+      const lot = fiches.lotsDalleParc(base, parc, dalle)[0].id;
+      base = fiches.reglerConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 800.rcfgx', frequenceHz: '60', luminositeMax: '800', multiBatch: 'essai.lxy' });
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 1200.rcfgx', frequenceHz: '60', luminositeMax: '1200', firmware: 'personnalisé' });
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 50HZ 800.rcfgx', frequenceHz: '50', luminositeMax: '800' });
+      const lire = (o) => novalct.lireConfigs([{ libelle: null, resultat: fiches.configsDuMur(base, parc, dalle, 50, { logiciel: 'NovaLCT', ...o }) }]);
+      const cfg = lire({ frequenceHz: 60, luminosite: 1200 });
+      v.egal('fichiers : la retenue seule', cfg.fichiers, ['essai 1200.rcfgx (lot A, 60 Hz, 1200 cd/m²)']);
+      v.egal('noms : un seul fichier, donc All Receiving Card', cfg.noms, ['essai 1200.rcfgx']);
+      v.egal('autres fichiers', cfg.autres, ['essai 800.rcfgx (lot A, 60 Hz, 800 cd/m²)', 'essai 50HZ 800.rcfgx (lot A, 50 Hz, 800 cd/m²)']);
+      v.egal('multi-batch du lot, même sur une autre config', cfg.lxy, ['essai.lxy']);
+      v.egal('firmware personnalisé du lot', cfg.perso, true);
+      const aChoisir = lire({ frequenceHz: 60 });
+      v.egal('à choisir : aucun fichier retenu, l\'alerte', [aChoisir.fichiers, aChoisir.noms, aChoisir.alertes], [[], [], ['Lot A : choisis la luminosité maxi dans Data (800 ou 1200 cd/m²).']]);
+      const avant = novalct.lireConfigs([{ libelle: null, resultat: { retenus: [{ identifiant: 'A', configs: [{ logiciel: 'NovaLCT', nomFichier: 'x.rcfgx' }] }], alertes: [] } }]);
+      v.egal('structure d\'avant', [avant.fichiers, avant.noms, avant.autres], [['x.rcfgx (lot A)'], ['x.rcfgx'], []]);
+      v.egal('pas de parc : comme avant', novalct.lireConfigs(null).aucunParc, true);
+    },
+  },
+  {
+    id: 'R414',
+    titre: 'Texte copié de Data : luminosité maxi choisie (étape 20a, spec § 5.2), absente sans choix',
+    etape: 'configs',
+    verifier(v, contexte) {
+      const m = calculs.mur(DALLE_CAS_7, 10, 5);
+      const e = calculs.evaluerProcesseur(m, DALLE_CAS_7, processeurDeBase(contexte, 'novastar-mctrl4k'), NOVASTAR_60_8);
+      const configs = { lignes: ['Lots utilisés : A', 'Config NovaLCT : essai 1200.rcfgx (60 Hz, 1200 cd/m²), lot A'], alertes: [], version: null };
+      v.vrai('luminosité choisie', resumes.resumeData(e, { configs: { ...configs, luminosite: 1200 } })
+        .includes('Config NovaLCT : essai 1200.rcfgx (60 Hz, 1200 cd/m²), lot A\nLuminosité maxi : 1200 cd/m² (fichier du lot)'));
+      v.vrai('sans choix : rien', !resumes.resumeData(e, { configs }).includes('Luminosité maxi'));
+    },
+  },
+  {
+    id: 'R415',
+    titre: 'Titre, badge et bouton « Retirer » d\'une config dans Base (étape 20b, spec § 5.1) : critères NovaLCT après le nom du logiciel, sans la marque « d\'après le nom du fichier » ; sans critère, les textes d\'avant',
+    etape: 'configs',
+    verifier(v) {
+      if (typeof fiches.titreConfig !== 'function') { v.vrai('titreConfig exportée par fiches.js', false); return; }
+      v.egal('NovaLCT à 50 Hz et 800 cd/m², lue dans le nom', fiches.titreConfig({ logiciel: 'NovaLCT', frequenceHz: 50, luminositeMax: 800, critereDuNom: { frequence: true } }),
+        { titre: 'NovaLCT (Novastar), 50 Hz, 800 cd/m²', badge: 'NovaLCT 50 Hz, 800 cd/m²', retirer: 'Retirer la config NovaLCT 50 Hz, 800 cd/m²' });
+      v.egal('NovaLCT sans critère', fiches.titreConfig({ logiciel: 'NovaLCT', nomFichier: 'essai.rcfgx' }),
+        { titre: 'NovaLCT (Novastar)', badge: 'NovaLCT', retirer: 'Retirer la config NovaLCT' });
+      v.egal('59,94 Hz seul', fiches.titreConfig({ logiciel: 'NovaLCT', frequenceHz: 59.94 }).titre, 'NovaLCT (Novastar), 59,94 Hz');
+      v.egal('luminosité seule', fiches.titreConfig({ logiciel: 'NovaLCT', luminositeMax: 1200 }).badge, 'NovaLCT 1200 cd/m²');
+      v.egal('Tessera', fiches.titreConfig({ logiciel: 'Tessera' }), { titre: 'Tessera (Brompton)', badge: 'Tessera', retirer: 'Retirer la config Tessera' });
+      v.egal('critère illisible venu d\'un fichier : ignoré', fiches.titreConfig({ logiciel: 'NovaLCT', frequenceHz: 'abc', luminositeMax: 50 }).titre, 'NovaLCT (Novastar)');
+      if (typeof fiches.texteCritereDuNom !== 'function') { v.vrai('texteCritereDuNom exportée par fiches.js', false); return; }
+      v.egal('phrase sous le fichier : deux critères lus', fiches.texteCritereDuNom({ logiciel: 'NovaLCT', frequenceHz: 50, luminositeMax: 800, critereDuNom: { frequence: true, luminosite: true } }),
+        'Fréquence 50 Hz et luminosité maxi 800 cd/m² lues dans le nom du fichier : vérifie-les.');
+      v.egal('… un seul lu', fiches.texteCritereDuNom({ logiciel: 'NovaLCT', frequenceHz: 60, luminositeMax: 800, critereDuNom: { frequence: true } }),
+        'Fréquence 60 Hz lue dans le nom du fichier : vérifie-la.');
+      v.egal('… sans marque : rien', fiches.texteCritereDuNom({ logiciel: 'NovaLCT', frequenceHz: 60 }), null);
+    },
+  },
+  {
+    id: 'R416',
+    titre: '« Ajouter une config » dans Base (étape 20b, spec § 5.1) : VMP, LEDVISION et Tessera disparaissent une fois présents, NovaLCT reste ; petit formulaire quand le lot a déjà une config NovaLCT ; aide quand la seule config NovaLCT en place n\'a aucun critère',
+    etape: 'configs',
+    verifier(v) {
+      if (typeof fiches.ajoutConfig !== 'function') { v.vrai('ajoutConfig exportée par fiches.js', false); return; }
+      v.egal('lot vide : les quatre logiciels, ajout d\'avant', fiches.ajoutConfig({ identifiant: 'A', configs: [] }),
+        { logiciels: ['NovaLCT', 'VMP', 'LEDVISION', 'Tessera'], petitFormulaire: false, aide: null });
+      v.egal('VMP présent, config à ranger ignorée', fiches.ajoutConfig({ identifiant: 'A', configs: [{ logiciel: 'VMP' }, { nomFichier: 'ancien.rcfgx' }] }).logiciels,
+        ['NovaLCT', 'LEDVISION', 'Tessera']);
+      v.egal('une config NovaLCT sans critère : petit formulaire et aide',
+        fiches.ajoutConfig({ identifiant: 'A', configs: [{ logiciel: 'NovaLCT', nomFichier: 'essai.rcfgx' }, { logiciel: 'Tessera' }] }),
+        { logiciels: ['NovaLCT', 'VMP', 'LEDVISION'], petitFormulaire: true,
+          aide: 'La config NovaLCT déjà en place (essai.rcfgx) n\'a ni fréquence ni luminosité maxi : saisis-les dans son formulaire, la nouvelle doit en différer d\'au moins un critère.' });
+      v.egal('sans nom de fichier', fiches.ajoutConfig({ identifiant: 'A', configs: [{ logiciel: 'NovaLCT' }] }).aide,
+        'La config NovaLCT déjà en place n\'a ni fréquence ni luminosité maxi : saisis-les dans son formulaire, la nouvelle doit en différer d\'au moins un critère.');
+      v.egal('une config NovaLCT avec un critère : sans aide', fiches.ajoutConfig({ identifiant: 'A', configs: [{ logiciel: 'NovaLCT', luminositeMax: 800 }] }),
+        { logiciels: ['NovaLCT', 'VMP', 'LEDVISION', 'Tessera'], petitFormulaire: true, aide: null });
+      v.egal('deux configs NovaLCT : sans aide', fiches.ajoutConfig({ identifiant: 'A', configs: [{ logiciel: 'NovaLCT' }, { logiciel: 'NovaLCT', id: 'cfg-1', frequenceHz: 50 }] }).aide, null);
+    },
+  },
+  {
+    id: 'R417',
+    titre: 'Liste « Luminosité maxi » de Data (étape 20b, spec § 5.2) : visible seulement quand un lot retenu a plusieurs luminosités à la fréquence de Data ; « À choisir », les luminosités, « Sans luminosité notée » ; valeur gardée qui n\'est plus proposée ou liste cachée : à choisir',
+    etape: 'configs',
+    verifier(v) {
+      if (typeof fiches.choixLuminosite !== 'function') { v.vrai('choixLuminosite exportée par fiches.js', false); return; }
+      let base = fiches.creerParc(fiches.baseVide(), 'Parc test');
+      const parc = base.parcs[0].id;
+      const dalle = 'roe-bp2-v2';
+      base = fiches.ajouterLot(base, parc, dalle, { identifiant: 'A', quantite: '60' });
+      const lot = fiches.lotsDalleParc(base, parc, dalle)[0].id;
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 800.rcfgx', frequenceHz: '60', luminositeMax: '800' });
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 1200.rcfgx', frequenceHz: '60', luminositeMax: '1200' });
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai 50HZ 800.rcfgx', frequenceHz: '50', luminositeMax: '800' });
+      const duMur = (b, f) => fiches.configsDuMur(b, parc, dalle, 50, { logiciel: 'NovaLCT', frequenceHz: f });
+      const options = [{ valeur: '', texte: 'À choisir' }, { valeur: '800', texte: '800 cd/m²' }, { valeur: '1200', texte: '1200 cd/m²' }];
+      v.egal('60 Hz, rien de choisi', fiches.choixLuminosite([duMur(base, 60)], ''), { visible: true, options, valeur: '', luminosite: null });
+      v.egal('1200 choisi', fiches.choixLuminosite([duMur(base, 60)], '1200'), { visible: true, options, valeur: '1200', luminosite: 1200 });
+      v.egal('valeur gardée plus proposée : à choisir', fiches.choixLuminosite([duMur(base, 60)], '1000'), { visible: true, options, valeur: '', luminosite: null });
+      v.egal('50 Hz, une seule luminosité : cachée, valeur ignorée', fiches.choixLuminosite([duMur(base, 50)], '1200'), { visible: false, options: [], valeur: '', luminosite: null });
+      v.egal('sans parc, sans NovaLCT ou sans fréquence : cachée', fiches.choixLuminosite([null, fiches.configsDuMur(base, parc, dalle, 50, { logiciel: 'NovaLCT' })], '800').visible, false);
+      const sans = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT', nomFichier: 'essai.rcfgx', frequenceHz: '60' });
+      v.egal('sans luminosité notée en dernier, choisie', fiches.choixLuminosite([duMur(sans, 60)], 'aucune'),
+        { visible: true, options: [...options, { valeur: 'aucune', texte: 'Sans luminosité notée' }], valeur: 'aucune', luminosite: 'aucune' });
+      // Deux fiches du mur (dalles entières et rangée de demi-dalles) : la réunion de leurs luminosités.
+      let autre = fiches.ajouterLot(base, parc, 'roe-bp2', { identifiant: 'B', quantite: '10' });
+      const lotB = fiches.lotsDalleParc(autre, parc, 'roe-bp2')[0].id;
+      autre = fiches.ajouterConfigLot(autre, parc, 'roe-bp2', lotB, { logiciel: 'NovaLCT', nomFichier: 'demi 1000.rcfgx', frequenceHz: '60', luminositeMax: '1000' });
+      const demi = fiches.configsDuMur(autre, parc, 'roe-bp2', 10, { logiciel: 'NovaLCT', frequenceHz: 60 });
+      v.egal('deux fiches : réunion, de la plus basse à la plus haute', fiches.choixLuminosite([duMur(autre, 60), demi], '1000').options.map((o) => o.valeur), ['', '800', '1000', '1200']);
+      v.egal('… et 1000 choisi', fiches.choixLuminosite([duMur(autre, 60), demi], '1000').luminosite, 1000);
+    },
+  },
+  {
+    id: 'R418',
+    titre: 'Formulaire d\'une config dans Base (étape 20b, choix c) : champs enregistrés d\'abord (marque « d\'après le nom » effacée), puis le nouveau nom du fichier propose ses valeurs pour les critères restés vides ; autres logiciels : comme avant',
+    etape: 'configs',
+    verifier(v) {
+      if (typeof fiches.enregistrerConfigFormulaire !== 'function') { v.vrai('enregistrerConfigFormulaire exportée par fiches.js', false); return; }
+      let base = fiches.creerParc(fiches.baseVide(), 'Parc test');
+      const parc = base.parcs[0].id;
+      const dalle = 'roe-bp2-v2';
+      base = fiches.ajouterLot(base, parc, dalle, { identifiant: 'A', quantite: '60' });
+      const lot = fiches.lotsDalleParc(base, parc, dalle)[0].id;
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT' });
+      const id = fiches.lotsDalleParc(base, parc, dalle)[0].configs[0].id;
+      base = fiches.nommerFichierConfig(base, parc, dalle, lot, id, 'essai 800.rcfgx').base;
+      base = fiches.joindreFichier(base, parc, dalle, lot, id, 'fichier', { id: 'f1', nom: 'essai 800.rcfgx', taille: 4, date: '2026-10-25' });
+      const config = (b) => fiches.configLot(b, parc, dalle, lot, id);
+      v.egal('départ : luminosité lue dans le nom', fiches.texteCriteresConfig(config(base)), '800 cd/m², d\'après le nom du fichier');
+      const champs = { nomFichier: 'essai 800.rcfgx', frequenceHz: '', luminositeMax: '800', version: 'V1', date: '', provenance: '', firmware: '', multiBatch: '', autreFichier: '', notes: '' };
+      const meme = fiches.enregistrerConfigFormulaire(base, parc, dalle, lot, id, champs);
+      v.egal('même nom : marque effacée, aucun message', [fiches.texteCriteresConfig(config(meme.base)), config(meme.base).version, meme.messages], ['800 cd/m²', 'V1', []]);
+      v.egal('fichier joint gardé', config(meme.base).fichier?.id, 'f1');
+      const nouveau = fiches.enregistrerConfigFormulaire(base, parc, dalle, lot, id, { ...champs, nomFichier: 'essai 50HZ 1200.rcfgx' });
+      v.egal('nouveau nom : la luminosité saisie reste, la fréquence vient du nom', [fiches.criteresConfig(config(nouveau.base)), fiches.texteCriteresConfig(config(nouveau.base))],
+        [{ frequenceHz: 50, luminositeMax: 800 }, '50 Hz, 800 cd/m², d\'après le nom du fichier']);
+      v.egal('… avec le message', nouveau.messages, ['Fréquence 50 Hz lue dans le nom du fichier : vérifie-la.']);
+      v.egal('fréquence saisie avec le nouveau nom : gardée, sans marque',
+        fiches.criteresConfig(config(fiches.enregistrerConfigFormulaire(base, parc, dalle, lot, id, { ...champs, nomFichier: 'essai 50HZ 1200.rcfgx', frequenceHz: '60' }).base)),
+        { frequenceHz: 60, luminositeMax: 800 });
+      let refus = null;
+      try { fiches.enregistrerConfigFormulaire(base, parc, dalle, lot, id, { ...champs, nomFichier: 'essai.ncp' }); } catch (e) { refus = e.message; }
+      v.egal('mauvaise extension : refus', refus, 'Fichier de config NovaLCT : un fichier .rcfgx ou .rcfg.');
+      let vmp = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'VMP' });
+      vmp = fiches.enregistrerConfigFormulaire(vmp, parc, dalle, lot, 'VMP', { nomFichier: 'essai.ncp', version: '', date: '', provenance: '', firmware: '', autreFichier: '', notes: 'N' });
+      v.egal('VMP : nom et notes enregistrés', [fiches.configLot(vmp.base, parc, dalle, lot, 'VMP').nomFichier, fiches.configLot(vmp.base, parc, dalle, lot, 'VMP').notes, vmp.messages], ['essai.ncp', 'N', []]);
+    },
+  },
+  {
+    id: 'R419',
+    titre: 'Deuxième config NovaLCT d\'un lot par le petit formulaire de Base (étape 20b, spec § 5.1, choix a) : proposition d\'après le nom pour pré-remplir, création avec les critères saisis (sans marque), 60 Hz proposés aux autres fichiers, doublon refusé',
+    etape: 'configs',
+    verifier(v) {
+      if (typeof fiches.ajouterConfigNovaLCT !== 'function' || typeof fiches.proposerPourLot !== 'function') {
+        v.vrai('ajouterConfigNovaLCT et proposerPourLot exportées par fiches.js', false);
+        return;
+      }
+      let base = fiches.creerParc(fiches.baseVide(), 'Parc test');
+      const parc = base.parcs[0].id;
+      const dalle = 'roe-bp2-v2';
+      base = fiches.ajouterLot(base, parc, dalle, { identifiant: 'A', quantite: '60' });
+      const lot = fiches.lotsDalleParc(base, parc, dalle)[0].id;
+      base = fiches.ajouterConfigLot(base, parc, dalle, lot, { logiciel: 'NovaLCT' });
+      const premier = fiches.lotsDalleParc(base, parc, dalle)[0].configs[0].id;
+      base = fiches.nommerFichierConfig(base, parc, dalle, lot, premier, 'ESSAI1234 800.rcfgx').base;
+      const lotA = () => fiches.lotsDalleParc(base, parc, dalle)[0];
+      v.egal('proposition pour pré-remplir', fiches.proposerPourLot(lotA(), 'ESSAI1234  50HZ  800.rcfgx'), { frequenceHz: 50, luminositeMax: 800, soixante: [premier] });
+      const r = fiches.ajouterConfigNovaLCT(base, parc, dalle, lot, { nomFichier: 'ESSAI1234  50HZ  800.rcfgx', frequenceHz: '50', luminositeMax: '800' });
+      const configs = fiches.lotsDalleParc(r.base, parc, dalle)[0].configs;
+      v.egal('deux configs NovaLCT', configs.length, 2);
+      v.vrai('identifiant de la nouvelle', typeof r.id === 'string' && r.id.startsWith('cfg-') && configs[1].id === r.id, r.id);
+      v.egal('la nouvelle : critères saisis, sans marque', [configs[1].nomFichier, fiches.texteCriteresConfig(configs[1])], ['ESSAI1234  50HZ  800.rcfgx', '50 Hz, 800 cd/m²']);
+      v.egal('l\'autre : 60 Hz proposés, marqués', fiches.texteCriteresConfig(configs[0]), '60 Hz, 800 cd/m², d\'après le nom du fichier');
+      v.egal('message', r.messages, ['Fréquence 60 Hz proposée pour ESSAI1234 800.rcfgx (sans « Hz » dans son nom) : vérifie-la.']);
+      base = r.base;
+      v.egal('fichier sans « Hz » dans un lot à 50 Hz : 60 Hz proposés', fiches.proposerPourLot(lotA(), 'ESSAI1234 1200.rcfgx'), { frequenceHz: 60, luminositeMax: 1200, soixante: [] });
+      let refus = null;
+      try { fiches.ajouterConfigNovaLCT(base, parc, dalle, lot, { nomFichier: 'autre.rcfgx', frequenceHz: '60', luminositeMax: '800' }); } catch (e) { refus = e.message; }
+      v.egal('doublon refusé', refus, 'Le lot A a déjà un fichier NovaLCT à 60 Hz et 800 cd/m² : change la fréquence ou la luminosité.');
+      const vide = fiches.ajouterConfigNovaLCT(base, parc, dalle, lot, { nomFichier: 'essai 1200.rcfgx', frequenceHz: '60', luminositeMax: '' });
+      v.egal('luminosité laissée vide : lue dans le nom', [fiches.texteCriteresConfig(fiches.configLot(vide.base, parc, dalle, lot, vide.id)), vide.messages],
+        ['60 Hz, 1200 cd/m², d\'après le nom du fichier', ['Luminosité maxi 1200 cd/m² lue dans le nom du fichier : vérifie-la.']]);
+      const sansNom = fiches.ajouterConfigNovaLCT(base, parc, dalle, lot, { nomFichier: '', frequenceHz: '', luminositeMax: '1200' });
+      v.egal('sans nom de fichier', [fiches.criteresConfig(fiches.configLot(sansNom.base, parc, dalle, lot, sansNom.id)), sansNom.messages], [{ frequenceHz: null, luminositeMax: 1200 }, []]);
+    },
+  },
+  {
+    id: 'R420',
+    titre: 'Plusieurs arrivées (étape 21a, spec § 4.1) : liste lue avec repères A1, A2…, identifiants stables et libellés ; boîtier en direct seulement pour une 32 A tri ; contrôles qui nomment l\'arrivée ; départs au-delà de 16 A ou puissance utile au-delà d\'une prise 16 A : arrivée en boîtier refusée, les autres gardées ; arrivée de calcul ; alertes de l\'arrivée unique retirées',
+    etape: '21a',
+    verifier(v) {
+      if (typeof calculs.lireArrivees !== 'function') { v.vrai('lireArrivees exportée par calculs.js', false); return; }
+      const deux = calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }, { type: 'tri', intensiteA: 32, branchement: 'boitier', distanceM: 12 }]);
+      v.egal('63 A tri en armoire, 32 A tri en boîtier', deux, [
+        { id: 'arr-1', numero: 1, repere: 'A1', type: 'tri', intensiteA: 63, branchement: 'armoire', distanceM: null, materiel: { prises16: null, sortiesP17: null }, libelle: 'Arrivée 1 : 63 A tri, armoire', refus: null },
+        { id: 'arr-2', numero: 2, repere: 'A2', type: 'tri', intensiteA: 32, branchement: 'boitier', distanceM: 12, materiel: { prises16: null, sortiesP17: null }, libelle: 'Arrivée 2 : 32 A tri, en direct sur un boîtier', refus: null },
+      ]);
+      v.egal('identifiant donné gardé, mono', calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }, { id: 'arr-x', type: 'mono', intensiteA: 16 }])[1],
+        { id: 'arr-x', numero: 2, repere: 'A2', type: 'mono', intensiteA: 16, branchement: 'armoire', distanceM: null, materiel: { prises16: null, sortiesP17: null }, libelle: 'Arrivée 2 : 16 A mono, armoire', refus: null });
+      const refus = (liste, options) => messageErreur(() => calculs.lireArrivees(liste, options));
+      const a1 = { type: 'tri', intensiteA: 63 };
+      v.egal('boîtier sur une 63 A tri : refusé', refus([a1, { type: 'tri', intensiteA: 63, branchement: 'boitier' }]), 'Arrivée 2 : en direct sur un boîtier, seulement pour une 32 A tri.');
+      v.egal('boîtier sur une 32 A mono : refusé', refus([a1, { type: 'mono', intensiteA: 32, branchement: 'boitier' }]), 'Arrivée 2 : en direct sur un boîtier, seulement pour une 32 A tri.');
+      v.egal('intensité nulle', refus([a1, { type: 'tri', intensiteA: 0 }]), 'Arrivée 2 : indique son intensité, en ampères.');
+      v.egal('type inconnu', refus([a1, { type: 'bi', intensiteA: 32 }]), 'Arrivée 2 : mono ou tri.');
+      v.egal('distance négative', refus([a1, { type: 'tri', intensiteA: 32, distanceM: -1 }]), 'Arrivée 2 : la distance au mur est positive ou nulle.');
+      v.egal('matériel non entier', refus([a1, { type: 'tri', intensiteA: 32, materiel: { prises16: 1.5 } }]), 'Arrivée 2 : prises 16 A libres sur l\'armoire, un nombre entier, 0 ou plus.');
+      v.egal('aucune arrivée', refus([]), 'Indique au moins une arrivée.');
+      const boitier = [a1, { type: 'tri', intensiteA: 32, branchement: 'boitier' }];
+      v.egal('départs de 20 A : l\'arrivée en boîtier refusée, pas la liste', calculs.lireArrivees(boitier, { departA: 20 }).map((a) => a.refus),
+        [null, 'Arrivée 2 : départs réglés à 20 A, les prises d\'un boîtier 32 A tri sont en 16 A. Branche-la sur une armoire.']);
+      v.egal('puissance utile saisie de 4000 W : refusée en boîtier', calculs.lireArrivees(boitier, { puissanceUtileW: 4000 })[1].refus,
+        'Arrivée 2 : puissance utile par ligne de 4000 W, au-delà d\'une prise 16 A (3680 W). Branche-la sur une armoire.');
+      v.egal('arrivée de calcul : tri dès qu\'une arrivée est tri, la plus grosse', [
+        calculs.arriveeDeCalcul(deux), calculs.arriveeDeCalcul(calculs.lireArrivees([{ type: 'mono', intensiteA: 32 }, { type: 'tri', intensiteA: 32 }])),
+        calculs.arriveeDeCalcul(calculs.lireArrivees([{ type: 'mono', intensiteA: 16 }, { type: 'mono', intensiteA: 32 }])),
+      ], [{ type: 'tri', intensiteA: 63 }, { type: 'tri', intensiteA: 32 }, { type: 'mono', intensiteA: 32 }]);
+      v.egal('alertes de l\'arrivée unique retirées', calculs.sansAlertesArrivee([
+        'Arrivée tri 63 A : la phase la plus chargée demande 12480 W pour 11 088 W utiles par phase, même équilibrée. Il faut une arrivée plus forte.',
+        'L\'arrivée mono 16 A porte 2816 W utiles (220 V, marge 80 %) : le mur demande 3000 W. Il faut une arrivée plus forte ou du triphasé.',
+        'Une phase dépasse les 5632 W utiles de l\'arrivée : il faut une arrivée plus forte.',
+        'Courant d\'appel : jusqu\'à 90 A sur une ligne.',
+      ]), ['Courant d\'appel : jusqu\'à 90 A sur une ligne.']);
+    },
+  },
+  {
+    id: 'R421',
+    titre: 'Répartition des lignes entre les arrivées (étape 21a, spec § 4.2, cas 1 et 2) : une seule arrivée en armoire, la variante telle quelle ; tout tient sur l\'arrivée en tête (la plus grosse, pas la première de la liste) : phases d\'aujourd\'hui, les autres « aucune ligne » ; boîtier seul trop petit : refus, ligne sans place ; arrivée en boîtier refusée par les départs : retirée',
+    etape: '21a',
+    verifier(v) {
+      if (typeof calculs.repartirArrivees !== 'function') { v.vrai('repartirArrivees exportée par calculs.js', false); return; }
+      const neuf = varianteArrivees(Array(9).fill(2340));
+      v.vrai('une seule arrivée en armoire : la variante elle-même', calculs.repartirArrivees(neuf, elecArrivees(), calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }])) === neuf);
+      const r = calculs.repartirArrivees(neuf, elecArrivees(), calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }, { type: 'tri', intensiteA: 32, branchement: 'boitier' }]));
+      v.egal('tout tient sur A1 : phases de la variante, toutes sur A1', [r.lignesDetail.map((l) => `${l.repere}L${l.phase}`), r.parArrivee.map((a) => a.lignes)],
+        [['A1L1', 'A1L2', 'A1L3', 'A1L1', 'A1L2', 'A1L3', 'A1L1', 'A1L2', 'A1L3'], [[1, 2, 3, 4, 5, 6, 7, 8, 9], []]]);
+      v.egal('… note, aucun refus, ok', [r.notes, r.refus, r.ok], [['Arrivée 2 : aucune ligne, pas besoin de la tirer.'], [], true]);
+      v.egal('… phases de A1', r.parArrivee[0].phases.map((p) => [p.numero, p.lignes, p.puissanceW]), [[1, 3, 7020], [2, 3, 7020], [3, 3, 7020]]);
+      v.egal('… capacités par phase', r.parArrivee.map((a) => a.capaciteW), [11088, 5632]);
+      v.vrai('la variante d\'origine n\'est pas modifiée', neuf.lignesDetail.every((l) => l.repere === undefined));
+      const inverse = calculs.repartirArrivees(neuf, elecArrivees(), calculs.lireArrivees([{ type: 'tri', intensiteA: 32, branchement: 'boitier' }, { type: 'tri', intensiteA: 63 }]));
+      v.egal('liste inversée : la plus grosse en tête (A2)', [new Set(inverse.lignesDetail.map((l) => l.repere)), inverse.notes], [new Set(['A2']), ['Arrivée 1 : aucune ligne, pas besoin de la tirer.']]);
+      const seul = (n) => calculs.repartirArrivees(varianteArrivees(Array(n).fill(2340)), elecArrivees(), calculs.lireArrivees([{ type: 'tri', intensiteA: 32, branchement: 'boitier' }]));
+      v.egal('boîtier seul, 6 lignes : 2 par phase, tout passe', [seul(6).lignesDetail.map((l) => l.phase), seul(6).refus], [[1, 2, 3, 1, 2, 3], []]);
+      const sept = seul(7);
+      v.egal('boîtier seul, 7 lignes : la 7e sans place', [sept.lignesDetail.map((l) => l.placee), sept.nonPlacees, sept.ok], [[true, true, true, true, true, true, false], [7], false]);
+      v.egal('… refus', sept.refus, ['Les arrivées ne suffisent pas : ligne 7 sans place (A1 : 5632 W par phase). Ajoute une arrivée ou une plus forte, ou déplace une ligne à la main.']);
+      const fort = calculs.repartirArrivees(neuf, elecArrivees({ departA: 20 }, 3520),
+        calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }, { type: 'tri', intensiteA: 32, branchement: 'boitier' }], { departA: 20 }));
+      v.egal('départs de 20 A : A2 retirée, son refus, tout sur A1', [new Set(fort.lignesDetail.map((l) => l.repere)), fort.refus],
+        [new Set(['A1']), ['Arrivée 2 : départs réglés à 20 A, les prises d\'un boîtier 32 A tri sont en 16 A. Branche-la sur une armoire.']]);
+    },
+  },
+  {
+    id: 'R422',
+    titre: 'Répartition, conseil (étape 21a, spec § 4.2, cas 3 et 4) : la plus grosse arrivée remplie dans l\'ordre du câblage, puis la suivante sans retour en arrière ; dans chaque arrivée, les plus chargées d\'abord sur la phase la moins chargée qui a la place et une prise libre ; second essai au mieux avant le refus ; arrivée mono',
+    etape: '21a',
+    verifier(v) {
+      if (typeof calculs.repartirArrivees !== 'function') { v.vrai('repartirArrivees exportée par calculs.js', false); return; }
+      const arrivees = calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }, { type: 'tri', intensiteA: 32, branchement: 'boitier' }]);
+      const r = calculs.repartirArrivees(varianteArrivees(Array(16).fill(2340)), elecArrivees(), arrivees);
+      v.egal('16 lignes de 2340 W : 1 à 12 sur A1 (4 par phase), 13 à 16 sur le boîtier A2', r.lignesDetail.map((l) => `${l.numero}${l.repere}L${l.phase}`), [
+        '1A1L1', '2A1L2', '3A1L3', '4A1L1', '5A1L2', '6A1L3', '7A1L1', '8A1L2', '9A1L3', '10A1L1', '11A1L2', '12A1L3', '13A2L1', '14A2L2', '15A2L3', '16A2L1']);
+      v.egal('… charges par phase', r.parArrivee.map((a) => a.phases.map((p) => p.puissanceW)), [[9360, 9360, 9360], [4680, 2340, 2340]]);
+      v.egal('… prises libres du boîtier, écart de A2', [r.parArrivee[1].phases.map((p) => p.prisesLibres), Math.round(r.parArrivee[1].ecartPourcent)], [[0, 1, 1], 50]);
+      v.egal('… ok, sans note ni refus', [r.ok, r.notes, r.refus], [true, [], []]);
+      const sansRetour = calculs.repartirArrivees(varianteArrivees([...Array(12).fill(2340), 2816, 1000]), elecArrivees(), arrivees);
+      v.egal('sans retour en arrière : la ligne 14 (1000 W) reste sur A2 après la 13', sansRetour.lignesDetail.slice(11).map((l) => l.repere), ['A1', 'A2', 'A2']);
+      const deuxieme = calculs.repartirArrivees(varianteArrivees([1000, 2800, 2800, 2800, 2800, 2800, 2800, 1700]), elecArrivees(),
+        calculs.lireArrivees([{ type: 'tri', intensiteA: 32 }, { type: 'mono', intensiteA: 16 }]));
+      v.egal('second essai : les plus chargées d\'abord, tout trouve sa place', deuxieme.lignesDetail.map((l) => `${l.repere}${l.phase === null ? '' : `L${l.phase}`}`),
+        ['A2', 'A1L1', 'A1L2', 'A1L3', 'A1L1', 'A1L2', 'A1L3', 'A2']);
+      v.egal('… note, aucun refus', [deuxieme.notes, deuxieme.refus], [['Répartition au mieux : les lignes voisines ne sont pas toutes sur la même arrivée.'], []]);
+      v.egal('… arrivée mono : une seule « phase »', deuxieme.parArrivee[1].phases.map((p) => [p.numero, p.lignes, p.puissanceW]), [[null, 2, 2700]]);
+      const trop = calculs.repartirArrivees(varianteArrivees([...Array(18).fill(2340), 2340, 2340]), elecArrivees(), arrivees);
+      v.egal('20 lignes : 19 et 20 sans place, refus', [trop.nonPlacees, trop.refus],
+        [[19, 20], [`Les arrivées ne suffisent pas : lignes 19 et 20 sans place (A1 : ${nombre(11088)} W par phase, A2 : 5632 W par phase). Ajoute une arrivée ou une plus forte, ou déplace une ligne à la main.`]]);
+    },
+  },
+  {
+    id: 'R423',
+    titre: 'Répartition, correction à la main (étape 21a, spec § 4.2, cas 6) : choix repérés par la première dalle de la ligne, placés d\'abord ; débordement en watts « dépasse », prise en trop d\'un boîtier refusée (ligne sans place) ; choix oublié avec la raison ; seulement sur la variante retenue',
+    etape: '21a',
+    verifier(v) {
+      if (typeof calculs.repartirArrivees !== 'function') { v.vrai('repartirArrivees exportée par calculs.js', false); return; }
+      const arrivees = calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }, { type: 'tri', intensiteA: 32, branchement: 'boitier' }]);
+      const neuf = varianteArrivees(Array(9).fill(2340));
+      const un = calculs.repartirArrivees(neuf, elecArrivees(), arrivees, { manuel: { 'C1 R1': 'arr-2' } });
+      v.egal('ligne 1 à la main sur A2, les autres sur A1 (phases refaites)', un.lignesDetail.map((l) => `${l.repere}L${l.phase}${l.manuel ? '*' : ''}`),
+        ['A2L1*', 'A1L1', 'A1L2', 'A1L3', 'A1L1', 'A1L2', 'A1L3', 'A1L1', 'A1L2']);
+      v.egal('… aucune note « aucune ligne »', un.notes, []);
+      const seize = calculs.repartirArrivees(varianteArrivees(Array(16).fill(2340)), elecArrivees(), arrivees, { manuel: { 'C1 R1': 'arr-2' } });
+      v.egal('16 lignes, la 1 sur A2 : 2 à 13 sur A1, 14 à 16 sur A2', seize.lignesDetail.map((l) => l.repere).join(''), 'A2' + 'A1'.repeat(12) + 'A2'.repeat(3));
+      const armoire32 = calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }, { type: 'tri', intensiteA: 32 }]);
+      const choix = (n, id) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`C${i + 1} R1`, id]));
+      const depasse = calculs.repartirArrivees(neuf, elecArrivees(), armoire32, { manuel: choix(7, 'arr-2') });
+      v.egal('7 lignes à la main sur une 32 A tri en armoire : alerte « dépasse »', depasse.alertes, ['Arrivée 2, phase L1 : 7020 W pour 5632 W utiles, dépasse.']);
+      v.egal('… gardées, arrivée pas ok', [depasse.lignesDetail.filter((l) => l.repere === 'A2').length, depasse.parArrivee[1].ok, depasse.ok], [7, false, false]);
+      const prise = calculs.repartirArrivees(neuf, elecArrivees(), arrivees, { manuel: choix(7, 'arr-2') });
+      v.egal('7 lignes à la main sur le boîtier : la 7e sans prise', [prise.lignesDetail[6].placee, prise.nonPlacees, prise.refus],
+        [false, [7], ['Arrivée 2 (boîtier) : 3 lignes sur L1 pour 2 prises.']]);
+      v.egal('choix d\'une ligne disparue : oublié', calculs.repartirArrivees(neuf, elecArrivees(), arrivees, { manuel: { 'C99 R1': 'arr-2' } }).notes,
+        ['Choix à la main oublié : la ligne qui partait de C99 R1 n\'existe plus.', 'Arrivée 2 : aucune ligne, pas besoin de la tirer.']);
+      v.egal('choix d\'une arrivée retirée : oublié', calculs.repartirArrivees(neuf, elecArrivees(), arrivees, { manuel: { 'C1 R1': 'arr-9' } }).notes,
+        ['Choix à la main oublié : l\'arrivée choisie pour la ligne qui partait de C1 R1 n\'existe plus.', 'Arrivée 2 : aucune ligne, pas besoin de la tirer.']);
+      const autre = calculs.repartirArrivees(neuf, elecArrivees(), arrivees, { manuel: { 'C1 R1': 'arr-2' }, retenue: false });
+      v.egal('autre variante que la retenue : conseil seul, note', [new Set(autre.lignesDetail.map((l) => l.repere)), autre.notes[0]],
+        [new Set(['A1']), 'Choix à la main : seulement sur la variante retenue dans Élec.']);
+    },
+  },
+  {
+    id: 'R424',
+    titre: 'Répartition sur un vrai mur (étape 21a, spec § 3) : lignes de la variante conseillée calculée sur l\'arrivée de calcul, alertes de l\'arrivée unique remplacées par celles de la répartition ; la variante réécrite garde ses dalles, sa puissance et son ordre',
+    etape: '21a',
+    verifier(v) {
+      if (typeof calculs.repartirArrivees !== 'function') { v.vrai('repartirArrivees exportée par calculs.js', false); return; }
+      const arrivees = calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }, { type: 'tri', intensiteA: 32, branchement: 'boitier' }]);
+      const m = calculs.mur(DALLE_CAS_13, 48, 6);
+      const { elec, variante } = varianteConseil(m, DALLE_CAS_13, { arrivee: calculs.arriveeDeCalcul(arrivees), depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+      v.vrai('sur la seule 63 A tri, une phase déborde (alerte d\'aujourd\'hui)', elec.alertes.some((a) => a.startsWith('Arrivée tri 63 A')), elec.alertes);
+      const r = calculs.repartirArrivees(variante, elec, arrivees);
+      v.egal('avec la 32 A tri en boîtier : tout passe', [r.ok, r.refus, r.nonPlacees], [true, [], []]);
+      v.vrai('chaque phase sous sa capacité', r.parArrivee.every((a) => a.phases.every((p) => p.puissanceW <= a.capaciteW)));
+      v.egal('mêmes lignes, mêmes dalles, même ordre', r.lignesDetail.map((l) => [l.numero, l.dalles.join(), l.puissanceW]), variante.lignesDetail.map((l) => [l.numero, l.dalles.join(), l.puissanceW]));
+      v.vrai('alertes de capacité de la variante retirées', !r.alertes.some((a) => a.startsWith('Une phase dépasse')), r.alertes);
+      v.egal('repères dans l\'ordre du câblage : A1 d\'abord, puis A2', [...new Set(r.lignesDetail.map((l) => l.repere))], ['A1', 'A2']);
+    },
+  },
+  {
+    id: 'R425',
+    titre: 'Distribution par arrivée (étape 21a, spec § 4.3) : arrivée en boîtier, ses lignes sur son boîtier, P17 depuis sa distance ; armoire près ou loin avec sa distance ; boîtiers numérotés dans l\'ordre du câblage ; boîtiers disponibles pris d\'abord par l\'arrivée en boîtier ; refus qui nomme l\'arrivée ; ligne sans place ; une seule arrivée en armoire : comme avant',
+    etape: '21a',
+    verifier(v) {
+      if (typeof calculs.repartirArrivees !== 'function') { v.vrai('repartirArrivees exportée par calculs.js', false); return; }
+      const mur = { largeurMm: 8000, hauteurMm: 3000 };
+      const liste = (d1, d2 = 30, materiel1 = undefined) => calculs.lireArrivees([{ type: 'tri', intensiteA: 63, distanceM: d1, ...(materiel1 ? { materiel: materiel1 } : {}) }, { type: 'tri', intensiteA: 32, branchement: 'boitier', distanceM: d2 }]);
+      const dist = (arrivees, options = {}) => {
+        const r = calculs.repartirArrivees(varianteArrivees(Array(16).fill(2340)), elecArrivees(), arrivees);
+        return calculs.distributionElec(mur, r, elecArrivees(), { depart: 'bas-gauche', mode: 'stack', arrivees, ...options });
+      };
+      const pres = dist(liste(5));
+      v.egal('A1 à 5 m : lignes 1 à 12 en direct ; A2 : boîtier B1 avec 13 à 16', [pres.lignes.map((l) => `${l.numero}${l.depuis}`).join(' '), contenuBoitiers(pres)],
+        [`${Array.from({ length: 12 }, (_, i) => `${i + 1}armoire`).join(' ')} 13B1 14B1 15B1 16B1`, ['13L1 14L2 15L3 16L1']]);
+      v.egal('… le boîtier dit son arrivée', [pres.boitiers[0].arrivee, pres.boitiers[0].repere], ['arr-2', 'A2']);
+      v.egal('… chaque ligne dit son arrivée', [pres.lignes[0].arrivee, pres.lignes[15].arrivee], ['arr-1', 'arr-2']);
+      v.egal('… P17 de A2 : (30 m + 7 m le long du bord) × 1,1', pres.cables.p17.longueursM.map((x) => Math.round(x * 10) / 10), [40.7]);
+      v.egal('… ce que chaque armoire fournit', [pres.armoire, pres.parArrivee.map((a) => [a.repere, a.sortiesP17, a.prises16])],
+        [{ sortiesP17: 0, prises16: 12 }, [['A1', 0, 12], ['A2', 0, 0]]]);
+      const loin = dist(liste(25));
+      v.egal('A1 à 25 m : deux boîtiers pour A1, puis celui de A2, dans l\'ordre du câblage', [contenuBoitiers(loin), loin.boitiers.map((b) => b.repere)],
+        [['1L1 2L2 3L3 4L1 5L2 6L3', '7L1 8L2 9L3 10L1 11L2 12L3', '13L1 14L2 15L3 16L1'], ['A1', 'A1', 'A2']]);
+      const limite = dist(liste(25, 30, { prises16: 3 }), { choix: 'materiel', materiel: { boitiers: 2 } });
+      v.egal('2 boîtiers disponibles : un pour A2, un pour A1, 3 prises sur l\'armoire de A1', [contenuBoitiers(limite).length, limite.lignes.filter((l) => l.depuis === null).map((l) => l.numero)],
+        [2, [10, 11, 12]]);
+      v.vrai('… refus qui nomme l\'arrivée et propose de déplacer une ligne', /^Arrivée 1 : il manque 3 prises 16 A.*, ou déplace une ligne sur une autre arrivée\.$/.test(limite.refus ?? ''), limite.refus);
+      const r = calculs.repartirArrivees(varianteArrivees(Array(9).fill(2340)), elecArrivees(), calculs.lireArrivees([{ type: 'tri', intensiteA: 32, branchement: 'boitier' }]), { manuel: Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`C${i + 1} R1`, 'arr-1'])) });
+      const sansPlace = calculs.distributionElec(mur, r, elecArrivees(), { depart: 'bas-gauche', arrivees: calculs.lireArrivees([{ type: 'tri', intensiteA: 32, branchement: 'boitier' }]) });
+      v.egal('ligne sans place dans la répartition : prise à trouver', sansPlace.lignes.filter((l) => l.depuis === null).map((l) => l.numero), [7, 8, 9].filter((n) => !r.lignesDetail[n - 1].placee));
+      const seule = calculs.lireArrivees([{ type: 'tri', intensiteA: 63, distanceM: 25 }]);
+      const variante = varianteFictive([1, 2, 3, 1, 2, 3, 1]);
+      v.egal('une seule arrivée en armoire : la distribution d\'avant',
+        calculs.distributionElec(MUR_FICTIF, variante, ELEC_TRI_FICTIF, { depart: 'bas-gauche', distanceArmoireM: 25, arrivees: seule }),
+        calculs.distributionElec(MUR_FICTIF, variante, ELEC_TRI_FICTIF, { depart: 'bas-gauche', distanceArmoireM: 25 }));
+    },
+  },
+  {
+    id: 'R426',
+    titre: 'Texte copié d\'Élec avec plusieurs arrivées (étape 21a, spec § 4.4 et 4.6) : « Arrivées : 2 », chaque arrivée avec sa capacité et ses lignes, ses phases, son écart ; lignes choisies à la main ; sans les lignes et alertes de l\'arrivée unique ; rappel des arrivées ; une seule arrivée : le texte d\'avant',
+    etape: '21a',
+    verifier(v) {
+      if (typeof calculs.repartirArrivees !== 'function') { v.vrai('repartirArrivees exportée par calculs.js', false); return; }
+      const arrivees = calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }, { type: 'tri', intensiteA: 32, branchement: 'boitier' }]);
+      const m = calculs.mur(DALLE_CAS_13, 48, 6);
+      const { elec, variante } = varianteConseil(m, DALLE_CAS_13, { arrivee: calculs.arriveeDeCalcul(arrivees), depart: 'bas-gauche' }, { depart: 'bas-gauche' });
+      const r = calculs.repartirArrivees(variante, elec, arrivees, { manuel: { [variante.lignesDetail[0].dalles[0]]: 'arr-2' } });
+      const texte = resumes.resumeElec(elec, { dalle: DALLE_CAS_13, mur: m, repartition: r });
+      const lignes = texte.split('\n');
+      v.vrai('« Arrivées : 2 »', lignes.includes('Arrivées : 2'), texte);
+      v.vrai('arrivée 1 : capacité et lignes', lignes.some((l) => l.startsWith('Arrivée 1 : tri 63 A, 11 088 W utiles par phase, lignes ')), texte);
+      v.vrai('arrivée 2 : en direct sur un boîtier', lignes.some((l) => l.startsWith('Arrivée 2 : tri 32 A, 5632 W utiles par phase, en direct sur un boîtier, lignes 1')), texte);
+      v.vrai('phases par arrivée', lignes.some((l) => /^Arrivée 1, phase L1 : \d+ lignes?, /.test(l)) && lignes.some((l) => /^Arrivée 2, phase L3 : /.test(l)), texte);
+      v.vrai('écart par arrivée', lignes.some((l) => /^Arrivée 1, écart entre phases : \d+ %$/.test(l)), texte);
+      v.vrai('ligne choisie à la main', lignes.includes('Ligne 1 : arrivée 2, choisie à la main'), texte);
+      v.vrai('sans les lignes de l\'arrivée unique', !lignes.some((l) => /^(Arrivée : |Répartition : |Phase L\d : |Au minimum de lignes : )/.test(l)), texte);
+      v.vrai('sans l\'alerte « Il faut une arrivée plus forte »', !texte.includes('Il faut une arrivée plus forte'), texte);
+      v.vrai('rappel des arrivées', lignes.includes(`Rappel : ${calculs.RAPPEL_ARRIVEES}`) && calculs.RAPPEL_ARRIVEES.startsWith('Plusieurs arrivées : chaque ligne reste sur son arrivée'), texte);
+      const seule = calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }]);
+      const r1 = calculs.repartirArrivees(variante, elec, seule);
+      v.egal('une seule arrivée : le texte d\'avant', resumes.resumeElec(elec, { dalle: DALLE_CAS_13, mur: m, repartition: r1 }), resumes.resumeElec(elec, { dalle: DALLE_CAS_13, mur: m }));
+    },
+  },
+  {
+    id: 'R427',
+    titre: 'Saisies d\'un mur dans une presta exportée (correctif du lot 21b) : le formulaire de la distribution d\'Élec (distance de l\'arrivée 1 et son matériel) fait partie des saisies gardées à l\'import',
+    etape: '21b',
+    verifier(v) {
+      v.vrai('form-distribution dans FORMULAIRES_SAISIES', prestas.FORMULAIRES_SAISIES.includes('form-distribution'), prestas.FORMULAIRES_SAISIES);
+    },
+  },
+  {
+    id: 'R428',
+    titre: 'Cascade USB des processeurs Novastar (étape 22a, spec § 4.1.3, F10) : `cascadeMax` sourcé sur la fiche du constructeur, MCTRL4K 10 (fiche V1.2.1, p. 5), MCTRL R5 8 (fiche V1.0.5, p. 4), MCTRL660 PRO 8 (fiche V1.4.1, p. 4) ; absent ailleurs (VX1000 : cascade USB sans maximum écrit)',
+    etape: '22a',
+    verifier(v, contexte) {
+      const champ = (id) => {
+        const p = processeurDeBase(contexte, id);
+        return [p.cascadeMax, p.sources.cascadeMax?.source.id, p.sources.cascadeMax?.source.confiance, p.sources.cascadeMax?.note];
+      };
+      v.egal('MCTRL4K : 10, fiche V1.2.1', champ('novastar-mctrl4k'), [10, 'novastar-mctrl4k-v1-2-1', 'constructeur', '« Up to 10 units can be cascaded », p. 5']);
+      v.egal('MCTRL R5 : 8, fiche V1.0.5', champ('novastar-mctrl-r5'), [8, 'novastar-mctrl-r5-v1-0-5', 'constructeur', '« Up to 8 devices can be cascaded », p. 4']);
+      v.egal('MCTRL660 PRO : 8, fiche V1.4.1', champ('novastar-mctrl660-pro'), [8, 'novastar-mctrl660-pro-v1-4-1', 'constructeur', '« Up to 8 devices can be cascaded », p. 4']);
+      v.egal('VX1000, MCTRL660, H5 : pas de maximum', ['novastar-vx1000', 'novastar-mctrl660', 'novastar-h5'].map((id) => processeurDeBase(contexte, id).cascadeMax), [undefined, undefined, undefined]);
+    },
+  },
+  {
+    id: 'R429',
+    titre: 'Secours par un second processeur NovaLCT (étape 22a, spec § 5.1 et 5.2) : réglages `secours` et `liaisonSecours`, `portsDoubles` faux, contrôles et découpage comme sans redondance (ports principaux non doublés, capacité de l\'appareil sans moitié), nombre pair de colonnes par port gardé, `nombreSecours` = N et `nombreTotal` = 2N ; secours dans le même processeur : le calcul d\'avant ; saisie d\'avant l\'étape 22 : secours dans le même processeur',
+    etape: '22a',
+    verifier(v, contexte) {
+      const x = (reglages) => exercice(contexte, 8, 6, 'novastar-mctrl660-pro', reglages);
+      const e = x({ redondance: true, secours: 'processeur' }).e;
+      v.egal('réglages : secours par un second processeur, sans cascade par défaut, ports non doublés',
+        [e.reglages.redondance, e.reglages.secours, e.reglages.liaisonSecours, e.reglages.portsDoubles], [true, 'processeur', 'sansCascade', false]);
+      v.egal('1 × MCTRL660 Pro + 1 de secours (au lieu de 2 avec les ports doublés)', [e.nombre, e.nombreSecours, e.nombreTotal], [1, 1, 2]);
+      v.egal('ports comparés aux 6 du processeur, non doublés', [e.controles.ports.valeur, e.controles.ports.limite, e.controles.ports.principaux], [4, 6, false]);
+      v.egal('capacité de l\'appareil : ses 6 ports, plafonnée par les 2,3 M px de la fiche', [e.capaciteAppareil.ports, e.capaciteAppareil.valeur], [6, 2300000]);
+      v.egal('nombre pair de colonnes par port gardé', [e.colonnesPaires, e.global.colonnes.colonnesParPort, e.totaux.ports.colonnes], [true, 2, 4]);
+      v.egal('résumé du secours', [e.secoursProcesseur?.nombre, e.secoursProcesseur?.liaison, e.secoursProcesseur?.texte],
+        [1, 'sansCascade', 'par un second processeur (sans cascade, Primary et Backup)']);
+      const ports = x({ redondance: true, secours: 'ports' }).e;
+      v.egal('secours dans le même processeur : 2 × MCTRL660 Pro, ports doublés', [ports.nombre, ports.nombreSecours, ports.nombreTotal, ports.reglages.portsDoubles, ports.capaciteAppareil.ports, ports.capaciteAppareil.valeur, ports.secoursProcesseur],
+        [2, 0, 2, true, 3, 1950000, null]);
+      const avant = x({ redondance: true }).e;
+      v.egal('saisie d\'avant l\'étape 22 (sans champ) : secours dans le même processeur', [avant.nombre, avant.reglages.secours, avant.reglages.portsDoubles, avant.nombreTotal], [2, 'ports', true, 2]);
+      v.egal('… même découpage et mêmes totaux qu\'avec « ports »', JSON.stringify([avant.groupes, avant.totaux, avant.alertes]), JSON.stringify([ports.groupes, ports.totaux, ports.alertes]));
+      const sans = x({ redondance: false, secours: 'processeur', liaisonSecours: 'cascade' }).e;
+      v.egal('redondance non cochée : réglages ignorés', [sans.nombre, sans.nombreSecours, sans.nombreTotal, sans.reglages.secours, sans.reglages.portsDoubles, sans.secoursProcesseur], [1, 0, 1, 'ports', false, null]);
+      const deux = exercice(contexte, 32, 8, 'novastar-mctrl4k', { redondance: true, secours: 'processeur' }).e;
+      v.egal('32 × 8 sur MCTRL4K : 2 + 2 de secours', [deux.nombre, deux.nombreSecours, deux.nombreTotal], [2, 2, 4]);
+      v.vrai('convertisseurs de la fibre du secours : note', deux.notes.includes('Fibre du secours : chaque processeur de secours a ses propres convertisseurs, à vérifier.'), deux.notes);
+      v.egal('… comptés par processeur, secours compris (CVT4K)', [deux.totaux.distributeurs.colonnes, deux.secoursProcesseur.distributeurs], [2, 2]);
+    },
+  },
+  {
+    id: 'R430',
+    titre: 'Secours par un second processeur hors NovaLCT (étape 22a, spec § 5.1 et 5.2) : Brompton et COEX gardent la redondance de leur marque (ports doublés), avec la note du conseil ; série H en cascade refusée ; cascade au-delà du maximum du modèle : alerte ; modèle sans maximum : note',
+    etape: '22a',
+    verifier(v, contexte) {
+      const s8 = (secours) => xBp2(contexte, 'brompton-s8', 12, 6, { redondance: true, secours }).e;
+      const a = s8('processeur');
+      const b = s8('ports');
+      v.egal('S8 : ports doublés, comme le secours dans le même processeur', [a.reglages.portsDoubles, a.reglages.secours, a.nombre, a.nombreSecours, a.nombreTotal], [true, 'ports', b.nombre, 0, b.nombre]);
+      v.egal('… mêmes groupes et totaux', JSON.stringify([a.groupes, a.totaux]), JSON.stringify([b.groupes, b.totaux]));
+      v.vrai('… note du conseil', a.notes.includes(calculs.NOTE_SECOURS_AUTRES_MARQUES) && !b.notes.includes(calculs.NOTE_SECOURS_AUTRES_MARQUES), a.notes);
+      v.egal('texte de la note', calculs.NOTE_SECOURS_AUTRES_MARQUES, 'Secours par un second processeur : seulement pour les processeurs NovaLCT ; les autres sont comptés avec le secours dans le même processeur (ports doublés), une protection différente.');
+      const coex = exercice(contexte, 8, 6, 'coex-mx40-pro', { redondance: true, secours: 'processeur' }).e;
+      v.egal('MX40 Pro (VMP) : ports doublés', [coex.reglages.portsDoubles, coex.nombreSecours], [true, 0]);
+      const h5 = (liaisonSecours) => exercice(contexte, 16, 8, 'novastar-h5', { redondance: true, secours: 'processeur', liaisonSecours }).e;
+      v.egal('série H en cascade : refus', h5('cascade').impossible, 'La série H ne se cascade pas en USB : prends la liaison sans cascade.');
+      v.egal('série H sans cascade : 1 + 1 de secours', [h5('sansCascade').impossible, h5('sansCascade').nombreTotal], [null, 2]);
+      const pro = (colonnes, liaisonSecours) => exercice(contexte, colonnes, 6, 'novastar-mctrl660-pro', { redondance: true, secours: 'processeur', liaisonSecours }).e;
+      const cinq = pro(50, 'cascade');
+      v.egal('50 × 6 en cascade : 5 + 5 de secours, 10 boîtiers pour 8', [cinq.nombre, cinq.secoursProcesseur.cascade], [5, { boitiers: 10, max: 8, depasse: true, source: 'fiche MCTRL660 Pro V1.4.1, p. 4' }]);
+      v.vrai('… alerte', cinq.alertes.includes('Cascade : 10 boîtiers (5 + 5 de secours), au-delà des 8 du MCTRL660 Pro en cascade USB (fiche MCTRL660 Pro V1.4.1, p. 4) : prends la liaison sans cascade.'), cinq.alertes);
+      v.egal('… sans cascade : pas d\'alerte de cascade', [pro(50, 'sansCascade').secoursProcesseur.cascade, pro(50, 'sansCascade').alertes.some((t) => t.startsWith('Cascade'))], [null, false]);
+      const quatre = pro(40, 'cascade');
+      v.egal('40 × 6 en cascade : 8 boîtiers pour 8, ça passe', [quatre.nombre, quatre.secoursProcesseur.cascade.depasse, quatre.alertes.some((t) => t.startsWith('Cascade'))], [4, false, false]);
+      const vx = exercice(contexte, 8, 6, 'novastar-vx1000', { redondance: true, secours: 'processeur', liaisonSecours: 'cascade' }).e;
+      v.egal('VX1000 en cascade : maximum non écrit', vx.secoursProcesseur.cascade, { boitiers: 2, max: null, depasse: false, source: null });
+      v.vrai('… note', vx.notes.includes('Liaison de cascade du VX1000 : nombre de boîtiers au plus, vois la fiche du processeur, à vérifier.'), vx.notes);
+    },
+  },
+  {
+    id: 'R431',
+    titre: 'Parc et processeur conseillé avec un processeur de secours (étape 22a, spec § 5.2) : le parc compare 2N (« Il en faut 4 × MCTRL4K (2 + 2 de secours), le parc A en a 3. ») ; conseil sur le nombre total de boîtiers ; marque Novastar avec ce réglage : processeurs NovaLCT seulement',
+    etape: '22a',
+    verifier(v, contexte) {
+      const deux = exercice(contexte, 32, 8, 'novastar-mctrl4k', { redondance: true, secours: 'processeur' }).e;
+      const q = (n) => calculs.controleQuantiteProcesseur(deux, n, 'A');
+      v.egal('3 dans le parc : manque', [q(3).assez, q(3).alerte], [false, 'Il en faut 4 × MCTRL4K (2 + 2 de secours), le parc A en a 3.']);
+      v.egal('4 dans le parc : assez', [q(4).assez, q(4).alerte], [true, null]);
+      const sans = exercice(contexte, 32, 8, 'novastar-mctrl4k', {}).e;
+      v.egal('sans secours : le texte d\'avant', calculs.controleQuantiteProcesseur(sans, 1, 'A').alerte, 'Il en faut 2 × MCTRL4K, le parc A en a 1.');
+      const evals = (reglages, ids = ['novastar-mctrl660-pro', 'novastar-mctrl4k']) => ids.map((id) => exercice(contexte, 8, 6, id, reglages).e);
+      v.egal('ports doublés : 1 MCTRL4K plutôt que 2 MCTRL660 Pro', calculs.processeurConseille(evals({ redondance: true })).processeur.id, 'novastar-mctrl4k');
+      const secours = evals({ redondance: true, secours: 'processeur' });
+      v.egal('second processeur : 1 + 1 de chaque, le plus petit (MCTRL660 Pro)', calculs.processeurConseille(secours).processeur.id, 'novastar-mctrl660-pro');
+      v.egal('… parc avec 1 seul MCTRL660 Pro : il en faut 2, MCTRL4K', calculs.processeurConseille(secours, { quantites: { 'novastar-mctrl660-pro': 1 } }).processeur.id, 'novastar-mctrl4k');
+      const melange = evals({ redondance: true, secours: 'processeur' }, ['novastar-mctrl660-pro', 'coex-mx40-pro']);
+      v.egal('MX40 Pro (ports doublés, 1 boîtier) face au MCTRL660 Pro (1 + 1) : MX40 Pro', calculs.processeurConseille(melange).processeur.id, 'coex-mx40-pro');
+      v.egal('… conseil limité aux NovaLCT (marque Novastar, second processeur)', calculs.processeurConseille(melange, { seulementNovaLCT: true }).processeur.id, 'novastar-mctrl660-pro');
+    },
+  },
+  {
+    id: 'R432',
+    titre: 'Câblage avec un processeur de secours (étape 22a, spec § 4 et 5.3) : secours de chaque port sur le processeur n + N, même numéro de port, à la dernière dalle de la chaîne, sans convention ; ports principaux non divisés par deux ; chaîne du Schéma sans fibres de secours sur le principal',
+    etape: '22a',
+    verifier(v, contexte) {
+      const x = exercice(contexte, 8, 6, 'novastar-mctrl660-pro', { redondance: true, secours: 'processeur' });
+      const t = calculs.cablageData(x.m, x.dalle, x.e, { depart: 'bas-gauche' });
+      const c = t.variantes.find((y) => y.mode === 'colonnes');
+      v.egal('4 ports principaux sur 6, possible', [c.possible, c.processeurs.length, c.processeurs[0].ports.map((p) => p.numero)], [true, 1, [1, 2, 3, 4]]);
+      v.egal('secours : processeur n° 2, même port', c.processeurs[0].ports.map((p) => [p.secours.processeur, p.secours.numero, p.secours.libelle, p.secours.convention]),
+        [1, 2, 3, 4].map((k) => [2, k, `secours n° 2, port ${k}`, false]));
+      v.egal('retour depuis la dernière dalle, court (2 colonnes par port)', c.processeurs[0].ports.map((p) => p.secours.long), [false, false, false, false]);
+      v.egal('secours et câbles de tête comptés', [c.portsSecours, c.cablesTete], [4, 8]);
+      v.egal('note du secours', c.noteSecours, 'Secours : le processeur de secours n° 2 double le principal n° 1 ; chaque port de secours part de la dernière dalle de la chaîne du même port du principal.');
+      const ports = calculs.cablageData(x.m, x.dalle, exercice(contexte, 8, 6, 'novastar-mctrl660-pro', { redondance: true }).e, { depart: 'bas-gauche' });
+      v.vrai('secours dans le même processeur : convention port p + moitié, comme avant', ports.variantes.find((y) => y.mode === 'colonnes').processeurs[0].ports[0].secours.convention, ports);
+      const d = exercice(contexte, 32, 8, 'novastar-mctrl4k', { redondance: true, secours: 'processeur' });
+      const cd = calculs.cablageData(d.m, d.dalle, d.e, { depart: 'bas-gauche' }).variantes.find((y) => y.mode === 'colonnes');
+      v.egal('2 principaux : secours n° 3 et n° 4', cd.processeurs.map((p) => p.ports[0].secours.libelle), ['secours n° 3, port 1', 'secours n° 4, port 1']);
+      v.egal('… note', cd.noteSecours, 'Secours : les processeurs de secours n° 3 à 4 doublent les principaux n° 1 à 2 (le secours de n est n + 2) ; chaque port de secours part de la dernière dalle de la chaîne du même port du principal.');
+      const f = calculs.cablageData(d.m, d.dalle, d.e, { depart: 'bas-gauche', imposee: { ports: null, fibre: true }, distributeurs: distributeursDeBase(contexte), distanceRegieM: 50 });
+      const ch = calculs.chaineSchema({ chaine: null, evaluation: d.e, variante: varianteImposee(f), distanceM: 50 });
+      v.vrai('chaîne en fibre : pas de fibre de secours OPT3 ou OPT4 sur le principal', ch.aval.every((el) => !/secours/.test(el.liaison?.texte ?? '')), ch.aval.map((el) => el.liaison?.texte));
+    },
+  },
+  {
+    id: 'R433',
+    titre: 'Liste de matériel avec un processeur de secours (étape 22a, spec § 5.3) : processeurs principaux et de secours sur une ligne ; sans cascade, switch et câbles Ethernet de contrôle (2N + 1) pour un modèle à contrôle Ethernet connu, sinon un câble USB par boîtier ; cascade : 2N − 1 câbles USB A vers B et un câble vers l\'ordinateur',
+    etape: '22a',
+    verifier(v, contexte) {
+      const lignes = (procId, liaisonSecours, colonnes = 8) => {
+        const x = exercice(contexte, colonnes, 6, procId, { redondance: true, secours: 'processeur', liaisonSecours });
+        const t = calculs.cablageData(x.m, x.dalle, x.e, { depart: 'bas-gauche', distanceRegieM: 8 });
+        const data = { evaluation: x.e, variante: t.variantes.find((y) => y.mode === t.conseil), distanceRegieM: 8 };
+        return calculs.listeMateriel({ mur: x.m, dalle: x.dalle, data }).sections.find((s) => s.id === 'data').lignes;
+      };
+      const texte = (l) => `${l.quantite} ${l.designation}${l.longueurM ? ` ${l.longueurM} m` : ''} : ${l.detail}`;
+      const sans = lignes('novastar-mctrl660-pro', 'sansCascade');
+      const pro = processeurDeBase(contexte, 'novastar-mctrl660-pro');
+      v.egal('processeurs : 2, dont 1 de secours, même clé', [sans[0].cle, sans[0].quantite, sans[0].designation, sans[0].detail], ['processeur|novastar-mctrl660-pro', 2, pro.nom, 'retenu dans Data, 1 + 1 de secours']);
+      v.egal('sans cascade, MCTRL660 PRO (contrôle Ethernet) : switch et 3 câbles', sans.filter((l) => l.cle.startsWith('controle|')).map(texte), [
+        '1 Switch réseau : pour piloter les 2 boîtiers en Ethernet, une adresse par boîtier réglée en façade',
+        '3 Câble Ethernet de contrôle : un par boîtier, un vers l\'ordinateur (choix de conception)',
+      ]);
+      v.egal('4 câbles de tête et 4 retours de secours', [sans.filter((l) => /^Câble de tête/.test(l.designation)).reduce((s, l) => s + l.quantite, 0), sans.filter((l) => /^Retour de secours/.test(l.designation)).reduce((s, l) => s + l.quantite, 0)], [4, 4]);
+      v.egal('cascade : 1 câble de cascade, 1 vers l\'ordinateur', lignes('novastar-mctrl660-pro', 'cascade').filter((l) => l.cle.startsWith('controle|')).map(texte), [
+        '1 Câble USB A vers B (USB 2.0), cascade des processeurs : de l\'USB OUT de chaque boîtier à l\'USB IN du suivant',
+        '1 Câble USB vers l\'ordinateur : vers l\'USB IN du boîtier 1',
+      ]);
+      v.egal('cascade, 5 + 5 : 9 câbles de cascade', lignes('novastar-mctrl660-pro', 'cascade', 50).find((l) => l.cle === 'controle|usb-cascade').quantite, 9);
+      v.egal('sans cascade, MCTRL660 (contrôle non connu) : un câble USB par boîtier', lignes('novastar-mctrl660', 'sansCascade').filter((l) => l.cle.startsWith('controle|')).map(texte), [
+        '2 Câble USB vers l\'ordinateur : un par boîtier ; liaison au PC : vois la fiche du processeur, à vérifier',
+      ]);
+      const x = exercice(contexte, 8, 6, 'novastar-mctrl660-pro', { redondance: true });
+      const t = calculs.cablageData(x.m, x.dalle, x.e, { depart: 'bas-gauche', distanceRegieM: 8 });
+      const avant = calculs.listeMateriel({ mur: x.m, dalle: x.dalle, data: { evaluation: x.e, variante: t.variantes.find((y) => y.mode === t.conseil), distanceRegieM: 8 } }).sections.find((s) => s.id === 'data').lignes;
+      v.egal('secours dans le même processeur : sans ligne de contrôle, comme avant', [avant[0].quantite, avant[0].detail, avant.some((l) => l.cle.startsWith('controle|'))], [2, 'retenu dans Data', false]);
+    },
+  },
+  {
+    id: 'R434',
+    titre: 'Chaîne vidéo avec un processeur de secours (étape 22a, spec § 5.3) : 2N entrées à alimenter (sorties de régie demandées), alerte « à vérifier » sur la boucle vidéo, MCTRL4K sans sortie vidéo en boucle',
+    etape: '22a',
+    verifier(v, contexte) {
+      const x = exercice(contexte, 32, 8, 'novastar-mctrl4k', { redondance: true, secours: 'processeur' });
+      const liaisons = liaisonsDeBase(contexte);
+      const chaine = { source: { nom: 'Source', largeurPx: 3840, hauteurPx: 2160, frequenceHz: 60 }, liaison: 'hdmi-2.0', longueurM: 5, convertisseurs: [] };
+      const r = calculs.controleChaine(chaine, { evaluation: x.e, liaisons, frequenceCalculHz: 60 });
+      v.vrai('alerte des 4 entrées', r.alertes.includes('Secours par un second processeur : 4 entrées à alimenter (2 + 2 de secours), même format et même fréquence que les principaux : '
+        + 'deux sorties de régie ou un distributeur vidéo. Le MCTRL4K n\'a pas de sortie vidéo en boucle (LOOP : genlock seulement ; manuel MCTRL4K V1.2.1, p. 4). '
+        + 'Boucler la vidéo par le principal en ferait un point unique de panne : à vérifier.'), r.alertes);
+      const regie = regieDeBase(contexte, 'barco-e2-gen2');
+      const source = { largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60 };
+      v.egal('régie : 4 sorties demandées', calculs.controleRegie(regie, x.e, source, liaisons).sortiesNecessaires, 4);
+      const sans = exercice(contexte, 32, 8, 'novastar-mctrl4k', { redondance: true });
+      v.egal('secours dans le même processeur : 2 sorties, sans alerte de secours', [calculs.controleRegie(regie, sans.e, source, liaisons).sortiesNecessaires,
+        calculs.controleChaine(chaine, { evaluation: sans.e, liaisons, frequenceCalculHz: 60 }).alertes.some((a) => a.startsWith('Secours par un second processeur'))], [2, false]);
+      const vx = exercice(contexte, 8, 6, 'novastar-mctrl660-pro', { redondance: true, secours: 'processeur' });
+      const rv = calculs.controleChaine(chaine, { evaluation: vx.e, liaisons, frequenceCalculHz: 60 });
+      v.vrai('MCTRL660 Pro : sans la phrase du MCTRL4K', rv.alertes.some((a) => a.startsWith('Secours par un second processeur : 2 entrées à alimenter (1 + 1 de secours)') && !a.includes('LOOP')), rv.alertes);
+    },
+  },
+  {
+    id: 'R435',
+    titre: 'Textes copiés avec un processeur de secours (étape 22a, spec § 5.2) : « Processeur : 1 × … + 1 de secours », « Redondance : par un second processeur (sans cascade, Primary et Backup) », ports non doublés, consommation, poids et hauteur en rack × 2N ; Canvas : processeurs et secours ; secours dans le même processeur : le texte d\'avant',
+    etape: '22a',
+    verifier(v, contexte) {
+      const x = exercice(contexte, 8, 6, 'novastar-mctrl660-pro', { redondance: true, secours: 'processeur' });
+      const texte = resumes.resumeData(x.e);
+      const lignes = texte.split('\n');
+      v.vrai('processeur et secours', lignes.includes(`Processeur : 1 × ${x.e.processeur.nom} + 1 de secours`), texte);
+      v.vrai('redondance', lignes.includes('Redondance : par un second processeur (sans cascade, Primary et Backup)'), texte);
+      v.vrai('pas de « Ports avec la redondance »', !lignes.some((l) => l.startsWith('Ports avec la redondance')), texte);
+      v.vrai('ports du processeur non doublés', lignes.includes('MCTRL660 Pro n° 1 : colonnes 1 à 8 (48 dalles, 4 ports)'), texte);
+      v.vrai('capacité de l\'appareil sur ses 6 ports', ligneDe(texte, 'Capacité de l\'appareil').startsWith('Capacité de l\'appareil : min(6 ports × '), texte);
+      v.vrai('total des boîtiers', lignes.includes('Processeurs avec les secours : 2 × MCTRL660 Pro, 40 W, 9,2 kg, 2U'), texte);
+      const cascade = resumes.resumeData(exercice(contexte, 8, 6, 'novastar-mctrl660-pro', { redondance: true, secours: 'processeur', liaisonSecours: 'cascade' }).e);
+      v.vrai('cascade', cascade.split('\n').includes('Redondance : par un second processeur (cascade, tableau)'), cascade);
+      const avant = exercice(contexte, 8, 6, 'novastar-mctrl660-pro', { redondance: true });
+      const tAvant = resumes.resumeData(avant.e);
+      v.egal('secours dans le même processeur : le texte d\'avant', tAvant, resumes.resumeData(exercice(contexte, 8, 6, 'novastar-mctrl660-pro', { redondance: true, secours: 'ports' }).e));
+      v.vrai('… sans ligne de secours', !/de secours$|^Redondance : |^Processeurs avec les secours/m.test(tAvant), tAvant);
+      const liaisons = liaisonsDeBase(contexte);
+      const source = { ...calculs.sourceConseillee(x.e, liaisons, 60), bits: 8, espace: 'RGB', plage: 'Full' };
+      const canvas = calculs.controleSource(source, x.e, liaisons, { famille: 'novastar', bitsReseau: 8, frequenceHz: 60 });
+      const tc = resumes.resumeCanvas(canvas, { evaluation: x.e, source });
+      v.vrai('Canvas : processeurs et secours', tc.split('\n').includes(`Processeurs : 1 × ${x.e.processeur.nom} + 1 de secours`), tc);
+    },
+  },
+  {
+    id: 'R436',
+    titre: 'Contrôle Ethernet de la liste de matériel (étape 22a) : les processeurs NovaLCT à contrôle Ethernet connu sont ceux de la fiche « Brancher l\'ordinateur » (CONTROLE_PROCESSEURS)',
+    etape: '22a',
+    verifier(v, contexte) {
+      const novaLCT = new Set(baseProcesseurs(contexte).processeurs.filter((p) => p.logiciel === 'NovaLCT').map((p) => p.id));
+      const attendus = connexion.CONTROLE_PROCESSEURS.flatMap((c) => c.ids).filter((id) => novaLCT.has(id)).sort();
+      v.egal('mêmes modèles', [...calculs.CONTROLE_ETHERNET_NOVALCT].sort(), attendus);
+    },
+  },
+  {
+    id: 'R437',
+    titre: 'NovaLCT pas à pas avec un processeur de secours (lot 22b ; garde-fou remplacé au lot 22c avec l\'accord de l\'utilisateur) : B.11 du principal sans tableau, « Réglé en principal (Primary) » ; fibre (0.7) sans les ports de secours du même processeur ; secours dans le même processeur : B.11 avec son tableau',
+    etape: '22b',
+    verifier(v, contexte) {
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const p = pasAPasNovaLCT(contexte, { dalle: upad, colonnes: 8, lignes: 6, procId: 'novastar-mctrl4k', reglages: { redondance: true, secours: 'processeur' } });
+      const b11 = etapeNovaLCT(p, 'P1.B.11');
+      v.egal('B.11 : sans tableau', b11?.tableau ?? null, null);
+      v.egal('B.11 : réglé en principal', b11?.titre, 'Réglé en principal (Primary)');
+      const fibres = etapeNovaLCT(p, '0.7')?.valeurs.fibres ?? [];
+      v.vrai('fibre : OPT1 seulement, pas de port de secours sur le principal', fibres.length === 1 && fibres[0].startsWith('OPT1') && !fibres[0].includes('OPT2'), fibres);
+      const ports = pasAPasNovaLCT(contexte, { dalle: upad, colonnes: 8, lignes: 6, procId: 'novastar-mctrl4k', reglages: { redondance: true } });
+      v.vrai('secours dans le même processeur : B.11 avec son tableau', etapeNovaLCT(ports, 'P1.B.11')?.tableau?.lignes.length === 4
+        && etapeNovaLCT(ports, 'P1.B.11').texte.includes('Onglet Sending Card, Redundancy, Add'), etapeNovaLCT(ports, 'P1.B.11'));
+      v.vrai('… et la fibre de secours OPT2', (etapeNovaLCT(ports, '0.7')?.valeurs.fibres ?? []).join().includes('OPT2'), etapeNovaLCT(ports, '0.7')?.valeurs.fibres);
+    },
+  },
+  {
+    id: 'R438',
+    titre: 'Chaîne du Schéma avec un processeur de secours (lot 22b, cadre « MCTRL4K secours n° 3 ») : amont « 2 × MCTRL4K + 2 de secours » ; chaque processeur principal a son secours (numéro n + N, nom, ports), une ligne du texte copié ; ses convertisseurs ne sont pas ceux du principal ; secours dans le même processeur : rien ne change',
+    etape: '22b',
+    verifier(v, contexte) {
+      const chaine = (colonnes, procId, reglages, options = {}) => {
+        const x = exercice(contexte, colonnes, colonnes > 8 ? 8 : 6, procId, reglages);
+        const t = calculs.cablageData(x.m, x.dalle, x.e, { depart: 'bas-gauche', distributeurs: distributeursDeBase(contexte), ...options });
+        return calculs.chaineSchema({ chaine: null, evaluation: x.e, variante: t.variantes.find((y) => y.mode === (t.retenue ?? t.conseil)), distanceM: 20 });
+      };
+      const un = chaine(8, 'novastar-mctrl660-pro', { redondance: true, secours: 'processeur' });
+      v.egal('amont : 1 + 1 de secours', un.amont.noeuds.at(-1).nom, 'MCTRL660 Pro + 1 de secours');
+      v.egal('aval : le secours du principal', un.aval.map((e) => [e.nom, e.secours]), [['MCTRL660 Pro', { numero: 2, nom: 'MCTRL660 Pro secours n° 2', ports: [1, 2, 3, 4] }]]);
+      v.vrai('texte copié : la ligne du secours', un.texte.includes('MCTRL660 Pro secours n° 2 : un retour de secours par port, depuis la dernière dalle de chaque port du MCTRL660 Pro.'), un.texte);
+      const deux = chaine(32, 'novastar-mctrl4k', { redondance: true, secours: 'processeur' });
+      v.egal('amont : 2 + 2 de secours', deux.amont.noeuds.at(-1).nom, '2 × MCTRL4K + 2 de secours');
+      v.egal('aval : secours n° 3 et n° 4', deux.aval.map((e) => [e.nom, e.secours?.nom, e.secours?.numero]), [['MCTRL4K n° 1', 'MCTRL4K secours n° 3', 3], ['MCTRL4K n° 2', 'MCTRL4K secours n° 4', 4]]);
+      v.vrai('texte copié du secours n° 3', deux.texte.includes('MCTRL4K secours n° 3 : un retour de secours par port, depuis la dernière dalle de chaque port du MCTRL4K n° 1.'), deux.texte);
+      const fibre = chaine(32, 'novastar-mctrl4k', { redondance: true, secours: 'processeur' }, { imposee: { ports: null, fibre: true }, distanceRegieM: 50 });
+      v.egal('en fibre : le principal n\'a que son CVT4K', fibre.aval.map((e) => e.appareils.map((a) => [a.nom, a.ports.length > 0])), [[['CVT4K', true]], [['CVT4K', true]]]);
+      const ports = chaine(8, 'novastar-mctrl660-pro', { redondance: true });
+      v.egal('secours dans le même processeur : pas de secours dans la chaîne', [ports.amont.noeuds.at(-1).nom, ports.aval.map((e) => 'secours' in e)], ['2 × MCTRL660 Pro', [false, false]]);
+    },
+  },
+  {
+    id: 'R439',
+    titre: 'Guide de montage et texte copié du Schéma avec un processeur de secours (lot 22b) : « Retour de secours jusqu\'au MCTRL4K secours n° 3, port 1 », « secours sur le MCTRL4K secours n° 3, port 1 » ; signature du port inchangée ; secours dans le même processeur : le texte d\'avant',
+    etape: '22b',
+    verifier(v, contexte) {
+      const x = exercice(contexte, 32, 8, 'novastar-mctrl4k', { redondance: true, secours: 'processeur' });
+      const t = calculs.cablageData(x.m, x.dalle, x.e, { depart: 'bas-gauche' });
+      const vd = t.variantes.find((y) => y.mode === t.conseil);
+      const etapes = montage.etapesData(vd, { depart: 'bas-gauche' });
+      v.vrai('guide : retour jusqu\'au secours n° 3, port 1', / Retour de secours jusqu'au MCTRL4K secours n° 3, port 1(, [\d,]+ m)?\.$/.test(etapes[0].phrase), etapes[0].phrase);
+      v.vrai('guide : secours n° 4 pour le second principal', / Retour de secours jusqu'au MCTRL4K secours n° 4, port 1(, [\d,]+ m)?\.$/.test(etapes.find((e) => e.cle === 'p2-1').phrase), etapes.find((e) => e.cle === 'p2-1').phrase);
+      v.egal('signature inchangée', etapes[0].signature, `bas-gauche|MCTRL4K n° 1|port 1|${vd.processeurs[0].ports[0].dalles.join(',')}`);
+      const texte = resumes.resumeCablage({ data: t });
+      v.vrai('texte copié : secours sur le processeur de secours', texte.split('\n').some((l) => l.startsWith('MCTRL4K n° 1, port 1 : ') && l.includes(', secours sur le MCTRL4K secours n° 3, port 1,')), texte);
+      v.vrai('… jamais « secours secours »', !texte.includes('secours secours'), texte);
+      const avant = exercice(contexte, 32, 8, 'novastar-mctrl4k', { redondance: true });
+      const ta = calculs.cablageData(avant.m, avant.dalle, avant.e, { depart: 'bas-gauche' });
+      const ea = montage.etapesData(ta.variantes.find((y) => y.mode === ta.conseil), { depart: 'bas-gauche' });
+      v.vrai('secours dans le même processeur : le guide d\'avant', / Retour de secours jusqu'au port 9(, [\d,]+ m)?\.$/.test(ea[0].phrase), ea[0].phrase);
+      v.vrai('… et le texte d\'avant', resumes.resumeCablage({ data: ta }).includes(', secours port 9,'), resumes.resumeCablage({ data: ta }));
+    },
+  },
+  {
+    id: 'R440',
+    titre: 'Fiches par métier avec un processeur de secours (lot 22b) : la régie reçoit la redondance, les processeurs avec les secours et la liaison des boîtiers à l\'ordinateur (câbles de contrôle de la liste de matériel) ; le chef de projet, la redondance',
+    etape: '22b',
+    verifier(v, contexte) {
+      const x = exercice(contexte, 8, 6, 'novastar-mctrl660-pro', { redondance: true, secours: 'processeur' });
+      const t = calculs.cablageData(x.m, x.dalle, x.e, { depart: 'bas-gauche', distanceRegieM: 8 });
+      const liste = calculs.listeMateriel({ mur: x.m, dalle: x.dalle, data: { evaluation: x.e, variante: t.variantes.find((y) => y.mode === t.conseil), distanceRegieM: 8 } });
+      const textes = { data: resumes.resumeData(x.e) };
+      const regie = fichesMetier.lignesDataRegie(textes.data);
+      v.vrai('régie : redondance et processeurs avec les secours', regie.some((l) => l.libelle === 'Redondance' && l.valeur === 'par un second processeur (sans cascade, Primary et Backup)')
+        && regie.some((l) => l.libelle === 'Processeurs avec les secours'), regie);
+      const fiche = fichesMetier.ficheMetier('regie', { presta: { nom: 'Presta A', murs: [] }, murs: [{ nom: 'Mur 1', fiche: { textes, calculeeLe: '2026-10-26T10:00:00.000Z' }, materiel: { liste } }], date: new Date(2026, 9, 26, 12) });
+      const lignes = fichesMetier.texteFiche(fiche).split('\n');
+      v.vrai('régie : liaison des boîtiers à l\'ordinateur', lignes.includes('LIAISON DES PROCESSEURS À L\'ORDINATEUR')
+        && lignes.some((l) => l.startsWith('1 × Switch réseau : ')) && lignes.some((l) => l.startsWith('3 × Câble Ethernet de contrôle : ')), lignes);
+      const chef = fichesMetier.texteFiche(fichesMetier.ficheMetier('chefProjet', { presta: { nom: 'Presta A', murs: [] }, murs: [{ nom: 'Mur 1', fiche: { textes, calculeeLe: '2026-10-26T10:00:00.000Z' }, materiel: { liste } }], date: new Date(2026, 9, 26, 12) }));
+      v.vrai('chef de projet : processeur et redondance', chef.includes(`Processeur : 1 × ${x.e.processeur.nom} + 1 de secours`) && chef.includes('Redondance : par un second processeur (sans cascade, Primary et Backup)'), chef);
+      const sans = exercice(contexte, 8, 6, 'novastar-mctrl660-pro', { redondance: true });
+      const ts = calculs.cablageData(sans.m, sans.dalle, sans.e, { depart: 'bas-gauche', distanceRegieM: 8 });
+      const ls = calculs.listeMateriel({ mur: sans.m, dalle: sans.dalle, data: { evaluation: sans.e, variante: ts.variantes.find((y) => y.mode === ts.conseil), distanceRegieM: 8 } });
+      const fs = fichesMetier.texteFiche(fichesMetier.ficheMetier('regie', { presta: { nom: 'Presta A', murs: [] }, murs: [{ nom: 'Mur 1', fiche: { textes: { data: resumes.resumeData(sans.e) }, calculeeLe: '2026-10-26T10:00:00.000Z' }, materiel: { liste: ls } }], date: new Date(2026, 9, 26, 12) }));
+      v.vrai('secours dans le même processeur : pas de liaison à l\'ordinateur', !fs.includes('LIAISON DES PROCESSEURS'), fs);
+    },
+  },
+  {
+    id: 'R441',
+    titre: 'NovaLCT pas à pas, secours par un second processeur sans cascade (lot 22c, spec § 4.2 et § 6) : principal comme avant, B.11 « Réglé en principal (Primary) » sans tableau ; puis une partie par secours (« NovaLCT, MCTRL4K secours n° 2 ») : câbles de secours, port de communication du secours, B.2 à B.10 avec chaque port inversé (départ sur la dernière dalle du port du principal), rappel du sens, Set as Backup en façade selon le modèle (MCTRL4K, VX1000) ou à vérifier ; secours dans le même processeur : pas de partie de secours',
+    etape: '22c',
+    verifier(v, contexte) {
+      const p = pasSecours(contexte);
+      v.egal('parties', p.parties.map((x) => [x.id, x.titre, x.processeur ?? null, x.secours ?? null]),
+        [['0', 'Avant de partir et sur place', null, null], ['P1', 'NovaLCT, MCTRL4K n° 1', 1, null], ['P2', 'NovaLCT, MCTRL4K secours n° 2', 2, { principal: 1, liaison: 'sansCascade' }], ['C', 'Contrôles', null, null]]);
+      const b11 = etapeNovaLCT(p, 'P1.B.11');
+      v.vrai('principal : B.11 Set as Primary, sans tableau', b11?.titre === 'Réglé en principal (Primary)' && b11.tableau === null
+        && b11.texte.includes('Advanced Settings > Redundancy Settings, Set as Primary') && b11.texte.includes('onglet Sending Card, Set as Primary'), b11);
+      v.egal('étapes du secours', p.parties[2].etapes.map((e) => e.id), ['P2.S.1', 'P2.B.1', 'P2.B.2', 'P2.B.3', 'P2.B.4', 'P2.B.5', 'P2.B.6',
+        'P2.B.7.1', 'P2.B.7.2', 'P2.B.7.3', 'P2.B.7.4', 'P2.B.8', 'P2.B.9', 'P2.B.10', 'P2.S.3']);
+      const s1 = etapeNovaLCT(p, 'P2.S.1');
+      v.vrai('S.1 : câbles de secours sur la dernière dalle de chaque port du principal', s1?.titre === 'Câbles de secours' && s1.texte.includes('port 1 sur C2 R6')
+        && s1.texte.includes('port 4 sur C8 R6') && s1.texte.includes('MCTRL4K n° 1'), s1?.texte ?? 'absente');
+      v.vrai('B.1 : port de communication du secours', etapeNovaLCT(p, 'P2.B.1')?.texte.includes('port de communication du MCTRL4K secours n° 2'), etapeNovaLCT(p, 'P2.B.1')?.texte ?? 'absente');
+      const b71 = etapeNovaLCT(p, 'P2.B.7.1');
+      v.vrai('port 1 inversé : départ sur la dernière dalle, sens remonté', b71?.texte.includes('Départ sur C2 R6 (dernière dalle du port 1 du MCTRL4K n° 1')
+        && b71.texte.includes('monte la colonne 2, descend la colonne 1') && b71.valeurs.inverse === true, b71?.texte ?? 'absente');
+      v.vrai('principal : sens d\'avant', etapeNovaLCT(p, 'P1.B.7.1')?.texte.includes('Départ sur C1 R6'), etapeNovaLCT(p, 'P1.B.7.1')?.texte);
+      v.egal('sens du MCTRL4K : à vérifier (Novastar ne l\'écrit que pour le VX1000 et le MCTRL R5)', b71?.aVerifier, true);
+      v.vrai('note du secours : rappel du sens et de la cascade', ['inversé d\'après Novastar (manuels VX1000 et MCTRL R5)', 'Daktronics et la formation parlent aussi d\'une config identique',
+        'Si les dalles d\'un port s\'inversent au basculement, prends l\'autre sens.', 'Si tu as un câble de cascade, la méthode cascade est celle de Novastar.'].every((x) => p.parties[2].note?.includes(x)), p.parties[2].note);
+      const s3 = etapeNovaLCT(p, 'P2.S.3');
+      v.vrai('S.3 MCTRL4K : Set as Backup en façade', s3?.titre === 'Réglé en secours (Backup)' && s3.texte.includes('Advanced Settings > Redundancy Settings, Set as Backup')
+        && s3.sources.some((s) => s.id === 'mctrl4k-manuel-1-2-1' && s.ref === '§ 6.5.5, p. 18') && s3.aVerifier === false, s3);
+      const vx = pasSecours(contexte, { procId: 'novastar-vx1000' });
+      const vs3 = etapeNovaLCT(vx, 'P2.S.3');
+      v.vrai('S.3 VX1000 : Device Backup en façade', vs3?.texte.includes('Advanced Settings > Device Backup') && vs3.sources.some((s) => s.id === 'vx1000-1-5-0' && s.ref === '§ 5.8.1, p. 35 et 36'), vs3);
+      v.egal('VX1000 : sens inversé écrit par Novastar, pas à vérifier', etapeNovaLCT(vx, 'P2.B.7.1')?.aVerifier, false);
+      const m660 = etapeNovaLCT(pasSecours(contexte, { procId: 'novastar-mctrl660' }), 'P2.S.3');
+      v.vrai('S.3 sans menu de façade connu : onglet Sending Card, à vérifier, Daktronics cité', m660?.aVerifier === true && m660.texte.includes('Set as Backup')
+        && m660.sources.some((s) => s.id === 'daktronics-000020215'), m660);
+      const ports = pasAPasNovaLCT(contexte, { dalle: dalleDeBase(contexte, 'unilumin-upad-iv-2-6'), colonnes: 8, lignes: 6, procId: 'novastar-mctrl4k', reglages: { redondance: true } });
+      v.egal('secours dans le même processeur : pas de partie de secours', ports.parties.map((x) => x.id), ['0', 'P1', 'C']);
+    },
+  },
+  {
+    id: 'R442',
+    titre: 'NovaLCT pas à pas, secours par un second processeur en cascade (lot 22c, spec § 4.1 et § 6, tableau dans la partie du secours, choix de l\'utilisateur) : principaux sans B.11 ; chaque secours : câbles de secours, pas de config d\'écran (manuels V5.0.0, V5.5.0 et V5.8.1), Set as Backup (Set multiple devices), tableau carte n port k ↔ carte n + N port k ; B.1 : un seul port de communication avec les cartes d\'envoi 1 à 2N ; 0.3 : USB vers le boîtier 1 et câbles de cascade dans l\'ordre 1 à 2N',
+    etape: '22c',
+    verifier(v, contexte) {
+      const p = pasSecours(contexte, { colonnes: 32, lignes: 8, liaison: 'cascade' });
+      v.egal('parties', p.parties.map((x) => x.id), ['0', 'P1', 'P2', 'P3', 'P4', 'C']);
+      v.egal('titres des secours', p.parties.slice(3, 5).map((x) => [x.titre, x.secours]), [['NovaLCT, MCTRL4K secours n° 3', { principal: 1, liaison: 'cascade' }], ['NovaLCT, MCTRL4K secours n° 4', { principal: 2, liaison: 'cascade' }]]);
+      v.egal('principaux : pas de B.11', ['P1.B.11', 'P2.B.11'].map((id) => etapeNovaLCT(p, id) ?? null), [null, null]);
+      v.egal('étapes du secours n° 3', p.parties[3].etapes.map((e) => e.id), ['P3.S.1', 'P3.S.2', 'P3.S.3', 'P3.B.11']);
+      const s2 = etapeNovaLCT(p, 'P3.S.2');
+      v.vrai('S.2 : pas de config d\'écran sur la carte d\'envoi 3', s2?.titre === 'Pas de config d\'écran' && s2.texte.includes('carte d\'envoi 3')
+        && s2.texte.includes('« The sending card that is used in the completed screen configuration cannot be set as backup device »')
+        && s2.sources.some((s) => s.id === 'lct-5-0-0' && s.ref === '§ 5.1.7, p. 34 et 36') && s2.sources.some((s) => s.id === 'lct-5-8-1' && s.ref === '§ 5.3, p. 31'), s2);
+      const s3 = etapeNovaLCT(p, 'P3.S.3');
+      v.vrai('S.3 : Set multiple devices, Set as Backup', s3?.texte.includes('Set multiple devices') && s3.texte.includes('Set as Backup') && s3.sources.some((s) => s.id === 'lct-5-8-1' && s.ref === '§ 5.3, p. 31'), s3);
+      const t3 = etapeNovaLCT(p, 'P3.B.11');
+      v.egal('tableau du secours n° 3', [t3?.titre, t3?.tableau?.lignes], ['Tableau Redundancy', Array.from({ length: 8 }, (_, i) => [1, i + 1, 3, i + 1])]);
+      v.egal('tableau du secours n° 4', etapeNovaLCT(p, 'P4.B.11')?.tableau?.lignes, Array.from({ length: 8 }, (_, i) => [2, i + 1, 4, i + 1]));
+      v.vrai('tableau : numéros dans la cascade, Si Add est grisé', t3?.texte.includes('« enter the actual serial numbers of the primary and backup sending cards after they are cascaded »')
+        && t3.texte.includes('Si Add est grisé') && t3.sources.some((s) => s.id === 'lct-5-8-1' && s.ref === '§ 5.3, p. 32'), t3?.texte ?? 'absente');
+      v.vrai('B.1 : un seul port de communication, cartes d\'envoi 1 à 4', etapeNovaLCT(p, 'P1.B.1')?.texte.includes('un seul port de communication')
+        && etapeNovaLCT(p, 'P1.B.1').texte.includes('cartes d\'envoi 1 à 4') && etapeNovaLCT(p, 'P1.B.1').texte.includes('carte d\'envoi 1'), etapeNovaLCT(p, 'P1.B.1')?.texte);
+      const c03 = etapeNovaLCT(p, '0.3');
+      v.vrai('0.3 : USB vers le boîtier 1, cascade dans l\'ordre', ['USB IN du MCTRL4K n° 1', 'USB OUT', 'MCTRL4K n° 1, MCTRL4K n° 2, MCTRL4K secours n° 3 et MCTRL4K secours n° 4',
+        '10 boîtiers au plus', 'un seul port de communication, 4 cartes d\'envoi'].every((x) => c03?.texte.includes(x)), c03?.texte ?? 'absente');
+      v.vrai('0.3 : sources de la cascade (manuel MCTRL4K p. 4 et 6)', c03?.sources.some((s) => s.id === 'mctrl4k-manuel-1-2-1' && s.ref === 'p. 4 ; § 4, p. 6'), c03?.sources);
+    },
+  },
+  {
+    id: 'R443',
+    titre: 'NovaLCT pas à pas, partie 0 et B.1 avec plusieurs boîtiers (lot 22c, spec § 6) : 0.3 sans cascade (une liaison par boîtier, switch et adresses, ou un câble USB chacun ; modèle sans Ethernet connu : vois la fiche) ; 0.6 dans l\'ordre (câbles principaux, config d\'écran, câbles de secours, puis Set as Backup ou le tableau) et la méthode choisie dans Data ; 0.8 genlock du MCTRL4K dès 2 boîtiers ; A.6 compte les secours ; B.1 : un port de communication par boîtier',
+    etape: '22c',
+    verifier(v, contexte) {
+      const p = pasSecours(contexte);
+      const c03 = etapeNovaLCT(p, '0.3');
+      v.vrai('0.3 sans cascade : switch, adresses, un câble USB par boîtier', ['switch réseau', 'MCTRL4K n° 1 en 192.168.0.10', 'MCTRL4K secours n° 2 en 192.168.0.11', 'l\'ordinateur en 192.168.0.100, masque 255.255.255.0',
+        'un câble USB par boîtier', '2 ports de communication'].every((x) => c03?.texte.includes(x)) && c03.aVerifier === true, c03?.texte ?? 'absente');
+      const c660 = etapeNovaLCT(pasSecours(contexte, { procId: 'novastar-mctrl660' }), '0.3');
+      v.vrai('0.3 sans Ethernet connu : vois la fiche', c660?.texte.includes('liaison au PC : vois la fiche du processeur, à vérifier'), c660?.texte ?? 'absente');
+      const c06 = etapeNovaLCT(p, '0.6')?.texte ?? '';
+      const ordre = ['câble principal', 'config d\'écran', 'puis branche les câbles de secours', 'Set as Backup ou le tableau'].map((x) => c06.indexOf(x));
+      v.vrai('0.6 : dans l\'ordre', ordre.every((x, i) => x >= 0 && (i === 0 || x > ordre[i - 1])), c06);
+      v.vrai('0.6 : méthode choisie dans Data', c06.includes('sans cascade (Primary et Backup)') && c06.includes('change-la dans Data'), c06);
+      const meme = etapeNovaLCT(pasAPasNovaLCT(contexte, { reglages: { redondance: true } }), '0.6');
+      v.vrai('0.6 dans un même processeur : sans la méthode, sans l\'ancienne phrase', !meme.texte.includes('change-la dans Data') && !meme.texte.includes('configure le premier seul'), meme.texte);
+      v.vrai('0.6 : sources (manuel V5.8.1, Daktronics, formation)', meme.sources.some((s) => s.id === 'lct-5-8-1' && s.ref === '§ 5.3, p. 30') && meme.sources.some((s) => s.id === 'daktronics-dd3397344')
+        && meme.sources.some((s) => s.id === 'formation-11'), meme.sources);
+      const g = etapeNovaLCT(p, '0.8');
+      v.vrai('0.8 MCTRL4K avec secours : genlock en cascade, sans saut à vérifier', g?.titre === 'Synchronisation (genlock)' && g.texte.includes('GENLOCK IN') && g.texte.includes('GENLOCK LOOP')
+        && g.texte.includes('2 MCTRL4K (1 + 1 de secours)') && g.aVerifier === true && g.sources.some((s) => s.id === 'mctrl4k-manuel-1-2-1' && s.ref === 'p. 4 ; § 4, p. 6'), g);
+      const deux = etapeNovaLCT(pasAPasNovaLCT(contexte, { dalle: dalleDeBase(contexte, 'unilumin-upad-iv-2-6'), colonnes: 32, lignes: 8, procId: 'novastar-mctrl4k' }), '0.8');
+      v.vrai('0.8 : 2 MCTRL4K sans secours, genlock sans « à vérifier »', deux?.texte.includes('2 MCTRL4K sur le même écran') && deux.aVerifier === false, deux);
+      v.egal('0.8 : un seul MCTRL4K, rien', etapeNovaLCT(pasAPasNovaLCT(contexte, { dalle: dalleDeBase(contexte, 'unilumin-upad-iv-2-6'), colonnes: 8, lignes: 6, procId: 'novastar-mctrl4k' }), '0.8') ?? null, null);
+      const a6 = etapeNovaLCT(pasSecours(contexte, { procId: 'novastar-vx1000' }), 'A.6');
+      v.vrai('A.6 : VX1000 et son secours', a6?.texte.startsWith('1 × VX1000 + 1 de secours sur le même écran') && a6.valeurs.secours === 1, a6?.texte ?? 'absente');
+      const b1 = etapeNovaLCT(pasAPasNovaLCT(contexte), 'P1.B.1');
+      v.vrai('B.1 avec 2 MCTRL660 : un port de communication par boîtier', b1.texte.includes('chaque boîtier relié en réseau ou en USB séparé est un port de communication')
+        && b1.sources.some((s) => s.id === 'lct-5-8-1' && s.ref === '§ 3.1 et § 3.2, p. 4'), b1.texte);
+    },
+  },
+  {
+    id: 'R444',
+    titre: 'NovaLCT pas à pas, B.11 dans un même boîtier (lot 22c, spec § 6, relecture point 2) : câbles de secours branchés avant le tableau (« Redundancy related hardware connection is done ») ; « Si Add est grisé : pistes à vérifier » ; plus de phrase sur le second processeur chaîné (il a son parcours)',
+    etape: '22c',
+    verifier(v, contexte) {
+      const b11 = etapeNovaLCT(pasAPasNovaLCT(contexte, { procId: 'novastar-mctrl4k', colonnes: 8, lignes: 4, reglages: { redondance: true } }), 'P1.B.11');
+      v.vrai('câbles de secours avant le tableau', b11.texte.indexOf('câbles de secours') >= 0 && b11.texte.indexOf('câbles de secours') < b11.texte.indexOf('Redundancy, Add')
+        && b11.texte.includes('« Redundancy related hardware connection is done »'), b11.texte);
+      v.vrai('Si Add est grisé', b11.texte.includes('Si Add est grisé : pistes à vérifier : connexion avancée (étape 0.5), NovaLCT trop ancien (MCTRL4K : V5.2.0 ou plus pour le piloter), boîtier réglé en Backup.'), b11.texte);
+      v.vrai('plus de second processeur chaîné', !b11.texte.includes('chaîné') && !b11.texte.includes('Set as Backup, et dans le tableau'), b11.texte);
+      v.vrai('sources : V5.8.1 § 5.3 p. 30, manuel MCTRL4K § 7.5.1', b11.sources.some((s) => s.id === 'lct-5-8-1' && s.ref === '§ 5.3, p. 30 à 32') && b11.sources.some((s) => s.id === 'mctrl4k-manuel-1-2-1' && s.ref === '§ 7.5.1, p. 33'), b11.sources);
+    },
+  },
+  {
+    id: 'R445',
+    titre: 'NovaLCT pas à pas, test de la redondance (lot 22c, spec § 4.3, C.5 et C.5a) : en attente rien ne change ; Verify seulement en cascade ou dans un même boîtier (MCTRL4K, MCTRL R5) ; VX1000 : Disable All (sans cascade) ou Disable Primary (cascade) ; le vrai test (câbles de sortie ou alimentation du principal, marque qui clignote), l\'entrée vidéo à vérifier, le symptôme des dalles inversées ; C.5a « Backing up » (V5.8.1) avec un processeur de secours',
+    etape: '22c',
+    verifier(v, contexte) {
+      const c5 = etapeNovaLCT(pasSecours(contexte), 'C.5');
+      v.vrai('sans cascade : en attente, vrai test, clignote, entrée vidéo, symptôme', ['rien ne change à l\'écran', 'débranche les câbles de sortie du principal, ou coupe son alimentation', 'clignote',
+        'Couper seulement l\'entrée vidéo', 'Si les dalles d\'un port s\'inversent quand le secours prend le relais', 'prends l\'autre'].every((x) => c5?.texte.includes(x))
+        && !c5.texte.includes('Verify') && c5.aVerifier === true, c5?.texte ?? 'absente');
+      const cc = etapeNovaLCT(pasSecours(contexte, { colonnes: 32, lignes: 8, liaison: 'cascade' }), 'C.5');
+      v.vrai('cascade : Verify, symptôme de la config du secours', cc?.texte.includes('Verify') && cc.texte.includes('sa propre config d\'écran'), cc?.texte ?? 'absente');
+      v.vrai('VX1000 sans cascade : Disable All', etapeNovaLCT(pasSecours(contexte, { procId: 'novastar-vx1000' }), 'C.5')?.texte.includes('Disable All'));
+      v.vrai('VX1000 en cascade : Disable Primary', etapeNovaLCT(pasSecours(contexte, { procId: 'novastar-vx1000', liaison: 'cascade' }), 'C.5')?.texte.includes('Disable Primary'));
+      const a = etapeNovaLCT(pasSecours(contexte), 'C.5a');
+      v.vrai('C.5a : Backing up, V5.8.1', a?.titre === 'Surveillance : « Backing up »' && a.texte.includes('en bleu') && a.sources.some((s) => s.id === 'lct-5-8-1' && s.ref === '§ 5.3, p. 31'), a);
+      const meme = pasAPasNovaLCT(contexte, { procId: 'novastar-mctrl4k', colonnes: 8, lignes: 4, reglages: { redondance: true } });
+      v.vrai('même boîtier : Verify, le vrai test sur un câble principal, pas de C.5a', etapeNovaLCT(meme, 'C.5').texte.includes('Verify') && etapeNovaLCT(meme, 'C.5').texte.includes('débranche le câble principal d\'un port')
+        && !etapeNovaLCT(meme, 'C.5a'), etapeNovaLCT(meme, 'C.5').texte);
+    },
+  },
+  {
+    id: 'R446',
+    titre: 'NovaLCT pas à pas avec un processeur de secours, titre, texte copié, PDF et fiche régie (lot 22c, spec § 6) : « 2 × MCTRL4K + 2 de secours » ; tableau du secours dans le PDF ; résumé avec la redondance et chaque secours ; étapes toutes sourcées ou à vérifier, sources connues, signatures uniques ; sans secours : le titre d\'avant',
+    etape: '22c',
+    verifier(v, contexte) {
+      const p = pasSecours(contexte, { colonnes: 32, lignes: 8, liaison: 'cascade' });
+      v.egal('titre', p.titreProcesseurs, '2 × MCTRL4K + 2 de secours');
+      v.egal('secours', p.secours, { nombre: 2, liaison: 'cascade', texte: 'par un second processeur (cascade, tableau)' });
+      const f = novalct.ficheNovaLCT(p, {}, { presta: 'Presta A', mur: 'Mur 1', date: new Date(2026, 9, 26) });
+      v.egal('PDF : processeurs', f.entete.find(([l]) => l === 'Processeurs')?.[1], '2 × MCTRL4K + 2 de secours');
+      const b3 = f.blocs.find((b) => b.titre === 'NovaLCT, MCTRL4K secours n° 3');
+      v.vrai('PDF : tableau du secours n° 3', b3?.lignes.some((l) => l.libelle === 'Redondance, port 1' && l.valeur === 'carte principale 1, port 1 ; carte de secours 3, port 1'), b3?.lignes);
+      v.vrai('texte copié : processeurs', novalct.texteNovaLCT(p, {}).includes('Processeurs : 2 × MCTRL4K + 2 de secours'));
+      const r = novalct.resumeNovaLCT(p, {});
+      v.vrai('fiche régie : processeurs, redondance, secours', r.includes('Processeurs : 2 × MCTRL4K + 2 de secours') && r.includes('Redondance : par un second processeur (cascade, tableau)')
+        && r.includes('Processeur n° 3 (secours du n° 1) dans NovaLCT : pas de config d\'écran, Set as Backup, tableau Redundancy')
+        && r.split('\n').filter((l) => l.startsWith('Processeur n° ')).length === 4, r);
+      const s = pasSecours(contexte);
+      v.vrai('fiche régie sans cascade : secours avec le chemin inversé', novalct.resumeNovaLCT(s, {}).includes('Processeur n° 2 (secours du n° 1) dans NovaLCT : entrée ')
+        && novalct.resumeNovaLCT(s, {}).includes('chemin inversé, Set as Backup'), novalct.resumeNovaLCT(s, {}));
+      const essais = [p, s, pasSecours(contexte, { procId: 'novastar-vx1000' }), pasSecours(contexte, { procId: 'novastar-mctrl660' }), pasSecours(contexte, { procId: 'novastar-vx1000', liaison: 'cascade' })];
+      const etapes = essais.flatMap((x) => x.parties.flatMap((y) => y.etapes));
+      v.egal('source ou « à vérifier »', etapes.filter((e) => !e.sources.length && !e.aVerifier).map((e) => e.id), []);
+      v.egal('sources connues', etapes.flatMap((e) => e.sources).filter((x) => !novalct.SOURCES_NOVALCT[x.id]).map((x) => x.id), []);
+      v.egal('signatures uniques', essais.map((x) => {
+        const sig = x.parties.flatMap((y) => y.etapes.map((e) => e.signature));
+        return sig.length - new Set(sig).size;
+      }), [0, 0, 0, 0, 0]);
+      v.egal('sans secours : titre d\'avant', [pasAPasNovaLCT(contexte).titreProcesseurs, pasAPasNovaLCT(contexte).secours], ['2 × MCTRL660', null]);
+      const sources = ['lct-5-0-0', 'daktronics-000020215', 'daktronics-dd3397344'].map((id) => novalct.SOURCES_NOVALCT[id]);
+      v.vrai('sources ajoutées : Daktronics intégrateur avec lien, V5.0.0 constructeur', sources[0]?.confiance === 'constructeur'
+        && sources.slice(1).every((x) => x?.confiance === 'intégrateur' && x.url?.startsWith('https://daktronics.com/') && x.court.startsWith('Daktronics (intégrateur)')), sources);
+    },
+  },
+  {
+    id: 'R447',
+    titre: 'NovaLCT à blanc avec un processeur de secours et textes du Dépannage (lot 22c, spec § 6 et § 7) : `murABlanc` reçoit `secours` et `liaisonSecours` (partie du secours, description) ; blocs ajoutés T10.3:3 (« Deux processeurs, NovaLCT n\'en montre qu\'un »), T11.1:3 et T5.2:3 (dalles inversées au basculement) pour Novastar seulement, sourcés, avec le lien vers le pas à pas',
+    etape: '22c',
+    verifier(v, contexte) {
+      const bd = baseDalles(contexte);
+      const bp = baseProcesseurs(contexte);
+      const base = {
+        dalles: bd.dalles.map((f) => calculs.resoudreFiche(f, bd.sources)),
+        processeurs: bp.processeurs.map((f) => calculs.resoudreFiche(f, bp.sources)),
+        liaisons: liaisonsDeBase(contexte),
+      };
+      const a = novalct.murABlanc({ ...base, redondance: true, secours: 'processeur' });
+      v.egal('à blanc, sans cascade : partie du secours', a?.resultat.parties.map((x) => x.id), ['0', 'P1', 'P2', 'C']);
+      v.egal('description', a?.description, 'Mur d\'exemple : 12 × 6 Absen M2.9, 1 × MCTRL660 + 1 de secours, 60 Hz, 8 bits, redondance par un second processeur (sans cascade, Primary et Backup).');
+      const c = novalct.murABlanc({ ...base, redondance: true, secours: 'processeur', liaisonSecours: 'cascade' });
+      v.vrai('à blanc, cascade : tableau du secours', c?.resultat.parties.find((x) => x.id === 'P2')?.etapes.some((e) => e.id === 'P2.B.11' && e.tableau?.lignes.length > 0), c?.resultat.parties.map((x) => x.id));
+      v.egal('à blanc sans redondance : secours ignoré', novalct.murABlanc({ ...base, secours: 'processeur' })?.resultat.parties.map((x) => x.id), ['0', 'P1', 'C']);
+      const aide = (cle, marque) => novalct.aideDepannageSecours(cle, marque);
+      v.egal('T10.3:3 : titre', aide('T10.3:3', 'novastar')?.titre, 'Deux processeurs, NovaLCT n\'en montre qu\'un');
+      v.vrai('T10.3:3 : port de communication, Detect Config, les deux méthodes', ['port de communication à part', 'Disable cascade communication', 'Méthode cascade (tableau)', 'Méthode sans cascade (Primary et Backup)']
+        .every((x) => aide('T10.3:3', 'novastar')?.lignes.some((l) => l.texte.includes(x))), aide('T10.3:3', 'novastar'));
+      v.egal('T11.1:3 : titre', aide('T11.1:3', 'novastar')?.titre, 'Les dalles d\'un port s\'inversent quand le secours prend le relais');
+      v.vrai('T5.2:3 : rappel court', aide('T5.2:3', 'novastar')?.lignes.length === 1 && aide('T5.2:3', 'novastar').lignes[0].texte.includes('secours'), aide('T5.2:3', 'novastar'));
+      v.egal('Novastar seulement', ['coex', 'brompton', null].map((m) => aide('T10.3:3', m)), [null, null, null]);
+      v.egal('clé inconnue : rien', aide('T10.3:1', 'novastar'), null);
+      const blocs = ['T10.3:3', 'T11.1:3', 'T5.2:3'].map((k) => aide(k, 'novastar'));
+      v.egal('chaque ligne sourcée, sources connues', blocs.flatMap((b) => b.lignes).filter((l) => !l.sources.length || l.sources.some((s) => !novalct.SOURCES_NOVALCT[s.id])).map((l) => l.texte), []);
+      v.egal('lien vers le pas à pas', blocs.map((b) => b.lienPasAPas), [true, true, true]);
+    },
+  },
 ];
+
+// Pas à pas NovaLCT avec un processeur de secours (22c) : mur de Upad IV 2.6, 60 Hz, 8 bits, redondance par un second
+// processeur, liaison sans cascade par défaut.
+function pasSecours(contexte, { colonnes = 8, lignes = 6, procId = 'novastar-mctrl4k', liaison = 'sansCascade', options = {} } = {}) {
+  return pasAPasNovaLCT(contexte, { dalle: dalleDeBase(contexte, 'unilumin-upad-iv-2-6'), colonnes, lignes, procId,
+    reglages: { redondance: true, secours: 'processeur', liaisonSecours: liaison }, options });
+}
 
 // Chaîne du Schéma (19b1) : variante retenue du câblage (la config imposée quand elle passe), mur de BP2 V2 en 12 bits,
 // chaîne de Canvas comme `chaineAffichee` la donne (contrôle de la chaîne, source, régie, source conseillée ou non).
@@ -9446,6 +10619,17 @@ const ELEC_TRI_FICTIF = { reglages: { arrivee: { type: 'tri', intensiteA: 63 }, 
 function varianteFictive(phases) {
   return { mode: 'colonnes', orientation: 'colonnes', lignesDetail: phases.map((phase, i) => ({ numero: i + 1, phase, dalles: [], teteMm: { x: 250 + 500 * i, y: 2750 } })) };
 }
+
+// Étape 21 : variante fictive (puissance de chaque ligne en W, ses dalles « C1 R1 », « C1 R2 », têtes au bas d'un mur
+// de 8 m), phases à tour de rôle ; élec tri 220 V, 80 %, départs 16 A (2816 W utiles par ligne).
+function varianteArrivees(puissances, phases = null) {
+  const lignesDetail = puissances.map((p, i) => ({ numero: i + 1, phase: phases ? phases[i] : (i % 3) + 1, puissanceW: p, dalles: [`C${i + 1} R1`, `C${i + 1} R2`], teteMm: { x: 250 + 500 * i, y: 2750 } }));
+  return { mode: 'colonnes', orientation: 'colonnes', lignesDetail, lignes: lignesDetail.length, phases: [], alertes: [], ok: true };
+}
+const elecArrivees = (reglages = {}, utileW = 2816) => ({
+  reglages: { tensionV: 220, marge: 0.8, departA: 16, puissanceUtileW: null, depart: 'bas-gauche', arrivee: { type: 'tri', intensiteA: 63 }, ...reglages },
+  ligne: { utileW },
+});
 
 // Lignes de chaque boîtier, « numéro + prise » : ['1L1 2L2', …].
 const contenuBoitiers = (d) => d.boitiers.map((b) => b.lignes.map((l) => `${l.numero}${l.prise}`).join(' '));

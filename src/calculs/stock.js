@@ -4,6 +4,7 @@
 // Module de src/calculs.js, le point d'entrée qui réexporte tout : fonctions pures, sans accès à l'interface.
 // Le stock se lit dans le parc ; il ne modifie jamais un mur.
 import { nombreCourt } from '../format.js';
+import { nombreBoitiers } from './commun.js';
 import { DALLES_MAX_MUR, VARIANTES, mur } from './mur.js';
 import { SPARES_POURCENT_DEFAUT, spares, dallesParFiche } from './materiel.js';
 
@@ -210,13 +211,16 @@ export function plusGrandMur(entrees) {
 export function controleQuantiteProcesseur(evaluation, quantite, parcNom) {
   if (!Number.isInteger(quantite) || !Number.isInteger(evaluation?.nombre)) return null;
   const modele = evaluation.processeur.modele;
-  const assez = evaluation.nombre <= quantite;
+  // Processeurs de secours (étape 22) : ce qu'il faut sortir du dépôt, secours compris (2N).
+  const total = nombreBoitiers(evaluation);
+  const detail = evaluation.nombreSecours > 0 ? ` (${enTexte(evaluation.nombre)} + ${enTexte(evaluation.nombreSecours)} de secours)` : '';
+  const assez = total <= quantite;
   return {
     quantite,
     parcNom,
     assez,
     ligne: `Dans le parc ${parcNom} : ${enTexte(quantite)} × ${modele}`,
-    alerte: assez ? null : `Il en faut ${enTexte(evaluation.nombre)} × ${modele}, le parc ${parcNom} en a ${enTexte(quantite)}.`,
+    alerte: assez ? null : `Il en faut ${enTexte(total)} × ${modele}${detail}, le parc ${parcNom} en a ${enTexte(quantite)}.`,
   };
 }
 

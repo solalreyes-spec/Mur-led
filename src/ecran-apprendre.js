@@ -75,7 +75,17 @@ export function monterApprendre(racine, {
   // carte S'entraîner et les quatre images restent en tête). `novalct.ouvrir({ processeur, redondance })`.
   // Étape 18b : `novalct.processeurs` (processeursABlanc de novalct.js) donne tous les processeurs réglés dans NovaLCT,
   // groupés par gamme, avec une recherche sans espaces, tirets ni accents ; le choix reste tant que la recherche ne trouve rien.
-  const choixNovaLCT = { processeur: novalct?.processeurs?.defaut ?? 'novastar-mctrl660', redondance: false };
+  // Étape 22c : sous la redondance, « Secours » et « Liaison des deux processeurs » comme dans Data ; secours et
+  // liaisonSecours transmis seulement avec un second processeur. `novalct.ouvrir` renvoie la raison quand le mur
+  // d'exemple ne se calcule pas (série H en cascade), affichée dans la carte.
+  const choixNovaLCT = { processeur: novalct?.processeurs?.defaut ?? 'novastar-mctrl660', redondance: false, secours: 'ports', liaisonSecours: 'sansCascade' };
+  const segments = (nom, legende, options, valeur, surChoix) => el('fieldset', { class: 'segmente' },
+    el('legend', {}, legende),
+    el('div', { class: 'segments' }, options.map(([v, libelle]) => {
+      const radio = el('input', { type: 'radio', name: nom, value: v, checked: v === valeur ? '' : null });
+      radio.addEventListener('change', () => { if (radio.checked) surChoix(v); });
+      return el('label', {}, radio, el('span', {}, libelle));
+    })));
   const compact = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[\s-]+/g, '');
   function carteNovaLCT() {
     if (!novalct) return null;
@@ -103,9 +113,27 @@ export function monterApprendre(racine, {
     choix.addEventListener('change', retenir);
     remplir();
     const redondance = el('input', { type: 'checkbox', name: 'nl-redondance', checked: choixNovaLCT.redondance ? '' : null });
-    redondance.addEventListener('change', () => { choixNovaLCT.redondance = redondance.checked; });
+    const liaison = segments('nl-liaison', 'Liaison des deux processeurs', [['sansCascade', 'Sans cascade (Primary et Backup)'], ['cascade', 'Cascade (tableau)']],
+      choixNovaLCT.liaisonSecours, (v) => { choixNovaLCT.liaisonSecours = v; });
+    const blocSecours = el('div', { class: 'groupe-secours ap-novalct-secours' },
+      segments('nl-secours', 'Secours', [['ports', 'Dans le même processeur (ports doublés)'], ['processeur', 'Par un second processeur']],
+        choixNovaLCT.secours, (v) => { choixNovaLCT.secours = v; montrer(); }),
+      liaison);
+    const montrer = () => {
+      blocSecours.hidden = !choixNovaLCT.redondance;
+      liaison.hidden = choixNovaLCT.secours !== 'processeur';
+    };
+    montrer();
+    redondance.addEventListener('change', () => { choixNovaLCT.redondance = redondance.checked; montrer(); });
+    const refus = el('p', { class: 'alerte alerte-erreur ap-novalct-refus', 'aria-live': 'polite' });
     const bouton = el('button', { type: 'button', class: 'bouton ap-novalct-ouvrir' }, 'Ouvrir à blanc');
-    bouton.addEventListener('click', () => novalct.ouvrir({ ...choixNovaLCT }));
+    bouton.addEventListener('click', async () => {
+      const { secours, liaisonSecours, ...choix } = choixNovaLCT;
+      const avecSecours = choix.redondance && secours === 'processeur';
+      refus.textContent = '';
+      const raison = await novalct.ouvrir(avecSecours ? { ...choix, secours, liaisonSecours } : choix);
+      refus.textContent = typeof raison === 'string' ? raison : '';
+    });
     return el('section', { class: 'carte ap-novalct', 'data-famille': 'donnees' },
       el('h3', { class: 'ap-titre' }, 'NovaLCT à blanc'),
       el('p', { class: 'ap-intro' }, 'Le pas à pas NovaLCT sur un mur d\'exemple de la base (12 × 6 Absen M2.9, carte Novastar), pour réviser '
@@ -114,7 +142,9 @@ export function monterApprendre(racine, {
       el('div', { class: 'champ' }, el('label', { for: 'nl-processeur' }, 'Processeur'), choix),
       aucun,
       el('label', { class: 'case' }, redondance, el('span', {}, 'Redondance')),
-      bouton);
+      blocSecours,
+      bouton,
+      refus);
   }
 
   function dessinerAccueil() {

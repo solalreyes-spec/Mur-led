@@ -2,9 +2,10 @@
 // sans tirets de liste ni tirets longs (le texte part chez des chefs de projet). Fonctions pures :
 // elles mettent en forme les résultats de calculs.js, sans rien recalculer.
 
-import { pitchCalculeMm, entierInferieur, LIBELLES_COIN, formeReelle, aFormeReelle, libelleLigne } from './calculs.js';
+import { pitchCalculeMm, entierInferieur, LIBELLES_COIN, formeReelle, aFormeReelle, libelleLigne, texteNumeros, sansAlertesArrivee, RAPPEL_ARRIVEES, portsDoubles } from './calculs.js';
 import { nombre, nombreCourt, sourceCourte, mentionType } from './format.js';
 import { portsEnCouleurs, stylesLignes } from './couleurs.js';
+import { texteSecoursPort } from './secours.js';
 
 // Une ligne propre : espaces simples, tirets longs remplacés par une virgule, pas de puce en début de ligne.
 export function ligneSimple(texte) {
@@ -255,18 +256,20 @@ export function resumeData(r, {
     return texte(['DATA', `Processeur : ${proc.nom}`, `Impossible : ${r.impossible ?? 'ce processeur ne convient pas à ce mur'}`, ...alertes(r.alertes)]);
   }
   const reg = r.reglages;
+  const doubles = portsDoubles(r);
   const g = r.global;
   const champCapacite = r.champCapacite ?? 'debitUtileBps';
   const sourceCapacite = sourcesDe(proc, champCapacite);
   const lignes = [
     'DATA',
-    `Processeur : ${r.nombre} × ${proc.nom}${conseille ? ', conseillé' : ''}`,
+    `Processeur : ${texteNombreProcesseurs(r)}${conseille ? ', conseillé' : ''}`,
     // Nombre dans le parc (étape 15c) ; le manque est une alerte grave de la fiche du chef de projet.
     quantiteParc ? `Nombre dans le parc ${quantiteParc.parcNom} : ${nombre(quantiteParc.quantite)}` : null,
     quantiteParc?.alerte ? `Manque de stock : ${quantiteParc.alerte}` : null,
     r.configuration ? `Configuration : ${r.configuration}` : null,
     `Réglages : ${nombreCourt(reg.frequenceHz)} Hz, ${reg.bits} bits réseau${reg.ull ? ', ULL' : ''}, `
       + `${reg.redondance ? 'avec redondance' : 'sans redondance'}${reg.modeOptique ? ', mode optique' : ''}`,
+    r.secoursProcesseur ? `Redondance : ${r.secoursProcesseur.texte}` : null,
     origineBits ? `Profondeur réseau : ${reg.bits} bits, ${origineBits}` : null,
     gainDixBits ? `${gainDixBits.texte.charAt(0).toUpperCase()}${gainDixBits.texte.slice(1)}` : null,
     `Capacité par port : ${nombre(entierInferieur(r.capacite))} px`,
@@ -281,7 +284,7 @@ export function resumeData(r, {
   if (g) {
     lignes.push(`Ports en colonnes entières : ${nombre(g.colonnes.ports)}`);
     lignes.push(...lignesConfigData(imposee));
-    if (reg.redondance) lignes.push(`Ports avec la redondance : ${nombre(g.redondance.colonnes)} en colonnes entières`);
+    if (doubles) lignes.push(`Ports avec la redondance : ${nombre(g.redondance.colonnes)} en colonnes entières`);
     lignes.push(`Minimum théorique : ${nombre(g.serpentin.ports)} ports au plus juste, serpentin depuis ${LIBELLES_COIN[g.serpentin.depart]}`
       + `${g.auPlusJusteRealisable ? '' : ', non réalisable tel quel dans NovaLCT'}`);
     if (g.minimum.raisons.length) lignes.push(`Écart : ${g.minimum.raisons.join(' ; ')}`);
@@ -298,12 +301,14 @@ export function resumeData(r, {
   }
   const conso = consommationProcesseur(proc);
   if (conso) lignes.push(conso);
+  const total = r.nombreSecours > 0 ? consommationTotale(proc, r.nombreTotal) : null;
+  if (total) lignes.push(`Processeurs avec les secours : ${total}`);
   const alimentation = texteAlimentation(proc);
   if (alimentation) lignes.push(`Alimentation ${proc.modele} : ${alimentation}`);
   if (distributeur && r.totaux?.distributeurs) {
     const libres = r.totaux.distributeurs.portsNonUtilises;
     const watts = texteWatts(distributeurFiche) ?? (puissanceDistributeurW ? `${nombreCourt(puissanceDistributeurW)} W` : null);
-    lignes.push(`${distributeur} : ${nombre(reg.redondance ? r.totaux.distributeurs.redondance : r.totaux.distributeurs.colonnes)}`
+    lignes.push(`${distributeur} : ${nombre((doubles ? r.totaux.distributeurs.redondance : r.totaux.distributeurs.colonnes) * (r.nombreSecours > 0 ? 2 : 1))}`
       + `${libres > 0 ? `, ${pluriel(libres, 'port non utilisé', 'ports non utilisés')}` : ''}`
       + `${watts ? `, ${watts} chacun` : ''}`);
     const alimentationDistributeur = texteAlimentation(distributeurFiche);
@@ -314,7 +319,7 @@ export function resumeData(r, {
   const logiciel = texteLogicielReglage(proc);
   if (logiciel) lignes.push(logiciel.replace(/\.$/, ''));
   r.groupes.forEach((gr, i) => {
-    const ports = reg.redondance ? gr.ports.redondance.colonnes : gr.ports.colonnes;
+    const ports = doubles ? gr.ports.redondance.colonnes : gr.ports.colonnes;
     // Bloc d'un découpage par lignes de coupe ou d'une variante (9b2) : nommé par ses morceaux de zones.
     const colonnes = gr.premiereColonne === null || gr.premiereColonne === undefined
       ? gr.parties.map((p) => p.nomAffiche).join(', ')
@@ -354,7 +359,11 @@ export function resumeData(r, {
       + `de ${p.dalles[0]} à ${p.dalles[p.dalles.length - 1]}, couleur ${p.couleur.nom}`);
   }
   if (alternative) lignes.push(texteAlternativeSX40(alternative).replace(/\.$/, ''));
-  if (configs) lignes.push(...configs.lignes, configs.version ?? null);
+  // Luminosité maxi choisie dans Data quand un lot a plusieurs fichiers NovaLCT (étape 20).
+  if (configs) {
+    lignes.push(...configs.lignes, typeof configs.luminosite === 'number' ? `Luminosité maxi : ${nombre(configs.luminosite)} cd/m² (fichier du lot)` : null,
+      configs.version ?? null);
+  }
   lignes.push(...alertesPorts, ...alertes(r.alertes), ...(r.notes ?? []).map((x) => `Note : ${x}`), ...alertes(configs?.alertes));
   lignes.push(...(reseau?.refus ?? []).map((x) => `Refus : ${x}`), ...alertes(reseau?.alertes));
   return texte(lignes);
@@ -370,6 +379,21 @@ export function consommationProcesseur(proc) {
   return morceaux.length ? `${proc.modele} : ${morceaux.join(', ')} chacun` : null;
 }
 
+// « 1 × Novastar MCTRL660 Pro + 1 de secours » (étape 22) ; sans processeur de secours, « 2 × Novastar MCTRL660 ».
+export function texteNombreProcesseurs(r) {
+  return `${r.nombre} × ${r.processeur.nom}${r.nombreSecours > 0 ? ` + ${r.nombreSecours} de secours` : ''}`;
+}
+
+// Consommation, poids et hauteur en rack de n boîtiers (principaux et secours) : « 2 × MCTRL660 Pro, 40 W, 9,2 kg, 2U ».
+export function consommationTotale(proc, n) {
+  const morceaux = [
+    proc.puissanceW ? `${nombreCourt(n * proc.puissanceW)} W` : null,
+    proc.poidsKg ? `${nombreCourt(n * proc.poidsKg, 2)} kg` : null,
+    proc.hauteurU ? `${nombreCourt(n * proc.hauteurU)}U` : null,
+  ].filter(Boolean);
+  return `${n} × ${proc.modele}${morceaux.length ? `, ${morceaux.join(', ')}` : ''}`;
+}
+
 // `r` : contrôle de la source ; `evaluation` : processeur retenu ; `rRegie` : contrôle de la régie choisie.
 export function resumeCanvas(r, { evaluation, source, regie = null, rRegie = null, chaine = null, pliage = null }) {
   const proc = evaluation.processeur;
@@ -381,7 +405,7 @@ export function resumeCanvas(r, { evaluation, source, regie = null, rRegie = nul
     'CANVAS ET SOURCE',
     `Source : ${source.largeurPx} × ${source.hauteurPx} px à ${nombreCourt(source.frequenceHz)} Hz en ${r.entree?.liaison?.nom ?? 'liaison non précisée'}`,
     c ? `Liaison : ${c.ok ? 'passe' : 'ne passe pas'}, ${texteLiaison(c)}` : null,
-    `Processeurs : ${evaluation.nombre} × ${proc.nom}`,
+    `Processeurs : ${texteNombreProcesseurs(evaluation)}`,
   ];
   if (chaine) {
     const longueur = (m) => (m > 0 ? `, ${nombreCourt(m)} m` : '');
@@ -449,7 +473,31 @@ export function lignesParZone(r, m) {
   });
 }
 
-export function resumeElec(r, { dalle, mur: m, distribution = null, imposee = null }) {
+// Plusieurs arrivées (étape 21a, spec § 4.6) : chaque arrivée avec sa capacité et ses lignes, ses phases, son écart ;
+// les lignes choisies à la main ; refus, alertes et notes de la répartition. `rep` : variante réécrite par repartirArrivees.
+function lignesArrivees(rep) {
+  const lignes = [`Arrivées : ${rep.parArrivee.length}`];
+  for (const a of rep.parArrivee) {
+    lignes.push(`Arrivée ${a.numero} : ${a.type} ${nombreCourt(a.intensiteA)} A, ${watts(a.capaciteW)} utiles${a.type === 'tri' ? ' par phase' : ''}`
+      + `${a.branchement === 'boitier' ? ', en direct sur un boîtier' : ''}, `
+      + `${a.lignes.length ? `${a.lignes.length > 1 ? 'lignes' : 'ligne'} ${texteNumeros(a.lignes)}` : 'aucune ligne'}`);
+  }
+  for (const a of rep.parArrivee) {
+    if (!a.lignes.length) continue;
+    for (const p of a.phases) {
+      lignes.push(`Arrivée ${a.numero}, ${p.numero ? `phase L${p.numero}` : 'mono'} : ${pluriel(p.lignes, 'ligne', 'lignes')}, ${watts(p.puissanceW)}, `
+        + `${nombreCourt(p.intensiteA, 1)} A${p.puissanceW > a.capaciteW ? ', dépasse' : ''}`);
+    }
+    if (a.phases.length > 1) lignes.push(`Arrivée ${a.numero}, écart entre phases : ${nombreCourt(a.ecartPourcent, 0)} %`);
+  }
+  const numeros = new Map(rep.parArrivee.map((a) => [a.id, a.numero]));
+  for (const l of rep.lignesDetail.filter((x) => x.manuel)) lignes.push(`Ligne ${l.numero} : arrivée ${numeros.get(l.arrivee) ?? '?'}, choisie à la main`);
+  lignes.push(...rep.refus.map((x) => `Refus : ${x}`), ...alertes(rep.alertes.filter((a) => /^Arrivée \d/.test(a))), ...rep.notes.map((n) => `Note : ${n}`));
+  return lignes;
+}
+
+export function resumeElec(r, { dalle, mur: m, distribution = null, imposee = null, repartition = null }) {
+  const plusieurs = Boolean(repartition?.parArrivee);
   const reg = r.reglages;
   const d = r.dallesParLigne;
   const lignes = [
@@ -479,7 +527,9 @@ export function resumeElec(r, { dalle, mur: m, distribution = null, imposee = nu
     r.lignes.auPlusJuste.ecart ? `Décompte théorique au plus juste : ${nombre(r.lignes.auPlusJuste.theorique)} lignes` : null,
   ];
   const a = r.arrivee;
-  if (r.monophase) {
+  if (plusieurs) {
+    lignes.push(...lignesArrivees(repartition));
+  } else if (r.monophase) {
     lignes.push(`Arrivée : mono ${nombreCourt(a.intensiteA)} A, ${watts(r.monophase.capaciteW)} utiles`);
     lignes.push(`Charge : ${watts(r.monophase.puissanceW)}, ${nombreCourt(r.monophase.intensiteA, 1)} A, ${r.monophase.ok ? 'passe' : 'ne passe pas'}`);
   } else if (r.triphase) {
@@ -510,7 +560,8 @@ export function resumeElec(r, { dalle, mur: m, distribution = null, imposee = nu
     lignes.push(...distribution.notes.map((n) => `Note : ${n}`));
     lignes.push(`Rappel : ${RAPPEL_DISTRIBUTION}`);
   }
-  lignes.push(...alertes(r.alertes));
+  if (plusieurs) lignes.push(`Rappel : ${RAPPEL_ARRIVEES}`);
+  lignes.push(...alertes(plusieurs ? sansAlertesArrivee(r.alertes) : r.alertes));
   return texte(lignes);
 }
 
@@ -533,7 +584,29 @@ function texteCables(recap, nom) {
 }
 
 // Lignes de texte d'une distribution (distributionElec) : armoire, chaque boîtier, lignes directes, câbles.
+// Plusieurs arrivées (étape 21b) : câbles P17 de chaque arrivée, boîtiers avec leur arrivée, lignes directes par armoire.
+function lignesDistributionArrivees(d) {
+  const lignes = [];
+  for (const a of d.parArrivee) {
+    const siens = d.boitiers.filter((b) => b.arrivee === a.id);
+    if (!siens.length) continue;
+    lignes.push(a.branchement === 'boitier'
+      ? `${a.repere} : câble P17 32 A tri vers le boîtier ${siens[0].numero}`
+      : `Armoire de ${a.repere} : ${pluriel(siens.length, 'câble P17 32 A tri vers le boîtier', 'câbles P17 32 A tri vers les boîtiers')}`);
+  }
+  for (const b of d.boitiers) lignes.push(`Boîtier ${b.numero} (${b.repere}), ${d.pose} : ${texteLignesDistribution(b.lignes)}`);
+  for (const a of d.parArrivee) {
+    const directes = d.lignes.filter((l) => l.depuis === 'armoire' && l.arrivee === a.id);
+    if (directes.length) lignes.push(`En direct sur l'armoire de ${a.repere} : ${texteLignesDistribution(directes, { mono: directes.every((l) => !l.phase) })}`);
+  }
+  return lignes;
+}
+
 export function lignesDistribution(d) {
+  if (d.parArrivee) {
+    return [...lignesDistributionArrivees(d), d.boitiers.length ? texteCables(d.cables.p17, 'Câbles P17 32 A tri') : null,
+      d.cables.tete.nombre ? texteCables(d.cables.tete, `Câbles de tête ${nombreCourt(d.departA)} A`) : null].filter(Boolean);
+  }
   const lignes = [];
   const n = d.boitiers.length;
   if (n) lignes.push(`Armoire : ${pluriel(n, 'câble P17 32 A tri vers le boîtier', 'câbles P17 32 A tri vers les boîtiers')}`);
@@ -547,6 +620,11 @@ export function lignesDistribution(d) {
 
 // Phrase de tête d'une distribution : « Distribution : armoire à 20 m, boîtiers 32 A tri sur le pont ».
 export function texteDistribution(d) {
+  // Plusieurs arrivées (étape 21b) : chaque arrivée, son branchement et sa distance.
+  if (d.parArrivee) {
+    return `Distribution : ${d.parArrivee.map((a) => `${a.repere} ${a.branchement === 'boitier' ? 'en direct sur un boîtier' : 'armoire'} `
+      + `${a.distanceM === null ? 'non mesurée' : `à ${nombreCourt(a.distanceM, 1)} m`}`).join(', ')}${d.choix === 'materiel' ? ', avec mon matériel' : ''}`;
+  }
   const armoire = d.distanceArmoireM === null ? 'armoire non mesurée' : `armoire à ${nombreCourt(d.distanceArmoireM, 1)} m`;
   const forme = d.type === 'directe' ? 'lignes directes'
     : `boîtiers 32 A tri ${d.pose}${d.type === 'mixte' ? ' et lignes en direct' : ''}`;
@@ -662,7 +740,7 @@ export function resumeCablage({ data = null, modeData = null, elec = null, modeE
         rang += 1;
         lignes.push(`${p.modele} n° ${p.numero}, ${port.libelle} : ${pluriel(port.dalles.length, 'dalle', 'dalles')} `
           + `de ${port.dalles[0]} à ${port.dalles[port.dalles.length - 1]}, ${nombre(port.taux * 100, 1)} %`
-          + `${port.secours ? `, secours ${port.secours.libelle}${port.secours.retourM ? `, retour ${nombreCourt(port.secours.retourM, 1)} m` : ''}` : ''}`
+          + `${port.secours ? `, secours ${port.secours.processeur ? 'sur le ' : ''}${texteSecoursPort(port.secours, p.modele)}${port.secours.retourM ? `, retour ${nombreCourt(port.secours.retourM, 1)} m` : ''}` : ''}`
           + `${port.fibreM !== null ? `, fibre environ ${Math.ceil(port.fibreM)} m` : ''}`
           + `${port.longueurCuivreM !== null ? `, cuivre environ ${Math.ceil(port.longueurCuivreM)} m` : ''}`
           + `, couleur ${couleur.nom}`);

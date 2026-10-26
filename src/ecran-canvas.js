@@ -9,6 +9,7 @@ import { nombre, nombreCourt, lireNombre, sourceCourte } from './format.js';
 import { el, remplacer, listeNumerotee } from './dom.js';
 import { barreCharge } from './look.js';
 import { resumeCanvas } from './resumes.js';
+import { texteProcesseurs } from './secours.js';
 import { pixelMapEnCanvas, canvasEnPng, modeEnregistrement, enregistrer, telecharger } from './export.js';
 import { preparerMires, dessinerMire, pngRvb } from './mire.js';
 
@@ -204,7 +205,7 @@ function sectionRegie(r, regie, source) {
     r.alertes.map((texte) => alerte(texte)),
     (r.notes ?? []).map((texte) => alerte(texte, 'alerte-info')),
     el('dl', { class: 'tuiles' },
-      tuile('Sorties nécessaires', nombre(r.sortiesNecessaires), 'une par processeur'),
+      tuile('Sorties nécessaires', nombre(r.sortiesNecessaires), dernier?.evaluation?.nombreSecours > 0 ? 'une par processeur, secours compris' : 'une par processeur'),
       tuile('Sorties disponibles', r.sortiesAux > 0 ? `${nombre(r.sortiesDisponibles)} Program + ${nombre(r.sortiesAux)} Aux` : nombre(r.sortiesDisponibles),
         r.mode ? `mode ${r.mode.nom}, jusqu'à ${r.mode.largeurMaxPx} × ${r.mode.hauteurMaxPx} à ${r.mode.frequenceHz} Hz` : 'aucun mode ne convient',
         r.mode?.source ? `source : ${regieSources[r.mode.source] ?? r.mode.source}` : null),
@@ -339,10 +340,11 @@ function controler() {
   dernier = { r, evaluation: choisie, source, regie, rRegie, chaine, pliage };
 
   const recap = el('p', { class: 'recap-mur' },
-    `Processeur : ${choisie.nombre} × ${proc.nom}, ${nombreCourt(reglages.frequenceHz)} Hz, ${reglages.bits} bits réseau. `,
+    `Processeur : ${texteProcesseurs(choisie, proc.nom)}, ${nombreCourt(reglages.frequenceHz)} Hz, ${reglages.bits} bits réseau. `,
     el('a', { href: '#data' }, 'Modifier'));
   const bilan = r.ok && rRegie?.ok !== false && chaine.ok
-    ? alerte(`La source passe : ${r.blocs.length > 1 ? `chaque ${proc.modele} reçoit` : `le ${proc.modele} reçoit`} `
+    ? alerte(`La source passe : ${choisie.nombreSecours > 0 ? `chaque ${proc.modele}, secours compris, reçoit`
+      : r.blocs.length > 1 ? `chaque ${proc.modele} reçoit` : `le ${proc.modele} reçoit`} `
       + `${source.largeurPx} × ${source.hauteurPx} px à ${nombreCourt(source.frequenceHz)} Hz en ${r.entree.liaison.nom}.`, 'alerte-ok')
     : null;
 

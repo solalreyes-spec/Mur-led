@@ -6,6 +6,7 @@ import { dallesDuMur, MODELES_DISTRIBUTEUR, formeReelle, aFormeReelle, coinsTour
 import { nombre, nombreCourt } from './format.js';
 import { svg, el } from './dom.js';
 import { couleurPort, stylesLignes } from './couleurs.js';
+import { repereSecours, texteSecoursPort } from './secours.js';
 
 // Ports et lignes : leur numéro d'abord (au départ et sur chaque colonne du trajet), puis leur couleur (src/couleurs.js :
 // une par port en data, celle de la phase en élec, avec un motif par ligne d'une même phase) ; fond de dalles alterné
@@ -38,7 +39,7 @@ const pourcent = (taux) => `${nombre(taux * 100, 1)} %`;
 
 // Dalles, charge et secours d'un port, pour sa ligne de légende.
 const detailPort = (port, p, plusieurs) => `${pluriel(port.dalles.length, 'dalle', 'dalles')}, ${pourcent(port.taux)}`
-  + `${port.secours ? `, secours ${plusieurs ? `${p.numero}.${port.secours.numero}` : port.secours.numero}` : ''}`
+  + `${port.secours ? `, secours ${repereSecours(port.secours, p.numero, plusieurs)}` : ''}`
   + `${port.secours?.retourM ? `, retour ${nombreCourt(port.secours.retourM, 1)} m` : ''}`;
 
 // Libellés d'une dalle, partagés par le schéma et la mire de mapping (src/mire.js), pour ne jamais diverger : port et
@@ -73,7 +74,9 @@ export function trajetsSchema(vue, vd, ve, canvasNumero = null) {
         rang: i,
         orientation: vd.orientation ?? 'colonnes',
         etiquette: plusieurs ? `${p.numero}.${port.numero}` : `${port.numero}`,
-        etiquetteSecours: port.secours ? (plusieurs ? `${p.numero}.${port.secours.numero}` : `${port.secours.numero}`) : null,
+        // Secours par un second processeur (étape 22) : « 3.1 », processeur de secours . port.
+        etiquetteSecours: repereSecours(port.secours, p.numero, plusieurs),
+        libelleSecours: port.secours ? texteSecoursPort(port.secours, p.modele) : null,
         libelle: `${port.libelle} : ${detailPort(port, p, plusieurs)}`,
         // Puce de la légende : le numéro est déjà dans sa pastille ; le nom du port reste quand il dit autre chose
         // (« XD 2, port 1 », « CVT10 2, port 1 »).
@@ -105,6 +108,23 @@ export function trajetsSchema(vue, vd, ve, canvasNumero = null) {
   }
   return [];
 }
+
+// Ligne de légende des retours de secours ; avec un second processeur (étape 22), l'exemple du premier repère.
+export function legendeSecours(trajets) {
+  const avec = trajets.filter((t) => t.secours);
+  if (!avec.length) return null;
+  const premier = avec.find((t) => t.secours.processeur);
+  if (!premier) return 'retours de secours';
+  const plusieurs = new Set(avec.map((t) => t.secours.processeur)).size > 1;
+  return `retours de secours, vers ${plusieurs ? 'les processeurs' : 'le processeur'} de secours (${premier.etiquetteSecours} : ${premier.libelleSecours})`;
+}
+
+// Port d'un processeur de secours, méthode sans cascade (étape 22c, spec § 4.2.5) : le trajet du port k du principal
+// parcouru dans l'autre sens, de la dernière dalle à la première ; départ numéroté du repère du secours (« 2.1 »), au
+// droit de sa dernière dalle comme le bout du retour, sans retour de secours ; couleur du port gardée.
+export const trajetSecoursInverse = (t) => ({
+  ...t, dalles: [...t.dalles].reverse(), etiquette: t.etiquetteSecours ?? t.etiquette, secours: null, etiquetteSecours: null, inverse: true,
+});
 
 // Géométrie de la vue : rectangles des dalles (mm ou px) et taille du cadre.
 // `vue.vue` : 'physique' ou 'pixels' ; `vue.canvasVue` : 'mur' ou 'p2' (canvas du processeur n° 2).
@@ -507,12 +527,21 @@ export function geometrieChaine(geo, coin, trajets, aval, { grand = false } = {}
       const h = etiquette.length * 1.2 * tailleEtiquette;
       return { w, h, le: parRangees ? h : w, hors: parRangees ? w : h };
     })() : null;
-    return { e, siens, departs, appareils, lignes, ...dims(lignes), voulu: departs.length ? milieu(departs) : 0, etiquette, etiquetteDims };
+    // Processeur de secours (étape 22, cadre « MCTRL4K secours n° 3 ») : sur la rangée des processeurs, au droit des bouts
+    // de ses retours, donc à côté de son principal ; chaque retour relié à lui en pointillés.
+    const retours = e.secours ? siens.filter((t) => t.secours?.processeur) : [];
+    const secours = retours.length ? {
+      retours, lignes: [e.secours.nom], ...dims([e.secours.nom]),
+      voulu: milieu(retours.map((t) => leDe([points.get(t.cle).xs, points.get(t.cle).ys]))),
+    } : null;
+    return { e, siens, departs, appareils, lignes, ...dims(lignes), voulu: departs.length ? milieu(departs) : 0, etiquette, etiquetteDims, secours };
   });
   const tousAppareils = elements.flatMap((x) => x.appareils);
   const ecart = police * 0.5;
   espacer(tousAppareils.map((a) => ({ centre: a.voulu, taille: a.le })), ecart).forEach((c, k) => { tousAppareils[k].centre = c; });
-  espacer(elements.map((x) => ({ centre: x.voulu, taille: Math.max(x.le, x.etiquetteDims?.le ?? 0) })), ecart).forEach((c, k) => { elements[k].centre = c; });
+  const rangee = elements.flatMap((x) => [{ x, taille: Math.max(x.le, x.etiquetteDims?.le ?? 0), voulu: x.voulu }, ...(x.secours ? [{ x: x.secours, taille: x.secours.le, voulu: x.secours.voulu }] : [])]);
+  espacer(rangee.map((y) => ({ centre: y.voulu, taille: y.taille })), ecart).forEach((c, k) => { rangee[k].x.centre = c; });
+  const tousSecours = elements.map((x) => x.secours).filter(Boolean);
   // Câbles de tête partis d'un appareil (et retours d'un XD miroir) : chacun son point d'attache sur le côté de l'appareil
   // tourné vers le mur, dans l'ordre de ses départs ; il sort droit de l'appareil jusqu'à son niveau, longe le bord
   // jusqu'au droit de son départ, puis arrive droit sur son rond (jamais sur un autre). Niveaux : le plus long câble le
@@ -527,7 +556,10 @@ export function geometrieChaine(geo, coin, trajets, aval, { grand = false } = {}
       const enFace = cibles.length === 1 && Math.abs(cible - a.centre) <= a.le * 0.35;
       return { ...c, appareil: a, cible, attache: enFace ? cible : a.centre - a.le * 0.35 + (cibles.length > 1 ? (a.le * 0.7 * k) / (cibles.length - 1) : a.le * 0.35) };
     });
-  });
+  }).concat(tousSecours.flatMap((sc) => {
+    const cibles = sc.retours.map((t) => ({ t, carte: 'secours', duSecours: true, vers: [points.get(t.cle).xs, points.get(t.cle).ys] })).sort((u, w) => leDe(u.vers) - leDe(w.vers));
+    return cibles.map((c, k) => ({ ...c, appareil: sc, cible: leDe(c.vers), attache: sc.centre - sc.le * 0.35 + (cibles.length > 1 ? (sc.le * 0.7 * k) / (cibles.length - 1) : sc.le * 0.35) }));
+  }));
   const niveaux = [];
   const marge2 = police * 0.3;
   for (const c of [...cables].sort((u, w) => Math.abs(w.cible - w.attache) - Math.abs(u.cible - u.attache))) {
@@ -542,7 +574,7 @@ export function geometrieChaine(geo, coin, trajets, aval, { grand = false } = {}
   const hors0 = profondeur + police * 0.4 + pas * (niveaux.length + 1);
   const horsAppareils = tousAppareils.length ? Math.max(...tousAppareils.map((a) => a.hors)) : 0;
   const centreAppareils = hors0 + horsAppareils / 2;
-  const horsProcesseurs = Math.max(...elements.map((x) => x.hors));
+  const horsProcesseurs = Math.max(...elements.map((x) => x.hors), ...tousSecours.map((x) => x.hors));
   const centreProcesseurs = (tousAppareils.length ? hors0 + horsAppareils + police * 2 : hors0) + horsProcesseurs / 2;
 
   const boite = (le, hors, d) => {
@@ -558,7 +590,7 @@ export function geometrieChaine(geo, coin, trajets, aval, { grand = false } = {}
   for (const c of cables) {
     const niveau = hors0 - pas * (c.niveau + 1);
     (c.carte === 'principal' ? appareilDe : secoursDe).set(c.t.cle,
-      [pt(c.attache, centreAppareils - c.appareil.hors / 2), pt(c.attache, niveau), pt(c.cible, niveau)]);
+      [pt(c.attache, (c.duSecours ? centreProcesseurs : centreAppareils) - c.appareil.hors / 2), pt(c.attache, niveau), pt(c.cible, niveau)]);
   }
   for (const x of elements) {
     // Cadres dans l'ordre, du mur vers l'extérieur : les appareils, puis le processeur.
@@ -568,6 +600,7 @@ export function geometrieChaine(geo, coin, trajets, aval, { grand = false } = {}
       liaisons.push({ genre: x.e.liaison?.genre ?? 'fibre', de: versMur, a: pt(a.centre, centreAppareils + a.hors / 2) });
     }
     cadres.push({ role: 'processeur', nom: x.e.nom, lignes: x.lignes, taille, ...boite(x.centre, centreProcesseurs, x) });
+    if (x.secours) cadres.push({ role: 'secours', nom: x.e.secours.nom, lignes: x.secours.lignes, taille, ...boite(x.secours.centre, centreProcesseurs, x.secours) });
     if (x.etiquette) {
       const d = x.etiquetteDims;
       const b = boite(x.centre, centreProcesseurs + x.hors / 2 + taille * 0.4 + d.hors / 2, d);
@@ -970,9 +1003,11 @@ export function construireSvg({
       'stroke-dasharray': l.genre === 'fibre' ? `${trait * 3} ${trait * 1.2}` : null,
     })),
     chaine.cadres.map((c) => svg('g', { class: 'cadre-chaine', 'data-role': c.role, 'data-nom': c.nom },
+      // Processeur de secours (étape 22) : contour en pointillés couleur secours, comme ses retours.
       svg('rect', {
         x: c.x, y: c.y, width: c.w, height: c.h, rx: c.taille * 0.3,
-        style: `fill: ${palette.fond}; stroke: ${palette.contour}`, 'stroke-width': trait * 0.5,
+        style: `fill: ${palette.fond}; stroke: ${c.role === 'secours' ? palette.secours : palette.contour}`, 'stroke-width': trait * 0.5,
+        'stroke-dasharray': c.role === 'secours' ? `${trait * 1.2} ${trait * 0.8}` : null,
       }),
       c.lignes.map((texte, i) => svg('text', {
         x: c.cx, y: c.cy + (i - (c.lignes.length - 1) / 2) * c.taille * 1.25, 'font-size': c.taille * (i === 0 ? 1 : 0.85),

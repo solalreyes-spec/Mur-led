@@ -3,7 +3,7 @@
 // qui ajoute la variante « Ma config (imposée) » sans jamais remplacer le conseil.
 // Module de src/calculs.js, le point d'entrée qui réexporte tout : fonctions pures, sans accès à l'interface.
 import { nombre, nombreCourt } from '../format.js';
-import { LIBELLE_IMPOSEE, minuscule } from './commun.js';
+import { LIBELLE_IMPOSEE, minuscule, portsDoubles } from './commun.js';
 import { plusieursZones } from './morceaux.js';
 import { repartir, MODELES_DISTRIBUTEUR } from './capacites.js';
 
@@ -62,7 +62,7 @@ export function taillesImposees(n, colonnes, { unite = 'port', segmentsMin = nul
 }
 
 // Plan des ports imposés d'un mur : refus du mur ou du nombre, répartition entre processeurs, ports de chaque processeur
-// face aux siens (en redondance, ses ports principaux).
+// face aux siens (en redondance, ses ports principaux ; tous avec un processeur de secours, étape 22).
 export function planPortsImposes(m, evaluation, ports) {
   const refusMur = refusMurImpose(m);
   if (refusMur) return { valeur: undefined, parProcesseur: null, refus: [refusMur] };
@@ -70,7 +70,8 @@ export function planPortsImposes(m, evaluation, ports) {
   if (n.refus) return { valeur: undefined, parProcesseur: null, refus: [n.refus] };
   if (n.valeur === null) return { valeur: null, parProcesseur: null, refus: [] };
   const proc = evaluation.processeur;
-  const { redondance, modeOptique } = evaluation.reglages;
+  const { modeOptique } = evaluation.reglages;
+  const redondance = portsDoubles(evaluation);
   const r = repartirAuProrata(n.valeur, evaluation.groupes.map((g) => g.colonnes));
   if (r.refus) return { valeur: n.valeur, parProcesseur: null, refus: [r.refus] };
   const limite = modeOptique && proc.portsOptionOptique ? proc.portsOptionOptique : proc.ports;
@@ -115,7 +116,8 @@ export const TRANSCEIVER_BROMPTON = 'Transceiver fibre Gigabit Ethernet';
 // au pied du mur (à la suite du nom du port), `noeuds` sur chaque trajet (réseau Brompton).
 export function fibreImposee(evaluation, ports, { distributeurs = [], paire = PAIRE_DEFAUT } = {}) {
   const proc = evaluation.processeur;
-  const { redondance } = evaluation.reglages;
+  // Processeur de secours (étape 22) : les ports et les fibres du principal seulement, sans secours.
+  const redondance = portsDoubles(evaluation);
   const fiche = (id) => distributeurs.find((d) => d.id === id) ?? null;
   const modele = (id) => MODELES_DISTRIBUTEUR[id] ?? fiche(id)?.modele ?? id;
   const vide = {

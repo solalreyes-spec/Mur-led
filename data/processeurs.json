@@ -3072,6 +3072,11 @@
         "source": "deduit-hauteur-u",
         "note": "50,1 mm"
       },
+      "cascadeMax": {
+        "valeur": 8,
+        "source": "novastar-mctrl660-pro-v1-4-1",
+        "note": "« Up to 8 devices can be cascaded », p. 4"
+      },
       "statutCommercial": {
         "valeur": "actuel",
         "source": "novastar-page-controleurs"
@@ -3146,6 +3151,11 @@
         "valeur": 1,
         "source": "deduit-hauteur-u",
         "note": "52 mm"
+      },
+      "cascadeMax": {
+        "valeur": 8,
+        "source": "novastar-mctrl-r5-v1-0-5",
+        "note": "« Up to 8 devices can be cascaded », p. 4"
       },
       "statutCommercial": {
         "valeur": "actuel",
@@ -3244,6 +3254,11 @@
         "valeur": 2,
         "source": "deduit-hauteur-u",
         "note": "88,1 mm"
+      },
+      "cascadeMax": {
+        "valeur": 10,
+        "source": "novastar-mctrl4k-v1-2-1",
+        "note": "« Up to 10 units can be cascaded », p. 5"
       },
       "statutCommercial": {
         "valeur": "actuel",

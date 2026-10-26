@@ -3,7 +3,7 @@
 // Module de src/calculs.js, le point d'entrée qui réexporte tout : fonctions pures, sans accès à l'interface.
 // La liste compte, elle ne recalcule rien : elle reprend les résultats de Mur, Data, du câblage, d'Élec et de Poids.
 import { nombreCourt } from '../format.js';
-import { EPS } from './commun.js';
+import { EPS, portsDoubles } from './commun.js';
 import { MODELES_DISTRIBUTEUR } from './capacites.js';
 import { dallesDuMur } from './pixel-map.js';
 import { MARGE_MOU_DEFAUT } from './cablage.js';
@@ -21,6 +21,9 @@ export const LONGUEURS_STOCK = {
   p16: [1, 2, 5, 10, 20, 25, 50],
   p17: [5, 10, 20, 25, 50],
 };
+// Processeurs NovaLCT dont le port Ethernet de contrôle est connu : les modèles NovaLCT de CONTROLE_PROCESSEURS
+// (src/connexion.js, étape 19 ; test R436).
+export const CONTROLE_ETHERNET_NOVALCT = ['novastar-mctrl4k', 'novastar-mctrl660-pro', 'novastar-mctrl-r5', 'novastar-vx1000'];
 export const RAPPEL_LISTE = 'Liste indicative, à vérifier avant le chargement.';
 export const RAPPEL_RIGGER = 'Élingues, manilles et pieds de stack : à voir avec le rigger.';
 const LIAISONS = 'fournies avec les dalles, à vérifier';
@@ -114,6 +117,28 @@ function sectionDalles(fiches, pourcent) {
   return { id: 'dalles', titre: 'Dalles', lignes, notes: [] };
 }
 
+// Liaison des boîtiers à l'ordinateur avec des processeurs de secours (étape 22, spec § 5.3) : en cascade, 2N − 1 câbles
+// USB de cascade et un câble vers l'ordinateur ; sans cascade, un switch et un câble Ethernet par boîtier plus un vers
+// l'ordinateur (choix de conception) pour un modèle dont le contrôle Ethernet est connu, sinon un
+// câble USB par boîtier.
+function lignesControle(e) {
+  if (!(e.nombreSecours > 0) || !e.secoursProcesseur) return [];
+  const boitiers = e.nombre + e.nombreSecours;
+  if (e.secoursProcesseur.liaison === 'cascade') {
+    return [
+      ligneListe('controle|usb-cascade', boitiers - 1, 'Câble USB A vers B (USB 2.0), cascade des processeurs', 'de l\'USB OUT de chaque boîtier à l\'USB IN du suivant'),
+      ligneListe('controle|usb-pc', 1, 'Câble USB vers l\'ordinateur', 'vers l\'USB IN du boîtier 1'),
+    ];
+  }
+  if (CONTROLE_ETHERNET_NOVALCT.includes(e.processeur.id)) {
+    return [
+      ligneListe('controle|switch', 1, 'Switch réseau', `pour piloter les ${nombreCourt(boitiers)} boîtiers en Ethernet, une adresse par boîtier réglée en façade`),
+      ligneListe('controle|ethernet', boitiers + 1, 'Câble Ethernet de contrôle', 'un par boîtier, un vers l\'ordinateur (choix de conception)'),
+    ];
+  }
+  return [ligneListe('controle|usb-pc', boitiers, 'Câble USB vers l\'ordinateur', 'un par boîtier ; liaison au PC : vois la fiche du processeur, à vérifier')];
+}
+
 function sectionData(data, stock) {
   const section = { id: 'data', titre: 'Data', lignes: [], notes: [] };
   const e = data?.evaluation;
@@ -122,24 +147,27 @@ function sectionData(data, stock) {
     return section;
   }
   const proc = e.processeur;
-  const red = Boolean(e.reglages?.redondance);
+  const red = portsDoubles(e);
+  // Processeurs de secours (étape 22) : sur la même ligne que les principaux, avec leurs cartes et convertisseurs.
+  const secours = e.nombreSecours > 0 ? e.nombreSecours : 0;
   const v = data.variante;
   const distance = data.distanceRegieM ?? null;
   const mou = 1 + (data.margeMou ?? MARGE_MOU_DEFAUT);
   const L = section.lignes;
-  L.push(ligneListe(`processeur|${proc.id}`, e.nombre, proc.nom, 'retenu dans Data'));
+  L.push(ligneListe(`processeur|${proc.id}`, e.nombre + secours, proc.nom, `retenu dans Data${secours ? `, ${nombreCourt(e.nombre)} + ${nombreCourt(secours)} de secours` : ''}`));
   if (proc.carteSortie && e.totaux?.cartesSortie) {
-    L.push(ligneListe(`carte|${proc.carteSortie.nomCourt}`, e.totaux.cartesSortie, `Carte de sortie ${proc.carteSortie.nomCourt}`, `dans ${proc.modele}`));
+    L.push(ligneListe(`carte|${proc.carteSortie.nomCourt}`, e.totaux.cartesSortie * (secours ? 2 : 1), `Carte de sortie ${proc.carteSortie.nomCourt}`,
+      `dans ${proc.modele}${secours ? ', secours compris' : ''}`));
   }
   // XD, CVT, convertisseurs : comptés comme Data ; seulement « si fibre » quand ils ne sont pas obligatoires.
   const dist = e.totaux?.distributeurs;
   const obligatoire = Boolean(e.distributeurObligatoire ?? proc.distributeurObligatoire);
   const modele = data.distributeur?.modele ?? MODELES_DISTRIBUTEUR[proc.distributeur] ?? 'convertisseur';
-  const nbDist = dist ? (red ? dist.redondance : dist.colonnes) : 0;
+  const nbDist = dist ? (red ? dist.redondance : dist.colonnes) * (secours ? 2 : 1) : 0;
   // Config imposée en fibre (étape 18c3) : les convertisseurs de la config, plus de note « si fibre ».
   const fibreImp = v.mode === 'imposee' && v.fibre?.possible && !v.fibre.deja ? v.fibre : null;
   if (dist && nbDist && obligatoire) {
-    L.push(ligneListe(`distributeur|${modele}`, nbDist, modele, red ? 'comptés dans Data, redondance comprise' : 'comptés dans Data'));
+    L.push(ligneListe(`distributeur|${modele}`, nbDist, modele, red || secours ? 'comptés dans Data, redondance comprise' : 'comptés dans Data'));
   } else if (fibreImp) {
     const DETAILS = {
       copie: `config imposée, en fibre ; ${pluriel(fibreImp.portsNonUtilises, 'port non utilisé', 'ports non utilisés')}${fibreImp.aConfirmer ? ' ; à confirmer' : ''}`,
@@ -150,10 +178,11 @@ function sectionData(data, stock) {
   } else if (dist && nbDist) {
     section.notes.push(`Si tu passes en fibre : ${nombreCourt(nbDist)} × ${modele} (comptés dans Data).`);
   }
+  L.push(...lignesControle(e));
   const ports = v.processeurs.flatMap((p) => p.ports);
   const surDistributeur = obligatoire && Boolean(dist);
   const tetes = ports.map((p) => p.longueurCuivreM);
-  const secours = ports.filter((p) => p.secours).map((p) => p.secours.longueurCuivreM);
+  const retours = ports.filter((p) => p.secours).map((p) => p.secours.longueurCuivreM);
   if (surDistributeur) {
     // Fibre : une par distributeur, à la longueur régie–mur ; cuivre du distributeur à la dalle.
     const fibreM = distance === null ? null : distance * mou;
@@ -162,7 +191,7 @@ function sectionData(data, stock) {
       { detailMesurer: 'longueur à mesurer (distance régie–mur non saisie)' }));
     L.push(...lignesCables('Câble de tête RJ45', tetes, stock.data, `du ${modele} à la première dalle, mou compris`, section.notes,
       { detailMesurer: 'longueur à mesurer (distance régie–mur non saisie)' }));
-    if (secours.length) L.push(...lignesCables('Retour de secours RJ45', secours, stock.data, `de la dernière dalle au ${modele}, mou compris`, section.notes));
+    if (retours.length) L.push(...lignesCables('Retour de secours RJ45', retours, stock.data, `de la dernière dalle au ${modele}, mou compris`, section.notes));
   } else if (fibreImp) {
     // Config imposée en fibre : les fibres du convertisseur à la longueur régie–mur, le cuivre depuis le pied du mur.
     const fibreM = distance === null ? null : distance * mou;
@@ -171,12 +200,12 @@ function sectionData(data, stock) {
     L.push(...lignesCables(`Fibre jusqu'au ${vers}`, Array(fibreImp.nombreFibres).fill(fibreM), stock.fibre,
       `${fibreImp.fibres.length ? `${[...fibreImp.fibres, ...fibreImp.fibresSecours].join(', ')}, ` : ''}régie à ${nombreCourt(distance ?? 0)} m, mou compris`, section.notes, mesurer));
     L.push(...lignesCables('Câble de tête RJ45', tetes, stock.data, `du ${vers} à la première dalle, mou compris`, section.notes, mesurer));
-    if (secours.length) L.push(...lignesCables('Retour de secours RJ45', secours, stock.data, `de la dernière dalle au ${vers}, mou compris`, section.notes));
+    if (retours.length) L.push(...lignesCables('Retour de secours RJ45', retours, stock.data, `de la dernière dalle au ${vers}, mou compris`, section.notes));
     if (fibreImp.fibresSecoursAVerifier) section.notes.push(`Fibres de secours du ${fibreImp.modele} : à vérifier, la fiche ne dit pas laquelle secourt l'autre.`);
   } else if (distance !== null && distance > SEUIL_MULTIPAIRE_M + EPS) {
     // Régie loin : multipaires (secours compris), un câble court au mur par câble, un cordon côté régie.
     const tronc = distance * mou;
-    const auMur = [...tetes, ...secours].map((x) => x - tronc);
+    const auMur = [...tetes, ...retours].map((x) => x - tronc);
     const nbMp = Math.ceil(auMur.length / CABLES_PAR_MULTIPAIRE);
     L.push(...lignesCables('Multipaire 8 RJ45', Array(nbMp).fill(tronc), stock.multipaire,
       `8 RJ45 dont 1 de secours, 1 pour 7 câbles (${pluriel(auMur.length, 'câble', 'câbles')}), régie à ${nombreCourt(distance)} m, mou compris (${nombreCourt(tronc, 1)} m)`,
@@ -187,9 +216,9 @@ function sectionData(data, stock) {
   } else {
     const d = distance === null ? null : `régie à ${nombreCourt(distance)} m, trajet le long du mur, mou compris`;
     L.push(...lignesCables('Câble de tête RJ45', tetes, stock.data, d, section.notes, { detailMesurer: 'longueur à mesurer (distance régie–mur non saisie)' }));
-    if (secours.length) L.push(...lignesCables('Retour de secours RJ45', secours, stock.data, d, section.notes, { detailMesurer: 'longueur à mesurer (distance régie–mur non saisie)' }));
+    if (retours.length) L.push(...lignesCables('Retour de secours RJ45', retours, stock.data, d, section.notes, { detailMesurer: 'longueur à mesurer (distance régie–mur non saisie)' }));
   }
-  if ([...tetes, ...secours].some((x) => x > 100 + EPS)) section.notes.push('Câbles en cuivre au-delà de 100 m : l\'Ethernet ne passe pas, vois l\'alerte du Schéma.');
+  if ([...tetes, ...retours].some((x) => x > 100 + EPS)) section.notes.push('Câbles en cuivre au-delà de 100 m : l\'Ethernet ne passe pas, vois l\'alerte du Schéma.');
   if (v.liaisons) L.push(ligneListe('liaison|data', v.liaisons, 'Liaison RJ45 entre dalles', LIAISONS));
   return section;
 }

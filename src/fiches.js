@@ -4,7 +4,7 @@
 import {
   resoudreFiche, champsManquants, champsManquantsRegie, BIT_DEPTH_PAR_DEFAUT, ErreurSaisie, PLUS_DEFAVORABLE, pixelsPourClassement,
 } from './calculs.js';
-import { nombre, dateCourte } from './format.js';
+import { nombre, nombreCourt, dateCourte } from './format.js';
 
 export const TYPES = ['dalle', 'processeur', 'regie', 'bumper'];
 export const LIBELLES_TYPE = { dalle: 'Dalle', processeur: 'Processeur', regie: 'Régie ou scaler', bumper: 'Bumper ou barre' };
@@ -687,6 +687,59 @@ export function supprimerLot(base, parcId, dalleId, lotId) {
   return modifierParc(base, parcId, (p) => lotsAvec(p, dalleId, (p.lots?.[dalleId] ?? []).filter((l) => l.id !== lotId)));
 }
 
+// Plusieurs configs NovaLCT par lot (étape 20) : chacune avec la fréquence et
+// la luminosité maxi de son fichier (vides : valable pour toutes). Une config ajoutée a son `id` ; une config d'avant
+// n'en a pas, son identifiant se déduit du lot et du logiciel, sans rien réécrire dans la base.
+export const idConfig = (config, lotId) => config.id ?? `${lotId}:${config.logiciel}`;
+
+// Nombre saisi, virgule décimale permise : null si vide, NaN si illisible.
+function nombreSaisi(x) {
+  if (x === null || x === undefined) return null;
+  const texte = typeof x === 'number' ? x : String(x).trim().replace(',', '.');
+  if (texte === '') return null;
+  const n = Number(texte);
+  return Number.isFinite(n) ? n : NaN;
+}
+const frequenceValable = (n) => typeof n === 'number' && n >= 1 && n <= 1000;
+const luminositeValable = (n) => Number.isInteger(n) && n >= 100 && n <= 10000;
+const memeFrequence = (a, b) => (a === null || b === null ? a === b : Math.abs(a - b) < 0.005);
+
+// Critères d'une config NovaLCT ; valeur illisible (fichier importé) ignorée, aucun pour un autre logiciel.
+export function criteresConfig(config) {
+  const nova = config?.logiciel === 'NovaLCT';
+  return {
+    frequenceHz: nova && frequenceValable(config.frequenceHz) ? config.frequenceHz : null,
+    luminositeMax: nova && luminositeValable(config.luminositeMax) ? config.luminositeMax : null,
+  };
+}
+const memesCriteres = (a, b) => memeFrequence(a.frequenceHz, b.frequenceHz) && a.luminositeMax === b.luminositeMax;
+
+// « à 50 Hz et 800 cd/m² », « sans fréquence et sans luminosité notée ».
+function texteCriteres({ frequenceHz: f, luminositeMax: l }) {
+  const lum = l === null ? 'sans luminosité notée' : `${f === null ? 'à ' : ''}${nombre(l)} cd/m²`;
+  return `${f === null ? 'sans fréquence' : `à ${nombreCourt(f)} Hz`} et ${lum}`;
+}
+
+// Critères d'une config en clair : « 50 Hz, 800 cd/m² », avec « d'après le nom du fichier » tant que la valeur lue
+// dans le nom n'a pas été revue ; '' sans critère.
+export function texteCriteresConfig(config) {
+  const { frequenceHz: f, luminositeMax: l } = criteresConfig(config);
+  const morceaux = [f !== null && `${nombreCourt(f)} Hz`, l !== null && `${nombre(l)} cd/m²`].filter(Boolean);
+  const marque = config?.critereDuNom;
+  if (marque && ((marque.frequence && f !== null) || (marque.luminosite && l !== null))) morceaux.push('d\'après le nom du fichier');
+  return morceaux.join(', ');
+}
+
+// Marque « lue dans le nom du fichier », gardée pour les seuls critères qui ont une valeur.
+function marqueDuNom(marque, propre) {
+  if (!marque || typeof marque !== 'object') return null;
+  const garde = {
+    ...(marque.frequence && propre.frequenceHz !== undefined ? { frequence: true } : {}),
+    ...(marque.luminosite && propre.luminositeMax !== undefined ? { luminosite: true } : {}),
+  };
+  return Object.keys(garde).length ? garde : null;
+}
+
 function nettoyerConfig(config) {
   const { logiciel } = config;
   if (!LOGICIELS.includes(logiciel)) throw new ErreurSaisie('Logiciel de la config : NovaLCT, VMP, LEDVISION ou Tessera.');
@@ -704,28 +757,291 @@ function nettoyerConfig(config) {
     throw new ErreurSaisie('Calibration Brompton : factory ou mémoire 1 à 3.');
   }
   if (propre.firmware && !FIRMWARES.includes(propre.firmware)) throw new ErreurSaisie('Firmware de la dalle : standard ou personnalisé par le fabricant.');
+  // Fréquence et luminosité maxi du fichier : NovaLCT seulement (étape 20).
+  const frequence = nombreSaisi(config.frequenceHz);
+  const luminosite = nombreSaisi(config.luminositeMax);
+  if ((frequence !== null || luminosite !== null) && logiciel !== 'NovaLCT') {
+    throw new ErreurSaisie('Fréquence et luminosité maxi : seulement pour une config NovaLCT.');
+  }
+  if (frequence !== null) {
+    if (!frequenceValable(frequence)) throw new ErreurSaisie('Fréquence du fichier : un nombre de 1 à 1000 Hz, ou vide.');
+    propre.frequenceHz = frequence;
+  }
+  if (luminosite !== null) {
+    if (!luminositeValable(luminosite)) throw new ErreurSaisie('Luminosité maxi du fichier : un nombre entier de 100 à 10 000 cd/m², ou vide.');
+    propre.luminositeMax = luminosite;
+  }
+  const marque = marqueDuNom(config.critereDuNom, propre);
+  if (marque) propre.critereDuNom = marque;
+  if (typeof config.id === 'string' && config.id) propre.id = config.id;
   return propre;
 }
 
 const avecConfigs = (base, parcId, dalleId, lotId, f) => modifierParc(base, parcId, (p) => lotsAvec(p, dalleId,
-  (p.lots?.[dalleId] ?? []).map((l) => (l.id === lotId ? { ...l, configs: f(l.configs ?? []) } : l))));
+  (p.lots?.[dalleId] ?? []).map((l) => (l.id === lotId ? { ...l, configs: f(l.configs ?? [], l) } : l))));
+const lotDe = (base, parcId, dalleId, lotId) => lotsDalleParc(base, parcId, dalleId).find((l) => l.id === lotId) ?? null;
+const jointsDe = (config) => Object.fromEntries(Object.values(ROLES_FICHIER).filter((cle) => config?.[cle]).map((cle) => [cle, config[cle]]));
 
-// Une config par logiciel et par lot ; les fichiers déjà joints restent attachés.
+// Config d'un lot visée par son identifiant, ou par son logiciel quand le lot n'en a qu'une de ce logiciel.
+function trouverConfig(lot, configs, cible) {
+  const parId = configs.find((c) => idConfig(c, lot.id) === cible);
+  if (parId) return parId;
+  const memes = configs.filter((c) => c.logiciel === cible);
+  if (memes.length > 1) throw new ErreurSaisie(`Plusieurs configs ${cible} dans le lot ${lot.identifiant} : précise laquelle.`);
+  return memes[0] ?? null;
+}
+
+// Deux configs NovaLCT d'un lot jamais à la même fréquence et à la même luminosité ; `sauf` : la config modifiée.
+function refuserDoublon(lot, configs, propre, sauf) {
+  if (propre.logiciel !== 'NovaLCT') return;
+  const criteres = criteresConfig(propre);
+  if (configs.some((c) => c.logiciel === 'NovaLCT' && idConfig(c, lot.id) !== sauf && memesCriteres(criteresConfig(c), criteres))) {
+    throw new ErreurSaisie(`Le lot ${lot.identifiant} a déjà un fichier NovaLCT ${texteCriteres(criteres)} : change la fréquence ou la luminosité.`);
+  }
+}
+
+// Doublons venus d'un fichier importé (l'appli les refuse à la saisie) : une alerte par paire de critères.
+export function doublonsNovaLCT(lot) {
+  const vus = [];
+  const alertes = [];
+  for (const c of (lot.configs ?? []).filter((x) => x.logiciel === 'NovaLCT')) {
+    const criteres = criteresConfig(c);
+    if (!vus.some((v) => memesCriteres(v, criteres))) vus.push(criteres);
+    else {
+      const texte = `Deux fichiers NovaLCT ${texteCriteres(criteres)} dans le lot ${lot.identifiant} : corrige l'un des deux.`;
+      if (!alertes.includes(texte)) alertes.push(texte);
+    }
+  }
+  return alertes;
+}
+
+// Une config par logiciel et par lot, plusieurs pour NovaLCT (étape 20). Avec `id`, cette config est modifiée à sa
+// place ; sans, celle du même logiciel est remplacée (refusé pour NovaLCT quand le lot en a plusieurs). Les fichiers
+// déjà joints restent attachés.
 export function reglerConfigLot(base, parcId, dalleId, lotId, config) {
   const propre = nettoyerConfig(config);
-  return avecConfigs(base, parcId, dalleId, lotId, (configs) => {
-    const avant = configs.find((c) => c.logiciel === propre.logiciel) ?? {};
-    const joints = Object.fromEntries(Object.values(ROLES_FICHIER).filter((cle) => avant[cle]).map((cle) => [cle, avant[cle]]));
-    return [...configs.filter((c) => c.logiciel !== propre.logiciel), { ...propre, ...joints }];
+  return avecConfigs(base, parcId, dalleId, lotId, (configs, lot) => {
+    if (propre.id) {
+      const i = configs.findIndex((c) => idConfig(c, lot.id) === propre.id);
+      if (i < 0) throw new ErreurSaisie('Config introuvable dans ce lot.');
+      refuserDoublon(lot, configs, propre, propre.id);
+      const nouvelle = { ...propre, ...jointsDe(configs[i]) };
+      // Identifiant déduit d'une config d'avant : jamais écrit.
+      if (!configs[i].id) delete nouvelle.id;
+      return configs.map((c, j) => (j === i ? nouvelle : c));
+    }
+    const avant = trouverConfig(lot, configs, propre.logiciel);
+    refuserDoublon(lot, configs, propre, avant ? idConfig(avant, lot.id) : null);
+    return [...configs.filter((c) => c !== avant), { ...propre, ...(avant?.id ? { id: avant.id } : {}), ...jointsDe(avant) }];
   });
 }
 
-export function configLot(base, parcId, dalleId, lotId, logiciel) {
-  return lotsDalleParc(base, parcId, dalleId).find((l) => l.id === lotId)?.configs?.find((c) => c.logiciel === logiciel) ?? null;
+// Nouvelle config d'un lot avec son identifiant : plusieurs pour NovaLCT, une seule pour les autres logiciels.
+let compteurConfigs = 0;
+export function ajouterConfigLot(base, parcId, dalleId, lotId, config) {
+  const { id: _id, ...sansId } = config;
+  const propre = nettoyerConfig(sansId);
+  return avecConfigs(base, parcId, dalleId, lotId, (configs, lot) => {
+    if (propre.logiciel !== 'NovaLCT' && configs.some((c) => c.logiciel === propre.logiciel)) {
+      throw new ErreurSaisie(`Le lot ${lot.identifiant} a déjà une config ${propre.logiciel}.`);
+    }
+    refuserDoublon(lot, configs, propre, null);
+    compteurConfigs += 1;
+    return [...configs, { ...propre, id: `cfg-${Date.now().toString(36)}-${compteurConfigs.toString(36)}` }];
+  });
 }
 
-export function supprimerConfigLot(base, parcId, dalleId, lotId, logiciel) {
-  return avecConfigs(base, parcId, dalleId, lotId, (configs) => configs.filter((c) => c.logiciel !== logiciel));
+// `cible` : identifiant de la config, ou son logiciel quand le lot n'en a qu'une de ce logiciel.
+export function configLot(base, parcId, dalleId, lotId, cible) {
+  const lot = lotDe(base, parcId, dalleId, lotId);
+  return lot ? trouverConfig(lot, lot.configs ?? [], cible) : null;
+}
+
+export function supprimerConfigLot(base, parcId, dalleId, lotId, cible) {
+  return avecConfigs(base, parcId, dalleId, lotId, (configs, lot) => {
+    const config = trouverConfig(lot, configs, cible);
+    return configs.filter((c) => c !== config);
+  });
+}
+
+// Fréquence et luminosité maxi lues dans le nom d'un fichier NovaLCT (étape 20, spec § 3.2) : morceaux séparés par les
+// espaces, « _ », « - » et les parenthèses ; « 50HZ » ou « 50 Hz » de 1 à 1000 Hz (« 3840Hz », le rafraîchissement
+// des LED, ignoré) ; un nombre seul de 100 à 10 000, « nits » ou « cd » permis ; une seule valeur de chaque, sinon rien.
+const morceauxDuNom = (nom) => String(nom ?? '').replace(/\.[^.\s]+$/, '').split(/[\s_\-()]+/).filter(Boolean);
+function lireNomFichier(nom) {
+  const morceaux = morceauxDuNom(nom);
+  const frequences = [];
+  const luminosites = [];
+  const pris = new Set();
+  let mentionHz = false;
+  morceaux.forEach((m, i) => {
+    const colle = /^(\d+(?:[.,]\d+)?)hz$/i.exec(m);
+    const seul = /^\d+(?:[.,]\d+)?$/.test(m) && /^hz$/i.test(morceaux[i + 1] ?? '');
+    if (!colle && !seul) return;
+    mentionHz = true;
+    pris.add(i);
+    const f = Number((colle ? colle[1] : m).replace(',', '.'));
+    if (frequenceValable(f)) frequences.push(f);
+  });
+  morceaux.forEach((m, i) => {
+    const l = pris.has(i) ? null : /^(\d+)(?:nits|cd)?$/i.exec(m);
+    if (l && luminositeValable(Number(l[1]))) luminosites.push(Number(l[1]));
+  });
+  return { frequenceHz: frequences.length === 1 ? frequences[0] : null, luminositeMax: luminosites.length === 1 ? luminosites[0] : null, mentionHz };
+}
+
+// Proposition pour un nom de fichier ; `autres` : les autres configs NovaLCT du lot { id, nomFichier, frequenceHz }.
+// Convention du stock (collègue de l'utilisateur) : « 50HZ » dans le nom, 50 Hz ; sans mention, 60 Hz. Les 60 Hz ne
+// sont proposés que si une config du lot est à 50 Hz (`soixante` : les autres configs à qui les proposer).
+export function proposerDepuisNom(nom, autres = []) {
+  const lu = lireNomFichier(nom);
+  const cinquante = (c) => frequenceValable(c.frequenceHz) && memeFrequence(c.frequenceHz, 50);
+  const frequenceHz = lu.frequenceHz ?? (!lu.mentionHz && autres.some(cinquante) ? 60 : null);
+  const soixante = lu.frequenceHz !== null && memeFrequence(lu.frequenceHz, 50)
+    ? autres.filter((c) => c.nomFichier && !frequenceValable(c.frequenceHz) && !lireNomFichier(c.nomFichier).mentionHz).map((c) => c.id)
+    : [];
+  return { frequenceHz, luminositeMax: lu.luminositeMax, soixante };
+}
+
+// « Fréquence 50 Hz et luminosité maxi 800 cd/m² » ; `deux` pour l'accord.
+function texteLu({ frequenceHz, luminositeMax }) {
+  const morceaux = [
+    frequenceHz !== undefined && `Fréquence ${nombreCourt(frequenceHz)} Hz`,
+    luminositeMax !== undefined && `${frequenceHz !== undefined ? 'l' : 'L'}uminosité maxi ${nombre(luminositeMax)} cd/m²`,
+  ].filter(Boolean);
+  return { texte: morceaux.join(' et '), deux: morceaux.length > 1 };
+}
+
+// Nom du fichier de config enregistré (fichier joint ou nom tapé) : pour NovaLCT, quand le nom change, les critères
+// vides prennent la proposition du nom, marquée « lue dans le nom du fichier » ; jamais de doublon (proposition non
+// appliquée, avec la raison). Rend la base et les messages à montrer.
+export function nommerFichierConfig(base, parcId, dalleId, lotId, cible, nom) {
+  const lot = lotDe(base, parcId, dalleId, lotId);
+  const config = lot ? trouverConfig(lot, lot.configs ?? [], cible) : null;
+  if (!config) throw new ErreurSaisie('Config introuvable dans ce lot.');
+  const id = idConfig(config, lotId);
+  const nomFichier = String(nom ?? '').trim();
+  const messages = [];
+  if (config.logiciel !== 'NovaLCT' || nomFichier === (config.nomFichier ?? '')) {
+    return { base: reglerConfigLot(base, parcId, dalleId, lotId, { ...config, id, nomFichier }), messages };
+  }
+  const autres = (lot.configs ?? []).filter((c) => c.logiciel === 'NovaLCT' && c !== config)
+    .map((c) => ({ id: idConfig(c, lotId), nomFichier: c.nomFichier, frequenceHz: criteresConfig(c).frequenceHz }));
+  const proposition = proposerDepuisNom(nomFichier, autres);
+  const actuels = criteresConfig(config);
+  const ajout = {
+    ...(actuels.frequenceHz === null && proposition.frequenceHz !== null ? { frequenceHz: proposition.frequenceHz } : {}),
+    ...(actuels.luminositeMax === null && proposition.luminositeMax !== null ? { luminositeMax: proposition.luminositeMax } : {}),
+  };
+  const marque = { ...(config.critereDuNom ?? {}), ...('frequenceHz' in ajout ? { frequence: true } : {}), ...('luminositeMax' in ajout ? { luminosite: true } : {}) };
+  let nouvelle;
+  if (Object.keys(ajout).length === 0) nouvelle = reglerConfigLot(base, parcId, dalleId, lotId, { ...config, id, nomFichier });
+  else {
+    const { texte, deux } = texteLu(ajout);
+    try {
+      nouvelle = reglerConfigLot(base, parcId, dalleId, lotId, { ...config, id, nomFichier, ...ajout, critereDuNom: marque });
+      messages.push(`${texte} ${deux ? 'lues' : 'lue'} dans le nom du fichier : vérifie-${deux ? 'les' : 'la'}.`);
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaisie)) throw erreur;
+      // Proposition en doublon (ou nom refusé : l'erreur revient au second essai) : le nom seul est gardé.
+      nouvelle = reglerConfigLot(base, parcId, dalleId, lotId, { ...config, id, nomFichier });
+      messages.push(`${texte} ${deux ? 'lues' : 'lue'} dans le nom du fichier, non appliquée${deux ? 's' : ''} : le lot ${lot.identifiant} `
+        + `a déjà un fichier NovaLCT ${texteCriteres({ ...actuels, ...ajout })}.`);
+    }
+  }
+  for (const autreId of proposition.soixante) {
+    const autre = configLot(nouvelle, parcId, dalleId, lotId, autreId);
+    try {
+      nouvelle = reglerConfigLot(nouvelle, parcId, dalleId, lotId, { ...autre, id: autreId, frequenceHz: 60, critereDuNom: { ...(autre.critereDuNom ?? {}), frequence: true } });
+      messages.push(`Fréquence 60 Hz proposée pour ${autre.nomFichier} (sans « Hz » dans son nom) : vérifie-la.`);
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaisie)) throw erreur;
+      messages.push(`Fréquence 60 Hz non proposée pour ${autre.nomFichier} : le lot ${lot.identifiant} a déjà un fichier NovaLCT `
+        + `${texteCriteres({ frequenceHz: 60, luminositeMax: criteresConfig(autre).luminositeMax })}.`);
+    }
+  }
+  return { base: nouvelle, messages };
+}
+
+// Écran Base (étape 20b) : titre, badge et bouton « Retirer » d'une config, critères NovaLCT sans la marque du nom.
+export const NOMS_LOGICIEL = { NovaLCT: 'NovaLCT (Novastar)', VMP: 'VMP (COEX)', LEDVISION: 'LEDVISION (Colorlight)', Tessera: 'Tessera (Brompton)' };
+export function titreConfig(config) {
+  const { frequenceHz: f, luminositeMax: l } = criteresConfig(config);
+  const criteres = [f !== null && `${nombreCourt(f)} Hz`, l !== null && `${nombre(l)} cd/m²`].filter(Boolean).join(', ');
+  const court = `${config.logiciel}${criteres ? ` ${criteres}` : ''}`;
+  return { titre: `${NOMS_LOGICIEL[config.logiciel]}${criteres ? `, ${criteres}` : ''}`, badge: court, retirer: `Retirer la config ${court}` };
+}
+
+// Phrase de la Base tant que la marque « lue dans le nom du fichier » reste : « Fréquence 50 Hz et luminosité maxi
+// 800 cd/m² lues dans le nom du fichier : vérifie-les. » ; null sans marque.
+export function texteCritereDuNom(config) {
+  const { frequenceHz, luminositeMax } = criteresConfig(config);
+  const marque = config?.critereDuNom ?? {};
+  const lu = {
+    ...(marque.frequence && frequenceHz !== null ? { frequenceHz } : {}),
+    ...(marque.luminosite && luminositeMax !== null ? { luminositeMax } : {}),
+  };
+  if (Object.keys(lu).length === 0) return null;
+  const { texte, deux } = texteLu(lu);
+  return `${texte} ${deux ? 'lues' : 'lue'} dans le nom du fichier : vérifie-${deux ? 'les' : 'la'}.`;
+}
+
+// « Ajouter une config » d'un lot : VMP, LEDVISION et Tessera une seule fois, NovaLCT toujours ; petit formulaire
+// (fichier, fréquence, luminosité) quand le lot a déjà une config NovaLCT, avec une aide si la seule en place n'a aucun
+// critère (la nouvelle doit en différer).
+export function ajoutConfig(lot) {
+  const configs = lot.configs ?? [];
+  const nova = configs.filter((c) => c.logiciel === 'NovaLCT');
+  const seule = nova.length === 1 ? nova[0] : null;
+  const sansCritere = seule && Object.values(criteresConfig(seule)).every((x) => x === null);
+  return {
+    logiciels: LOGICIELS.filter((l) => l === 'NovaLCT' || !configs.some((c) => c.logiciel === l)),
+    petitFormulaire: nova.length > 0,
+    aide: sansCritere ? `La config NovaLCT déjà en place${seule.nomFichier ? ` (${seule.nomFichier})` : ''} n'a ni fréquence ni luminosité maxi : `
+      + 'saisis-les dans son formulaire, la nouvelle doit en différer d\'au moins un critère.' : null,
+  };
+}
+
+// Proposition d'après le nom pour une config d'un lot (`sauf` : la config elle-même), comme nommerFichierConfig.
+export function proposerPourLot(lot, nom, sauf = null) {
+  const autres = (lot.configs ?? []).filter((c) => c.logiciel === 'NovaLCT' && idConfig(c, lot.id) !== sauf)
+    .map((c) => ({ id: idConfig(c, lot.id), nomFichier: c.nomFichier, frequenceHz: criteresConfig(c).frequenceHz }));
+  return proposerDepuisNom(nom, autres);
+}
+
+// Formulaire d'une config (choix c du lot 20b) : les champs sont enregistrés avec l'ancien nom du fichier (la marque
+// « d'après le nom » disparaît), puis le nouveau nom propose ses valeurs pour les critères restés vides.
+export function enregistrerConfigFormulaire(base, parcId, dalleId, lotId, cible, champs) {
+  const config = configLot(base, parcId, dalleId, lotId, cible);
+  if (!config) throw new ErreurSaisie('Config introuvable dans ce lot.');
+  const id = idConfig(config, lotId);
+  const { nomFichier, ...autres } = champs;
+  const avecAncienNom = reglerConfigLot(base, parcId, dalleId, lotId, { ...autres, logiciel: config.logiciel, id, nomFichier: config.nomFichier ?? '' });
+  if (nomFichier === undefined) return { base: avecAncienNom, messages: [] };
+  return nommerFichierConfig(avecAncienNom, parcId, dalleId, lotId, id, nomFichier);
+}
+
+// Nouvelle config NovaLCT par le petit formulaire (choix a du lot 20b) : créée avec les critères saisis (pré-remplis
+// d'après le nom, vus par l'utilisateur : sans marque), puis nommée (60 Hz proposés aux autres fichiers du lot,
+// critères restés vides lus dans le nom). Rend la base, l'identifiant de la config et les messages.
+export function ajouterConfigNovaLCT(base, parcId, dalleId, lotId, { nomFichier = '', frequenceHz = '', luminositeMax = '' } = {}) {
+  const avec = ajouterConfigLot(base, parcId, dalleId, lotId, { logiciel: 'NovaLCT', frequenceHz, luminositeMax });
+  const { id } = lotDe(avec, parcId, dalleId, lotId).configs.at(-1);
+  if (!String(nomFichier).trim()) return { base: avec, id, messages: [] };
+  return { id, ...nommerFichierConfig(avec, parcId, dalleId, lotId, id, nomFichier) };
+}
+
+// Liste « Luminosité maxi » de Data (étape 20b) : `resultats`, configsDuMur de chaque fiche du mur (null permis) ;
+// `valeur`, la valeur gardée ('' à choisir, '800', 'aucune'). Visible seulement si un lot retenu a plusieurs
+// luminosités à la fréquence de Data ; cachée ou plus proposée, la valeur gardée vaut « À choisir ».
+export function choixLuminosite(resultats, valeur) {
+  const valables = (resultats ?? []).filter(Boolean);
+  if (!valables.some((r) => r.plusieursLuminosites)) return { visible: false, options: [], valeur: '', luminosite: null };
+  const luminosites = [...new Set(valables.flatMap((r) => r.luminosites ?? []))].sort(triLuminosites);
+  const options = [{ valeur: '', texte: 'À choisir' },
+    ...luminosites.map((l) => (l === null ? { valeur: 'aucune', texte: 'Sans luminosité notée' } : { valeur: String(l), texte: `${nombre(l)} cd/m²` }))];
+  const retenue = options.some((o) => o.valeur === valeur && valeur !== '') ? valeur : '';
+  return { visible: true, options, valeur: retenue, luminosite: retenue === '' ? null : retenue === 'aucune' ? 'aucune' : Number(retenue) };
 }
 
 // Extension d'un fichier choisi sur l'appareil (le sélecteur laisse tout choisir) : fichier de config selon le logiciel,
@@ -741,27 +1057,33 @@ export function verifierFichierJoint(logiciel, role, nom) {
   return true;
 }
 
-// Fichier joint à une config : seulement son nom, sa taille et sa date ; le contenu reste sur l'appareil.
-export function joindreFichier(base, parcId, dalleId, lotId, logiciel, role, { id, nom, taille, date }) {
+// Fichier joint à une config (`cible` : son identifiant, ou son logiciel) : seulement son nom, sa taille et sa date ;
+// le contenu reste sur l'appareil. Sans config de ce logiciel dans le lot, elle est créée.
+export function joindreFichier(base, parcId, dalleId, lotId, cible, role, { id, nom, taille, date }) {
   const cle = ROLES_FICHIER[role];
   if (!cle) throw new ErreurSaisie('Fichier joint : fichier de config, multi-batch adjustment, fixture pack ou autre fichier.');
-  return avecConfigs(base, parcId, dalleId, lotId, (configs) => {
-    const avant = configs.find((c) => c.logiciel === logiciel) ?? { logiciel };
-    return [...configs.filter((c) => c.logiciel !== logiciel), { ...avant, [cle]: { id, nom, taille, date } }];
+  return avecConfigs(base, parcId, dalleId, lotId, (configs, lot) => {
+    const avant = trouverConfig(lot, configs, cible);
+    if (avant) return configs.map((c) => (c === avant ? { ...c, [cle]: { id, nom, taille, date } } : c));
+    if (!LOGICIELS.includes(cible)) throw new ErreurSaisie('Config introuvable dans ce lot.');
+    return [...configs, { logiciel: cible, [cle]: { id, nom, taille, date } }];
   });
 }
 
-export function detacherFichier(base, parcId, dalleId, lotId, logiciel, role) {
+export function detacherFichier(base, parcId, dalleId, lotId, cible, role) {
   const cle = ROLES_FICHIER[role];
-  return avecConfigs(base, parcId, dalleId, lotId, (configs) => configs.map((c) => {
-    if (c.logiciel !== logiciel) return c;
-    const copie = { ...c };
-    delete copie[cle];
-    return copie;
-  }));
+  return avecConfigs(base, parcId, dalleId, lotId, (configs, lot) => {
+    const config = trouverConfig(lot, configs, cible);
+    return configs.map((c) => {
+      if (c !== config) return c;
+      const copie = { ...c };
+      delete copie[cle];
+      return copie;
+    });
+  });
 }
 
-// Tous les fichiers joints décrits dans la base, avec leur place (parc, dalle, lot, logiciel, rôle).
+// Tous les fichiers joints décrits dans la base, avec leur place (parc, dalle, lot, config, logiciel, rôle).
 export function fichiersJoints(base) {
   const liste = [];
   for (const parc of base.parcs ?? []) {
@@ -769,7 +1091,7 @@ export function fichiersJoints(base) {
       for (const lot of lots) {
         for (const config of lot.configs ?? []) {
           for (const [role, cle] of Object.entries(ROLES_FICHIER)) {
-            if (config[cle]) liste.push({ ...config[cle], parcId: parc.id, dalleId, lotId: lot.id, logiciel: config.logiciel, role });
+            if (config[cle]) liste.push({ ...config[cle], parcId: parc.id, dalleId, lotId: lot.id, configId: idConfig(config, lot.id), logiciel: config.logiciel, role });
           }
         }
       }
@@ -980,16 +1302,97 @@ function ligneConfig(config, lot) {
   const morceaux = config.logiciel === 'Tessera'
     ? [config.typeFixture && `fixture ${config.typeFixture}`, config.firmwareDalle && `firmware de la dalle ${config.firmwareDalle}`,
       config.fixturePack && `fixture pack ${config.fixturePack}`, config.calibration && `calibration ${config.calibration}`]
-    : [config.nomFichier ?? 'fichier non précisé', config.multiBatch && `multi-batch ${config.multiBatch}`];
+    : [fichierEtCriteres(config), config.multiBatch && `multi-batch ${config.multiBatch}`];
   morceaux.push(config.version && `version ${config.version}`, config.firmware === 'personnalisé' && 'firmware personnalisé');
   const texte = morceaux.filter(Boolean).join(', ') || 'non précisée';
   return `Config ${config.logiciel ?? '(logiciel à préciser)'} : ${texte}, lot ${lot.identifiant}`;
 }
 
+// « 50HZ 800.rcfgx (50 Hz, 800 cd/m²) » ; sans critère, le nom seul.
+function fichierEtCriteres(config) {
+  const criteres = texteCriteresConfig(config);
+  return `${config.nomFichier ?? 'fichier non précisé'}${criteres ? ` (${criteres})` : ''}`;
+}
+
 const nomsLots = (noms) => `${noms.length > 1 ? 'lots' : 'lot'} ${noms.join(', ')}`;
 
+// Luminosités dans l'ordre croissant, « sans luminosité notée » (null) en dernier.
+const triLuminosites = (a, b) => (a === null ? 1 : b === null ? -1 : a - b);
+// « 800 ou 1200 cd/m² », « 800 cd/m² ou sans luminosité notée ».
+function listeLuminosites(luminosites, mot) {
+  const nombres = luminosites.filter((l) => l !== null).map((l) => nombre(l));
+  const debut = nombres.length ? `${nombres.length > 1 ? `${nombres.slice(0, -1).join(', ')} ${mot} ` : ''}${nombres.at(-1)} cd/m²` : '';
+  if (!luminosites.includes(null)) return debut;
+  return debut ? `${debut} ${mot} sans luminosité notée` : 'sans luminosité notée';
+}
+
+// Fichier NovaLCT retenu pour un lot du mur (étape 20, spec § 4) : la fréquence de Data (à 0,01 Hz), sinon la plus
+// proche à 1 Hz au plus (à égalité, la plus basse), puis les configs sans fréquence ; parmi elles, la luminosité choisie
+// dans Data quand elles en ont plusieurs (`luminosite` : un nombre, 'aucune' pour « sans luminosité notée », null pour
+// « à choisir »), sinon celle sans luminosité notée ; la fréquence exacte d'abord, puis l'ordre de la liste.
+export function choisirConfigNovaLCT(lot, { frequenceHz, luminosite = null } = {}) {
+  const nova = (lot.configs ?? []).filter((c) => c.logiciel === 'NovaLCT');
+  const resultat = { retenue: null, autres: nova, alertes: [], aChoisir: false, luminosites: [], manque: null };
+  if (nova.length === 0) return resultat;
+  const id = lot.identifiant;
+  const avec = nova.map((config) => ({ config, ...criteresConfig(config) }));
+  const sansFrequence = avec.filter((x) => x.frequenceHz === null);
+  const notees = avec.filter((x) => x.frequenceHz !== null);
+  const exactes = notees.filter((x) => memeFrequence(x.frequenceHz, frequenceHz));
+  const freq = `${nombreCourt(frequenceHz)} Hz`;
+  let candidates = [...exactes, ...sansFrequence];
+  let proche = null;
+  if (exactes.length === 0 && notees.length) {
+    const ecarts = [...new Set(notees.map((x) => x.frequenceHz))].filter((f) => Math.abs(f - frequenceHz) <= 1 + 1e-9)
+      .sort((a, b) => Math.abs(a - frequenceHz) - Math.abs(b - frequenceHz) || a - b);
+    proche = ecarts[0] ?? null;
+    candidates = [...notees.filter((x) => proche !== null && memeFrequence(x.frequenceHz, proche)), ...sansFrequence];
+    if (candidates.length === 0) {
+      const fichiers = avec.map((x) => `${x.config.nomFichier ?? 'fichier non précisé'} à ${nombreCourt(x.frequenceHz)} Hz`).join(', ');
+      return { ...resultat, alertes: [`Aucun fichier NovaLCT à ${freq} pour le lot ${id} (fichiers : ${fichiers}).`], manque: `aucun fichier à ${freq}` };
+    }
+  }
+  const luminosites = [...new Set(candidates.map((x) => x.luminositeMax))].sort(triLuminosites);
+  const alertes = [];
+  let choisies = candidates;
+  let aChoisir = false;
+  let manque = null;
+  if (luminosites.length > 1) {
+    if (luminosite === null || luminosite === undefined || luminosite === '') {
+      aChoisir = true;
+      choisies = [];
+      manque = 'à choisir (luminosité maxi dans Data)';
+      alertes.push(`Lot ${id} : choisis la luminosité maxi dans Data (${listeLuminosites(luminosites, 'ou')}).`);
+    } else {
+      const voulue = luminosite === 'aucune' ? null : luminosite;
+      choisies = candidates.filter((x) => x.luminositeMax === voulue);
+      if (choisies.length === 0 && voulue !== null) {
+        choisies = candidates.filter((x) => x.luminositeMax === null);
+        if (choisies.length) alertes.push(`Lot ${id} : aucun fichier à ${nombre(voulue)} cd/m², pris celui sans luminosité notée.`);
+      }
+      if (choisies.length === 0) {
+        const quoi = voulue === null ? 'sans luminosité notée' : `à ${nombre(voulue)} cd/m²`;
+        manque = `aucun fichier ${quoi}`;
+        alertes.push(`Aucun fichier NovaLCT ${quoi} pour le lot ${id} (fichiers à ${listeLuminosites(luminosites, 'et')}).`);
+      }
+    }
+  } else if (typeof luminosite === 'number' && luminosites[0] !== null && luminosites[0] !== luminosite) {
+    alertes.push(`Lot ${id} : seul fichier à ${nombre(luminosites[0])} cd/m² (choix de Data : ${nombre(luminosite)} cd/m²).`);
+  }
+  const prise = choisies[0] ?? null;
+  if (exactes.length === 0 && notees.length) {
+    const quoi = prise ? (prise.frequenceHz !== null ? `pris celui à ${nombreCourt(prise.frequenceHz)} Hz` : 'pris celui sans fréquence notée')
+      : `fichiers ${proche !== null ? `à ${nombreCourt(proche)} Hz` : 'sans fréquence notée'} proposés`;
+    alertes.unshift(`Aucun fichier NovaLCT à ${freq} pour le lot ${id} : ${quoi}. Vérifie l'image.`);
+  }
+  const retenue = prise?.config ?? null;
+  return { retenue, autres: nova.filter((c) => c !== retenue), alertes, aChoisir, luminosites, manque };
+}
+
 // Lots et configs d'une dalle du mur dans le parc actif, pour le logiciel du processeur (Data) ou tous (Mur, null).
-export function configsDuMur(base, parcId, dalleId, n, { coches = null, logiciel = null } = {}) {
+// NovaLCT avec la fréquence de Data (étape 20) : le fichier retenu de chaque lot (`parLot`), les autres fichiers et les
+// luminosités proposées dans Data ; sans fréquence, toutes les configs, comme avant.
+export function configsDuMur(base, parcId, dalleId, n, { coches = null, logiciel = null, frequenceHz = null, luminosite = null } = {}) {
   const vide = { lots: [], retenus: [], parDefaut: true, melanges: false, firmwarePersonnalise: false, lignes: [], alertes: [], note: null };
   const parc = parcId ? base.parcs.find((p) => p.id === parcId) : null;
   if (!parc) return { ...vide, note: 'Choisis un parc pour voir ses lots et ses configs.' };
@@ -1003,9 +1406,25 @@ export function configsDuMur(base, parcId, dalleId, n, { coches = null, logiciel
   const sansConfig = [];
   const sansFichier = [];
   let firmwarePersonnalise = false;
+  const parFrequence = logiciel === 'NovaLCT' && typeof frequenceHz === 'number';
+  const parLot = [];
+  const alertesChoix = [];
   for (const lot of choix.retenus) {
     const configs = (lot.configs ?? []).filter((c) => logiciel === null || c.logiciel === logiciel);
     if (configs.length === 0) sansConfig.push(lot.identifiant);
+    if (parFrequence) {
+      const r = choisirConfigNovaLCT(lot, { frequenceHz, luminosite });
+      parLot.push({ lot, ...r });
+      if (configs.length === 0) continue;
+      if (r.retenue) {
+        lignes.push(ligneConfig(r.retenue, lot));
+        if (!r.retenue.nomFichier) sansFichier.push(lot.identifiant);
+      }
+      if (r.autres.length) lignes.push(`${r.retenue ? 'Autres fichiers' : 'Fichiers'} NovaLCT du lot ${lot.identifiant} : ${r.autres.map(fichierEtCriteres).join(', ')}`);
+      if (configs.some((c) => c.firmware === 'personnalisé')) firmwarePersonnalise = true;
+      alertesChoix.push(...r.alertes);
+      continue;
+    }
     for (const c of configs) {
       lignes.push(ligneConfig(c, lot));
       if (c.firmware === 'personnalisé') firmwarePersonnalise = true;
@@ -1018,7 +1437,13 @@ export function configsDuMur(base, parcId, dalleId, n, { coches = null, logiciel
       : `Aucun fichier de config pour cette dalle (${nomsLots(sansConfig)}).`);
   }
   if (sansFichier.length) alertes.push(`Aucun fichier de config ${logiciel} pour cette dalle (${nomsLots(sansFichier)}).`);
-  return { ...vide, lots, retenus: choix.retenus, parDefaut: choix.parDefaut, melanges: choix.melanges, firmwarePersonnalise, lignes, alertes };
+  alertes.push(...alertesChoix);
+  const choixNovaLCT = parFrequence ? {
+    parLot,
+    luminosites: [...new Set(parLot.flatMap((p) => p.luminosites))].sort(triLuminosites),
+    plusieursLuminosites: parLot.some((p) => p.luminosites.length > 1),
+  } : {};
+  return { ...vide, lots, retenus: choix.retenus, parDefaut: choix.parDefaut, melanges: choix.melanges, firmwarePersonnalise, lignes, alertes, ...choixNovaLCT };
 }
 
 // ---------------------------------------------------------------------------
@@ -1026,35 +1451,65 @@ export function configsDuMur(base, parcId, dalleId, n, { coches = null, logiciel
 // ---------------------------------------------------------------------------
 
 // Chaque ligne : fait = true (prêt), false (à faire), null (à vérifier sur place). `presents` : identifiants des
-// fichiers joints présents sur l'appareil (null : inconnu). Null en « Tous ».
-export function avantDePartir(base, parcId, groupes, proc, { presents = null } = {}) {
+// fichiers joints présents sur l'appareil (null : inconnu). Null en « Tous ». NovaLCT avec la fréquence et la luminosité
+// de Data (étape 20) : le fichier retenu de chaque lot, puis les autres « à prendre aussi ».
+export function avantDePartir(base, parcId, groupes, proc, { presents = null, frequenceHz = null, luminosite = null } = {}) {
   const parc = parcId ? base.parcs.find((p) => p.id === parcId) : null;
   if (!parc) return null;
   const logiciel = logicielDuProcesseur(proc);
   const lignes = [];
   const ajouter = (texte, fait) => lignes.push({ texte, fait });
-  // Fichier joint : sur l'appareil ou absent ; nom seulement : à prendre avec soi.
-  const fichier = (libelle, joint, nom, lot) => {
+  // Fichier joint : sur l'appareil ou absent ; nom seulement : à prendre avec soi. `precision` : « lot A, retenu… ».
+  const fichier = (libelle, joint, nom, lot, precision = `lot ${lot}`) => {
     if (joint) {
       const ici = !presents || presents.has(joint.id);
-      ajouter(`${libelle} ${joint.nom} (lot ${lot}) : ${ici ? (presents ? 'sur cet appareil' : 'joint dans l\'appli')
+      ajouter(`${libelle} ${joint.nom} (${precision}) : ${ici ? (presents ? 'sur cet appareil' : 'joint dans l\'appli')
         : 'absent de cet appareil, joins-le de nouveau dans l\'onglet Base'}`, ici);
       return true;
     }
     if (nom) {
-      ajouter(`${libelle} ${nom} (lot ${lot}) : pas joint dans l'appli, prends-le avec toi`, false);
+      ajouter(`${libelle} ${nom} (${precision}) : pas joint dans l'appli, prends-le avec toi`, false);
       return true;
     }
     return false;
+  };
+  // Un lot en NovaLCT avec plusieurs fichiers possibles (`parLot` de configsDuMur).
+  const lotNovaLCT = ({ lot, retenue, autres, manque }) => {
+    const id = lot.identifiant;
+    const nova = (lot.configs ?? []).filter((x) => x.logiciel === 'NovaLCT');
+    if (nova.length === 0) {
+      ajouter(`Config ${logiciel} du lot ${id} : aucune, ajoute-la dans l'onglet Base`, false);
+      return;
+    }
+    if (retenue) {
+      const criteres = texteCriteresConfig(retenue);
+      const precision = `lot ${id}${autres.length ? ', retenu' : ''}${criteres ? ` : ${criteres}` : ''}`;
+      if (!fichier('Fichier de config', retenue.fichier, retenue.nomFichier, id, precision)) {
+        ajouter(`Fichier de config ${logiciel} (lot ${id}) : non précisé, ajoute-le dans l'onglet Base`, false);
+      }
+    } else ajouter(`Fichier NovaLCT du lot ${id} : ${manque}`, false);
+    if (nova.some((x) => x.firmware === 'personnalisé')) ajouter(`Firmware personnalisé (lot ${id}) : ne lance pas la mise à jour en ligne des cartes`, null);
+    // Le multi-batch concerne le lot : celui de la config retenue, sinon celui d'une autre config du lot.
+    const avecLxy = [retenue, ...autres].find((x) => x && (x.fichierMultiBatch || x.multiBatch));
+    if (avecLxy) {
+      fichier('Multi-batch adjustment', avecLxy.fichierMultiBatch, avecLxy.multiBatch, id,
+        avecLxy === retenue ? `lot ${id}` : `lot ${id}, avec la config ${avecLxy.nomFichier ?? 'sans nom de fichier'}`);
+    }
+    if (retenue) fichier('Autre fichier', retenue.fichierAutre, retenue.autreFichier, id);
+    for (const autre of autres) {
+      fichier('Fichier de config', autre.fichier, autre.nomFichier, id, `lot ${id}, à prendre aussi si la fréquence ou la luminosité change sur place`);
+      fichier('Autre fichier', autre.fichierAutre, autre.autreFichier, id);
+    }
   };
   // Logiciel sans configs dans l'appli (HELIOS) : une seule ligne à vérifier.
   if (!LOGICIELS.includes(logiciel)) ajouter(`Configs ${logiciel} : pas encore gérées par l'appli ; vérifie les dalles et leur firmware dans ${logiciel}`, null);
   for (const g of LOGICIELS.includes(logiciel) ? groupes : []) {
     const debut = lignes.length;
-    const c = configsDuMur(base, parcId, g.dalleId, g.n, { coches: g.coches, logiciel });
+    const c = configsDuMur(base, parcId, g.dalleId, g.n, { coches: g.coches, logiciel, frequenceHz, luminosite });
     if (c.lots.length === 0) ajouter(`Aucun fichier de config pour cette dalle dans le parc ${parc.nom} : ajoute-le dans l'onglet Base`, false);
     else if (c.retenus.length === 0) ajouter('Lots utilisés : à préciser dans l\'onglet Mur', false);
-    const configs = c.retenus.map((lot) => ({ lot, config: (lot.configs ?? []).find((x) => x.logiciel === logiciel) ?? null }));
+    if (c.parLot) c.parLot.forEach(lotNovaLCT);
+    const configs = c.parLot ? [] : c.retenus.map((lot) => ({ lot, config: (lot.configs ?? []).find((x) => x.logiciel === logiciel) ?? null }));
     for (const { lot, config } of configs) {
       const id = lot.identifiant;
       if (!config) {
@@ -1079,7 +1534,8 @@ export function avantDePartir(base, parcId, groupes, proc, { presents = null } =
     }
     const noms = c.retenus.map((l) => l.identifiant);
     const avecConfig = configs.filter((x) => x.config);
-    if (logiciel === 'NovaLCT' && c.melanges && !avecConfig.some(({ config }) => config.fichierMultiBatch || config.multiBatch)) {
+    const toutesNovaLCT = c.retenus.flatMap((lot) => (lot.configs ?? []).filter((x) => x.logiciel === 'NovaLCT'));
+    if (logiciel === 'NovaLCT' && c.melanges && !toutesNovaLCT.some((config) => config.fichierMultiBatch || config.multiBatch)) {
       ajouter(`Multi-batch adjustment (.lxy) pour les lots ${noms.join(', ')} : aucun fichier`, false);
     }
     if (logiciel === 'Tessera' && avecConfig.length) {

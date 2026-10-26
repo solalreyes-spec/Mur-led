@@ -12,6 +12,12 @@ export const minuscule = (texte) => (texte ? `${texte.charAt(0).toLowerCase()}${
 // Erreur due à la saisie (valeur impossible, cible trop petite…) : affichée telle quelle à l'utilisateur.
 export class ErreurSaisie extends Error {}
 
+// Redondance avec les secours dans le même processeur (ports doublés) ; faux avec un processeur de secours (étape 22)
+// ou sans redondance. Une évaluation d'avant l'étape 22 n'a que `redondance`.
+export const portsDoubles = (evaluation) => Boolean(evaluation?.reglages?.portsDoubles ?? evaluation?.reglages?.redondance);
+// Boîtiers d'une évaluation, processeurs de secours compris (2N avec un processeur de secours, étape 22) ; null sans découpage.
+export const nombreBoitiers = (evaluation) => (Number.isInteger(evaluation?.nombre) ? evaluation.nombre + (evaluation.nombreSecours ?? 0) : null);
+
 export const COINS = ['haut-gauche', 'haut-droite', 'bas-gauche', 'bas-droite'];
 // Variante du câblage choisie par l'utilisateur (config imposée, étape 18c).
 export const LIBELLE_IMPOSEE = 'Ma config (imposée)';

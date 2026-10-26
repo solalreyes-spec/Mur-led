@@ -1,12 +1,14 @@
 // Onglet Élec : lignes, phases, arrivée, courant d'appel. Résultats indicatifs, à valider par l'électricien.
 // Aucune règle de calcul ici : tout passe par calculs.js.
 
-import { electricite, cablageElec, distributionElec, ARRIVEES, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie } from './calculs.js';
+import { electricite, cablageElec, distributionElec, ARRIVEES, LIBELLES_COIN, MARGE_MOU_DEFAUT, ErreurSaisie,
+  lireArrivees, arriveeDeCalcul, repartirArrivees, sansAlertesArrivee, RAPPEL_ARRIVEES } from './calculs.js';
 import { nombre, nombreCourt, lireNombre, sourceCourte, mentionType } from './format.js';
 import { el, remplacer } from './dom.js';
 import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
 import { resumeElec, lignesParZone, lignesDistribution, texteLongueurCable } from './resumes.js';
+import { carteSaisieArrivee, sectionArrivees, versArrivee, nouvelleSaisieArrivee } from './ecran-arrivees.js';
 
 const formulaire = document.getElementById('form-elec');
 const zone = document.getElementById('resultats-elec');
@@ -14,6 +16,9 @@ const zone = document.getElementById('resultats-elec');
 const formDistribution = document.getElementById('form-distribution');
 const zoneDistribution = document.getElementById('resultats-distribution');
 const zoneSuite = document.getElementById('resultats-elec-suite');
+// Plusieurs arrivées (étape 21b) : cartes des arrivées ajoutées, gardées dans le champ caché `autresArrivees` ; arrivée
+// choisie à la main pour des lignes dans `arriveesLignes` ({ première dalle : id d'arrivée }).
+const zoneArrivees = document.getElementById('autres-arrivees');
 
 let etatMur = null;
 let typeAffiche = null;
@@ -53,6 +58,9 @@ function lireFormulaire() {
   return {
     type,
     arriveeLibre: choix === 'libre',
+    // Arrivée 1 en direct sur un boîtier : seulement en 32 A tri de la liste (étape 21).
+    tri32: type === 'tri' && choix === '32',
+    branchement1: type === 'tri' && choix === '32' && d.get('branchement1') === 'boitier' ? 'boitier' : 'armoire',
     reglages: {
       tensionV: lireNombre(d.get('tensionV')),
       marge: Number(d.get('marge')),
@@ -82,6 +90,47 @@ function lireDistribution() {
       prisesParBoitier: d.get('prisesParBoitier') ? Number(d.get('prisesParBoitier')) : null,
     },
   };
+}
+
+// Champs cachés des arrivées : JSON illisible ou absent, rien (la saisie d'avant l'étape 21 n'a qu'une arrivée).
+function lireJson(nom, defaut) {
+  try {
+    return JSON.parse(formulaire.elements[nom].value || 'null') ?? defaut;
+  } catch (erreur) {
+    return defaut;
+  }
+}
+const saisiesArrivees = () => {
+  const x = lireJson('autresArrivees', []);
+  return Array.isArray(x) ? x.filter((a) => a && typeof a === 'object' && typeof a.id === 'string') : [];
+};
+const choixLignes = () => {
+  const x = lireJson('arriveesLignes', {});
+  return x && typeof x === 'object' && !Array.isArray(x) ? x : {};
+};
+// Écrit un champ caché et le signale au formulaire (sauvegarde et recalcul, comme une saisie).
+function garder(nom, valeur) {
+  formulaire.elements[nom].value = valeur === null ? '' : JSON.stringify(valeur);
+  formulaire.dispatchEvent(new Event('change'));
+}
+let redessinerArrivees = true;
+function dessinerArrivees() {
+  const saisies = saisiesArrivees();
+  const choixMateriel = lireDistribution().choix === 'materiel';
+  remplacer(zoneArrivees, saisies.map((saisie, i) => carteSaisieArrivee(saisie, {
+    numero: i + 2,
+    choixMateriel,
+    // Une frappe garde la saisie sans redessiner (le champ garde le clavier) ; type, intensité et branchement redessinent.
+    surChange: (nouvelle, { redessiner = false } = {}) => {
+      formulaire.elements.autresArrivees.value = JSON.stringify(saisiesArrivees().map((x) => (x.id === nouvelle.id ? nouvelle : x)));
+      redessinerArrivees = redessiner;
+    },
+    surRetirer: () => {
+      const reste = saisiesArrivees().filter((x) => x.id !== saisie.id);
+      redessinerArrivees = true;
+      garder('autresArrivees', reste.length ? reste : null);
+    },
+  })));
 }
 
 function textePMax(fiche, p) {
@@ -186,6 +235,11 @@ function sectionAppel(r, impose = null) {
 
 // Distribution : d'où part chaque ligne (armoire ou boîtier 32 A tri), câbles en nombre et en longueur (étape 12b).
 function phraseDistribution(dist) {
+  // Plusieurs arrivées (étape 21b) : chaque arrivée, son branchement et sa distance.
+  if (dist.parArrivee) {
+    return `${dist.parArrivee.map((a) => `${a.repere} : ${a.branchement === 'boitier' ? 'en direct sur un boîtier 32 A tri' : 'armoire'}, `
+      + `${a.distanceM === null ? 'distance non mesurée' : `à ${nombreCourt(a.distanceM, 1)} m`}`).join(' ; ')}.`;
+  }
   const distance = dist.distanceArmoireM === null ? 'Armoire non mesurée' : `Armoire à ${nombreCourt(dist.distanceArmoireM, 1)} m`;
   if (dist.type === 'directe') return `${distance} : lignes directes, chacune sur une prise de l'armoire.`;
   const boitiers = `boîtiers 32 A tri ${dist.pose}, chacun alimenté par un câble P17 32 A tri depuis l'armoire`;
@@ -203,14 +257,22 @@ function sectionDistribution(dist, variante) {
       el('details', { class: 'fiche' }, el('summary', {}, `Les ${nombre(nb)} boîtiers`), liste(textes.filter(deBoitier))),
       liste(textes.filter((t) => !deBoitier(t) && !t.startsWith('Armoire :')))]
     : [liste(textes)];
-  const fournit = [
-    dist.armoire.sortiesP17 ? pluriel(dist.armoire.sortiesP17, 'sortie P17 32 A tri', 'sorties P17 32 A tri') : null,
-    dist.armoire.prises16 ? pluriel(dist.armoire.prises16, `prise ${nombreCourt(dist.departA)} A`, `prises ${nombreCourt(dist.departA)} A`) : null,
+  const fourni = (x) => [
+    x.sortiesP17 ? pluriel(x.sortiesP17, 'sortie P17 32 A tri', 'sorties P17 32 A tri') : null,
+    x.prises16 ? pluriel(x.prises16, `prise ${nombreCourt(dist.departA)} A`, `prises ${nombreCourt(dist.departA)} A`) : null,
   ].filter(Boolean).join(' et ');
+  // Plusieurs arrivées : ce que fournit l'armoire de chaque arrivée.
+  const fournit = dist.parArrivee
+    ? dist.parArrivee.filter((a) => fourni(a)).map((a) => `armoire de ${a.repere}, ${fourni(a)}`).join(' ; ')
+    : fourni(dist.armoire);
+  const repereDe = new Map((dist.parArrivee ?? []).map((a) => [a.id, a]));
+  const origineP17 = (b) => (!b.arrivee ? 'Armoire' : repereDe.get(b.arrivee)?.branchement === 'boitier' ? b.repere : `Armoire ${b.repere}`);
+  const origineTete = (l) => (l.boitier ? `Boîtier ${l.boitier}${l.prise ? `, ${l.prise}` : ''}`
+    : `Armoire${l.arrivee && dist.parArrivee ? ` ${repereDe.get(l.arrivee)?.repere ?? ''}` : ''}${l.prise ? `, ${l.prise}` : ''}`);
   const premiere = new Map(variante.lignesDetail.map((l) => [l.numero, l.dalles[0]]));
   const cables = [
-    ...dist.boitiers.map((b) => ['P17 32 A tri', 'Armoire', `Boîtier ${b.numero}`, b.p17M]),
-    ...dist.lignes.filter((l) => l.depuis).map((l) => [`Tête ${nombreCourt(dist.departA)} A`, l.boitier ? `Boîtier ${l.boitier}${l.prise ? `, ${l.prise}` : ''}` : `Armoire${l.prise ? `, ${l.prise}` : ''}`,
+    ...dist.boitiers.map((b) => ['P17 32 A tri', origineP17(b), `Boîtier ${b.numero}`, b.p17M]),
+    ...dist.lignes.filter((l) => l.depuis).map((l) => [`Tête ${nombreCourt(dist.departA)} A`, origineTete(l),
       `Ligne ${l.numero} (${premiere.get(l.numero)})`, l.longueurTeteM]),
   ];
   return [
@@ -228,6 +290,7 @@ function sectionDistribution(dist, variante) {
       ? el('p', { class: 'source' }, 'Longueurs à mesurer : saisis la distance armoire–mur ; le nombre de câbles reste juste.') : null,
     dist.notes.map((t) => alerte(t, 'alerte-info')),
     alerte('Distribution indicative, à valider avec l\'électricien : différentiel 30 mA, protections, sections et longueurs des câbles.', 'alerte-info'),
+    dist.parArrivee ? alerte(RAPPEL_ARRIVEES, 'alerte-info') : null,
   ];
 }
 
@@ -272,8 +335,18 @@ function mettreAJour() {
     return;
   }
   document.getElementById('bloc-arrivee-libre').hidden = !e.arriveeLibre;
+  document.getElementById('bloc-branchement').hidden = !e.tri32;
   const saisie = lireDistribution();
   document.getElementById('bloc-materiel').hidden = saisie.choix !== 'materiel';
+  // Plusieurs arrivées (étape 21b) : cartes redessinées sauf pendant la frappe dans l'une d'elles.
+  if (redessinerArrivees) dessinerArrivees();
+  redessinerArrivees = true;
+  const saisies = saisiesArrivees();
+  const plusieurs = saisies.length > 0 || e.branchement1 === 'boitier';
+  document.getElementById('legende-arrivee').textContent = saisies.length ? 'Arrivée 1' : 'Arrivée';
+  document.querySelector('label[for="distance-armoire"]').textContent = plusieurs
+    ? 'Distance de l\'arrivée 1 au mur (m), facultatif : au-delà de 10 m, boîtiers 32 A tri près du mur'
+    : 'Armoire élec à mur (m), facultatif : au-delà de 10 m, boîtiers 32 A tri près du mur';
   // Distance publiée pour le Schéma (un seul champ, ici) ; une saisie illisible ne compte pas.
   const reglagesDistribution = {
     ...saisie,
@@ -289,9 +362,26 @@ function mettreAJour() {
     return;
   }
   const { dalle, mur } = etatMur;
+  // Arrivées du mur : la première (champs d'aujourd'hui), puis les cartes ; une saisie illisible est refusée en la nommant.
+  let arrivees = null;
+  if (plusieurs) {
+    const materiel = saisie.choix === 'materiel';
+    try {
+      arrivees = lireArrivees([
+        { id: 'arr-1', type: e.type, intensiteA: e.reglages.arrivee.intensiteA, branchement: e.branchement1, distanceM: saisie.distanceArmoireM,
+          materiel: materiel ? { prises16: saisie.materiel.prises16, sortiesP17: saisie.materiel.sortiesP17 } : {} },
+        ...saisies.map(versArrivee).map((a) => (materiel ? a : { ...a, materiel: {} })),
+      ], { departA: e.reglages.departA, puissanceUtileW: e.reglages.puissanceUtileW });
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaisie)) throw erreur;
+      remplacer(zone, alerte(erreur.message, 'alerte-erreur'));
+      return;
+    }
+  }
   let r;
   try {
-    r = electricite(mur, dalle, e.reglages);
+    // Plusieurs arrivées : les lignes se calculent sur l'arrivée de calcul (tri dès qu'une arrivée est tri).
+    r = electricite(mur, dalle, arrivees ? { ...e.reglages, arrivee: arriveeDeCalcul(arrivees) } : e.reglages);
   } catch (erreur) {
     if (!(erreur instanceof ErreurSaisie)) throw erreur;
     remplacer(zone, alerte(erreur.message, 'alerte-erreur'));
@@ -303,13 +393,23 @@ function mettreAJour() {
   let distribution = null;
   let erreurDistribution = null;
   let cablage = null;
+  let repartition = null;
+  let repConseil = null;
   try {
     cablage = cablageElec(mur, dalle, r, { depart: departElec, margeMou, imposee: e.imposee });
     const t = cablage;
     const variante = t.variantes.find((x) => x.mode === (t.retenue ?? t.conseil));
+    // Plusieurs arrivées : l'arrivée et la phase de chaque ligne, choix à la main compris ; le conseil seul à côté.
+    if (arrivees) {
+      const prisesParBoitier = saisie.choix === 'materiel' && saisie.materiel.prisesParBoitier ? saisie.materiel.prisesParBoitier : 6;
+      repConseil = repartirArrivees(variante, r, arrivees, { prisesParBoitier });
+      repartition = repartirArrivees(variante, r, arrivees, { prisesParBoitier, manuel: choixLignes() });
+    }
+    const lignesDistribuees = repartition ?? variante;
     distribution = {
-      d: distributionElec(mur, variante, r, { depart: departElec, distanceArmoireM: saisie.distanceArmoireM, margeMou, mode: modeMur, choix: saisie.choix, materiel: saisie.materiel }),
-      variante,
+      d: distributionElec(mur, lignesDistribuees, r, { depart: departElec, distanceArmoireM: saisie.distanceArmoireM, margeMou, mode: modeMur, choix: saisie.choix, materiel: saisie.materiel,
+        ...(arrivees ? { arrivees } : {}) }),
+      variante: lignesDistribuees,
     };
   } catch (erreur) {
     if (!(erreur instanceof ErreurSaisie)) throw erreur;
@@ -318,8 +418,15 @@ function mettreAJour() {
 
   const impose = cablage?.imposee?.possible ? { variante: cablage.variantes.find((x) => x.mode === 'imposee'), resume: cablage.imposee } : null;
   afficherMaConfig(cablage?.imposee ?? null, impose, r);
-  dernier = { r, dalle, mur, distribution: distribution?.d ?? null, imposee: cablage?.imposee ?? null };
-  publier({ r, dalle, mur, distribution: reglagesDistribution, imposee: e.imposee });
+  dernier = { r, dalle, mur, distribution: distribution?.d ?? null, imposee: cablage?.imposee ?? null, repartition };
+  publier({ r, dalle, mur, distribution: reglagesDistribution, imposee: e.imposee, arrivees, manuel: arrivees ? choixLignes() : null });
+  const alertesElec = arrivees ? sansAlertesArrivee(r.alertes) : r.alertes;
+  const surChoix = (dalle1, id) => {
+    const c = { ...choixLignes() };
+    if (id) c[dalle1] = id;
+    else delete c[dalle1];
+    garder('arriveesLignes', Object.keys(c).length ? c : null);
+  };
   const parZone = lignesParZone(r, mur);
   const recap = el('p', { class: 'recap-mur' },
     // Mur mixte (9b5) : la P max de la dalle de chaque zone.
@@ -357,8 +464,8 @@ function mettreAJour() {
     alerte('Résultats indicatifs : l\'électricité est validée par l\'électricien.', 'alerte-info'),
     r.lignes.auPlusJuste.ecart ? alerte(r.lignes.auPlusJuste.ecart, 'alerte-info') : null,
     ligneManques(r.manques),
-    alertesSansManques(r.alertes, r.manques).map((texte) => alerte(texte)),
-    (impose?.variante.alertes ?? []).map((texte) => alerte(`Ma config (imposée) : ${texte}`)),
+    alertesSansManques(alertesElec, r.manques).map((texte) => alerte(texte)),
+    (arrivees ? sansAlertesArrivee(impose?.variante.alertes) : impose?.variante.alertes ?? []).map((texte) => alerte(`Ma config (imposée) : ${texte}`)),
     el('section', { class: 'bloc-resultats' },
       el('h3', {}, 'Puissance et lignes'),
       chiffres,
@@ -390,7 +497,9 @@ function mettreAJour() {
           `dalles : ${r.lignes.auPlusJuste.lignes.map((l) => l.dalles).join(' + ')}`,
           ...r.lignes.minimum.raisons.map((raison) => `écart : ${raison}`)))),
     sectionZones(parZone),
-    sectionArrivee(r, impose));
+    repartition
+      ? sectionArrivees(repartition, { conseil: repConseil, choixSaisis: Object.keys(choixLignes()).length > 0, surChoix, surConseil: () => garder('arriveesLignes', null) })
+      : sectionArrivee(r, impose));
   remplacer(zoneDistribution, erreurDistribution ? alerte(erreurDistribution, 'alerte-erreur') : sectionDistribution(distribution.d, distribution.variante));
   remplacer(zoneSuite,
     sectionAppel(r, impose),
@@ -428,6 +537,9 @@ export function initialiserElec(rappel = () => {}, { surConfigImposee = () => {}
   formDistribution.addEventListener('input', mettreAJour);
   formDistribution.addEventListener('change', mettreAJour);
   formDistribution.addEventListener('submit', (evenement) => evenement.preventDefault());
+  document.getElementById('ajouter-arrivee').addEventListener('click', () => {
+    garder('autresArrivees', [...saisiesArrivees(), nouvelleSaisieArrivee(`arr-${Date.now().toString(36)}`)]);
+  });
   preparerArrivee(lireFormulaire().type);
 }
 

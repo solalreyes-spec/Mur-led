@@ -4,19 +4,20 @@
 import {
   evaluerProcesseur, evaluerToutesMarques, processeurConseille, entierInferieur,
   BIT_DEPTH_PAR_DEFAUT, rappelTessera, gainDixBits, LIBELLES_COIN, ErreurSaisie, reseauBrompton, alternativeSX40, cablageData,
-  controleQuantiteProcesseur,
+  controleQuantiteProcesseur, portsDoubles,
 } from './calculs.js';
+import { choixSecoursVisible, texteProcesseurs } from './secours.js';
 import { portsEnCouleurs } from './couleurs.js';
 import { nombre, nombreCourt, sourceCourte, lireNombre } from './format.js';
 import { el, remplacer } from './dom.js';
 import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
 import {
-  resumeData, consommationProcesseur, resumeAvantDePartir, texteCapaciteAppareil, texteLatence, texteAlimentation, texteWatts, texteLogicielReglage,
+  resumeData, consommationProcesseur, consommationTotale, resumeAvantDePartir, texteCapaciteAppareil, texteLatence, texteAlimentation, texteWatts, texteLogicielReglage,
   texteAlternativeSX40, texteReglageZones, texteCartesMixte,
 } from './resumes.js';
 import {
-  configsDuMur, logicielDuProcesseur, texteLogicielParc, avantDePartir, arbreProcesseurs, MARQUES_FAMILLE, LOGICIELS,
+  configsDuMur, logicielDuProcesseur, texteLogicielParc, avantDePartir, arbreProcesseurs, MARQUES_FAMILLE, LOGICIELS, choixLuminosite,
 } from './fiches.js';
 import { listerFichiers } from './stockage.js';
 import { rappelsConfig } from './rappels.js';
@@ -89,8 +90,13 @@ function lireFormulaire() {
     famille: d.get('famille'),
     processeur: d.get('processeur'),
     frequenceHz: lireNombre(d.get('frequence')),
+    // Luminosité maxi du fichier NovaLCT (étape 20) : '' à choisir, '800', 'aucune' (champ caché, gardé).
+    luminosite: d.get('luminosite') ?? '',
     bits: Number(d.get('bits')),
     redondance: d.has('redondance'),
+    // Secours par un second processeur (étape 22) : valeurs du formulaire, retenues seulement quand le choix est visible.
+    secours: d.get('secours') || 'ports',
+    liaisonSecours: d.get('liaisonSecours') || 'sansCascade',
     ull: d.has('ull'),
     cartesPro: d.has('cartesPro'),
     modeOptique: d.has('modeOptique'),
@@ -262,7 +268,7 @@ function sourceFormat(proc, nomFormat) {
 // Champ de la fiche qui donne la limite de ports appliquée (redondance, mode optique ou cuivre).
 function champPorts(r) {
   const proc = r.processeur;
-  if (r.reglages.redondance && proc.portsRedondance) return 'portsRedondance';
+  if (portsDoubles(r) && proc.portsRedondance) return 'portsRedondance';
   return r.reglages.modeOptique ? 'portsOptionOptique' : 'ports';
 }
 
@@ -275,7 +281,7 @@ function nomDistributeur(r) {
 
 // `impose` : { variante, resume } de la config imposée quand elle passe (étape 18c) ; elle prend les chiffres clés, le conseil
 // de l'appli est rappelé dessous avec l'écart.
-function sectionPorts(e, dalle, r, impose = null) {
+function sectionPorts(e, dalle, r, impose = null, luminosite = null) {
   const g = r.global;
   const proc = r.processeur;
   const compte = r.pxParDalle !== dalle.pxH * dalle.pxV
@@ -286,7 +292,12 @@ function sectionPorts(e, dalle, r, impose = null) {
     ? `${pluriel(g.colonnes.colonnesParPort, 'colonne', 'colonnes')} de ${g.colonnes.segments[0]} dalles par port`
       + `${g.colonnes.colonnesParPort < g.colonnes.colonnesParPortMax ? ' (nombre pair en redondance)' : ''}`
     : `chaque colonne en ${g.colonnes.segments.length} segments égaux : ${g.colonnes.segments.join(' + ')}`;
-  const redondance = (n) => (e.redondance ? `redondance : ${n} ports` : `${n} ports en redondance`);
+  // Secours par un second processeur (étape 22) : ports non doublés, les mêmes sur le processeur de secours.
+  const doubles = portsDoubles(r);
+  const redondance = (n) => {
+    if (r.nombreSecours > 0) return 'secours : les mêmes ports sur le processeur de secours';
+    return doubles ? `redondance : ${n} ports` : `${n} ports en redondance`;
+  };
 
   const champCapacite = r.champCapacite;
   const qualite = [r.capaciteDeduite ? 'déduit' : null, r.capaciteAConfirmer ? 'à confirmer' : null].filter(Boolean).join(', ');
@@ -296,8 +307,9 @@ function sectionPorts(e, dalle, r, impose = null) {
   const tauxCharge = impose ? impose.variante.chargeMax : g.chargeMax.colonnes.taux;
   return el('section', { class: 'bloc-resultats' },
     el('h3', {}, `Ports — ${proc.nom}`),
-    el('ul', { class: 'puces-info' }, [proc.nom, `${nombreCourt(r.reglages.frequenceHz)} Hz`, `${r.reglages.bits} bits`,
-      r.reglages.ull ? 'ULL' : null, r.reglages.redondance ? 'redondance' : null, impose ? 'Ma config' : null].filter(Boolean).map((t) => el('li', { class: 'puce-info' }, t))),
+    el('ul', { class: 'puces-info' }, [proc.nom, `${nombreCourt(r.reglages.frequenceHz)} Hz`,
+      typeof luminosite === 'number' ? `${nombre(luminosite)} cd/m²` : null, `${r.reglages.bits} bits`,
+      r.reglages.ull ? 'ULL' : null, r.reglages.redondance ? 'redondance' : null, r.nombreSecours > 0 ? 'second processeur' : null, impose ? 'Ma config' : null].filter(Boolean).map((t) => el('li', { class: 'puce-info' }, t))),
     el('div', { class: 'chiffres-cles' },
       el('p', { class: 'chiffre' }, el('span', { class: 'chiffre-valeur' }, nombre(impose ? impose.variante.ports : g.colonnes.ports)),
         el('span', { class: 'chiffre-libelle' }, impose ? 'Ports (imposé)' : 'Ports en colonnes entières')),
@@ -378,7 +390,7 @@ function tableControles(r) {
     if (nom === 'largeur' && c.format) return sourceFormat(proc, c.format);
     return sourceLimite(proc, nom === 'ports' ? champPorts(r) : CHAMP_LIMITE[nom]);
   };
-  const libellePorts = [r.reglages.redondance ? 'redondance' : null, r.reglages.modeOptique ? 'mode optique' : null].filter(Boolean);
+  const libellePorts = [portsDoubles(r) ? 'redondance' : null, r.reglages.modeOptique ? 'mode optique' : null].filter(Boolean);
   const lignes = Object.entries(r.controles).map(([nom, c]) => el('tr', { class: c.nombre > 1 ? 'limite' : null },
     el('th', { scope: 'row' }, nom === 'ports' && libellePorts.length
       ? `${c.principaux ? 'Ports principaux' : 'Ports'} (${libellePorts.join(', ')})` : LIBELLES_CONTROLE[nom]),
@@ -395,7 +407,7 @@ function tableControles(r) {
 function tableDecoupage(r) {
   const proc = r.processeur;
   const distributeur = nomDistributeur(r);
-  const red = r.reglages.redondance;
+  const red = portsDoubles(r);
   const ports = (p) => (red
     ? `${p.redondance.colonnes} (${2 * p.auPlusJusteSerpentin} au plus juste)`
     : `${p.colonnes} (${p.auPlusJusteSerpentin} au plus juste)`);
@@ -470,7 +482,7 @@ function sectionDecoupageZones(r) {
 function sectionZones(r) {
   if (!r.groupes?.[0]?.parties) return null;
   const proc = r.processeur;
-  const red = r.reglages.redondance;
+  const red = portsDoubles(r);
   const ports = (p) => {
     const { premier, dernier } = p.ports;
     if (premier === dernier) return `${premier}`;
@@ -508,7 +520,8 @@ function sectionProcesseur(r, conseil) {
   return el('section', { class: 'bloc-resultats' },
     titre,
     el('div', { class: 'carte resultat-principal' },
-      el('p', { class: 'chiffre-cle' }, `${r.nombre} × ${proc.modele}`),
+      el('p', { class: 'chiffre-cle' }, texteProcesseurs(r)),
+      r.secoursProcesseur ? el('p', { class: 'sous-titre' }, `Redondance : ${r.secoursProcesseur.texte}.`) : null,
       r.configuration ? el('p', { class: 'sous-titre' }, r.configuration) : null,
       el('p', { class: 'sous-titre' }, r.unSeulSuffit
         ? `Un seul ${proc.nom} suffit.`
@@ -551,12 +564,13 @@ function consoLigne(r) {
       ? `${d.modele} : ${[texteWatts(d), d.poidsKg ? `${nombreCourt(d.poidsKg, 2)} kg` : null].filter(Boolean).join(', ')} chacun`
       : null,
   ].filter(Boolean).join(' ; ');
+  const total = r.nombreSecours > 0 ? `Processeurs avec les secours : ${consommationTotale(r.processeur, r.nombreTotal)}.` : null;
   const alimentations = [r.processeur, d].filter((x) => texteAlimentation(x)).map((x) => el('p', { class: 'source' }, `Alimentation ${x.modele} : ${texteAlimentation(x)}.`));
-  return [texte ? el('p', { class: 'source' }, `Consommation et poids : ${texte}.`) : null, ...alimentations];
+  return [texte ? el('p', { class: 'source' }, `Consommation et poids : ${texte}.`) : null, total ? el('p', { class: 'source' }, total) : null, ...alimentations];
 }
 
 // Lots et configs du mur pour le logiciel du processeur retenu, version relevée dans le parc, rappels sourcés.
-function configsData(choisie) {
+function configsData(choisie, luminositeGardee = '') {
   const { base, parcId } = contexteLots;
   if (!base || base.parcs.length === 0) return null;
   const logiciel = logicielDuProcesseur(choisie.processeur);
@@ -568,10 +582,19 @@ function configsData(choisie) {
       version: texteLogicielParc(base, parcId, choisie.processeur), rappels: [],
     };
   }
-  const groupes = (etatMur?.lots ?? []).map((g) => ({ g, c: configsDuMur(base, parcId, g.dalleId, g.n, { coches: g.coches, logiciel }) }));
+  // NovaLCT (étape 20) : le fichier de chaque lot se choisit à la fréquence de Data, puis à la luminosité maxi de la
+  // liste quand un lot en a plusieurs à cette fréquence (les luminosités proposées ne dépendent pas du choix).
+  const frequenceHz = logiciel === 'NovaLCT' ? choisie.reglages.frequenceHz : null;
+  const parFiche = (luminosite) => (etatMur?.lots ?? []).map((g) => ({ g, c: configsDuMur(base, parcId, g.dalleId, g.n, { coches: g.coches, logiciel, frequenceHz, luminosite }) }));
+  let groupes = parFiche(null);
+  const luminosite = choixLuminosite(groupes.map(({ c }) => c), luminositeGardee);
+  if (luminosite.luminosite !== null) groupes = parFiche(luminosite.luminosite);
   const prefixe = (g, texte) => (g.libelle ? `${g.libelle} : ${texte.charAt(0).toLowerCase()}${texte.slice(1)}` : texte);
   return {
     logiciel,
+    choixLuminosite: luminosite,
+    // Texte copié : « Luminosité maxi : 800 cd/m² (fichier du lot) ».
+    luminosite: typeof luminosite.luminosite === 'number' ? luminosite.luminosite : null,
     // Pour le pas à pas NovaLCT (étape 17b) : le résultat de configsDuMur de chaque fiche du mur.
     parFiche: groupes.map(({ g, c }) => ({ libelle: g.libelle ?? null, resultat: c })),
     note: groupes.find(({ c }) => c.note)?.c.note ?? null,
@@ -585,6 +608,17 @@ function configsData(choisie) {
       cvt8: choisie.processeur.distributeur === 'coex-cvt8-5g',
     }),
   };
+}
+
+// Liste « Luminosité maxi » sous la fréquence (étape 20) : visible seulement quand un lot retenu a plusieurs
+// luminosités à la fréquence de Data ; ses choix sont refaits à chaque calcul, la valeur reste dans le champ caché.
+function afficherLuminosite(choix) {
+  const bloc = id('bloc-luminosite');
+  bloc.hidden = !choix?.visible;
+  if (!choix?.visible) return;
+  const liste = id('luminosite-choix');
+  remplacer(liste, choix.options.map((o) => el('option', { value: o.valeur }, o.texte)));
+  liste.value = choix.valeur;
 }
 
 const CONFIANCES_AFFICHEES = { tiers: 'source tierce' };
@@ -700,6 +734,12 @@ function afficherMaConfig(resume, variante, choisie) {
 }
 const id = (x) => document.getElementById(x);
 
+// Choix « Secours » et « Liaison » sous la redondance (étape 22) ; la liaison seulement avec un second processeur.
+function afficherSecours(visible, secours) {
+  id('bloc-secours').hidden = !visible;
+  id('bloc-liaison-secours').hidden = !(visible && secours === 'processeur');
+}
+
 // ---------------------------------------------------------------------------
 // Calcul
 // ---------------------------------------------------------------------------
@@ -732,6 +772,7 @@ export function resumeOngletData() {
 function calculer(e) {
   dernier = null;
   afficherDepart(null, false);
+  afficherLuminosite(null);
   afficherMaConfig(null, null, null);
   if (!etatMur) return null;
   if (!etatMur.mur) {
@@ -739,8 +780,17 @@ function calculer(e) {
     return null;
   }
   const { dalle, mur } = etatMur;
+  const toutes = e.processeur === 'conseille-tout';
+  // Choix du secours (étape 22) : visible selon la marque, le processeur choisi ou le parc ; caché, il ne compte pas.
+  const secoursVisible = choixSecoursVisible({
+    redondance: e.redondance, famille: e.famille, mode: estConseil(e.processeur) ? e.processeur : 'manuel',
+    processeur: processeurs.find((p) => p.id === e.processeur) ?? null, novaLCTDansParc: processeurs.some((p) => p.logiciel === 'NovaLCT'),
+  });
+  afficherSecours(secoursVisible, e.secours);
+  const secours = secoursVisible ? e.secours : 'ports';
   const reglages = {
     frequenceHz: e.frequenceHz, bits: e.bits, ull: e.ull, cartesPro: e.cartesPro, redondance: e.redondance, modeOptique: e.modeOptique,
+    secours, liaisonSecours: e.liaisonSecours,
     carteSortie: e.carteSortie,
     decoupage: e.decoupage,
     mapping: e.mapping,
@@ -753,7 +803,6 @@ function calculer(e) {
     departCablage: departData,
   };
 
-  const toutes = e.processeur === 'conseille-tout';
   const candidats = toutes ? processeurs : processeurs.filter((p) => p.famille === e.famille);
   if (candidats.length === 0) {
     remplacer(zone, alerte(`Aucun processeur ${NOMS_FAMILLE[e.famille]} dans le parc ${nomParc ?? 'actif'} : `
@@ -771,7 +820,8 @@ function calculer(e) {
     remplacer(zone, alerte(erreur.message, 'alerte-erreur'));
     return null;
   }
-  const conseil = processeurConseille(evaluations, { quantites });
+  // Marque Novastar avec un processeur de secours : conseil parmi les processeurs NovaLCT (spec § 5.2).
+  const conseil = processeurConseille(evaluations, { quantites, seulementNovaLCT: !toutes && e.famille === 'novastar' && e.redondance && secours === 'processeur' });
   const choisie = estConseil(e.processeur) ? conseil : evaluations.find((r) => r.processeur.id === e.processeur);
 
   const alertes = [];
@@ -847,10 +897,13 @@ function calculer(e) {
     + (mur.mixte ? texteCartesMixte(mur) : (carte ? `Carte de réception : ${carte}${sourceCarte ? ` (${sourceCarte.sources.map(sourceCourte).join(', ')})` : ''}. ` : '')),
     el('a', { href: '#mur', class: 'lien-discret' }, 'Modifier le mur'));
 
-  const configs = configsData(choisie);
+  const configs = configsData(choisie, e.luminosite);
+  afficherLuminosite(configs?.choixLuminosite ?? null);
   const { base, parcId } = contexteLots;
   const avecParcs = Boolean(base?.parcs.length);
-  afficherDepart(avecParcs ? avantDePartir(base, parcId, etatMur.lots ?? [], choisie.processeur, { presents }) : null, avecParcs);
+  // Check-list avec la fréquence et la luminosité de Data (étape 20) : le fichier NovaLCT retenu de chaque lot.
+  afficherDepart(avecParcs ? avantDePartir(base, parcId, etatMur.lots ?? [], choisie.processeur,
+    { presents, frequenceHz: choisie.reglages.frequenceHz, luminosite: configs?.choixLuminosite?.luminosite ?? null }) : null, avecParcs);
   // Alternative « SX40 + XD » : le SX40 en demande strictement moins que le Brompton retenu.
   const dansParc = processeurs.some((p) => p.id === ficheSX40?.id);
   const alternative = alternativeSX40(mur, dalle, choisie, ficheSX40, reglages, { dansParc, nomParc });
@@ -872,7 +925,7 @@ function calculer(e) {
   remplacer(zone, recap,
     ...alertes,
     sectionAlternative(alternative, dansParc),
-    choisie.global ? sectionPorts(e, dalle, choisie, impose) : null,
+    choisie.global ? sectionPorts(e, dalle, choisie, impose, configs?.luminosite ?? null) : null,
     sectionCouleurs(ports),
     sectionProcesseur(choisie, conseil),
     sectionDecoupageZones(choisie),
@@ -931,6 +984,10 @@ export function initialiserData(base, rappel = () => {}, { surConfigImposee = ()
   });
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());
   initialiserChoixProcesseur();
+  // Luminosité maxi : le choix est retenu dans le champ caché dès « input », avant le recalcul.
+  for (const type of ['input', 'change']) {
+    id('luminosite-choix').addEventListener(type, (evenement) => { formulaire.elements.luminosite.value = evenement.target.value; });
+  }
   actualiserData(base, true);
 }
 

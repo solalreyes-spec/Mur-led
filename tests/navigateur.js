@@ -96,6 +96,15 @@ const rgbHex = (p) => `#${p.map((x) => x.toString(16).padStart(2, '0')).join('')
 // Étape 11e : Canvas dans la famille de la régie (turquoise), Schéma dans sa propre famille (vert anis).
 const ONGLETS_LOOK = [['mur', 'image'], ['data', 'donnees'], ['canvas', 'regie'], ['elec', 'electricite'], ['poids', 'accroche'],
   ['schema', 'schema'], ['depannage', 'depannage'], ['base', 'base'], ['apprendre', 'apprendre']];
+// Module d'écran encore absent (tests écrits avant le code) : null au lieu d'une erreur de chargement.
+async function importerSiPresent(chemin) {
+  try {
+    return await import(chemin);
+  } catch (erreur) {
+    return null;
+  }
+}
+
 async function chargerStylesLook() {
   const feuille = el('link', { rel: 'stylesheet', href: 'styles.css' });
   await new Promise((fin) => {
@@ -5047,7 +5056,488 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N109',
+    titre: 'Plusieurs arrivées, résultats d\'Élec (21b, spec § 5) : section « Arrivées », une carte par arrivée (repère, libellé, capacité, phases avec ✗ et « limite » au-delà, lignes, écart), refus et notes ; liste des lignes avec, pour chacune, le choix « Arrivée » (« Conseil (A1) », A1, A2) qui renvoie la première dalle et l\'arrivée ; « Revenir au conseil » quand une ligne est choisie à la main',
+    etape: '21b',
+    async verifier(v) {
+      const module = await importerSiPresent('../src/ecran-arrivees.js');
+      if (!module?.sectionArrivees) { v.vrai('sectionArrivees exportée par src/ecran-arrivees.js', false); return; }
+      const arrivees = calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }, { type: 'tri', intensiteA: 32, branchement: 'boitier' }]);
+      const m = calculs.mur(DALLE_CAS_13, 48, 6);
+      const elec = calculs.electricite(m, DALLE_CAS_13, { arrivee: calculs.arriveeDeCalcul(arrivees), depart: 'bas-gauche' });
+      const t = calculs.cablageElec(m, DALLE_CAS_13, elec, { depart: 'bas-gauche' });
+      const variante = t.variantes.find((x) => x.mode === t.conseil);
+      const conseil = calculs.repartirArrivees(variante, elec, arrivees);
+      const choix = [];
+      const s = module.sectionArrivees(conseil, { conseil, surChoix: (dalle, id) => choix.push([dalle, id]), surConseil: () => choix.push('conseil') });
+      v.egal('titre', texteDe(s.querySelector('h3')), 'Arrivées');
+      v.egal('une carte par arrivée, repère et libellé', [...s.querySelectorAll('.carte-arrivee h4')].map(texteDe),
+        ['A1 · Arrivée 1 : 63 A tri, armoire', 'A2 · Arrivée 2 : 32 A tri, en direct sur un boîtier']);
+      v.vrai('capacité et lignes de A1', /11\s088 W utiles par phase/.test(texteDe(s.querySelector('.carte-arrivee'))) && /lignes 1 à \d+/.test(texteDe(s.querySelector('.carte-arrivee'))), texteDe(s.querySelector('.carte-arrivee')));
+      v.egal('trois phases par arrivée tri', [...s.querySelectorAll('.carte-arrivee')].map((c) => c.querySelectorAll('tbody tr').length), [3, 3]);
+      const lignes = [...s.querySelectorAll('.lignes-arrivees tbody tr')];
+      v.egal('une ligne du tableau par ligne de dalles', lignes.length, variante.lignesDetail.length);
+      const liste = lignes[0].querySelector('select');
+      v.egal('choix de la ligne 1 : conseil, A1, A2', [...liste.options].map((o) => [o.value, o.textContent]), [['', 'Conseil (A1)'], ['arr-1', 'A1'], ['arr-2', 'A2']]);
+      v.vrai('liste nommée pour les lecteurs d\'écran', /Arrivée de la ligne 1/.test(liste.getAttribute('aria-label') ?? ''), liste.getAttribute('aria-label'));
+      liste.value = 'arr-2';
+      liste.dispatchEvent(new Event('change', { bubbles: true }));
+      v.egal('choix renvoyé : première dalle et arrivée', choix, [[variante.lignesDetail[0].dalles[0], 'arr-2']]);
+      v.egal('sans choix à la main : pas de « Revenir au conseil »', s.querySelector('.revenir-conseil'), null);
+      const main = calculs.repartirArrivees(variante, elec, arrivees, { manuel: { [variante.lignesDetail[0].dalles[0]]: 'arr-2' } });
+      const s2 = module.sectionArrivees(main, { conseil, surChoix: () => {}, surConseil: () => choix.push('conseil') });
+      v.egal('choix gardé dans la liste', s2.querySelector('.lignes-arrivees tbody tr select').value, 'arr-2');
+      s2.querySelector('.revenir-conseil').click();
+      v.egal('« Revenir au conseil »', choix.at(-1), 'conseil');
+      const seul = calculs.lireArrivees([{ type: 'tri', intensiteA: 32 }, { type: 'tri', intensiteA: 16 }]);
+      const trop = calculs.repartirArrivees(variante, elec, seul, { manuel: Object.fromEntries(variante.lignesDetail.map((l) => [l.dalles[0], 'arr-2'])) });
+      const s3 = module.sectionArrivees(trop, { conseil: calculs.repartirArrivees(variante, elec, seul), surChoix: () => {}, surConseil: () => {} });
+      v.vrai('phase qui dépasse : ✗ et ligne marquée', s3.querySelectorAll('.carte-arrivee tr.limite').length > 0, texteDe(s3));
+      v.vrai('alerte « dépasse » affichée', [...s3.querySelectorAll('.alerte')].some((a) => /dépasse\.$/.test(texteDe(a))), texteDe(s3));
+      v.vrai('note « aucune ligne » affichée', [...s3.querySelectorAll('.alerte')].some((a) => texteDe(a).includes('Arrivée 1 : aucune ligne')), texteDe(s3));
+    },
+  },
+  {
+    id: 'N110',
+    titre: 'Plusieurs arrivées, saisie (21b, spec § 5) : carte d\'une arrivée ajoutée (type, intensité de la liste ou libre, branchement seulement pour une 32 A tri, distance, matériel de son armoire en « Avec mon matériel »), champs sans nom (saisies gardées par le champ caché), « Retirer l\'arrivée » ; conversion vers lireArrivees',
+    etape: '21b',
+    async verifier(v) {
+      const module = await importerSiPresent('../src/ecran-arrivees.js');
+      if (!module?.carteSaisieArrivee) { v.vrai('carteSaisieArrivee exportée par src/ecran-arrivees.js', false); return; }
+      const recu = [];
+      const carte = (saisie, materiel = false) => module.carteSaisieArrivee(saisie, { numero: 2, choixMateriel: materiel, surChange: (x) => recu.push(x), surRetirer: () => recu.push('retirer') });
+      const base = { id: 'arr-x', type: 'tri', intensite: '32', libre: '', branchement: 'armoire', distance: '', prises16: '', sortiesP17: '' };
+      const c = carte(base);
+      v.egal('titre', texteDe(c.querySelector('h4')), 'Arrivée 2');
+      v.egal('aucun champ nommé', [...c.querySelectorAll('input, select')].filter((x) => x.name).length, 0);
+      v.vrai('chaque champ a son libellé', [...c.querySelectorAll('input, select')].every((x) => c.querySelector(`label[for="${x.id}"]`)));
+      const visible = (cle) => { const x = c.querySelector(`[data-champ="${cle}"]`); return Boolean(x) && !x.closest('[hidden]'); };
+      v.egal('32 A tri, armoire, conseil : branchement visible, matériel caché, valeur libre cachée', [visible('branchement'), visible('prises16'), visible('libre')], [true, false, false]);
+      const c63 = carte({ ...base, intensite: '63' });
+      v.vrai('63 A tri : pas de branchement', !c63.querySelector('[data-champ="branchement"]') || Boolean(c63.querySelector('[data-champ="branchement"]').closest('[hidden]')));
+      const cm = carte(base, true);
+      v.vrai('« Avec mon matériel », armoire : prises 16 A et sorties P17 visibles', !cm.querySelector('[data-champ="prises16"]').closest('[hidden]') && !cm.querySelector('[data-champ="sortiesP17"]').closest('[hidden]'));
+      const cb = carte({ ...base, branchement: 'boitier' }, true);
+      v.vrai('boîtier : pas de matériel d\'armoire', Boolean(cb.querySelector('[data-champ="prises16"]').closest('[hidden]')));
+      const distance = c.querySelector('[data-champ="distance"]');
+      distance.value = '30';
+      distance.dispatchEvent(new Event('input', { bubbles: true }));
+      v.egal('saisie renvoyée', recu.at(-1), { ...base, distance: '30' });
+      const intensite = c.querySelector('[data-champ="intensite"]');
+      v.egal('intensités de la liste tri et valeur libre', [...intensite.options].map((o) => o.value), ['16', '32', '63', '125', 'libre']);
+      [...c.querySelectorAll('button')].find((b) => texteDe(b) === 'Retirer l\'arrivée').click();
+      v.egal('retirer', recu.at(-1), 'retirer');
+      v.egal('vers lireArrivees', [module.versArrivee({ ...base, distance: '12,5', prises16: '4' }), module.versArrivee({ ...base, intensite: 'libre', libre: '95' }).intensiteA, module.versArrivee({ ...base, type: 'mono', intensite: '32', branchement: 'boitier' }).branchement],
+        [{ id: 'arr-x', type: 'tri', intensiteA: 32, branchement: 'armoire', distanceM: 12.5, materiel: { prises16: 4, sortiesP17: null } }, 95, 'armoire']);
+    },
+  },
+  {
+    id: 'N111',
+    titre: 'Plusieurs arrivées à 375 px (21b) : section « Arrivées » et carte de saisie sans défilement de côté, listes et boutons de 48 px, en sombre et en mode rouge',
+    etape: '21b',
+    async verifier(v) {
+      const module = await importerSiPresent('../src/ecran-arrivees.js');
+      if (!module?.sectionArrivees || !module?.carteSaisieArrivee) { v.vrai('ecran-arrivees.js', false); return; }
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px;padding:0 16px;box-sizing:border-box', 'data-famille': 'electricite' });
+      document.body.append(racine);
+      try {
+        const arrivees = calculs.lireArrivees([{ type: 'tri', intensiteA: 63 }, { type: 'tri', intensiteA: 32, branchement: 'boitier' }]);
+        const m = calculs.mur(DALLE_CAS_13, 48, 6);
+        const elec = calculs.electricite(m, DALLE_CAS_13, { arrivee: calculs.arriveeDeCalcul(arrivees), depart: 'bas-gauche' });
+        const t = calculs.cablageElec(m, DALLE_CAS_13, elec, { depart: 'bas-gauche' });
+        const r = calculs.repartirArrivees(t.variantes.find((x) => x.mode === t.conseil), elec, arrivees);
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') document.documentElement.dataset.mode = 'rouge';
+          racine.replaceChildren(module.sectionArrivees(r, { conseil: r, surChoix: () => {}, surConseil: () => {} }),
+            module.carteSaisieArrivee({ id: 'arr-x', type: 'tri', intensite: 'libre', libre: '', branchement: 'armoire', distance: '', prises16: '', sortiesP17: '' }, { numero: 2, choixMateriel: true, surChange: () => {}, surRetirer: () => {} }));
+          const trop = [...racine.querySelectorAll('*')].filter((x) => {
+            const b = x.getBoundingClientRect();
+            const cadre = racine.getBoundingClientRect();
+            let coupe = false;
+            for (let p = x.parentElement; p && p !== racine; p = p.parentElement) if (['auto', 'scroll', 'hidden'].includes(getComputedStyle(p).overflowX)) coupe = true;
+            return b.width > 0 && !coupe && b.right > cadre.right + 1;
+          });
+          v.egal(`${mode} : rien ne dépasse 375 px`, trop.map((x) => x.tagName), []);
+          const petits = [...racine.querySelectorAll('select, button, input')].filter((x) => x.getBoundingClientRect().height > 0 && x.getBoundingClientRect().height < 47.5);
+          v.egal(`${mode} : listes, champs et boutons de 48 px`, petits.map((x) => `${x.tagName} ${x.getBoundingClientRect().height}`), []);
+        }
+      } finally {
+        delete document.documentElement.dataset.mode;
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N112',
+    titre: 'Secours par un second processeur dans Data (22b, spec § 5.1) : sous la redondance, choix « Secours » (dans le même processeur par défaut, ou par un second processeur) et « Liaison » (sans cascade par défaut, ou cascade), dans le formulaire de Data donc gardés avec les saisies, cachés au départ ; visibles avec la redondance pour la marque Novastar, un processeur NovaLCT choisi ou conseillé, ou le conseil toutes marques avec un NovaLCT dans le parc ; à 375 px, en sombre et en mode rouge : cibles de 48 px, rien ne dépasse',
+    etape: '22b',
+    async verifier(v) {
+      const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+      const bloc = page.getElementById('form-data')?.querySelector('#bloc-secours');
+      v.vrai('bloc dans le formulaire de Data, après la case Redondance', Boolean(bloc)
+        && Boolean(page.querySelector('#form-data input[name="redondance"]')?.compareDocumentPosition(bloc) & Node.DOCUMENT_POSITION_FOLLOWING));
+      if (!bloc) return;
+      v.egal('caché au départ', bloc.hidden, true);
+      const choix = (nom) => [...bloc.querySelectorAll(`input[name="${nom}"]`)].map((x) => [x.value, x.checked, texteDe(x.closest('label'))]);
+      v.egal('secours : même processeur par défaut', choix('secours'), [['ports', true, 'Dans le même processeur (ports doublés)'], ['processeur', false, 'Par un second processeur']]);
+      v.egal('liaison : sans cascade par défaut', choix('liaisonSecours'), [['sansCascade', true, 'Sans cascade (Primary et Backup)'], ['cascade', false, 'Cascade (tableau)']]);
+      v.egal('liaison cachée tant que le secours est dans le même processeur', bloc.querySelector('#bloc-liaison-secours')?.hidden, true);
+      v.egal('légendes', [...bloc.querySelectorAll('legend')].map(texteDe), ['Secours', 'Liaison des deux processeurs']);
+      const module = await importerSiPresent('../src/secours.js');
+      if (!module?.choixSecoursVisible) { v.vrai('choixSecoursVisible exportée par src/secours.js', false); return; }
+      const vis = (x) => module.choixSecoursVisible({ redondance: true, famille: 'brompton', mode: 'conseille', processeur: null, novaLCTDansParc: false, ...x });
+      v.egal('règle de visibilité', [
+        vis({ redondance: false, famille: 'novastar' }), vis({ famille: 'novastar' }), vis({ processeur: { logiciel: 'NovaLCT' }, mode: 'manuel' }),
+        vis({ processeur: { logiciel: 'Tessera' }, mode: 'manuel' }), vis({ mode: 'conseille-tout', novaLCTDansParc: true }), vis({ mode: 'conseille-tout' }), vis({}),
+      ], [false, true, true, false, true, false, false]);
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const racine = el('form', { class: 'carte formulaire', style: 'position:absolute;left:-10000px;top:0;width:375px;box-sizing:border-box' });
+      const copie = document.importNode(bloc, true);
+      copie.hidden = false;
+      copie.querySelectorAll('[hidden]').forEach((x) => { x.hidden = false; });
+      racine.append(copie);
+      document.body.append(racine);
+      try {
+        for (const rouge of [false, true]) {
+          if (rouge) html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          const nom = rouge ? 'mode rouge' : 'sombre';
+          const cibles = [...copie.querySelectorAll('input')].map((x) => x.closest('label'));
+          v.egal(`${nom} : cibles de 48 px`, cibles.filter((x) => x.getBoundingClientRect().height < 47.5).map(texteDe), []);
+          const bord = racine.getBoundingClientRect().right;
+          v.egal(`${nom} : rien ne dépasse`, [...copie.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > bord + 0.5).map((x) => x.tagName), []);
+        }
+      } finally {
+        delete html.dataset.mode;
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N113',
+    titre: 'Repère des secours par un second processeur dans le Schéma (22b, repère « 3.1 » choisi par l\'utilisateur) : bout du retour numéroté « numéro du processeur de secours . port » (« 2.1 » avec un principal, « 3.1 » et « 4.1 » avec deux), puce de la légende « secours 3.1 », ligne de légende des retours avec le nom du processeur de secours ; secours dans le même processeur : le repère d\'avant (« 9 », « 1.9 »)',
+    etape: '22b',
+    verifier(v, contexte) {
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const trajets = (colonnes, rangees, reglages) => {
+        const m = calculs.mur(upad, colonnes, rangees);
+        const e = calculs.evaluerProcesseur(m, upad, processeurDeBase(contexte, 'novastar-mctrl4k'), { frequenceHz: 60, bits: 8, ...reglages });
+        const t = calculs.cablageData(m, upad, e, { depart: 'bas-gauche' });
+        return trajetsSchema({ cablage: 'data' }, t.variantes.find((x) => x.mode === t.conseil), null);
+      };
+      const un = trajets(8, 6, { redondance: true, secours: 'processeur' });
+      v.egal('un principal : 2.1 à 2.4', un.map((t) => t.etiquetteSecours), ['2.1', '2.2', '2.3', '2.4']);
+      v.egal('… départs numérotés comme avant', un.map((t) => t.etiquette), ['1', '2', '3', '4']);
+      v.vrai('puce de la légende : secours 2.1', /, secours 2\.1(,|$)/.test(un[0].libelleCourt), un[0].libelleCourt);
+      const deux = trajets(32, 8, { redondance: true, secours: 'processeur' });
+      v.egal('deux principaux : 3.k et 4.k', [deux.find((t) => t.cle === 'p1-1').etiquetteSecours, deux.find((t) => t.cle === 'p2-1').etiquetteSecours], ['3.1', '4.1']);
+      v.egal('ligne de légende des retours', dessinSchema.legendeSecours?.(deux), 'retours de secours, vers les processeurs de secours (3.1 : MCTRL4K secours n° 3, port 1)');
+      v.egal('… un principal', dessinSchema.legendeSecours?.(un), 'retours de secours, vers le processeur de secours (2.1 : MCTRL4K secours n° 2, port 1)');
+      const ports = trajets(8, 6, { redondance: true });
+      v.egal('secours dans le même processeur : le repère d\'avant', [ports[0].etiquetteSecours, dessinSchema.legendeSecours?.(ports)], ['9', 'retours de secours']);
+    },
+  },
+  {
+    id: 'N114',
+    titre: 'Cadre du processeur de secours dans la chaîne du Schéma (22b, cadre « MCTRL4K secours n° 3 » choisi par l\'utilisateur) : à côté de son principal, sur la même rangée, sans le toucher ni toucher le mur ; chaque retour de secours relié à lui en pointillés couleur secours ; deux principaux : chaque secours plus près du sien ; secours dans le même processeur : pas de cadre de secours',
+    etape: '22b',
+    verifier(v, contexte) {
+      const essai = (colonnes, rangees, reglages) => chaineDessinee(contexte, { colonnes, rangees, reglages, distanceM: 20 });
+      const un = essai(8, 6, { redondance: true, secours: 'processeur' });
+      try {
+        const cadres = cadresChaine(un.svg);
+        const principal = cadres.find((c) => c.role === 'processeur');
+        const secours = cadres.find((c) => c.role === 'secours');
+        v.egal('cadres : le principal et son secours', cadres.map((c) => [c.role, c.lignes[0]]), [['processeur', 'MCTRL4K'], ['secours', 'MCTRL4K secours n° 2']]);
+        v.vrai('même rangée, sans se toucher', Math.abs(principal.cy - secours.cy) < 1e-6 && !chevauchent(principal, secours), [principal, secours]);
+        v.vrai('hors du mur', !chevauchent(secours, { x: 0, y: 0, w: un.geo.largeur, h: un.geo.hauteur }), secours);
+        const liens = [...un.svg.querySelectorAll('[data-trajet] .depuis-appareil.secours')];
+        v.egal('un retour relié par port', liens.length, 4);
+        const bouts = disquesDe(un.svg, '.bout-secours');
+        const finit = liens.every((l) => { const p = sommets(l).at(-1); return bouts.some((b) => Math.hypot(b.cx - p[0], b.cy - p[1]) < 1e-6); });
+        const part = liens.every((l) => { const [x, y] = sommets(l)[0]; return x >= secours.x - 1e-6 && x <= secours.x + secours.w + 1e-6 && Math.abs(y - secours.y) < 1e-6; });
+        v.vrai('du cadre du secours jusqu\'au bout de chaque retour', finit && part, liens.map((l) => sommets(l)));
+        v.vrai('pointillés couleur secours', liens.every((l) => Boolean(l.getAttribute('stroke-dasharray')) && l.getAttribute('style').includes(PALETTE_EXPORT.secours)));
+      } finally {
+        un.svg.remove();
+      }
+      const deux = essai(32, 8, { redondance: true, secours: 'processeur' });
+      try {
+        const c = cadresChaine(deux.svg);
+        const de = (nom) => c.find((x) => x.lignes[0] === nom);
+        v.egal('quatre cadres', c.map((x) => x.lignes[0]).sort(), ['MCTRL4K n° 1', 'MCTRL4K n° 2', 'MCTRL4K secours n° 3', 'MCTRL4K secours n° 4']);
+        v.vrai('chaque secours plus près de son principal', Math.abs(de('MCTRL4K secours n° 3').cx - de('MCTRL4K n° 1').cx) < Math.abs(de('MCTRL4K secours n° 3').cx - de('MCTRL4K n° 2').cx)
+          && Math.abs(de('MCTRL4K secours n° 4').cx - de('MCTRL4K n° 2').cx) < Math.abs(de('MCTRL4K secours n° 4').cx - de('MCTRL4K n° 1').cx), c);
+        v.vrai('aucun cadre n\'en touche un autre', c.every((a, i) => c.every((b, j) => i === j || !chevauchent(a, b))), c);
+      } finally {
+        deux.svg.remove();
+      }
+      const ports = essai(8, 6, { redondance: true });
+      try {
+        v.egal('secours dans le même processeur : pas de cadre de secours', cadresChaine(ports.svg).filter((x) => x.role === 'secours').length, 0);
+      } finally {
+        ports.svg.remove();
+      }
+    },
+  },
+  {
+    id: 'N115',
+    titre: 'Pas à pas NovaLCT avec un processeur de secours (22c, spec § 6) : titre de l\'écran « 1 × MCTRL4K + 1 de secours » (resultat.titreProcesseurs, pas « 2 × MCTRL4K »), parties « Processeur 1 », « Secours n° 2 » ; deux principaux : « Secours n° 3 » et « Secours n° 4 » ; carte de Data avec le même titre ; sans secours, le titre d\'avant ; choix des parties à 375 px sans débordement',
+    etape: '22c',
+    async verifier(v, contexte) {
+      const en = await moduleAppli(v, '../src/ecran-novalct.js');
+      const nl = await moduleAppli(v, '../src/novalct.js');
+      if (!en || !nl) return;
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const actions = { cocher: async () => {}, compris: async () => {}, toutDecocher: async () => {}, dessinPort: () => null };
+      try {
+        const ecran = en.monterNovaLCT(racine, { actions });
+        const essai = (colonnes, reglages) => {
+          ecran.afficher({ resultat: pasAPasSecours(contexte, nl, { colonnes, rangees: colonnes > 8 ? 8 : 6, ...reglages }), cases: {}, avis: null });
+          return [texteDe(racine.querySelector('.pr-sur-titre')), [...racine.querySelectorAll('.nl-parties label')].map(texteDe)];
+        };
+        v.egal('un principal et son secours', essai(8, { redondance: true, secours: 'processeur' }),
+          ['1 × MCTRL4K + 1 de secours', ['Avant', 'Processeur 1', 'Secours n° 2', 'Contrôles']]);
+        v.egal('deux principaux, en cascade', essai(32, { redondance: true, secours: 'processeur', liaisonSecours: 'cascade' }),
+          ['2 × MCTRL4K + 2 de secours', ['Avant', 'Processeur 1', 'Processeur 2', 'Secours n° 3', 'Secours n° 4', 'Contrôles']]);
+        const bord = racine.getBoundingClientRect().right;
+        v.egal('375 px : le choix des parties ne dépasse pas', [...racine.querySelectorAll('.nl-parties *')].filter((x) => x.getBoundingClientRect().right > bord + 0.5).map(texteDe), []);
+        v.egal('secours dans le même processeur : le titre d\'avant', essai(32, { redondance: true }), ['2 × MCTRL4K', ['Avant', 'Processeur 1', 'Processeur 2', 'Contrôles']]);
+        const carte = en.carteNovaLCT({ processeur: 'MCTRL4K', nombre: 1, titre: '1 × MCTRL4K + 1 de secours', groupe: 'carte-envoi', version: '', etat: 'Aucune étape cochée.' }, { ouvrir: () => {} });
+        v.vrai('carte de Data : le titre avec les secours', texteDe(carte.querySelector('.nl-carte-texte')).startsWith('1 × MCTRL4K + 1 de secours : ce qu\'il faut faire dans NovaLCT'), texteDe(carte.querySelector('.nl-carte-texte')));
+      } finally {
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N116',
+    titre: 'NovaLCT à blanc avec un processeur de secours (22c, spec § 6) : dans la carte d\'Apprendre, sous la case Redondance, choix « Secours » (dans le même processeur par défaut, ou par un second processeur) visible avec la redondance, et « Liaison des deux processeurs » (sans cascade par défaut, ou cascade) visible avec le second processeur ; « Ouvrir à blanc » transmet secours et liaisonSecours (rien de plus avec le secours dans le même processeur) ; refus du mur d\'exemple signalé dans la carte ; à 375 px, en sombre et en mode rouge : cibles de 48 px, rien ne dépasse',
+    etape: '22c',
+    async verifier(v, contexte) {
+      const ap = await moduleAppli(v, '../src/ecran-apprendre.js');
+      const nl = await moduleAppli(v, '../src/novalct.js');
+      if (!ap || !nl) return;
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      const ouvertures = [];
+      let reponse;
+      try {
+        const bp = baseProcesseurs(contexte);
+        const liste = nl.processeursABlanc(bp.processeurs.map((f) => calculs.resoudreFiche(f, bp.sources)));
+        const ecran = ap.monterApprendre(racine, { pourquoi: contexte.pourquoi, entrainement: contexte.entrainement, stockage: null, enLigne: () => false, ouvrirFiche: () => {}, ouvrirEntrainement: () => {},
+          novalct: { ouvrir: (choix) => { ouvertures.push(choix); return reponse; }, processeurs: liste } });
+        await ecran.pret;
+        const carte = racine.querySelector('.ap-novalct');
+        const groupe = (nom) => carte?.querySelector(`input[name="${nom}"]`)?.closest('fieldset') ?? null;
+        const choix = (nom) => [...(carte?.querySelectorAll(`input[name="${nom}"]`) ?? [])].map((x) => [x.value, x.checked, texteDe(x.closest('label'))]);
+        const radio = (nom, valeur) => carte?.querySelector(`input[name="${nom}"][value="${valeur}"]`);
+        const visibles = () => [groupe('nl-secours'), groupe('nl-liaison')].map((g) => Boolean(g) && !g.closest('[hidden]'));
+        v.egal('choix, dans l\'ordre', [choix('nl-secours'), choix('nl-liaison')], [
+          [['ports', true, 'Dans le même processeur (ports doublés)'], ['processeur', false, 'Par un second processeur']],
+          [['sansCascade', true, 'Sans cascade (Primary et Backup)'], ['cascade', false, 'Cascade (tableau)']]]);
+        v.egal('légendes', [groupe('nl-secours'), groupe('nl-liaison')].map((g) => texteDe(g?.querySelector('legend'))), ['Secours', 'Liaison des deux processeurs']);
+        v.egal('sans redondance : cachés', visibles(), [false, false]);
+        const redondance = carte?.querySelector('input[name="nl-redondance"]');
+        v.vrai('après la case Redondance', Boolean(redondance && groupe('nl-secours') && (redondance.compareDocumentPosition(groupe('nl-secours')) & Node.DOCUMENT_POSITION_FOLLOWING)));
+        redondance?.click();
+        v.egal('redondance : secours visible, liaison cachée', visibles(), [true, false]);
+        const ouvrir = () => [...(carte?.querySelectorAll('button') ?? [])].find((b) => texteDe(b) === 'Ouvrir à blanc')?.click();
+        ouvrir();
+        await attendre();
+        v.egal('secours dans le même processeur : choix d\'avant', ouvertures.at(-1), { processeur: 'novastar-mctrl660', redondance: true });
+        radio('nl-secours', 'processeur')?.click();
+        v.egal('second processeur : liaison visible', visibles(), [true, true]);
+        ouvrir();
+        await attendre();
+        v.egal('second processeur, sans cascade', ouvertures.at(-1), { processeur: 'novastar-mctrl660', redondance: true, secours: 'processeur', liaisonSecours: 'sansCascade' });
+        radio('nl-liaison', 'cascade')?.click();
+        ouvrir();
+        await attendre();
+        v.egal('cascade', ouvertures.at(-1), { processeur: 'novastar-mctrl660', redondance: true, secours: 'processeur', liaisonSecours: 'cascade' });
+        reponse = 'La série H ne se cascade pas en USB : prends la liaison sans cascade.';
+        ouvrir();
+        await attendre();
+        v.egal('refus du mur d\'exemple : la raison dans la carte', texteDe(carte?.querySelector('.ap-novalct-refus')), reponse);
+        reponse = undefined;
+        ouvrir();
+        await attendre();
+        v.egal('… effacée au choix suivant qui passe', texteDe(carte?.querySelector('.ap-novalct-refus')), '');
+        redondance?.click();
+        v.egal('redondance décochée : cachés', visibles(), [false, false]);
+        ouvrir();
+        await attendre();
+        v.egal('… et plus transmis', ouvertures.at(-1), { processeur: 'novastar-mctrl660', redondance: false });
+        redondance?.click();
+        for (const rouge of [false, true]) {
+          if (rouge) html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          const nom = rouge ? 'mode rouge' : 'sombre';
+          const cibles = [...carte.querySelectorAll('input[type="radio"]')].map((x) => x.closest('label'));
+          v.egal(`${nom} : cibles de 48 px`, cibles.filter((x) => x.getBoundingClientRect().height < 47.5).map(texteDe), []);
+          const bord = racine.getBoundingClientRect().right;
+          v.egal(`${nom} : rien ne dépasse`, [...carte.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > bord + 0.5).map((x) => x.tagName), []);
+        }
+      } finally {
+        delete html.dataset.mode;
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N117',
+    titre: 'Dépannage avec un processeur de secours (22c, spec § 7) : blocs « Ajouté par l\'appli » sous l\'étape 3 de T10.3 (« Deux processeurs, NovaLCT n\'en montre qu\'un »), de T11.1 et de T5.2, chaque ligne avec ses sources, pour la marque Novastar seulement (rien pour COEX ni Brompton) ; les ajouts reçoivent la marque et le projet avec son logiciel ; bouton « Pas à pas NovaLCT » quand le processeur du projet se règle dans NovaLCT, pas sans projet ; table des sources du Dépannage inchangée ; 375 px, contrastes en sombre et en rouge, grand affichage',
+    etape: '22c',
+    async verifier(v, contexte) {
+      const module = await moduleDepannage(v);
+      const en = await moduleAppli(v, '../src/ecran-novalct.js');
+      if (!module || !en) return;
+      if (!en.blocDepannageSecours) { v.vrai('blocDepannageSecours exportée par src/ecran-novalct.js', false); return; }
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const { mode, taille } = html.dataset;
+      const recus = [];
+      const ouvertures = [];
+      const ajouts = Object.fromEntries(['T10.3:3', 'T11.1:3', 'T5.2:3'].map((cle) => [cle, (marque, projet) => {
+        recus.push([cle, marque, projet?.logiciel ?? null]);
+        return en.blocDepannageSecours(cle, { marque, projet, enLigne: () => false, ouvrirPasAPas: () => ouvertures.push(cle) });
+      }]));
+      const projet = { marque: 'novastar', nom: 'MCTRL4K', logiciel: 'NovaLCT' };
+      let m = monterDepannage(module, contexte.depannage, { projet, enLigne: () => false, ajouts });
+      const bloc = () => m.racine.querySelector('.nl-depannage');
+      try {
+        const titres = { 'T10.3': 'Deux processeurs, NovaLCT n\'en montre qu\'un', 'T11.1': 'Les dalles d\'un port s\'inversent quand le secours prend le relais', 'T5.2': 'Avec un processeur de secours' };
+        for (const [noeud, titre] of Object.entries(titres)) {
+          m.ecran.afficher(noeud);
+          const b = bloc();
+          v.egal(`${noeud} : dans l'étape 3, marqué, titre`, [texteDe(b?.closest('.element-numerote')?.querySelector('.numero-liste')), texteDe(b?.querySelector('.cx-ajout')), texteDe(b?.querySelector('h3'))],
+            ['3.', 'Ajouté par l\'appli', titre]);
+          const lignes = b?.querySelectorAll('.cx-texte').length ?? 0;
+          v.vrai(`${noeud} : chaque ligne avec sa source`, lignes > 0 && lignes === b.querySelectorAll('.cx-sources').length
+            && [...b.querySelectorAll('.cx-sources')].every((s) => texteDe(s).startsWith('Source : ')), texteDe(b));
+          boutonTexte(b ?? m.racine, 'Pas à pas NovaLCT')?.click();
+        }
+        v.egal('« Pas à pas NovaLCT » appelle son action', ouvertures, ['T10.3:3', 'T11.1:3', 'T5.2:3']);
+        v.vrai('les ajouts reçoivent la marque et le projet avec son logiciel', recus.length >= 3 && recus.every((r) => r[1] === 'novastar' && r[2] === 'NovaLCT'), JSON.stringify(recus));
+        m.ecran.afficher('T10.3');
+        v.vrai('T10.3 : port de communication et les deux méthodes', ['port de communication', 'Detect Config', 'Méthode cascade', 'Méthode sans cascade'].every((x) => texteDe(bloc()).includes(x))
+          && texteDe(bloc()).includes('Manuel NovaLCT V5.8.1'), texteDe(bloc()));
+        bloc()?.querySelectorAll('details').forEach((d) => { d.open = true; });
+        for (const [rouge, grand] of [[false, false], [true, false], [false, true]]) {
+          if (rouge) html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          if (grand) html.dataset.taille = 'grand';
+          else delete html.dataset.taille;
+          const nom = `${rouge ? 'mode rouge' : 'sombre'}${grand ? ', grand affichage' : ''}`;
+          const b = bloc();
+          const bord = m.racine.getBoundingClientRect().right;
+          v.egal(`${nom} : rien ne dépasse`, [...b.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > bord + 0.5)
+            .map((x) => `${x.tagName.toLowerCase()}.${x.className}`), []);
+          const textes = [...b.querySelectorAll('*')].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && x.getBoundingClientRect().width > 0);
+          v.egal(`${nom} : texte à 4,5:1`, textes.filter((x) => contraste(rgbVersHex(getComputedStyle(x).color), fondDe(x)) < 4.5).map((x) => texteDe(x).slice(0, 40)), []);
+          v.egal(`${nom} : cibles`, [...b.querySelectorAll('button')].filter((x) => x.getBoundingClientRect().height < (grand ? 59.5 : 47.5)).map(texteDe), []);
+          if (grand) v.egal('grand affichage : texte à 19 px', textes.filter((x) => parseFloat(getComputedStyle(x).fontSize) < 18.5).map((x) => texteDe(x).slice(0, 40)), []);
+        }
+        delete html.dataset.mode;
+        delete html.dataset.taille;
+        m.ecran.afficher('T10.2');
+        v.egal('autre étape : rien', bloc(), null);
+        m.ecran.sources();
+        v.vrai('table des sources du Dépannage inchangée', m.racine.querySelectorAll('.dep-source-entree').length === contexte.depannage.sources.length && !texteDe(m.racine).includes('Daktronics'));
+        for (const [p, nom] of [[{ marque: 'coex', nom: 'COEX MX40 Pro', logiciel: 'VMP' }, 'COEX'], [{ marque: 'brompton', nom: 'S8', logiciel: 'Tessera' }, 'Brompton']]) {
+          m.ecran.definirProjet(p);
+          v.egal(`${nom} : aucun bloc`, ['T10.3', 'T11.1', 'T5.2'].map((n) => { m.ecran.afficher(n); return bloc(); }), [null, null, null]);
+        }
+        m.retirer();
+        m = monterDepannage(module, contexte.depannage, { projet: null, enLigne: () => false, ajouts });
+        m.racine.querySelector('[data-marque="novastar"]')?.click();
+        m.ecran.afficher('T10.3');
+        v.egal('sans projet, Novastar choisi : le bloc, sans bouton', [Boolean(bloc()), boutonTexte(bloc() ?? m.racine, 'Pas à pas NovaLCT') ?? null], [true, null]);
+      } finally {
+        if (mode) html.dataset.mode = mode;
+        else delete html.dataset.mode;
+        if (taille) html.dataset.taille = taille;
+        else delete html.dataset.taille;
+        m.retirer();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N118',
+    titre: 'Dessin d\'un port du processeur de secours (22c, spec § 6, méthode sans cascade) : le port k du secours (étape P2.B.7.k) reprend les dalles du port k du principal dans l\'ordre inverse (trajetSecoursInverse) : départ numéroté « 2.1 » au droit de la dernière dalle, au bout du retour de secours du principal, dalle 1 du guide = dernière dalle du principal, flèche vers la première ; pas de bout de secours ; couleur du port gardée',
+    etape: '22c',
+    verifier(v, contexte) {
+      if (!dessinSchema.trajetSecoursInverse) { v.vrai('trajetSecoursInverse exportée par src/dessin-schema.js', false); return; }
+      const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+      const m = calculs.mur(upad, 8, 6);
+      const e = calculs.evaluerProcesseur(m, upad, processeurDeBase(contexte, 'novastar-mctrl4k'), { frequenceHz: 60, bits: 8, redondance: true, secours: 'processeur' });
+      const c = calculs.cablageData(m, upad, e, { depart: 'bas-gauche' });
+      const vueSchema = { vue: 'physique', canvasVue: 'mur', cablage: 'data' };
+      const geo = geometrieSchema(vueSchema, m, upad, calculs.pixelMap(m, upad, e));
+      const t = trajetsSchema(vueSchema, c.variantes.find((x) => x.mode === c.conseil), null, null).find((x) => x.cle === 'p1-1');
+      const inv = dessinSchema.trajetSecoursInverse(t);
+      v.egal('dalles dans l\'ordre inverse', inv.dalles, [...t.dalles].reverse());
+      v.egal('départ « 2.1 », sans bout de secours, couleur gardée', [inv.etiquette, inv.etiquetteSecours ?? null, inv.secours ?? null, inv.couleur], ['2.1', null, null, t.couleur]);
+      v.egal('le trajet du principal n\'est pas touché', [t.dalles[0], t.etiquette, t.etiquetteSecours], ['C1 R6', '1', '2.1']);
+      const dessin = (tr) => {
+        const { svg } = construireSvg({ geo, trajets: [tr], coin: 'bas-gauche', blocs: [], palette: PALETTE_EXPORT, largeurPx: 2000, ordre: tr.cle, selection: tr.cle });
+        svg.style.position = 'absolute';
+        svg.style.left = '-5000px';
+        document.body.append(svg);
+        return svg;
+      };
+      const principal = dessin(t);
+      const secours = dessin(inv);
+      try {
+        const bout = disquesDe(principal, '.bout-secours')[0];
+        const depart = disquesDe(secours, '.depart')[0];
+        v.vrai('départ du secours au bout du retour du principal', Boolean(bout && depart) && Math.hypot(bout.cx - depart.cx, bout.cy - depart.cy) < 1e-6, [bout, depart]);
+        v.egal('pas de bout de secours', secours.querySelectorAll('.bout-secours').length, 0);
+        const centre = (id) => { const r = geo.rects.get(id); return [r.x + r.w / 2, r.y + r.h / 2]; };
+        const premier = sommets(secours.querySelector('polyline.trajet'))[0];
+        v.vrai('trait parti de la dernière dalle du principal', Math.hypot(premier[0] - centre(t.dalles.at(-1))[0], premier[1] - centre(t.dalles.at(-1))[1]) < 1e-6, premier);
+        const numeros = [...secours.querySelectorAll('.ordre-dalle text')].map(texteDe);
+        v.egal('dalles numérotées de 1 à n depuis la dernière', numeros, t.dalles.map((_, i) => String(i + 1)));
+        // Numéro d'une dalle : la pastille dont le centre tombe dans la dalle (quart haut droit).
+        const numeroDe = (id) => {
+          const d = geo.rects.get(id);
+          const g = [...secours.querySelectorAll('.ordre-dalle')].find((x) => {
+            const r = boiteRect(x.querySelector('rect'));
+            const [cx, cy] = [r.x + r.w / 2, r.y + r.h / 2];
+            return cx > d.x && cx < d.x + d.w && cy > d.y && cy < d.y + d.h;
+          });
+          return texteDe(g?.querySelector('text'));
+        };
+        v.egal('dalle 1 du guide = dernière du principal, n = première', [numeroDe(t.dalles.at(-1)), numeroDe(t.dalles[0])], ['1', String(t.dalles.length)]);
+      } finally {
+        principal.remove();
+        secours.remove();
+      }
+    },
+  },
 ];
+
+// Pas à pas NovaLCT d'essai (22c) : Upad IV 2.6 sur MCTRL4K, 8 × 6 (un principal) ou 32 × 8 (deux), départ en bas à gauche.
+function pasAPasSecours(contexte, nl, { colonnes = 8, rangees = 6, ...reglages } = {}) {
+  const upad = dalleDeBase(contexte, 'unilumin-upad-iv-2-6');
+  const m = calculs.mur(upad, colonnes, rangees);
+  const evaluation = calculs.evaluerProcesseur(m, upad, processeurDeBase(contexte, 'novastar-mctrl4k'), { frequenceHz: 60, bits: 8, ...reglages });
+  const c = calculs.cablageData(m, upad, evaluation, { depart: 'bas-gauche' });
+  return nl.etapesNovaLCT({ mur: m, dalle: upad, evaluation, variante: c.variantes.find((x) => x.mode === c.conseil), source: null });
+}
 
 // Bande « Chaîne » (19b3) : amont de `chaineSchema` sur l'exercice (Upad IV 2.6 en 4 × 4 sur MCTRL4K), chaîne de Canvas
 // comme `chaineAffichee` la donne (source, liaison, convertisseurs, régie, source conseillée), ou sans chaîne.

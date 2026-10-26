@@ -39,11 +39,11 @@ function verifierEntier(valeur, libelle) {
   if (!nonPrecise(valeur) && !(Number.isInteger(valeur) && valeur >= 0)) throw new ErreurSaisie(`${libelle} : un nombre entier, 0 ou plus.`);
 }
 
-// Distribution des lignes d'une variante du câblage élec (`cablageElec`), dans l'ordre du câblage.
-// `elec` : résultat de electricite() (arrivée, départs). Options : depart (coin), distanceArmoireM (facultatif),
+// Distribution des lignes d'une variante du câblage élec (`cablageElec`), dans l'ordre du câblage, depuis une seule
+// arrivée. `elec` : résultat de electricite() (arrivée, départs). Options : depart (coin), distanceArmoireM (facultatif),
 // margeMou (0,10), mode ('accroche' ou 'stack', pose des boîtiers), choix ('conseil' ou 'materiel'),
 // materiel { prises16, sortiesP17, boitiers, prisesParBoitier }, chaque champ facultatif.
-export function distributionElec(m, variante, elec, {
+function distribuer(m, variante, elec, {
   depart = elec.reglages.depart ?? 'haut-gauche', distanceArmoireM = null, margeMou = MARGE_MOU_DEFAUT,
   mode = 'accroche', choix = 'conseil', materiel = {},
 } = {}) {
@@ -187,5 +187,123 @@ export function distributionElec(m, variante, elec, {
     notes,
     refus,
     manque,
+  };
+}
+
+const minuscule = (texte) => `${texte.charAt(0).toLowerCase()}${texte.slice(1)}`;
+
+// Distribution (étape 12a), avec plusieurs arrivées (étape 21a, spec § 4.3) : `variante` est alors la variante réécrite
+// par repartirArrivees et `arrivees` la liste lue par lireArrivees. Sans arrivées, ou une seule en armoire : comme avant.
+// Arrivée en boîtier : ses lignes sur son boîtier, câble P17 depuis sa distance ; il compte d'abord dans les boîtiers
+// disponibles. Arrivée en armoire : la distribution d'une seule arrivée sur ses lignes, avec sa distance et son matériel,
+// les boîtiers disponibles restants partagés dans l'ordre des capacités. Boîtiers numérotés dans l'ordre du câblage.
+export function distributionElec(m, variante, elec, options = {}) {
+  const { arrivees = null } = options;
+  if (!arrivees || (arrivees.length === 1 && arrivees[0].branchement === 'armoire')) return distribuer(m, variante, elec, options);
+  const {
+    depart = elec.reglages.depart ?? 'haut-gauche', margeMou = MARGE_MOU_DEFAUT, mode = 'accroche', choix = 'conseil', materiel = {},
+  } = options;
+  if (!COINS.includes(depart)) throw new ErreurSaisie('Choisis le coin de départ du câblage.');
+  if (!(margeMou >= 0)) throw new ErreurSaisie('La marge de mou est positive ou nulle.');
+  if (!['conseil', 'materiel'].includes(choix)) throw new ErreurSaisie('Choisis « Conseil » ou « Avec mon matériel ».');
+  const avecMateriel = choix === 'materiel';
+  const mat = avecMateriel ? materiel ?? {} : {};
+  verifierEntier(mat.boitiers, 'Boîtiers 32 A tri disponibles');
+  if (!nonPrecise(mat.prisesParBoitier) && !PRISES_BOITIER.includes(mat.prisesParBoitier)) throw new ErreurSaisie('Prises 16 A par boîtier : 6 (2 par phase) ou 3 (1 par phase).');
+  let boitiersRestants = nonPrecise(mat.boitiers) ? null : mat.boitiers;
+  const lignes = variante.lignesDetail;
+  const rang = new Map(lignes.map((l, i) => [l.numero, i]));
+  const x0 = depart.endsWith('gauche') ? 0 : m.largeurMm;
+  const y0 = depart.startsWith('haut') ? 0 : m.hauteurMm;
+  const coin = { x: x0, y: y0 };
+  const mou = 1 + margeMou;
+  const ecart = (a, b) => (Math.abs(a.x - b.x) + Math.abs(a.y - b.y)) / 1000;
+  const milieu = (valeurs) => (Math.min(...valeurs) + Math.max(...valeurs)) / 2;
+  const nom = (a) => `Arrivée ${a.numero}`;
+  const boites = [];
+  const detail = new Map();
+  const notes = [];
+  const refus = [];
+  const parArrivee = arrivees.map((a) => ({ id: a.id, repere: a.repere, branchement: a.branchement, distanceM: a.distanceM, sortiesP17: 0, prises16: 0 }));
+  const capacite = (a) => (a.type === 'tri' ? 3 : 1) * a.intensiteA;
+  const ordre = [...arrivees.filter((a) => !a.refus && a.branchement === 'boitier'),
+    ...arrivees.filter((a) => !a.refus && a.branchement === 'armoire').sort((a, b) => capacite(b) - capacite(a) || a.numero - b.numero)];
+  for (const a of ordre) {
+    const siennes = lignes.filter((l) => l.arrivee === a.id && l.placee !== false);
+    if (!siennes.length) continue;
+    if (a.branchement === 'boitier') {
+      if (boitiersRestants === 0) {
+        refus.push(`${nom(a)} : il manque 1 boîtier 32 A tri pour cette arrivée, ou déplace ses lignes sur une autre arrivée.`);
+        continue;
+      }
+      if (boitiersRestants !== null) boitiersRestants -= 1;
+      const positionMm = variante.orientation === 'rangees'
+        ? { x: x0, y: milieu(siennes.map((l) => l.teteMm.y)) }
+        : { x: milieu(siennes.map((l) => l.teteMm.x)), y: y0 };
+      boites.push({ arrivee: a, positionMm, lignes: siennes, p17M: a.distanceM === null ? null : (a.distanceM + ecart(coin, positionMm)) * mou });
+      continue;
+    }
+    // Armoire : la distribution d'une seule arrivée, sur ses lignes, avec son type, sa distance et son matériel.
+    const sous = distribuer(m, { ...variante, lignesDetail: siennes }, { ...elec, reglages: { ...elec.reglages, arrivee: { type: a.type, intensiteA: a.intensiteA } } }, {
+      depart, distanceArmoireM: a.distanceM, margeMou, mode, choix,
+      materiel: { prises16: a.materiel.prises16, sortiesP17: a.materiel.sortiesP17, boitiers: boitiersRestants, prisesParBoitier: mat.prisesParBoitier },
+    });
+    if (boitiersRestants !== null) boitiersRestants -= sous.boitiers.length;
+    for (const b of sous.boitiers) {
+      boites.push({ arrivee: a, positionMm: b.positionMm, lignes: b.lignes.map((x) => siennes.find((l) => l.numero === x.numero)), p17M: b.p17M });
+    }
+    for (const x of sous.lignes) if (x.depuis === 'armoire') detail.set(x.numero, { ...x, arrivee: a.id });
+    const pa = parArrivee.find((x) => x.id === a.id);
+    pa.sortiesP17 = sous.armoire.sortiesP17;
+    pa.prises16 = sous.armoire.prises16;
+    notes.push(...sous.notes.map((n) => `${nom(a)} : ${minuscule(n)}`));
+    if (sous.refus) refus.push(`${nom(a)} : ${minuscule(sous.refus).replace(/\.$/, '')}, ou déplace une ligne sur une autre arrivée.`);
+  }
+  // Boîtiers dans l'ordre du câblage de leur première ligne, toutes arrivées confondues.
+  boites.sort((a, b) => rang.get(a.lignes[0].numero) - rang.get(b.lignes[0].numero));
+  const boitiers = boites.map((b, i) => {
+    const numero = i + 1;
+    const nomB = `B${numero}`;
+    for (const l of b.lignes) {
+      detail.set(l.numero, {
+        numero: l.numero, phase: l.phase, depuis: nomB, boitier: numero, prise: l.phase ? `L${l.phase}` : null, arrivee: b.arrivee.id,
+        longueurTeteM: ecart(b.positionMm, l.teteMm) * mou,
+      });
+    }
+    return {
+      numero, nom: nomB, arrivee: b.arrivee.id, repere: b.arrivee.repere, positionMm: b.positionMm,
+      lignes: b.lignes.map((l) => ({ numero: l.numero, phase: l.phase, prise: l.phase ? `L${l.phase}` : null })),
+      p17M: b.p17M,
+    };
+  });
+  const lignesDetail = lignes.map((l) => detail.get(l.numero)
+    ?? { numero: l.numero, phase: l.phase, depuis: null, boitier: null, prise: null, longueurTeteM: null, arrivee: l.arrivee ?? null });
+  const recap = (longueurs) => ({
+    nombre: longueurs.length,
+    longueursM: longueurs,
+    totalM: longueurs.some((x) => x === null) ? null : longueurs.reduce((s, x) => s + x, 0),
+    maxM: longueurs.some((x) => x === null) || !longueurs.length ? null : Math.max(...longueurs),
+  });
+  const directes = lignesDetail.filter((l) => l.depuis === 'armoire');
+  const premiere = arrivees[0];
+  return {
+    choix,
+    distanceArmoireM: premiere.distanceM,
+    loin: arrivees.some((a) => a.distanceM !== null && a.distanceM > SEUIL_BOITIERS_M + EPS),
+    mono: arrivees.every((a) => a.type === 'mono'),
+    departA: elec.reglages.departA,
+    pose: mode === 'stack' ? 'au sol derrière le mur' : 'sur le pont',
+    type: !boitiers.length ? 'directe' : (directes.length ? 'mixte' : 'boitiers'),
+    boitiers,
+    lignes: lignesDetail,
+    armoire: { sortiesP17: parArrivee.reduce((s, a) => s + a.sortiesP17, 0), prises16: parArrivee.reduce((s, a) => s + a.prises16, 0) },
+    parArrivee,
+    cables: {
+      p17: recap(boitiers.map((b) => b.p17M)),
+      tete: recap(lignesDetail.filter((l) => l.depuis).map((l) => l.longueurTeteM)),
+    },
+    notes,
+    refus: refus.length ? refus.join(' ') : null,
+    manque: null,
   };
 }

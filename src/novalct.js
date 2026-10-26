@@ -5,8 +5,9 @@
 // étape sans source porte « à vérifier en formation », sans nom de menu inventé. Noms de menus en anglais, tels quels.
 
 import { nombre } from './format.js';
-import { mur as murDeDalles, evaluerProcesseur, cablageData, sourceConseillee } from './calculs.js';
-import { arbreProcesseurs } from './fiches.js';
+import { mur as murDeDalles, evaluerProcesseur, cablageData, sourceConseillee, portsDoubles, CONTROLE_ETHERNET_NOVALCT } from './calculs.js';
+import { texteProcesseurs, nomSecours, texteSecoursPort } from './secours.js';
+import { arbreProcesseurs, texteCriteresConfig } from './fiches.js';
 import {
   SOURCES_CONNEXION, ALERTE_NOVALCT, SOURCES_ALERTE_NOVALCT, controleProcesseur, cheminIP, autreSysteme,
 } from './connexion.js';
@@ -15,6 +16,12 @@ export const SOURCES_NOVALCT = {
   'lct-5-5-0': {
     titre: 'NovaLCT LED Configuration Tool for Synchronous Control System, User Manual V5.5.0 (Novastar)',
     court: 'Manuel NovaLCT V5.5.0',
+    confiance: 'constructeur',
+  },
+  // Secours par un second processeur (étape 22c) : le guide V5.0.0 (§ 5.1.7, hot backup en cascade).
+  'lct-5-0-0': {
+    titre: 'NovaLCT LED Configuration Tool, Synchronous System User Guide V5.0.0 (Novastar)',
+    court: 'Manuel NovaLCT V5.0.0',
     confiance: 'constructeur',
   },
   'lct-5-8-1': {
@@ -79,6 +86,20 @@ export const SOURCES_NOVALCT = {
   'formation-10': { titre: 'Formation (transcription 10)', court: 'Formation (transcription 10)', confiance: 'formation' },
   'formation-11': { titre: 'Formation (transcription 11)', court: 'Formation (transcription 11)', confiance: 'formation' },
   'formation-12': { titre: 'Formation (transcription 12)', court: 'Formation (transcription 12)', confiance: 'formation' },
+  // Intégrateur (source tierce, signalée comme telle) : articles écrits pour NovaLCT-Mars et des MCTRL 600, 660, VX4S,
+  // PBOX 100 malgré le titre, non datés, consultés le 25 octobre 2026 (spec de l'étape 22, F9).
+  'daktronics-000020215': {
+    titre: 'Daktronics, base de connaissances, article 000020215 : « NovaStar: How do I configure redundancy for a display using multiple MCTRL 4K sender boxes? », consulté le 25 octobre 2026',
+    court: 'Daktronics (intégrateur), article 000020215',
+    confiance: 'intégrateur',
+    url: 'https://daktronics.com/en-us/support/kb/000020215',
+  },
+  'daktronics-dd3397344': {
+    titre: 'Daktronics, base de connaissances, article DD3397344 : « NovaStar: How do I configure redundancy for a display using a sender box? », consulté le 25 octobre 2026',
+    court: 'Daktronics (intégrateur), article DD3397344',
+    confiance: 'intégrateur',
+    url: 'https://daktronics.com/en-us/support/kb/DD3397344',
+  },
   cdc: { titre: 'Cahier des charges du projet, mise en service Novastar', court: 'Cahier des charges du projet', confiance: 'choix de conception' },
   // Ton ordinateur (étape 19a) : sources des étapes 0.1 et 0.3, reprises de connexion.js.
   ...Object.fromEntries(['vmp-1-5-0', 'apple-boot-camp', 'ms-mac-arm', 'ms-emulation-arm', 'ms-faq-arm'].map((id) => [id, SOURCES_CONNEXION[id]])),
@@ -179,6 +200,31 @@ const FIBRES = {
 // Mode de travail (Set Working Mode, NovaLCT § 5.5 « Applicable Products ») ; ports optiques en hot backup ou copy.
 const MODE_TRAVAIL = { 'mctrl660-pro': ['mctrl660-pro-1-4-1', 'p. 1'], 'mctrl-r5': null, h9: ['h9-1-8-0', 'p. 2'], 'novapro-uhd-jr': null };
 const MODE_OPTIQUE = ['h9', 'novapro-uhd-jr'];
+// Secours par un second processeur (étape 22c, spec § 4) : réglage Primary ou Backup en façade, d'après le manuel de
+// chaque modèle (MCTRL4K § 6.5.5, MCTRL R5 § 6.6.5, VX1000 § 5.8.1 ; série H : « Backup between devices », fiche H9).
+// `marque` : la fiche décrit la marque sur l'icône des ports (fixe en attente, clignotante une fois le secours en service).
+const SECOURS_FACADE = {
+  mctrl4k: { menu: 'Advanced Settings > Redundancy Settings', principal: 'Set as Primary', secours: 'Set as Backup', marque: true, source: ['mctrl4k-manuel-1-2-1', '§ 6.5.5, p. 18'] },
+  'mctrl-r5': { menu: 'Advanced Settings > Redundancy Settings', principal: 'primary device', secours: 'backup device', marque: true, source: ['mctrl-r5-manuel-1-0-5', '§ 6.6.5, p. 14'] },
+  vx1000: { menu: 'Advanced Settings > Device Backup', principal: 'Primary', secours: 'Backup', marque: false, source: ['vx1000-1-5-0', '§ 5.8.1, p. 35 et 36'] },
+};
+const FACADE_SERIE_H = {
+  menu: 'page web ou écran tactile, sauvegarde entre appareils (« Backup between devices »)', principal: 'en principal', secours: 'en secours',
+  marque: false, aVerifier: true, source: ['h9-1-8-0', 'p. 3'],
+};
+const facadeSecours = (idCourt) => SECOURS_FACADE[idCourt] ?? (/^h\d+$/.test(idCourt) ? FACADE_SERIE_H : null);
+// Sens inversé du chemin du secours écrit par Novastar (VX1000 § 5.8.1 p. 36, MCTRL R5 § 6.6.5 p. 14) ; ailleurs, à vérifier.
+const SENS_SECOURS_SOURCE = ['vx1000', 'mctrl-r5'];
+// Cascade USB des boîtiers (F10) : prises et sources.
+const CASCADE_USB = {
+  mctrl4k: { entree: 'l\'USB IN', sortie: 'l\'USB OUT', source: ['mctrl4k-manuel-1-2-1', 'p. 4 ; § 4, p. 6'] },
+  'mctrl-r5': { entree: 'l\'USB IN', sortie: 'l\'USB OUT', source: ['mctrl-r5-manuel-1-0-5', 'p. 4 et 5'] },
+  'mctrl660-pro': { entree: 'l\'USB IN', sortie: 'l\'USB OUT', source: ['mctrl660-pro-1-4-1', 'p. 4'] },
+  vx1000: { entree: 'l\'USB 2.0 de type B', sortie: 'l\'USB 2.0 de type A', source: ['vx1000-1-5-0', 'p. 7'] },
+};
+// Ports qui permettent Verify (Hot Backup Verification, manuel V5.5.0 § 5.3 : « MCTRL4K, MCTRL R5 and KT8 »).
+const VERIFY = ['mctrl4k', 'mctrl-r5'];
+
 // Secours de la source d'entrée (NovaLCT § 5.2.1, étape 10 : « For the MCTRL660 PRO and MCTRL R5 »).
 const SECOURS_SOURCE = ['mctrl660-pro', 'mctrl-r5'];
 
@@ -233,13 +279,14 @@ const A_VERIFIER = 'à vérifier en formation';
 // Titres fixes, aussi pour nommer une étape disparue dans le bandeau des cases.
 const TITRES = {
   '0.1': 'PC de régie et logiciels', '0.2': 'Fichiers du lot', '0.3': 'Brancher le PC', '0.4': 'Tout en ligne, firmwares notés',
-  '0.5': 'Connexion avancée', '0.6': 'Redondance : câble principal d\'abord', '0.7': 'Fibre, si le mur passe en fibre',
+  '0.5': 'Connexion avancée', '0.6': 'Redondance : câble principal d\'abord', '0.7': 'Fibre, si le mur passe en fibre', '0.8': 'Synchronisation (genlock)',
   'A.1': 'Entrée à la taille du canvas', 'A.2': 'Deux entrées assemblées (MOSAIC)', 'A.3': 'Couche plein écran et preset',
   'A.4': 'Plage RGB Full', 'A.5': 'Sauvegarde du boîtier', 'A.6': 'Synchronisation des processeurs',
   'B.1': 'Ouvrir Screen Configuration', 'B.1a': 'Mode de travail : carte d\'envoi', 'B.2': 'Carte d\'envoi', 'B.2a': 'Secours de la source (facultatif)', 'B.3': 'Cartes de réception : fichier', 'B.4': 'Taille de carte',
   'B.5': 'Performance Settings : ne touche à rien', 'B.6': 'Screen Connection : la grille', 'B.8': 'Charge des ports',
   'B.9': 'Coordinate', 'B.10': 'Envoyer, enregistrer', 'B.11': 'Redondance des ports',
-  'C.1': 'Nombre de cartes par port', 'C.2': 'Mapping', 'C.3': 'Mire', 'C.4': 'Luminosité', 'C.5': 'Test de la redondance',
+  'C.1': 'Nombre de cartes par port', 'C.2': 'Mapping', 'C.3': 'Mire', 'C.4': 'Luminosité', 'C.5': 'Test de la redondance', 'C.5a': 'Surveillance : « Backing up »',
+  'S.1': 'Câbles de secours', 'S.2': 'Pas de config d\'écran', 'S.3': 'Réglé en secours (Backup)',
   'C.6': 'Lots mélangés : multi-batch', 'C.7': 'Joints de la zone courbe ou pliée', 'C.8': 'Le lendemain : Read from HW',
 };
 const titreDe = (id) => {
@@ -282,16 +329,35 @@ function nonCouverts(m, dalle) {
 }
 
 // Configs NovaLCT des lots retenus (configsDuMur de Data, une entrée par fiche du mur) ; null : pas de parc choisi.
-function lireConfigs(configs) {
-  if (!configs) return { aucunParc: true, fichiers: [], noms: [], lxy: [], alertes: [], melanges: false, perso: false };
-  const lots = configs.flatMap(({ libelle, resultat }) => (resultat?.retenus ?? []).flatMap((lot) => (lot.configs ?? [])
-    .filter((c) => c.logiciel === 'NovaLCT')
-    .map((c) => ({ libelle, lot: lot.identifiant, config: c }))));
+// Avec la fréquence de Data (étape 20, `parLot`) : le fichier retenu de chaque lot, et à part les autres fichiers ;
+// sans `parLot`, toutes les configs NovaLCT des lots, comme avant.
+export function lireConfigs(configs) {
+  if (!configs) return { aucunParc: true, fichiers: [], noms: [], autres: [], lxy: [], alertes: [], melanges: false, perso: false };
+  const retenues = [];
+  const autres = [];
+  for (const { libelle, resultat } of configs) {
+    if (resultat?.parLot) {
+      for (const { lot, retenue, autres: reste } of resultat.parLot) {
+        if (retenue) retenues.push({ libelle, lot: lot.identifiant, config: retenue });
+        autres.push(...reste.map((config) => ({ libelle, lot: lot.identifiant, config })));
+      }
+    } else {
+      retenues.push(...(resultat?.retenus ?? []).flatMap((lot) => (lot.configs ?? [])
+        .filter((c) => c.logiciel === 'NovaLCT')
+        .map((c) => ({ libelle, lot: lot.identifiant, config: c }))));
+    }
+  }
+  const decrire = ({ libelle, lot, config }) => {
+    const criteres = texteCriteresConfig(config);
+    return `${libelle ? `${libelle} : ` : ''}${config.nomFichier ?? 'fichier non précisé'} (lot ${lot}${criteres ? `, ${criteres}` : ''})`;
+  };
   return {
     aucunParc: false,
-    fichiers: lots.map(({ libelle, lot, config }) => `${libelle ? `${libelle} : ` : ''}${config.nomFichier ?? 'fichier non précisé'} (lot ${lot})`),
-    noms: [...new Set(lots.map(({ config }) => config.nomFichier ?? null))],
-    lxy: [...new Set(lots.map(({ config }) => config.multiBatch).filter(Boolean))],
+    fichiers: retenues.map(decrire),
+    noms: [...new Set(retenues.map(({ config }) => config.nomFichier ?? null))],
+    autres: autres.map(decrire),
+    // Le multi-batch concerne le lot : lu sur toutes ses configs NovaLCT.
+    lxy: [...new Set([...retenues, ...autres].map(({ config }) => config.multiBatch).filter(Boolean))],
     alertes: configs.flatMap(({ libelle, resultat }) => (resultat?.alertes ?? []).map((a) => (libelle ? `${libelle} : ${a}` : a))),
     melanges: configs.some(({ resultat }) => resultat?.melanges),
     perso: configs.some(({ resultat }) => resultat?.firmwarePersonnalise),
@@ -353,10 +419,18 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
   const groupe = groupeVideo(proc);
   const ver = versionReference(version);
   const nom = (cle) => nomMenu(cle, ver.premiere);
-  const { frequenceHz: freq, bits, redondance } = evaluation.reglages;
+  const { frequenceHz: freq, bits, redondance, liaisonSecours } = evaluation.reglages;
   const groupes = evaluation.groupes ?? [];
   const nb = groupes.length;
   const modele = proc.modele;
+  // Secours par un second processeur (étape 22c) : N processeurs de secours, n + N double n ; `cascade` : méthode cascade
+  // (tableau), sinon sans cascade (Primary et Backup).
+  const nbSecours = redondance ? (evaluation.nombreSecours ?? 0) : 0;
+  const avecSecours = nbSecours > 0;
+  const cascade = avecSecours && liaisonSecours === 'cascade';
+  const total = nb + nbSecours;
+  const nomBoitier = (k) => (k > nb ? nomSecours(modele, k) : `${modele} n° ${k}`);
+  const titreProcesseurs = texteProcesseurs({ nombre: nb, nombreSecours: nbSecours, processeur: proc });
   const cfg = lireConfigs(configs);
   const nonCouvert = nonCouverts(m, dalle);
   const demi = m.rangeeDemi ? m.demi : null;
@@ -375,6 +449,10 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
   const personnalisee = source ? !source.standard : true;
   const lct55 = (ref) => src('lct-5-5-0', ref);
   const lct58 = (ref) => src('lct-5-8-1', ref);
+  const facade = facadeSecours(idCourt);
+  const siAddGrise = ' Si Add est grisé : pistes à vérifier : connexion avancée (étape 0.5), NovaLCT trop ancien (MCTRL4K : V5.2.0 ou plus pour '
+    + 'le piloter), boîtier réglé en Backup.';
+  const sourcesAddGrise = [src('mctrl4k-manuel-1-2-1', '§ 7.5.1, p. 33'), lct58('§ 4, p. 6')];
   const codeParc = parc?.aCode && parc.nom ? String(parc.nom) : null;
   // Ton ordinateur (étape 19a) : sur Mac, l'alerte de NovaLCT ; port de contrôle et adresse du modèle, chemin du système.
   const mac = systeme === 'mac';
@@ -383,6 +461,38 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
   const texteControle = controle.inconnu ? ` ${controle.texte.replace(/\.$/, `, ${A_VERIFIER}.`)}`
     : ` En Ethernet : câble entre le port ${controle.ethernet} du ${modele} et ton ordinateur (adaptateur USB-C Ethernet sur un Mac).`
       + `${controle.adresse ? ` ${controle.adresse} ; donne à l'ordinateur la même plage.` : ` Où lire son adresse : ${A_VERIFIER} ; donne à l'ordinateur la même plage.`}`;
+
+  // Étape 0.3 avec un processeur de secours (étape 22c, spec § 4.1.3 et § 4.2.2) : cascade USB dans l'ordre 1 à 2N, ou une
+  // liaison par boîtier (switch et une adresse chacun, choix de conception ; ou un câble USB chacun, Daktronics).
+  function etapeConnexionSecours() {
+    const boitiers = Array.from({ length: total }, (_, i) => i + 1);
+    const usb = CASCADE_USB[idCourt];
+    const sources = [lct58('§ 3.1, p. 4')];
+    let texte;
+    if (cascade) {
+      const max = evaluation.secoursProcesseur?.cascade?.max ?? null;
+      texte = usb
+        ? `Cascade : branche le PC à ${usb.entree} du ${modele} n° 1, puis ${usb.sortie} de chaque boîtier à ${usb.entree} du suivant, dans `
+          + `l'ordre : ${enumeration(boitiers.map(nomBoitier))}${max ? ` (${max} boîtiers au plus)` : ''}.`
+        : `Cascade de ${enumeration(boitiers.map(nomBoitier))} dans cet ordre ; liaison de cascade : vois la fiche du processeur, ${A_VERIFIER}.`;
+      texte += ` View Details of Device : un seul port de communication, ${total} cartes d'envoi attendues. PC relié en Ethernet au `
+        + `${modele} n° 1 : pilotage des autres boîtiers par la cascade, ${A_VERIFIER}.`;
+      if (usb) sources.push(src(...usb.source));
+    } else {
+      const ethernet = CONTROLE_ETHERNET_NOVALCT.includes(proc.id);
+      const adresses = enumeration(boitiers.map((k) => `${nomBoitier(k)} en 192.168.0.${9 + k}`));
+      texte = ethernet
+        ? `Une liaison par boîtier. En Ethernet : chaque ${modele} et l'ordinateur sur un switch réseau, câble entre le port `
+          + `${controle.ethernet} de chaque boîtier et le switch ; donne à chaque boîtier, en façade, sa propre adresse : ${adresses} ; `
+          + `l'ordinateur en 192.168.0.100, masque 255.255.255.0 (deux boîtiers neufs ont peut-être la même adresse : ${A_VERIFIER}).`
+          + `${controle.reglage ? ` ${controle.reglage}` : ''} Ou un câble USB par boîtier.`
+        : `Une liaison par boîtier (switch réseau, ou un câble USB chacun) ; liaison au PC : vois la fiche du processeur, ${A_VERIFIER}.`;
+      texte += ` View Details of Device : ${total} ports de communication, un par boîtier.`;
+      sources.push(...(ethernet ? [src('vx1000-1-5-0', '§ 4, p. 12'), src('cdc')] : []), src('daktronics-000020215'));
+    }
+    return etape('0.3', texte, [...sources, ...controle.sources.map((s) => src(s.id, s.ref))],
+      { valeurs: { nb, secours: nbSecours, liaison: liaisonSecours }, aVerifier: true, connexion: { chemin: cheminIP(sys), autre: cheminIP(autreSysteme(sys)) } });
+  }
 
   // Partie 0 : avant de partir et sur place.
   const fichiersTexte = cfg.aucunParc ? CHOISIS_PARC : [
@@ -402,7 +512,7 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
     etape('0.2', `Sur le PC de régie : ${fichiersTexte.replace(/\.$/, '')}.${cfg.alertes.length ? ` ${cfg.alertes.join(' ')}` : ''} `
       + 'Prends aussi le .scr ou le .scfg déjà faits pour ce mur, s\'il y en a.',
     [src('cdc'), lct55('§ 5.1, p. 6')], { valeurs: { fichiers: cfg.fichiers, lxy: cfg.lxy, aucunParc: cfg.aucunParc } }),
-    etape('0.3', `Branche le PC au ${modele} avec le câble de contrôle, en USB ou en Ethernet. View Details of Device donne `
+    avecSecours ? etapeConnexionSecours() : etape('0.3', `Branche le PC au ${modele} avec le câble de contrôle, en USB ou en Ethernet. View Details of Device donne `
       + `le port de communication et le nombre de cartes d'envoi vues : ${nb} attendue${nb > 1 ? 's' : ''} (${nb} × ${modele}).${texteControle}`,
     [lct55('§ 3, p. 3'), lct58('§ 3, p. 4'), lct58('§ 3.1, p. 4'), ...controle.sources.map((s) => src(s.id, s.ref))],
     { valeurs: { nb }, aVerifier: controle.inconnu || controle.aVerifier, connexion: { chemin: cheminIP(sys), autre: cheminIP(autreSysteme(sys)) } }),
@@ -413,9 +523,17 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
       + `${codeParc ? ` Ton parc ${codeParc} a changé ce mot de passe : prends son code dans l'appli (onglet Base).` : ''} Sans processeur `
       + 'branché, User > Demonstration Login permet de s\'entraîner.',
     [lct55('§ 4, p. 5'), lct58('§ 4, p. 6'), src('formation-6')], { codeParc }),
-    ...(redondance ? [etape('0.6', 'Redondance : branche d\'abord le câble principal seul, configure, puis branche les câbles '
-      + 'de secours ; tout brancher d\'un coup peut créer des conflits. Deux processeurs en redondance : configure le premier '
-      + 'seul avant de brancher le second.', [src('formation-11'), src('formation-12'), src('cdc')])] : []),
+    // Ordre corrigé (étape 22c, F1, F9, F15) : câbles principaux, config d'écran, câbles de secours, puis la redondance.
+    ...(redondance ? [etape('0.6', 'Redondance : branche d\'abord le câble principal seul (les câbles principaux), fais la config d\'écran, '
+      + 'puis branche les câbles de secours, et seulement ensuite la redondance (Set as Backup ou le tableau) : « Redundancy related '
+      + 'hardware connection is done » avant de la régler. Tout brancher d\'un coup peut créer des conflits.'
+      + `${!avecSecours ? '' : cascade
+        ? ' Secours par un second processeur, méthode cascade (tableau) : boîtiers cascadés en USB, le secours sans config d\'écran, puis le '
+          + 'tableau Redundancy. Méthode choisie dans Data (choix « Liaison ») : change-la dans Data.'
+        : ' Secours par un second processeur, méthode sans cascade (Primary et Backup) : chaque boîtier relié à part à l\'ordinateur, '
+          + 'avec sa propre config, réglé en principal ou en secours. Méthode choisie dans Data (choix « Liaison ») : change-la dans Data.'}`,
+    [lct58('§ 5.3, p. 30'), src('daktronics-dd3397344'), src('formation-11'), src('formation-12'), src('cdc')],
+    { valeurs: avecSecours ? { liaison: liaisonSecours } : {} })] : []),
   ];
   // Fibre (étape 18b) : les OPT que ce mur utilise, d'après les ports principaux et de secours du câblage retenu.
   // Config imposée en fibre (étape 18c3) : l'étape devient la vraie, avec le convertisseur et son nombre, pour tout
@@ -424,7 +542,7 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
   const fibreImposee = variante?.mode === 'imposee' && variante.fibre?.possible && !variante.fibre.deja ? variante.fibre : null;
   if (fibre || fibreImposee) {
     const parProc = !fibre ? [] : (variante?.processeurs ?? []).map((pv) => {
-      const ports = pv.ports.flatMap((p) => [p.numero, ...(redondance && p.secours ? [p.secours.numero] : [])]);
+      const ports = pv.ports.flatMap((p) => [p.numero, ...(redondance && p.secours && !p.secours.processeur ? [p.secours.numero] : [])]);
       const opt = new Map();
       for (const n of ports) {
         const k = Math.ceil(n / fibre.parFibre);
@@ -441,6 +559,15 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
           valeurs: { fibres: parProc, impose: [fibreImposee.designation, fibreImposee.convertisseurs] } })
       : etape('0.7', `Si tu passes en fibre : ${detail}`,
         fibre.sources.map(([id, ref]) => src(id, ref)), { aVerifier: fibre.aVerifier, valeurs: { fibres: parProc } }));
+  }
+  // Plusieurs MCTRL4K sur le même écran (étape 22c, F16) : genlock en cascade, secours compris.
+  if (idCourt === 'mctrl4k' && total > 1) {
+    partie0.push(etape('0.8', `${total} MCTRL4K${avecSecours ? ` (${nb} + ${nbSecours} de secours)` : ''} sur le même écran : pour qu'ils sortent `
+      + 'l\'image en même temps (« Multiple MCTRL4K devices output image simultaneously »), relie-les en cascade par GENLOCK IN et '
+      + 'GENLOCK LOOP, 10 au plus : un signal de synchronisation (Bi-level, Tri-level ou Blackburst) sur le GENLOCK IN du premier, '
+      + 'puis le GENLOCK LOOP de chaque boîtier vers le GENLOCK IN du suivant.'
+      + `${avecSecours ? ` Genlock commun nécessaire pour un basculement sans saut vers le secours : ${A_VERIFIER}.` : ''}`,
+    [src('mctrl4k-manuel-1-2-1', 'p. 4 ; § 4, p. 6')], { valeurs: avecSecours ? { total, secours: nbSecours } : { total }, aVerifier: avecSecours }));
   }
   const parties = [{ id: '0', titre: 'Avant de partir et sur place', etapes: partie0 }];
 
@@ -480,9 +607,10 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
         [src('vx1000-1-5-0', '§ 7, p. 56 et 57'), src('vcan-3-8-0', '§ 3.3.5 et § 3.3.6, p. 55 et 56')],
         { valeurs: { l: largeurSource, h: hauteurSource, freq, couche }, aVerifier: !cite('sauvegarde') }),
         // Plusieurs processeurs sur le même écran : même source de synchronisation (VX1000 § 5.8.4).
-        ...(nb > 1 ? [etape('A.6', `${nb} × ${modele} sur le même écran : la même source de synchronisation sur chacun. En façade : `
+        // Secours compris (étape 22c) : « 1 × VX1000 + 1 de secours ».
+        ...(total > 1 ? [etape('A.6', `${titreProcesseurs} sur le même écran : la même source de synchronisation sur chacun. En façade : `
           + `Advanced Settings > Synchronization, Status sur On, puis Source.${vx1000 ? '' : ` Menus relevés sur le VX1000 : ${A_VERIFIER}.`}`,
-        [src('vx1000-1-5-0', '§ 5.8.4, p. 40 et 41')], { valeurs: { nb }, aVerifier: !vx1000 })] : []),
+        [src('vx1000-1-5-0', '§ 5.8.4, p. 40 et 41')], { valeurs: nbSecours ? { nb, secours: nbSecours } : { nb }, aVerifier: !vx1000 })] : []),
       ],
     });
   }
@@ -490,14 +618,29 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
   // Partie B : NovaLCT, un parcours par processeur.
   const pxDalle = dim(dalle.pxH, dalle.pxV);
   const pxDemi = demi ? dim(demi.pxH, demi.pxV) : null;
-  groupes.forEach((g, i) => {
+  // Un parcours de Screen Configuration : celui du processeur n, ou (`sec`) celui de son processeur de secours sans
+  // cascade (étape 22c, spec § 4.2.5) : mêmes réglages, chaque port en sens inversé depuis la dernière dalle du principal.
+  const parcours = (g, i, sec = null) => {
     const n = i + 1;
-    const pre = `P${n}.`;
+    const numero = sec ? n + nb : n;
+    const pre = `P${numero}.`;
     const ports = variante?.processeurs?.[i]?.ports ?? [];
     const etapes = [];
-    etapes.push(etape(`${pre}B.1`, `Settings > Screen Configuration, choisis le port de communication du ${modele} n° ${n}`
-      + `${nb > 1 ? ' (une carte d\'envoi par port de communication dans la liste)' : ''}, Configure Screen, puis Next.`,
-    [lct55('§ 5.2.1, p. 8 et 9'), lct58('§ 5.2.1, p. 9')], { valeurs: { n } }));
+    const sourcesB1 = [lct55('§ 5.2.1, p. 8 et 9'), lct58('§ 5.2.1, p. 9'), ...(total > 1 ? [lct58('§ 3.1 et § 3.2, p. 4')] : [])];
+    if (sec) {
+      etapes.push(etape(`${pre}B.1`, `Settings > Screen Configuration, choisis le port de communication du ${nomBoitier(numero)} (son adresse IP, ou son `
+        + `USB), Configure Screen, puis Next. Mêmes réglages que le ${modele} n° ${n}, sauf le chemin de chaque port, inversé (étapes B.7).`,
+      sourcesB1, { valeurs: { n: numero } }));
+    } else if (cascade) {
+      etapes.push(etape(`${pre}B.1`, `Settings > Screen Configuration, choisis le port de communication de la cascade (un seul port de communication `
+        + `avec les cartes d'envoi 1 à ${total}), puis la carte d'envoi ${n} (${modele} n° ${n}), Configure Screen, puis Next.`,
+      sourcesB1, { valeurs: { n } }));
+    } else {
+      etapes.push(etape(`${pre}B.1`, `Settings > Screen Configuration, choisis le port de communication du ${modele} n° ${n}`
+        + `${total > 1 ? ' (chaque boîtier relié en réseau ou en USB séparé est un port de communication à part ; en cascade, un seul port de '
+          + 'communication avec les cartes d\'envoi 1, 2…)' : ''}, Configure Screen, puis Next.`,
+      sourcesB1, { valeurs: { n } }));
+    }
     if (idCourt in MODE_TRAVAIL) {
       const fiche = MODE_TRAVAIL[idCourt];
       etapes.push(etape(`${pre}B.1a`, `Onglet Sending Card : Set Working Mode, choisis le ${modele}, puis sending card mode (et non fiber `
@@ -597,7 +740,7 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
       } else {
         // Série H (étape 18b) : les cartes de sortie de Data ; leurs ports dans Screen Connection ne sont pas décrits par les sources lues.
         const carte = proc.carteSortie;
-        const nCartes = carte ? g.cartesSortie?.[redondance ? 'redondance' : 'colonnes'] ?? null : null;
+        const nCartes = carte ? g.cartesSortie?.[portsDoubles(evaluation) ? 'redondance' : 'colonnes'] ?? null : null;
         const cartes = carte ? ` Cartes de sortie : ${nCartes ? `${nCartes} carte${nCartes > 1 ? 's' : ''}` : 'cartes'} ${carte.nomCourt ?? carte.modele} `
           + `(onglet Data) ; quels ports sont sur quelle carte dans Screen Connection : ${A_VERIFIER}.` : '';
         etapes.push(etape(`${pre}B.6`, `Onglet Screen Connection : nombre d'écrans 1 (les ports du ${modele} chargent le même écran), `
@@ -607,7 +750,9 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
       }
 
       for (const port of ports) {
-        const cases = port.dalles.map(position).filter(Boolean)
+        // Secours sans cascade : le même port, parcouru depuis sa dernière dalle.
+        const dalles = sec ? [...port.dalles].reverse() : port.dalles;
+        const cases = dalles.map(position).filter(Boolean)
           .map((p) => ({ ...p, c: p.c - g.premiereColonne + 1, r: p.r - g.premiereRangee + 1, demi: m.rangees?.[p.r - 1] === 'demi' }));
         const demis = cases.filter((p) => p.demi);
         const rangeeDemi = demis[0]?.r;
@@ -615,17 +760,23 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
           ? `${cases.length} cartes : ${cases.length - demis.length} de ${pxDalle} et ${demis.length} de ${pxDemi} (demi-dalles, rangée ${rangeeDemi})`
           : `${cases.length} cartes de ${pxDalle}`;
         const premiere = cases[0];
-        const secours = redondance && port.secours ? ` Secours : ${port.secours.libelle} (étape B.11).` : '';
-        etapes.push(etape(`${pre}B.7.${port.numero}`, `${detail}, ${placeDuPort(cases, g)}. Départ sur ${port.dalles[0]} `
-          + `(carte colonne ${premiere.c}, rangée ${premiere.r} de l'écran), puis : ${sensDuCable(cases)}. Dans NovaLCT : `
+        const secours = sec || !redondance || !port.secours ? ''
+          : port.secours.processeur ? ` Secours : ${texteSecoursPort(port.secours, modele)} (sa partie, après les principaux).`
+            : ` Secours : ${port.secours.libelle} (étape B.11).`;
+        const depart = sec ? `Départ sur ${dalles[0]} (dernière dalle du ${port.libelle} du ${modele} n° ${n}, carte colonne ${premiere.c}, rangée `
+          + `${premiere.r} de l'écran), chemin inversé : ${sensDuCable(cases)}.`
+          : `Départ sur ${port.dalles[0]} (carte colonne ${premiere.c}, rangée ${premiere.r} de l'écran), puis : ${sensDuCable(cases)}.`;
+        etapes.push(etape(`${pre}B.7.${port.numero}`, `${detail}, ${placeDuPort(cases, g)}. ${depart} Dans NovaLCT : `
           + `choisis le ${port.libelle}. Taille de carte : Screen Connection affiche 128 × 128 par défaut, même après l'envoi du `
           + `.rcfgx ; tape ${pxDalle} avant de cliquer les cartes. Puis clique les cartes dans cet ordre (ou une connexion rapide `
           + `qui suit le même chemin).${demis.length ? ` Rangée ${rangeeDemi} : règle la hauteur à ${demi.pxV} px, puis Apply to Entire Row.` : ''} `
           + `Charge : ${nombre(port.px)} px, ${pourcent(port.taux)} de la capacité de Data (${nombre(evaluation.capacite)} px).${secours}`
           + ' Dessin et Screen Connection en vue de face, côté public : derrière le mur, la gauche et la droite sont inversées.'
           + `${plie(i) ? ` Sortie pliée : colonnes comptées dans le bloc entier ; dans NovaLCT, celles de la tranche du port (${A_VERIFIER}).` : ''}`,
-        [lct55('§ 5.2.3, p. 21'), lct58('§ 5.2.3, p. 24 et 25'), src('formation-6'), src('formation-11')],
-        { titre: majuscule(port.libelle), aVerifier: plie(i), valeurs: { port: port.libelle, dalles: port.dalles, px: pxDalle, demi: pxDemi, plie: plie(i) } }));
+        [lct55('§ 5.2.3, p. 21'), lct58('§ 5.2.3, p. 24 et 25'), src('formation-6'), src('formation-11'),
+          ...(sec ? [src('vx1000-1-5-0', '§ 5.8.1, p. 36'), src('mctrl-r5-manuel-1-0-5', '§ 6.6.5, p. 14')] : [])],
+        { titre: majuscule(port.libelle), aVerifier: plie(i) || Boolean(sec && !SENS_SECOURS_SOURCE.includes(idCourt)),
+          valeurs: { port: port.libelle, dalles, px: pxDalle, demi: pxDemi, plie: plie(i), ...(sec ? { inverse: true } : {}) } }));
       }
 
       const audela = ports.filter((p) => p.px > SEUIL_AVERTISSEMENT);
@@ -648,7 +799,7 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
       etapes.push(etape(`${pre}B.9`, tranches.length
         ? `Sortie pliée dans ${taillePliee}, un écran par tranche à sa place dans la sortie : ${tranches.map((t) => `${t.nom} : Coordinate (${t.sortie.x}, ${t.sortie.y})`).join(' ; ')}. `
           + `Réglage par tranche : ${A_VERIFIER}.`
-        : `Coordinate : (0, 0), le bloc du ${modele} n° ${n} en haut à gauche de sa source.`,
+        : `Coordinate : (0, 0), le bloc du ${nomBoitier(numero)} en haut à gauche de sa source.`,
       [lct55('§ 5.2.3, p. 24'), lct58('§ 5.2.3, p. 28')],
       { aVerifier: tranches.length > 0, valeurs: { plie: plie(i), tranches: tranches.map((t) => [t.nom, t.sortie.x, t.sortie.y]) } }));
     }
@@ -661,30 +812,101 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
     [lct55('§ 5.2.3, p. 23'), lct55('§ 5.2.4, p. 25 et 26'), lct58('§ 5.2.3, p. 27'), lct58('§ 5.2.4, p. 28 à 30'), src('formation-11')],
     { valeurs: { grille: [g.colonnes, g.rangees, g.premiereColonne, g.premiereRangee], ports: ports.map((p) => [p.libelle, p.dalles]), plie: plie(i) } }));
 
-    if (redondance) {
-      const avecSecours = ports.filter((p) => p.secours);
-      const paires = avecSecours.map((p) => `${p.libelle}, secours ${p.secours.libelle}`);
+    if (sec) {
+      // Secours sans cascade (spec § 4.2.6) : en façade sur un modèle qui a ce menu ; dans NovaLCT, la carte qui a une
+      // config d'écran est refusée en secours (F3) : à vérifier, comme Daktronics le fait.
+      const refus = '« The sending card that is used in the completed screen configuration cannot be set as backup device »';
+      etapes.push(facade
+        ? etape(`${pre}S.3`, `En façade du ${nomBoitier(numero)} : ${facade.menu}, ${facade.secours}`
+          + `${facade.marque ? ' ; une petite marque apparaît sur l\'icône de ses ports' : ''}. Dans NovaLCT (onglet Sending Card, Set as Backup), `
+          + `comme le fait Daktronics, le manuel refuse une carte qui a une config d'écran (${refus}) : ${A_VERIFIER}.`,
+        [src(...facade.source), lct58('§ 5.3, p. 31'), src('daktronics-000020215')], { aVerifier: Boolean(facade.aVerifier), valeurs: { n: numero } })
+        : etape(`${pre}S.3`, `Pas de menu de façade connu pour le ${modele} : onglet Sending Card, Set as Backup (« Set a single device »), puis Send, `
+          + `comme le fait Daktronics ; le manuel refuse pourtant une carte qui a une config d'écran (${refus}) : ${A_VERIFIER}.`,
+        [lct58('§ 5.3, p. 31'), src('daktronics-000020215')], { aVerifier: true, valeurs: { n: numero } }));
+    } else if (avecSecours && !cascade) {
+      // Principal sans cascade (spec § 4.2.3) : réglé en principal, sans tableau.
+      etapes.push(etape(`${pre}B.11`, `Règle le ${modele} n° ${n} en principal : ${facade ? `en façade, ${facade.menu}, ${facade.principal} ; ` : ''}`
+        + 'ou dans NovaLCT, onglet Sending Card, Set as Primary (« Set a single device »), puis Send. Pas de tableau Redundancy : '
+        + 'chaque boîtier a sa propre config (méthode sans cascade).',
+      [...(facade ? [src(...facade.source)] : []), lct58('§ 5.3, p. 31'), src('daktronics-000020215')],
+      { titre: 'Réglé en principal (Primary)', aVerifier: Boolean(facade?.aVerifier), valeurs: { n, liaison: 'sansCascade' } }));
+    } else if (redondance && !avecSecours) {
+      const doubles = ports.filter((p) => p.secours);
+      const paires = doubles.map((p) => `${p.libelle}, secours ${p.secours.libelle}`);
       // Le petit tableau de la fenêtre Redundancy Settings (étape 17b3) : une ligne par port, même numéro de carte d'envoi
       // pour un secours dans le même processeur (« enter the same value for serial numbers », manuel V5.5.0 § 5.3).
+      // Câbles de secours branchés avant le tableau (étape 22c, F1 : « hardware connection is done »).
       const tableau = {
         colonnes: ['Carte d\'envoi principale', 'Port principal', 'Carte d\'envoi de secours', 'Port de secours'],
-        lignes: avecSecours.map((p) => [1, p.numero, 1, p.secours.numero]),
+        lignes: doubles.map((p) => [1, p.numero, 1, p.secours.numero]),
       };
-      etapes.push(etape(`${pre}B.11`, `Onglet Sending Card, Redundancy, Add : remplis le tableau ci-dessous, une ligne par port, Add à `
-        + `chaque ligne, Close, puis Send ou Save, puis branche les câbles de secours. Secours dans le même ${modele} : le même numéro de carte d'envoi, 1, en principal `
+      etapes.push(etape(`${pre}B.11`, 'Branche d\'abord les câbles de secours (étape 0.6) : « Redundancy related hardware connection is done » '
+        + 'avant la redondance. Onglet Sending Card, Redundancy, Add : remplis le tableau ci-dessous, une ligne par port, Add à chaque ligne, '
+        + `puis Close, puis Send ou Save. Secours dans le même ${modele} : le même numéro de carte d'envoi, 1, en principal `
         + `et en secours (« enter the same value for serial numbers ») ; ports : ${paires.join(' ; ')}. Ports de secours : convention `
-        + 'par défaut de l\'appli (Schéma), à régler dans le logiciel. Secours par un second processeur chaîné au premier : sur lui, '
-        + 'Set as Backup, et dans le tableau le numéro de carte d\'envoi de secours est son numéro dans la cascade (2 pour le second) ; '
-        + 'configure le premier seul avant (étape 0.6).',
-      [lct55('§ 5.3, p. 27 et 28'), lct58('§ 5.3, p. 31 et 32'), ...(vx1000 ? [src('vx1000-1-5-0', '§ 5.8.1, p. 37')] : []), src('formation-11'), src('formation-12')],
+        + `par défaut de l'appli (Schéma), à régler dans le logiciel.${siAddGrise}`,
+      [lct55('§ 5.3, p. 27 et 28'), lct58('§ 5.3, p. 30 à 32'), ...(vx1000 ? [src('vx1000-1-5-0', '§ 5.8.1, p. 37')] : []), src('formation-11'), src('formation-12'),
+        ...sourcesAddGrise],
       { valeurs: { paires }, tableau }));
     }
+    return etapes;
+  };
+
+  // Câbles de secours du processeur de secours n + N (spec § 4.1.6 et § 4.2.4) : après la config d'écran du principal.
+  const cablesSecours = (n, numero, ports) => etape(`P${numero}.S.1`, `Câbles principaux branchés et config d'écran du ${modele} n° ${n} envoyée : `
+    + `branche maintenant les câbles de secours du ${nomBoitier(numero)} : ${ports.map((p) => `port ${p.secours?.numero ?? p.numero} sur ${p.dalles.at(-1)}`).join(', ')} `
+    + `(la dernière dalle de chaque port du ${modele} n° ${n}). « Redundancy related hardware connection is done » avant la redondance.`,
+  [lct58('§ 5.3, p. 30'), src('daktronics-dd3397344'), src('formation-11')],
+  { valeurs: { ports: ports.map((p) => [p.secours?.numero ?? p.numero, p.dalles.at(-1)]) } });
+
+  // Méthode cascade (spec § 4.1.5 à 4.1.8) : pas de config d'écran sur le secours, Set as Backup, puis le tableau.
+  const parcoursCascade = (n, numero, ports) => {
+    const tableau = {
+      colonnes: ['Carte d\'envoi principale', 'Port principal', 'Carte d\'envoi de secours', 'Port de secours'],
+      lignes: ports.filter((p) => p.secours).map((p) => [n, p.numero, numero, p.secours.numero]),
+    };
+    return [
+      cablesSecours(n, numero, ports),
+      etape(`P${numero}.S.2`, `Ne configure pas la carte d'envoi ${numero} (${nomBoitier(numero)}) dans Screen Configuration : « The sending card `
+        + 'that is used in the completed screen configuration cannot be set as backup device ». Si elle a déjà une config d\'écran, efface-la '
+        + 'd\'abord. Pas de chemin à dessiner : le secours prend la suite des cartes après la coupure (« take over the sending cards behind the '
+        + `disconnection point »), dans l'ordre que connaît le ${modele} n° ${n}.`,
+      [lct55('§ 5.3, p. 27'), lct58('§ 5.3, p. 31'), src('lct-5-0-0', '§ 5.1.7, p. 34 et 36')], { valeurs: { n: numero } }),
+      etape(`P${numero}.S.3`, `Onglet Sending Card, zone Redundancy : Set (« Set multiple devices »), Set as Backup, coche la carte d'envoi ${numero} `
+        + `(${nomBoitier(numero)}), puis Set.`,
+      [lct58('§ 5.3, p. 31')], { valeurs: { n: numero } }),
+      etape(`P${numero}.B.11`, 'Onglet Sending Card, Redundancy, Add : remplis le tableau ci-dessous, une ligne par port, Add à chaque ligne, puis '
+        + 'Close, puis Send ou Save. Numéros des cartes d\'envoi dans la cascade (« enter the actual serial numbers of the primary and backup '
+        + `sending cards after they are cascaded ») : ${n} pour le ${modele} n° ${n}, ${numero} pour son secours.${siAddGrise}`,
+      [lct55('§ 5.3, p. 27 et 28'), lct58('§ 5.3, p. 32'), src('daktronics-000020215'), ...sourcesAddGrise],
+      { titre: 'Tableau Redundancy', valeurs: { lignes: tableau.lignes }, tableau }),
+    ];
+  };
+
+  groupes.forEach((g, i) => {
+    const n = i + 1;
     parties.push({
-      id: `P${n}`, titre: `NovaLCT, ${modele} n° ${n}`, processeur: n, etapes,
+      id: `P${n}`, titre: `NovaLCT, ${modele} n° ${n}`, processeur: n, etapes: parcours(g, i),
       note: redondance ? null : 'Redondance non cochée dans Data : pas de port de secours à régler. Si tu câbles des retours de secours, '
         + 'coche « Redondance » dans Data : l\'étape B.11 te donnera le tableau à remplir.',
     });
   });
+  // Une partie par processeur de secours, après les principaux (spec § 6).
+  if (avecSecours) {
+    groupes.forEach((g, i) => {
+      const n = i + 1;
+      const numero = n + nb;
+      const ports = variante?.processeurs?.[i]?.ports ?? [];
+      parties.push({
+        id: `P${numero}`, titre: `NovaLCT, ${nomBoitier(numero)}`, processeur: numero, secours: { principal: n, liaison: liaisonSecours },
+        etapes: cascade ? parcoursCascade(n, numero, ports) : [cablesSecours(n, numero, ports), ...parcours(g, i, true)],
+        note: cascade ? null : 'Sens du chemin du secours : inversé d\'après Novastar (manuels VX1000 et MCTRL R5) ; Daktronics et la formation '
+          + 'parlent aussi d\'une config identique : à vérifier sur ton modèle. Si les dalles d\'un port s\'inversent au basculement, prends '
+          + 'l\'autre sens. Si tu as un câble de cascade, la méthode cascade est celle de Novastar.',
+      });
+    });
+  }
 
   // Partie C : contrôles.
   const attendus = (variante?.processeurs ?? []).map((pv) => `${modele} n° ${pv.numero} : ${pv.ports.map((p) => `${p.libelle} : ${p.dalles.length}`).join(', ')}`);
@@ -701,16 +923,52 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
       + 'Manual Adjustment, puis Save to HW.',
     [src('cdc'), lct55('§ 6.2.1, p. 50 et 51')]),
   ];
+  // Test de la redondance (spec § 4.3, étape 22c) : Verify seulement en cascade ou dans un même boîtier (après le tableau,
+  // F11), Ethernet Port Backup Test en façade du VX1000, puis le vrai test et le symptôme des dalles inversées.
   if (redondance) {
-    if ([`${PREFIXE}mctrl4k`, `${PREFIXE}mctrl-r5`].includes(proc.id)) {
-      controles.push(etape('C.5', 'Sending Card, Redundancy, Verify : Enable Hot Backup Verification ; si l\'image reste normale, '
-        + 'les ports de secours marchent. Puis Disable Hot Backup Verification.', [lct55('§ 5.3, p. 28')]));
-    } else if (vx1000) {
-      controles.push(etape('C.5', 'En façade : Advanced Settings > Ethernet Port Backup Test, Disable Primary : l\'image doit rester ; '
-        + 'puis Enable All.', [src('vx1000-1-5-0', '§ 5.8.2, p. 38 et 39')]));
+    const verify = VERIFY.includes(idCourt);
+    const texteVerify = 'Sending Card, Redundancy, Verify : Enable Hot Backup Verification ; si l\'image reste normale, '
+      + 'les ports de secours marchent. Puis Disable Hot Backup Verification.';
+    const sourcesVerify = [lct55('§ 5.3, p. 28'), lct58('§ 5.3, p. 32')];
+    if (!avecSecours) {
+      const vrai = ' Puis le vrai test : débranche le câble principal d\'un port : l\'image doit tenir ; rebranche-le.';
+      if (verify) {
+        controles.push(etape('C.5', `${texteVerify}${vrai}`, [lct55('§ 5.3, p. 28'), src('vx1000-1-5-0', '§ 5.8.1, p. 36')]));
+      } else if (vx1000) {
+        controles.push(etape('C.5', `En façade : Advanced Settings > Ethernet Port Backup Test, Disable Primary : l'image doit rester ; puis Enable All.${vrai}`,
+          [src('vx1000-1-5-0', '§ 5.8.2, p. 38 et 39'), src('vx1000-1-5-0', '§ 5.8.1, p. 36')]));
+      } else {
+        controles.push(etape('C.5', `Test de la redondance sur le ${modele} : Verify n'existe que sur MCTRL4K, MCTRL R5 et KT8 ; `
+          + `méthode ${A_VERIFIER}.${vrai}`, [lct55('§ 5.3, p. 26'), src('vx1000-1-5-0', '§ 5.8.1, p. 36')], { aVerifier: true }));
+      }
     } else {
-      controles.push(etape('C.5', `Test de la redondance sur le ${modele} : Verify n'existe que sur MCTRL4K, MCTRL R5 et KT8 ; `
-        + `méthode ${A_VERIFIER}.`, [lct55('§ 5.3, p. 26')], { aVerifier: true }));
+      const morceaux = ['En attente, rien ne change à l\'écran : c\'est normal.'];
+      const sources = [];
+      if (cascade && verify) {
+        morceaux.push(texteVerify);
+        sources.push(...sourcesVerify);
+      } else if (cascade && !vx1000) {
+        morceaux.push('Verify n\'existe que sur MCTRL4K, MCTRL R5 et KT8.');
+        sources.push(lct55('§ 5.3, p. 26'));
+      }
+      if (vx1000) {
+        morceaux.push(`En façade du ${modele} n° 1 : Advanced Settings > Ethernet Port Backup Test, ${cascade ? 'Disable Primary' : 'Disable All'} : `
+          + 'l\'image doit rester ; puis Enable All.');
+        sources.push(src('vx1000-1-5-0', '§ 5.8.2, p. 38 et 39'));
+      }
+      morceaux.push('Puis le vrai test : débranche les câbles de sortie du principal, ou coupe son alimentation : l\'image doit tenir'
+        + `${facade?.marque ? ', avec une marque qui clignote (une fois par seconde) sur les icônes des ports du secours' : ''}. Rebranche : `
+        + `tout doit revenir. Couper seulement l'entrée vidéo ne fait sans doute pas basculer : ${A_VERIFIER}.`);
+      sources.push(src('vx1000-1-5-0', '§ 5.8.1, p. 35'), ...(facade?.marque ? [src(...facade.source)] : []));
+      morceaux.push(cascade
+        ? 'Si les dalles d\'un port s\'inversent quand le secours prend le relais : le secours a sa propre config d\'écran, ou le tableau n\'est '
+          + 'pas envoyé (étapes S.2 et B.11 du secours).'
+        : 'Si les dalles d\'un port s\'inversent quand le secours prend le relais : le sens du chemin du secours ne va pas ; prends l\'autre '
+          + '(inversé si tu l\'avais identique, identique si tu l\'avais inversé).');
+      sources.push(...(cascade ? [lct58('§ 5.3, p. 31')] : [src('vx1000-1-5-0', '§ 5.8.1, p. 36'), src('formation-11')]));
+      controles.push(etape('C.5', morceaux.join(' '), sources, { aVerifier: true, valeurs: { liaison: liaisonSecours } }));
+      controles.push(etape('C.5a', 'Dans la surveillance de NovaLCT V5.8.1, les cartes de réception du secours en attente s\'affichent en bleu '
+        + '(« Backing up ») : le secours est prêt. Le manuel V5.5.0 n\'en parle pas.', [lct58('§ 5.3, p. 31')]));
     }
   }
   if (cfg.melanges) {
@@ -730,6 +988,9 @@ export function etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, con
 
   return {
     logiciel: 'NovaLCT', processeur: modele, groupe, version: ver, parties, nonCouvert, alertes: alerteVariante ? [alerteVariante] : [],
+    // « 2 × MCTRL4K + 2 de secours » (étape 22c) : titre de l'écran, du PDF, du texte copié et de la fiche régie.
+    titreProcesseurs,
+    secours: avecSecours ? { nombre: nbSecours, liaison: liaisonSecours, texte: evaluation.secoursProcesseur?.texte ?? null } : null,
     parc: codeParc ? { nom: codeParc, aCode: true } : null,
     // Config imposée (étape 18c3) : rappelée en tête, dans le texte copié, le PDF et la fiche régie.
     imposee: variante?.mode === 'imposee'
@@ -785,7 +1046,8 @@ const faitesSur = (resultat, cases) => {
   const etapes = resultat.parties.flatMap((p) => p.etapes);
   return { faites: etapes.filter((e) => cases?.[e.id] === e.signature).length, total: etapes.length };
 };
-const nombreProcesseurs = (resultat) => resultat.parties.filter((p) => p.processeur).length;
+const nombreProcesseurs = (resultat) => resultat.parties.filter((p) => p.processeur && !p.secours).length;
+const titreDesProcesseurs = (resultat) => resultat.titreProcesseurs ?? `${nombreProcesseurs(resultat)} × ${resultat.processeur}`;
 const sourcesTexte = (e) => e.sources.map((s) => `${s.court}${s.ref ? ` ${s.ref}` : ''}`).join(' ; ');
 
 // Le pas à pas en tableau, pour le PDF des fiches métier (`pdfFiche`) et le texte copié : en-tête, un bloc par partie,
@@ -806,7 +1068,8 @@ export function ficheNovaLCT(resultat, cases, { presta = '', mur = '', date = ne
     titre: 'NovaLCT pas à pas',
     rappel: `Noms des menus des manuels NovaLCT V5.5.0 et V5.8.1, ceux de la V${resultat.version.premiere} en premier ; `
       + 'une étape « à vérifier en formation » n\'a pas de source sûre.',
-    entete: [['Presta', presta], ['Mur', mur], ['Processeurs', `${nombreProcesseurs(resultat)} × ${resultat.processeur}`],
+    entete: [['Presta', presta], ['Mur', mur], ['Processeurs', titreDesProcesseurs(resultat)],
+      ...(resultat.secours ? [['Redondance', resultat.secours.texte]] : []),
       ['Étapes faites', `${faites} sur ${total}`], ...(resultat.imposee ? [['Câblage', resultat.imposee]] : []), ['Date', jour(date)]],
     blocs: resultat.parties.map((p) => ({
       titre: p.titre, date: null, manque: null,
@@ -829,7 +1092,8 @@ export function texteNovaLCT(resultat, cases, { presta = '', mur = '' } = {}) {
 // Résumé pour la fiche régie : processeurs, étapes faites, entrée et grille de chaque processeur, où trouver le pas à pas.
 export function resumeNovaLCT(resultat, cases) {
   const { faites, total } = faitesSur(resultat, cases);
-  const lignes = ['NOVALCT', `Processeurs : ${nombreProcesseurs(resultat)} × ${resultat.processeur}`, `Étapes faites : ${faites} sur ${total}`];
+  const lignes = ['NOVALCT', `Processeurs : ${titreDesProcesseurs(resultat)}`, ...(resultat.secours ? [`Redondance : ${resultat.secours.texte}`] : []),
+    `Étapes faites : ${faites} sur ${total}`];
   // Code admin du parc (étape 18a) : où le trouver, jamais le code.
   if (resultat.parc?.aCode) lignes.push(`Mot de passe NovaLCT : celui du parc ${resultat.parc.nom}, dans l'appli (onglet Base)`);
   if (resultat.imposee) lignes.push(`Câblage : ${resultat.imposee}`);
@@ -838,7 +1102,10 @@ export function resumeNovaLCT(resultat, cases) {
     const b6 = p.etapes.find((e) => e.id.endsWith('.B.6'))?.valeurs ?? {};
     const ports = p.etapes.filter((e) => /\.B\.7\.\d+$/.test(e.id)).length;
     const grille = b6.colonnes ? `grille de ${b6.colonnes} colonnes × ${b6.rangees} rangées, ${ports} ports` : 'grille : voir le pas à pas';
-    lignes.push(`Processeur n° ${p.processeur} dans NovaLCT : entrée ${b2.l} × ${b2.h} à ${nombre(b2.freq)} Hz en ${b2.bits} bits, ${grille}`);
+    // Processeur de secours (étape 22c) : sans config d'écran en cascade, chemin inversé sans cascade.
+    const nom = `Processeur n° ${p.processeur}${p.secours ? ` (secours du n° ${p.secours.principal})` : ''} dans NovaLCT`;
+    if (p.secours?.liaison === 'cascade') lignes.push(`${nom} : pas de config d'écran, Set as Backup, tableau Redundancy`);
+    else lignes.push(`${nom} : entrée ${b2.l} × ${b2.h} à ${nombre(b2.freq)} Hz en ${b2.bits} bits, ${grille}${p.secours ? ', chemin inversé, Set as Backup' : ''}`);
   }
   lignes.push('Pas à pas : onglet Data, carte « NovaLCT pas à pas »');
   return lignes.join('\n');
@@ -873,13 +1140,15 @@ export function processeursABlanc(processeurs = []) {
 // variante conseillée, la source conseillée, le pas à pas et sa description ; null si la dalle ou le processeur manque.
 // `parc` : { nom, aCode } du parc actif, pour le code admin de l'étape 0.5 (étape 18a).
 // `systeme` : choix « Mon ordinateur » (étape 19a).
-export function murABlanc({ dalles = [], processeurs = [], liaisons = [], processeur = MUR_A_BLANC.processeur, redondance = false, parc = null, systeme = null }) {
+// `secours`, `liaisonSecours` : choix « Secours » et « Liaison » de Data (étape 22c), pris en compte avec la redondance.
+export function murABlanc({ dalles = [], processeurs = [], liaisons = [], processeur = MUR_A_BLANC.processeur, redondance = false, secours = 'ports',
+  liaisonSecours = 'sansCascade', parc = null, systeme = null }) {
   const dalle = dalles.find((d) => d.id === MUR_A_BLANC.dalle);
   const proc = processeurs.find((p) => p.id === processeur);
   if (!dalle || !proc) return null;
   const { colonnes, lignes, frequenceHz, bits, depart } = MUR_A_BLANC;
   const m = murDeDalles(dalle, colonnes, lignes);
-  const evaluation = evaluerProcesseur(m, dalle, proc, { frequenceHz, bits, redondance });
+  const evaluation = evaluerProcesseur(m, dalle, proc, { frequenceHz, bits, redondance, secours, liaisonSecours });
   if (!evaluation?.groupes?.length) return null;
   const c = cablageData(m, dalle, evaluation, { depart });
   const variante = c.variantes.find((x) => x.mode === c.conseil) ?? null;
@@ -887,7 +1156,57 @@ export function murABlanc({ dalles = [], processeurs = [], liaisons = [], proces
   const resultat = etapesNovaLCT({ mur: m, dalle, evaluation, variante, source, parc, systeme });
   return {
     mur: m, dalle, evaluation, variante, source, depart, resultat,
-    description: `Mur d'exemple : ${colonnes} × ${lignes} ${dalle.nom}, ${evaluation.nombre} × ${proc.modele}, ${nombre(frequenceHz)} Hz, ${bits} bits`
-      + `${redondance ? ', redondance' : ''}.`,
+    description: `Mur d'exemple : ${colonnes} × ${lignes} ${dalle.nom}, ${texteProcesseurs(evaluation, proc.modele)}, ${nombre(frequenceHz)} Hz, ${bits} bits`
+      + `${redondance ? `, redondance${evaluation.secoursProcesseur ? ` ${evaluation.secoursProcesseur.texte}` : ''}` : ''}.`,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Dépannage (étape 22c, spec § 7) : aide ajoutée par l'appli sous une ligne, hors des données transcrites
+// ---------------------------------------------------------------------------
+
+const lct58d = (ref) => src('lct-5-8-1', ref);
+const SENS_SOURCES = [src('vx1000-1-5-0', '§ 5.8.1, p. 36'), src('mctrl-r5-manuel-1-0-5', '§ 6.6.5, p. 14'), src('daktronics-000020215'), src('formation-11')];
+const CONFIG_SECOURS_SOURCES = [lct58d('§ 5.3, p. 31'), lct58d('§ 5.3, p. 32')];
+const AIDES_SECOURS = {
+  // Constat 2 du cas réel 2 : deux boîtiers en réseau par un switch, une seule carte d'envoi dans Screen Configuration.
+  'T10.3:3': {
+    titre: 'Deux processeurs, NovaLCT n\'en montre qu\'un',
+    lignes: [
+      { texte: 'Chaque boîtier relié en réseau (même par un switch) ou par son propre câble USB est un port de communication à part : choisis-le '
+        + 'dans la liste de Screen Configuration. Les cartes d\'envoi 1, 2… ne s\'affichent ensemble que pour des boîtiers cascadés en USB.',
+      sources: [lct58d('§ 3.1 et § 3.2, p. 4'), lct58d('§ 8.9, p. 116'), lct58d('§ 5.3, p. 32')] },
+      { texte: 'En cascade : Detect Config (clic droit sur l\'icône de NovaLCT dans la barre des tâches), décoche Disable cascade communication, '
+        + 'sinon NovaLCT ne se connecte qu\'au premier boîtier ; puis System > Reconnect.', sources: [lct58d('§ 3.2, p. 4 et 5')] },
+      { texte: 'Méthode cascade (tableau) : boîtiers cascadés en USB, un seul port de communication, le secours sans config d\'écran, puis le '
+        + 'tableau Redundancy.', sources: [lct58d('§ 5.3, p. 30 à 32')] },
+      { texte: 'Méthode sans cascade (Primary et Backup) : chaque boîtier à part, avec sa propre config, réglé en principal ou en secours en façade.',
+        sources: [src('vx1000-1-5-0', '§ 5.8.1, p. 35 et 36'), src('mctrl-r5-manuel-1-0-5', '§ 6.6.5, p. 14'), src('daktronics-000020215')] },
+    ],
+  },
+  // Symptôme du constat 4 (spec § 4.3).
+  'T11.1:3': {
+    titre: 'Les dalles d\'un port s\'inversent quand le secours prend le relais',
+    lignes: [
+      { texte: 'Méthode sans cascade : le sens du chemin du secours ne va pas ; prends l\'autre (inversé si tu l\'avais identique, identique si tu '
+        + 'l\'avais inversé). Novastar demande le chemin inversé (VX1000, MCTRL R5) ; Daktronics et la formation parlent aussi d\'une config '
+        + 'identique : à vérifier sur ton modèle.', sources: SENS_SOURCES },
+      { texte: 'Méthode cascade : le secours a sa propre config d\'écran (efface-la, puis Set as Backup), ou le tableau Redundancy n\'est pas envoyé.',
+        sources: CONFIG_SECOURS_SOURCES },
+    ],
+  },
+  'T5.2:3': {
+    titre: 'Avec un processeur de secours',
+    lignes: [
+      { texte: 'Dalles d\'un port inversées seulement quand le secours prend le relais : le sens du chemin du secours (sans cascade) ou sa config '
+        + 'd\'écran (cascade) ; vois le pas à pas NovaLCT.', sources: [...SENS_SOURCES, ...CONFIG_SECOURS_SOURCES] },
+    ],
+  },
+};
+
+// Bloc de la clé « nœud:numéro d'étape » pour la marque du moment : Novastar seulement (pas COEX, réglé dans VMP) ; null
+// sinon. `lienPasAPas` : le bloc propose le pas à pas NovaLCT quand le processeur du projet s'y règle.
+export function aideDepannageSecours(cle, marque) {
+  const aide = AIDES_SECOURS[cle];
+  return aide && marque === 'novastar' ? { ...aide, lienPasAPas: true } : null;
 }

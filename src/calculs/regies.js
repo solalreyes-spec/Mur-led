@@ -1,7 +1,7 @@
 // Calculs du mur LED, régies, scalers et chaîne vidéo : latence, cadence, réseau Brompton, longueurs de câble.
 // Module de src/calculs.js, le point d'entrée qui réexporte tout : fonctions pures, sans accès à l'interface.
 import { nombreCourt } from '../format.js';
-import { EPS, minuscule } from './commun.js';
+import { EPS, minuscule, nombreBoitiers } from './commun.js';
 import { frequencePixel, controleLiaison } from './canvas.js';
 
 // ---------------------------------------------------------------------------
@@ -85,9 +85,10 @@ export function champsManquantsRegie(regie) {
 
 // Une sortie de régie par entrée de processeur ; la sortie doit monter au format de la source et avoir la
 // connectique de la liaison (une version plus récente de la même famille convient). Avec le multiviewer,
-// seuls les modes dont le nombre de sorties est connu sont retenus.
+// seuls les modes dont le nombre de sorties est connu sont retenus. Processeurs de secours (étape 22) : une entrée
+// de plus par secours (2N).
 export function controleRegie(regie, evaluation, source, liaisons, { multiviewer = false, programSeul = false, couchesParSortie = 1 } = {}) {
-  const necessaires = evaluation.nombre ?? null;
+  const necessaires = nombreBoitiers(evaluation);
   const manquants = champsManquantsRegie(regie);
   if (manquants.length > 0) {
     return { ok: null, aCompleter: manquants, refus: [], alertes: [], notes: [], sortiesNecessaires: necessaires, sortiesDisponibles: null, sortiesAux: null, auxUtilisees: 0, mode: null };
@@ -434,6 +435,18 @@ export function maillonDepuisFiche(fiche) {
 // longueur ; cadence face au calcul data ; latence cumulée. L'entrée du processeur (controleSource) se contrôle sur la
 // liaison du dernier maillon (`liaisonProcesseur`) ; la régie, sur controleRegie.
 export const CONVERTISSEURS_MAX = 3;
+// Processeurs de secours (étape 22, spec § 5.3) : chacun reçoit la même image que son principal ; le MCTRL4K n'a pas
+// de sortie vidéo en boucle (manuel V1.2.1, p. 4 : LOOP pour le genlock).
+function alertesSecoursVideo(evaluation) {
+  const n = evaluation.nombreSecours;
+  if (!(n > 0)) return [];
+  const proc = evaluation.processeur;
+  return [`Secours par un second processeur : ${2 * n} entrées à alimenter (${n} + ${n} de secours), même format et même fréquence que les principaux : `
+    + 'deux sorties de régie ou un distributeur vidéo. '
+    + `${proc.id === 'novastar-mctrl4k' ? 'Le MCTRL4K n\'a pas de sortie vidéo en boucle (LOOP : genlock seulement ; manuel MCTRL4K V1.2.1, p. 4). ' : ''}`
+    + 'Boucler la vidéo par le principal en ferait un point unique de panne : à vérifier.'];
+}
+
 export function controleChaine(chaine, { evaluation, liaisons, frequenceCalculHz, regie = null, seuils = {} }) {
   const { source } = chaine;
   const format = { largeurPx: source.largeurPx, hauteurPx: source.hauteurPx, frequenceHz: source.frequenceHz };
@@ -476,7 +489,7 @@ export function controleChaine(chaine, { evaluation, liaisons, frequenceCalculHz
       r.refus.push(`Le ${sc.nom} ne sort qu'en ${sc.cadences.map((c) => nombreCourt(c)).join(' ou ')} Hz${texteSortieCadences(sc)} : `
         + `pas de source à ${nombreCourt(format.frequenceHz)} Hz${sc.noteCadences ? ` (${sc.noteCadences})` : ''}.`);
     }
-    const n = evaluation.nombre ?? 1;
+    const n = nombreBoitiers(evaluation) ?? 1;
     if (!regie && source.sortiesVersProcesseurs && n > source.sortiesVersProcesseurs) {
       r.alertes.push(`${n} processeurs pour ${source.sortiesVersProcesseurs} sortie${source.sortiesVersProcesseurs > 1 ? 's' : ''} du ${source.nom} qui `
         + `porte${source.sortiesVersProcesseurs > 1 ? 'nt' : ''} le Program : ajoute un ampli de distribution.`);
@@ -501,7 +514,7 @@ export function controleChaine(chaine, { evaluation, liaisons, frequenceCalculHz
       longueurM: chaine.longueurM ?? null, ...fusion(sourceAppareil(), lien(chaine.liaison, chaine.longueurM)) },
     ...retenus.map((c) => ({ role: 'convertisseur', nom: c.nom, liaison: c.liaison, liaisonNom: nomDe(c.liaison), longueurM: c.longueurM ?? null,
       ...fusion(appareilConvertisseur(c), lien(c.liaison, c.longueurM, { longueurParFiche: Boolean(c.longueursMax?.length) })) })),
-    { role: 'processeur', nom: proc.nom, liaison: null, longueurM: null, refus: [], alertes: [], notes: [] },
+    { role: 'processeur', nom: proc.nom, liaison: null, longueurM: null, refus: [], alertes: alertesSecoursVideo(evaluation), notes: [] },
   ];
   // Cadence : source face au calcul data, puis appareils qui n'acceptent que certaines cadences (fiche).
   const cadence = [

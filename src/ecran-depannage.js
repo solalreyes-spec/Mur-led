@@ -20,10 +20,11 @@ export function marqueDuProcesseur(processeur) {
   return null;
 }
 
-// Monte l'écran dans `racine`. `projet` : { marque, nom } du processeur retenu dans Data quand des saisies sont gardées,
+// Monte l'écran dans `racine`. `projet` : { marque, nom, logiciel } du processeur retenu dans Data quand des saisies sont gardées,
 // sinon null (choix de marque demandé). `enLigne` : les liens web des sources ne servent qu'en ligne.
 // `ajouts` : aide ajoutée par l'appli sous une ligne, hors des données transcrites (étape 19a, T10.3) :
-// { 'T10.3:1': (marque) => élément }, appelé à chaque affichage de l'étape avec la marque du moment.
+// { 'T10.3:1': (marque, projet) => élément }, appelé à chaque affichage de l'étape avec la marque du moment et le projet
+// (étape 22c : son logiciel décide du bouton « Pas à pas NovaLCT »).
 export function monterDepannage(racine, donnees, {
   projet = null, enLigne = () => navigator.onLine, defiler = () => {}, ouvrirMire = null,
   liensPourquoi = [], ouvrirPourquoi = null, ouvrirListePourquoi = null, ajouts = {},
@@ -126,7 +127,7 @@ export function monterDepannage(racine, donnees, {
     // Numéros écrits par l'appli : une étape qui commence par un encadré de marque garde son numéro (N37).
     return listeNumerotee({ class: 'dep-etapes' }, etapes.map((e) => ({
       numero: e.numero,
-      contenu: el('div', { class: 'dep-lignes' }, ...e.lignes.map(ligne), ajouts[`${noeudAffiche}:${e.numero}`]?.(etat.marque) ?? null),
+      contenu: el('div', { class: 'dep-lignes' }, ...e.lignes.map(ligne), ajouts[`${noeudAffiche}:${e.numero}`]?.(etat.marque, etat.projet) ?? null),
       attributs: { class: `dep-etape${e.lignes[0].marque === null || e.lignes[0].marque === undefined ? '' : ' commence-par-encadre'}` },
     })));
   }
