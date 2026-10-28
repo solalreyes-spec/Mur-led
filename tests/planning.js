@@ -948,4 +948,30 @@ export const PLANNING = [
       v.vrai('jamais le jeton de l\'appli', !JSON.stringify(rg.adressesApple(reglages, 'boite-b')).includes(JETON_FICTIF));
     },
   },
+  {
+    id: 'PL22',
+    titre: 'Durée de travail de chaque carte (lot 23d2) : « 10 h de travail » sous les horaires, comptée sur les phases planifiées (la pause entre deux phases ne compte pas : « 14 h 30 de travail »), « 45 min de travail » pour une courte journée, aussi sur une carte retirée',
+    etape: '23d2',
+    async verifier(v) {
+      const af = await importerPlanning(v, '../src/planning/affichage.js');
+      const rg = await importerPlanning(v, '../src/planning/reglages.js');
+      if (!af || !rg) return;
+      const reglages = { ...rg.reglagesVides(), boites: rg.fusionnerBoites([], Object.entries(NOMS_FICTIFS).map(([id, nom]) => ({ id, nom }))) };
+      const T = MAINTENANT_FICTIF;
+      const carteDe = (e, boite, date, { retiree = false, t = T } = {}) => {
+        const l = af.vueListe(e, reglages, t);
+        return [...l.aVenir, ...l.passees].find((c) => c.boite === boite && c.date === date && Boolean(c.retiree) === retiree);
+      };
+      const etat = etatFictif();
+      v.egal('durées des journées du jeu fictif', [carteDe(etat, 'boite-b', '2026-10-29')?.duree, carteDe(etat, 'boite-a', '2026-06-12')?.duree, carteDe(etat, 'boite-c', '2026-05-21')?.duree],
+        ['10 h de travail', '14 h 30 de travail', '2 h de travail']);
+      const apres = T + H;
+      const sansA3 = calendrier({ calname: 'EventSoft / Boîte A', evenements: EVENEMENTS_A.filter((e) => e.uid !== 'a3@fictif') });
+      const etatRetire = { ...etat, boites: { ...etat.boites, 'boite-a': jr.appliquerLecture(etat.boites['boite-a'], lire(sansA3, 'Boîte A'), apres, { nom: 'Boîte A' }).etat } };
+      v.egal('carte retirée : sa durée aussi', carteDe(etatRetire, 'boite-a', '2026-07-08', { retiree: true, t: apres })?.duree, '8 h de travail');
+      const visite = { uid: 'c9@fictif', debut: '20261105T090000Z', fin: '20261105T094500Z', summary: 'Visite fictive / Livraison', categories: 'Livraison' };
+      const avecVisite = { ...etat, boites: { ...etat.boites, 'boite-c': jr.appliquerLecture(etat.boites['boite-c'], lire(calendrier({ calname: 'EventSoft / Boîte C', evenements: [...EVENEMENTS_C, visite] }), 'Boîte C'), apres, { nom: 'Boîte C' }).etat } };
+      v.egal('journée de 45 min', carteDe(avecVisite, 'boite-c', '2026-11-05', { t: apres })?.duree, '45 min de travail');
+    },
+  },
 ];

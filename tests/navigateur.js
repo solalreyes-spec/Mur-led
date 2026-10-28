@@ -5967,6 +5967,38 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N124',
+    titre: 'Écran Planning, durée de travail (étape 23, lot 23d2) : chaque carte a une ligne « … de travail » sous les horaires, dans l\'en-tête de la carte (« 10 h de travail », « 14 h 30 de travail »), sans adresse ni jeton dans la page',
+    etape: '23d2',
+    async verifier(v) {
+      const module = await importerSiPresent('../src/ecran-planning.js');
+      v.vrai('src/ecran-planning.js chargé', Boolean(module?.monterPlanning));
+      if (!module?.monterPlanning) return;
+      const memoire = new Map([['planning-reglages', { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: null, boites: [] }]]);
+      const stockage = { lire: async (cle) => structuredClone(memoire.get(cle) ?? null), ecrire: async (cle, val) => { memoire.set(cle, structuredClone(val)); return true; } };
+      const relais = relaisFictif();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const fuite = () => racine.outerHTML.includes('exemple.test') || racine.outerHTML.includes(JETON_FICTIF);
+      const carte = (date, boite) => [...racine.querySelectorAll('.pl-carte')].find((c) => c.dataset.cle?.startsWith(`${boite}|`) && c.dataset.cle.endsWith(`|${date}`));
+      try {
+        const ecran = module.monterPlanning(racine, { stockage, fetch: (url, o) => relais.fetch(url, o), maintenant: () => MAINTENANT_FICTIF, enLigne: () => true, surNouvelles: () => {} });
+        await ecran.pret;
+        await ecran.calme();
+        racine.querySelector('.pl-voir-passees').click();
+        const cartes = [...racine.querySelectorAll('.pl-carte')];
+        v.vrai('des cartes affichées', cartes.length > 0);
+        v.vrai('chaque carte a exactement une durée', cartes.every((c) => c.querySelectorAll('.pl-duree').length === 1));
+        v.egal('durée de la Boîte B le 29/10 et de la Boîte A le 12/06', [texteDe(carte('2026-10-29', 'boite-b')?.querySelector('.pl-duree')), texteDe(carte('2026-06-12', 'boite-a')?.querySelector('.pl-duree'))],
+          ['10 h de travail', '14 h 30 de travail']);
+        v.vrai('durée dans l\'en-tête de la carte', cartes.every((c) => c.querySelector('.pl-duree')?.closest('.pl-carte-tete') === c.querySelector('.pl-carte-tete')));
+        v.vrai('aucune adresse ni aucun jeton dans la page', !fuite());
+      } finally {
+        racine.remove();
+      }
+    },
+  },
 ];
 
 // Pas à pas NovaLCT d'essai (22c) : Upad IV 2.6 sur MCTRL4K, 8 × 6 (un principal) ou 32 × 8 (deux), départ en bas à gauche.

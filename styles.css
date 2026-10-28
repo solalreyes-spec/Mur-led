@@ -1702,7 +1702,7 @@ code.nl-menu { font-family: var(--police-chiffres); font-size: 0.9em; padding: 0
 .pl-detail, .pl-retire-texte { margin: 0; color: var(--texte-doux); font-size: 0.9rem; overflow-wrap: anywhere; }
 .pl-detail a { display: inline-flex; align-items: center; min-height: var(--cible); color: var(--lien); }
 .pl-ancien { margin: 0; color: var(--alerte); font-size: 0.9rem; overflow-wrap: anywhere; }
-.pl-retiree .pl-jour, .pl-retiree .pl-horaires, .pl-retiree .pl-presta { color: var(--texte-doux); text-decoration: line-through; }
+.pl-retiree .pl-jour, .pl-retiree .pl-horaires, .pl-retiree .pl-duree, .pl-retiree .pl-presta { color: var(--texte-doux); text-decoration: line-through; }
 .pl-indispos { margin-top: 10px; color: var(--texte-doux); }
 .pl-indispos summary, .pl-reglages summary { display: flex; align-items: center; min-height: var(--cible); cursor: pointer; }
 .pl-indispos ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -1802,3 +1802,4 @@ main section h3.pl-mois-titre { justify-content: center; margin: 0; font-size: 1
 .pl-reglages > h3 { margin-top: 20px; }
 .pl-sauvegarde { margin-top: 8px; }
 .pl-resultat-sauvegarde { margin: 8px 0 0; overflow-wrap: anywhere; }
+.pl-duree { flex-basis: 100%; text-align: right; color: var(--texte-doux); font-size: 0.85rem; font-variant-numeric: tabular-nums; }

@@ -1,7 +1,7 @@
 // Mise en forme du planning (étape 23, spec § 7) : dates courtes, horaires, lien Plans, état de chaque boîte, journées
 // à venir et passées, retirées, indisponibilités, filtre par boîte (lot 23c1) ; alertes de conflit sur les cartes,
 // grille du mois et tableau des totaux (lot 23c2) ; case Intermittent, alertes après saisie, texte à copier et filtre
-// « À saisir » (lot 23d). Fonctions pures.
+// « À saisir » (lot 23d) ; durée de travail de chaque journée (lot 23d2). Fonctions pures.
 
 import { dateParis, partiesParis } from './ics.js';
 import {
@@ -109,6 +109,7 @@ function carte(j, repere, retiree = null, alertes = [], saisies = []) {
   return {
     cle: retiree ? `${j.cle}|retiree` : j.cle, boite: j.boite, nom: r.nom, lettre: r.lettre, couleur: r.couleur,
     date: j.date, jour: dateCourte(j.date), debut: j.debut, horaires: horaires(j.debut, j.fin, j.date),
+    duree: `${duree(j.heures * HEURE)} de travail`,
     presta: j.presta, phases: distincts(j.phases.map((p) => p.phase)).join(', '),
     lieu: j.lieu, autresLieux: j.autresLieux, client: j.client, autresClients: j.autresClients, plans: lienPlans(j.geo),
     nouveau: !retiree && Boolean(j.nouveau), modifie: !retiree && Boolean(j.modifie), ancien: retiree ? [] : anciens,
