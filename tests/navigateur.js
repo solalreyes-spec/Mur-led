@@ -6001,13 +6001,30 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N125',
-    titre: 'Icônes (étape 24, spec § 4 et § 6) : PNG lus en octets, taille annoncée ; iPhone (180) et masquable en carré plein sans transparence (RGB), 192 et 512 aux coins transparents (RGBA) ; icône d\'onglet en SVG sans texte',
+    titre: 'Icônes (étape 24, spec § 4 et § 6 ; 24c : image de l\'iPhone écrite dans la page, 180 × 180, copies apple-touch-icon) : PNG lus en octets, taille annoncée ; iPhone (180) et masquable en carré plein sans transparence (RGB), 192 et 512 aux coins transparents (RGBA) ; icône d\'onglet en SVG sans texte',
     etape: 24,
     async verifier(v) {
       const manifeste = await (await fetch('manifest.webmanifest', { cache: 'no-store' })).json();
       const index = await (await fetch('index.html', { cache: 'no-store' })).text();
-      const apple = /<link rel="apple-touch-icon" href="([^"]+)">/.exec(index)?.[1];
-      const attendus = [[apple, 180, 2], ...manifeste.icons.map((i) => [i.src, Number(i.sizes.split('x')[0]), i.purpose === 'maskable' ? 2 : 6])];
+      // Étape 24c (accord de l'utilisateur) : iOS 26 montrait une lettre ; image écrite dans la page, taille déclarée,
+      // copies aux noms qu'iOS cherche de lui-même.
+      const page = new DOMParser().parseFromString(index, 'text/html');
+      const liens = page.querySelectorAll('link[rel="apple-touch-icon"]');
+      const href = liens[0]?.getAttribute('href') ?? '';
+      v.egal('icône iPhone : un seul lien, 180 × 180, image écrite dans la page', [liens.length, liens[0]?.getAttribute('sizes'), href.startsWith('data:image/png;base64,')], [1, '180x180', true]);
+      const octetsDe = async (chemin) => new Uint8Array(await (await fetch(chemin, { cache: 'no-store' })).arrayBuffer());
+      const fichier180 = await octetsDe('icones/icone-180.png');
+      const memes = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+      let ecrite = new Uint8Array();
+      try {
+        ecrite = Uint8Array.from(atob(href.split(',')[1] ?? ''), (c) => c.charCodeAt(0));
+      } catch (erreur) {
+        // base64 illisible : le contrôle suivant échoue
+      }
+      v.vrai('image écrite dans la page = icones/icone-180.png', memes(ecrite, fichier180));
+      for (const copie of ['apple-touch-icon.png', 'apple-touch-icon-precomposed.png']) v.vrai(`${copie} = icones/icone-180.png`, memes(await octetsDe(copie), fichier180));
+      v.vrai(`icone-180.png allégé (${fichier180.length} octets, moins de 25 000)`, fichier180.length < 25000);
+      const attendus = [['icones/icone-180.png', 180, 2], ...manifeste.icons.map((i) => [i.src, Number(i.sizes.split('x')[0]), i.purpose === 'maskable' ? 2 : 6])];
       v.egal('quatre PNG : iPhone, 192, 512, masquable', attendus.map(([chemin]) => chemin),
         ['icones/icone-180.png', 'icones/icone-192.png', 'icones/icone-512.png', 'icones/icone-masquable-512.png']);
       for (const [chemin, taille, type] of attendus) {
@@ -6060,6 +6077,18 @@ export const NAVIGATEUR = [
         const boite = svg.getBoundingClientRect();
         v.egal('logo de 26 × 26 px', [Math.round(boite.width), Math.round(boite.height)], [26, 26]);
         v.egal('rangée du titre de 29 px', Math.round(racine.querySelector('.titre-app').getBoundingClientRect().height), 29);
+        // Étape 24c (demande de l'utilisateur) : bas du logo sur la ligne de base de « Mur LED ».
+        // Sonde vide en ligne dans le texte (pas un élément flex) : son bas est la ligne de base.
+        const sonde = el('span', { style: 'display:inline-block;width:0;height:0' });
+        const texte = [...racine.querySelector('h1').childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
+        const enveloppe = el('span', {}, texte.textContent, sonde);
+        texte.replaceWith(enveloppe);
+        const ligneDeBase = sonde.getBoundingClientRect().bottom;
+        enveloppe.replaceWith(texte);
+        v.vrai(`bas du logo sur la ligne de base du titre (écart ${(svg.getBoundingClientRect().bottom - ligneDeBase).toFixed(1)} px)`, Math.abs(svg.getBoundingClientRect().bottom - ligneDeBase) <= 0.5);
+        const regles = [...document.styleSheets].filter((f) => f.href?.endsWith('styles.css')).flatMap((f) => [...f.cssRules]);
+        const appli = regles.filter((r) => r.conditionText?.includes('display-mode: standalone')).flatMap((r) => [...r.cssRules]);
+        v.vrai('en mode application, en-tête descendu sous la zone floutée (padding-top de 32 px)', appli.some((r) => r.selectorText === '.entete' && r.style.paddingTop === '32px'));
         const racineStyle = getComputedStyle(html);
         const familles = ordre.map((f) => racineStyle.getPropertyValue(`--famille-${f}`).trim().toLowerCase());
         v.egal('corps : deux arrêts de la couleur de l\'onglet', ordre.map((f) => stops(`logo-corps-${f}`).map((s) => rgbVersHex(s.stopColor))), familles.map((c) => [c, c]));
@@ -6088,7 +6117,7 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N127',
-    titre: 'Animation d\'ouverture du logo (étape 24, spec § 10 et § 12) : les 8 dalles du tour partent hors de l\'écran, chacune de son côté, tournées et agrandies, celle du centre naît sur place ; rien si la page est cachée ou si le téléphone demande moins d\'animations ; tout en place en 1,3 s, sans trace ; logo sans cible tactile ; dalles cachées avant l\'animation par le script de la page, avec un secours',
+    titre: 'Animation d\'ouverture du logo (étape 24, spec § 10 et § 12) : les 8 dalles du tour partent hors de l\'écran, chacune de son côté, tournées et agrandies, celle du centre par le bas (étape 24c) ; rien si la page est cachée ou si le téléphone demande moins d\'animations ; 1,6 s par dalle, tout en place en 2,2 s, sans trace ; logo sans cible tactile ; dalles cachées avant l\'animation par le script de la page, avec un secours de 3 s',
     etape: '24b',
     async verifier(v) {
       const look = await moduleAppli(v, '../src/look.js');
@@ -6096,7 +6125,7 @@ export const NAVIGATEUR = [
       const index = await (await fetch('index.html', { cache: 'no-store' })).text();
       const tete = index.slice(0, index.indexOf('</head>'));
       v.vrai('script de la page : dalles cachées avant l\'animation (data-logo « arrivee ») si la page est visible et sans « moins d\'animations », secours de 2 s',
-        /dataset\.logo = 'arrivee'/.test(tete) && /prefers-reduced-motion: reduce/.test(tete) && /visibilityState === 'visible'/.test(tete) && /setTimeout\([^]*?delete document\.documentElement\.dataset\.logo[^]*?2000\)/.test(tete));
+        /dataset\.logo = 'arrivee'/.test(tete) && /prefers-reduced-motion: reduce/.test(tete) && /visibilityState === 'visible'/.test(tete) && /setTimeout\([^]*?delete document\.documentElement\.dataset\.logo[^]*?3000\)/.test(tete));
       if (typeof look?.animerLogo !== 'function') return;
       const page = new DOMParser().parseFromString(index, 'text/html');
       const retirer = await chargerStylesLook();
@@ -6117,7 +6146,8 @@ export const NAVIGATEUR = [
         const animations = look.animerLogo(svg, { largeur, hauteur, reduit: false, visible: true });
         v.egal('neuf animations, une par dalle ; dalles montrées', [animations.length, animations.every((a, k) => a.effect.target === svg.querySelectorAll('g.ld')[k]), html.dataset.logo], [9, true, undefined]);
         const minutage = animations.map((a) => a.effect.getTiming());
-        v.vrai('fin au plus tard à 1,3 s', minutage.every((t) => t.delay + t.duration <= 1300));
+        // Étape 24c (demande de l'utilisateur) : plus lent, 1,6 s par dalle, tout en place en 2,2 s.
+        v.vrai('plus lent : 1,6 s par dalle, fin au plus tard à 2,2 s', minutage.every((t) => t.duration === 1600 && t.delay + t.duration <= 2200));
         v.vrai('premier instant pendant l\'attente, rien à la fin (fill « backwards »)', minutage.every((t) => t.fill === 'backwards'));
         const images = animations.map((a) => a.effect.getKeyframes());
         v.vrai('chaque dalle finit à sa place exacte', images.every((k) => (k[k.length - 1].transform ?? 'none') === 'none'));
@@ -6126,8 +6156,9 @@ export const NAVIGATEUR = [
           const tr = /translate\((-?[\d.]+)px(?:,\s*(-?[\d.]+)px)?\)/.exec(t);
           return { tx: tr ? Number(tr[1]) : 0, ty: tr?.[2] ? Number(tr[2]) : 0, rot: Number(/rotate\((-?[\d.]+)deg\)/.exec(t)?.[1] ?? 0), echelle: Number(/scale\(([\d.]+)\)/.exec(t)?.[1] ?? 1), opacite: k[0].opacity };
         });
-        v.egal('dalle du centre : sur place, de × 6 transparente', [depart[4].tx, depart[4].ty, depart[4].echelle, Number(depart[4].opacite)], [0, 0, 6, 0]);
         const demi = 3.7 * 6 * Math.SQRT2;
+        const centre = (repos[4].top + repos[4].bottom) / 2 + depart[4].ty;
+        v.egal('dalle du centre : arrive du bas, tout droit, × 6 (étape 24c)', [depart[4].tx, centre - demi >= hauteur, depart[4].rot, depart[4].echelle], [0, true, 0, 6]);
         const dehors = depart.map((d, k) => {
           if (k === 4) return true;
           const dx = (k % 3) - 1;

@@ -73,6 +73,10 @@ body {
 }
 
 .entete { padding-top: 20px; }
+/* En mode application (écran d'accueil), le haut de l'écran est flouté par iOS : titre et logo un peu plus bas (étape 24c). */
+@media (display-mode: standalone) {
+  .entete { padding-top: 32px; }
+}
 .pied { padding-top: 24px; padding-bottom: 32px; color: var(--texte-doux); font-size: 0.875rem; }
 
 h1 { font-size: 1.6rem; line-height: 1.2; margin: 0; }
@@ -222,7 +226,8 @@ a:focus-visible, .bouton:focus-visible, summary:focus-visible {
 /* Logo (étape 24, spec § 9 à § 12) : 9 petites dalles en verre aux couleurs des onglets, sans cadre ; corps et bord en
    dégradé SVG (arrêts colorés ici, par classes), reflet en arc. Animation d'ouverture : animerLogo (src/look.js), seule
    animation de l'appli, choix de l'utilisateur ; dalles cachées tant que la racine porte data-logo="arrivee". */
-.logo-app { display: block; flex: none; width: 26px; height: 26px; overflow: visible; position: relative; z-index: 10; pointer-events: none; }
+/* Bas du logo sur la ligne de base de « Mur LED » (étape 24c) : remonté de 4 px sans changer la hauteur de la rangée. */
+.logo-app { display: block; flex: none; width: 26px; height: 26px; overflow: visible; position: relative; top: -4px; z-index: 10; pointer-events: none; }
 .logo-app .ld { transform-box: fill-box; transform-origin: center; }
 :root[data-logo="arrivee"] .logo-app .ld { opacity: 0; }
 .logo-degrades .lg-presta stop { stop-color: var(--famille-presta); }

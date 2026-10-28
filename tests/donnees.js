@@ -614,8 +614,9 @@ export const DONNEES = [
         v.vrai(`icône ${taille} présente`, Boolean(icone) && typeof f[icone.src] === 'string');
       }
       v.vrai('icône masquable (Android)', icones.some((i) => (i.purpose ?? '').includes('maskable') && typeof f[i.src] === 'string'));
-      const apple = /<link rel="apple-touch-icon" href="([^"]+)">/.exec(f['index.html'] ?? '');
-      v.vrai('icône de l\'écran d\'accueil iPhone', Boolean(apple) && typeof f[apple[1]] === 'string');
+      // Étape 24c (accord de l'utilisateur) : lien en 180 × 180, image écrite dans la page (data:image/png) ou fichier.
+      const apple = /<link rel="apple-touch-icon" sizes="180x180" href="([^"]+)">/.exec(f['index.html'] ?? '');
+      v.vrai('icône de l\'écran d\'accueil iPhone (180 × 180)', Boolean(apple) && (apple[1].startsWith('data:image/png;base64,') || typeof f[apple[1]] === 'string'));
     },
   },
   {

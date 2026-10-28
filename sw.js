@@ -6,8 +6,8 @@
 // donc aussi, le navigateur installe la nouvelle version d'un bloc (tous les fichiers dans un cache neuf),
 // supprime l'ancien cache et la page propose de recharger.
 
-const VERSION = 46;
-const EMPREINTE = '1217dccfb3bab335a26048113285100c96cca4b111f868772edb41108823659d';
+const VERSION = 47;
+const EMPREINTE = '9512dbecf25b3be06f0a31490f6c0cce890adb60a9a1707f1fe9b37dd0da39e8';
 const CACHE = `mur-led-v${VERSION}`;
 const FICHIERS = [
   './',
@@ -108,6 +108,8 @@ const FICHIERS = [
   'icones/icone-192.png',
   'icones/icone-512.png',
   'icones/icone-masquable-512.png',
+  'apple-touch-icon.png',
+  'apple-touch-icon-precomposed.png',
 ];
 
 const portee = new URL(self.registration.scope);
