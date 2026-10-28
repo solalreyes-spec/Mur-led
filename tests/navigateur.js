@@ -13,6 +13,7 @@ import * as couleurs from '../src/couleurs.js';
 import * as dessinSchema from '../src/dessin-schema.js';
 import { el } from '../src/dom.js';
 import * as exportImage from '../src/export.js';
+import { MAINTENANT_FICTIF, ADRESSE_FICTIVE, JETON_FICTIF, JETON_APPLE_FICTIF, relaisFictif, EVENEMENTS_A, calendrier } from './planning-fictif.js';
 
 const DALLE_192 = { id: 'fictive-192', nom: 'Dalle 500 mm, 192 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
 
@@ -95,7 +96,7 @@ const rgbHex = (p) => `#${p.map((x) => x.toString(16).padStart(2, '0')).join('')
 // dans la page de tests le temps d'un contrôle.
 // Étape 11e : Canvas dans la famille de la régie (turquoise), Schéma dans sa propre famille (vert anis).
 const ONGLETS_LOOK = [['mur', 'image'], ['data', 'donnees'], ['canvas', 'regie'], ['elec', 'electricite'], ['poids', 'accroche'],
-  ['schema', 'schema'], ['depannage', 'depannage'], ['base', 'base'], ['apprendre', 'apprendre']];
+  ['schema', 'schema'], ['depannage', 'depannage'], ['base', 'base'], ['apprendre', 'apprendre'], ['planning', 'presta']];
 // Module d'écran encore absent (tests écrits avant le code) : null au lieu d'une erreur de chargement.
 async function importerSiPresent(chemin) {
   try {
@@ -1698,7 +1699,7 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N38',
-    titre: 'Entraînement : la carte « S\'entraîner » est en tête de l\'onglet Apprendre et ouvre le mode ; 9 onglets, Apprendre le dernier, aucun pour le mode lui-même',
+    titre: 'Entraînement : la carte « S\'entraîner » est en tête de l\'onglet Apprendre et ouvre le mode ; 10 onglets (étape 23c1, accord de l\'utilisateur), Apprendre en 9e, aucun pour le mode lui-même',
     etape: 'entrainement',
     async verifier(v, contexte) {
       const ap = await moduleAppli(v, '../src/ecran-apprendre.js');
@@ -1716,7 +1717,7 @@ export const NAVIGATEUR = [
       racine.remove();
       const page = new DOMParser().parseFromString(contexte.fichiers?.['index.html'] ?? '', 'text/html');
       const onglets = [...page.querySelectorAll('nav.onglets .onglet')];
-      v.egal('9 onglets, Apprendre le dernier, aucun pour le mode', [onglets.length, texteDe(onglets[8]), onglets.some((o) => /entra/i.test(o.textContent))], [9, 'Apprendre', false]);
+      v.egal('10 onglets, Apprendre en 9e, aucun pour le mode', [onglets.length, texteDe(onglets[8]), onglets.some((o) => /entra/i.test(o.textContent))], [10, 'Apprendre', false]);
       v.vrai('écran plein du mode dans la page, comme la mire', Boolean(page.querySelector('#entrainement.montage[role="dialog"] #ecran-entrainement')) && Boolean(page.querySelector('#entrainement-fermer')));
     },
   },
@@ -1950,13 +1951,13 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N43',
-    titre: 'Nouveau look, onglets (§ 3) : 9 onglets en grille de 3 × 3 dans l\'ordre Mur, Data, Canvas / Élec, Poids, Schéma / Dépannage, Base, Apprendre, chacun avec sa famille et une icône de trait ; chaque panneau porte la famille de son onglet ; l\'onglet ouvert a le fond teinté et la bordure de sa famille, libellé en gras ; cibles de 48 px, 60 px en grand affichage',
+    titre: 'Nouveau look, onglets (§ 3 ; étape 23c1, grille choisie par l\'utilisateur sur captures) : 10 onglets en grille de 4 colonnes dans l\'ordre Mur, Data, Canvas, Élec / Poids, Schéma, Dépannage, Base (icône au-dessus du libellé) / Apprendre, Planning (demi-largeur, icône à gauche), chacun avec sa famille et une icône de trait ; chaque panneau porte la famille de son onglet ; l\'onglet ouvert a le fond teinté et la bordure de sa famille, libellé en gras ; cibles de 48 px, 60 px en grand affichage',
     etape: 'look',
     async verifier(v, contexte) {
       const look = await moduleAppli(v, '../src/look.js');
       const page = new DOMParser().parseFromString(contexte.fichiers?.['index.html'] ?? '', 'text/html');
       const onglets = [...page.querySelectorAll('nav.onglets a.onglet')];
-      v.egal('9 onglets dans l\'ordre, chacun avec sa famille', onglets.map((o) => `${o.getAttribute('href')} ${o.dataset.famille}`), ONGLETS_LOOK.map(([o, f]) => `#${o} ${f}`));
+      v.egal('10 onglets dans l\'ordre, chacun avec sa famille', onglets.map((o) => `${o.getAttribute('href')} ${o.dataset.famille}`), ONGLETS_LOOK.map(([o, f]) => `#${o} ${f}`));
       v.egal('une icône de trait par onglet', onglets.filter((o) => !o.querySelector('svg.icone-onglet')).map((o) => o.getAttribute('href')), []);
       v.egal('chaque panneau porte la famille de son onglet', ONGLETS_LOOK.map(([o]) => page.getElementById(o)?.dataset.famille ?? null), ONGLETS_LOOK.map(([, f]) => f));
       if (look) v.egal('src/look.js : même correspondance', ONGLETS_LOOK.map(([o]) => look.FAMILLES_ONGLETS?.[o] ?? null), ONGLETS_LOOK.map(([, f]) => f));
@@ -1983,7 +1984,19 @@ export const NAVIGATEUR = [
             v.egal(`${taille} : un onglet fermé garde la bordure neutre`, rgbVersHex(getComputedStyle(liens[0]).borderTopColor), sombre['--bordure']);
           }
           const hauts = liens.map((a) => Math.round(a.getBoundingClientRect().top));
-          v.vrai(`${taille} : grille de 3 × 3 (trois onglets par rangée, trois rangées)`, hauts.length === 9 && hauts[0] === hauts[2] && hauts[3] > hauts[2] && hauts[3] === hauts[5] && hauts[6] > hauts[5] && hauts[6] === hauts[8]);
+          v.vrai(`${taille} : grille de 4 colonnes (4, 4 et 2 onglets par rangée)`, hauts.length === 10 && hauts[0] === hauts[3] && hauts[4] > hauts[3]
+            && hauts[4] === hauts[7] && hauts[8] > hauts[7] && hauts[8] === hauts[9]);
+          const larges = liens.map((a) => a.getBoundingClientRect().width);
+          v.vrai(`${taille} : Apprendre et Planning en demi-largeur (deux colonnes chacun)`, larges.length === 10 && larges[8] > larges[0] * 1.9 && Math.abs(larges[8] - larges[9]) < 1);
+          const placeIcone = (a) => {
+            const i = a.querySelector('svg.icone-onglet')?.getBoundingClientRect();
+            const l = a.querySelector('.onglet-libelle')?.getBoundingClientRect();
+            if (!i || !l) return 'absente';
+            if (i.bottom <= l.top + 0.5) return 'dessus';
+            return i.right <= l.left + 0.5 ? 'gauche' : 'ailleurs';
+          };
+          v.egal(`${taille} : icône au-dessus du libellé sur les deux premières rangées, à gauche sur la dernière`, liens.map(placeIcone),
+            [...Array(8).fill('dessus'), 'gauche', 'gauche']);
           const mini = taille === 'grand' ? 60 : 48;
           v.egal(`${taille} : cibles de ${mini} px au moins, aucun libellé coupé, rien ne déborde`, liens.filter((a) => a.getBoundingClientRect().height < mini - 0.5 || a.scrollWidth > a.clientWidth + 0.5
             || a.getBoundingClientRect().right > cadre.getBoundingClientRect().right + 0.5).map((a) => texteDe(a)), []);
@@ -5616,6 +5629,341 @@ export const NAVIGATEUR = [
         v.egal('… une descente par bout, plus de polyligne par retour', [sx.svg.querySelectorAll('[data-trajet] .descente-secours').length, sx.svg.querySelectorAll('.depuis-appareil.secours').length], [disquesDe(sx.svg, '.bout-secours').length, 0]);
       } finally {
         sx.svg.remove();
+      }
+    },
+  },
+  {
+    id: 'N121',
+    titre: 'Écran Planning (étape 23, lot 23c1) : carte d\'accueil sans réglage, qui ouvre les réglages ; adresse du relais et jetons en champs masqués, vidés une fois enregistrés (« enregistré » à la place), jamais écrits dans la page ; lecture dès les réglages enregistrés ; « Tester la connexion » ; journées à venir, « Voir les dates passées », filtre par boîte ; « Nouveau » et pastille de l\'onglet, effacée à l\'ouverture de l\'onglet ; boîte en erreur avec la date de ses données ; question « Les retirer ? » ; hors ligne : données gardées, aucune requête ; aucun bouton data-copier',
+    etape: '23c1',
+    async verifier(v) {
+      const module = await importerSiPresent('../src/ecran-planning.js');
+      v.vrai('src/ecran-planning.js chargé', Boolean(module?.monterPlanning));
+      if (!module?.monterPlanning) return;
+      const memoire = new Map();
+      const stockage = { lire: async (cle) => structuredClone(memoire.get(cle) ?? null), ecrire: async (cle, val) => { memoire.set(cle, structuredClone(val)); return true; } };
+      let t = MAINTENANT_FICTIF;
+      let relais = relaisFictif();
+      const pastilles = [];
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const fuite = (r) => {
+        const tout = r.outerHTML + [...r.querySelectorAll('input')].map((i) => i.value).join(' ');
+        return tout.includes('exemple.test') || tout.includes(JETON_FICTIF);
+      };
+      const cartes = (sel = '.pl-a-venir') => [...racine.querySelectorAll(`${sel} .pl-carte`)];
+      try {
+        const ecran = module.monterPlanning(racine, {
+          stockage, fetch: (url, o) => relais.fetch(url, o), maintenant: () => t, enLigne: () => true, surNouvelles: (n) => pastilles.push(n),
+        });
+        await ecran.pret;
+        v.vrai('sans réglage : carte d\'accueil, aucune requête', racine.querySelector('.pl-accueil') !== null && relais.appels.length === 0);
+        const reglages = racine.querySelector('details.pl-reglages');
+        racine.querySelector('.pl-accueil button')?.click();
+        v.vrai('le bouton de l\'accueil ouvre les réglages', reglages?.open === true);
+        const champs = ['pl-relais', 'pl-jeton', 'pl-jeton-apple'].map((id) => racine.querySelector(`#${id}`));
+        v.egal('trois champs masqués, sans saisie automatique ni correction', champs.map((c) => [c?.type, c?.autocomplete, c?.getAttribute('autocapitalize'), c?.spellcheck]),
+          Array(3).fill(['password', 'off', 'off', false]));
+        champs[0].value = ADRESSE_FICTIVE;
+        champs[1].value = JETON_FICTIF;
+        racine.querySelector('.pl-enregistrer').click();
+        await ecran.calme();
+        v.egal('enregistrés : champs vidés, « enregistré » affiché', [champs[0].value, champs[1].value, /Adresse du relais : enregistrée/.test(texteDe(racine.querySelector('.pl-etat-reglage'))), /Jeton de l'appli : enregistré/.test(texteDe(racine.querySelector('.pl-etat-reglage')))],
+          ['', '', true, true]);
+        const garde = memoire.get('planning-reglages');
+        v.egal('réglages gardés sur l\'appareil', [garde?.relais, garde?.jeton, garde?.jetonApple ?? null], [ADRESSE_FICTIVE, JETON_FICTIF, null]);
+        v.egal('lecture dès l\'enregistrement : deux journées à venir, accueil retiré', [cartes().length, racine.querySelector('.pl-accueil')], [2, null]);
+        v.vrai('repère de la boîte : lettre dans la pastille', texteDe(cartes()[0].querySelector('.pl-pastille')) === 'O');
+        v.vrai('aucune adresse ni aucun jeton dans la page', !fuite(racine));
+
+        racine.querySelector('.pl-tester').click();
+        await ecran.calme();
+        v.vrai('Tester la connexion : relais joint, trois boîtes', /Relais joint : 3 boîtes/.test(texteDe(racine.querySelector('.pl-resultat-test'))));
+
+        racine.querySelector('.pl-voir-passees').click();
+        v.egal('Voir les dates passées : neuf journées', cartes('.pl-passees').length, 9);
+        const puce = (nom) => [...racine.querySelectorAll('.pl-filtres button')].find((b) => texteDe(b).includes(nom));
+        puce('Boîte B').click();
+        puce('Boîte C').click();
+        v.egal('filtre : Boîte A seule', [cartes().length, cartes('.pl-passees').length, puce('Boîte B').getAttribute('aria-pressed')], [1, 2, 'false']);
+        puce('Boîte B').click();
+        puce('Boîte C').click();
+
+        // Nouvelle date chez la Boîte A.
+        t += 20 * 60000;
+        relais = relaisFictif({ boites: { 'boite-a': { texte: calendrier({ calname: 'EventSoft / Boîte A', evenements: [...EVENEMENTS_A, { uid: 'a7@fictif', debut: '20261205T080000Z', fin: '20261205T170000Z', summary: 'Forum fictif 2 / Installation', categories: 'Installation', lieu: 'Centre fictif', client: 'Client fictif A' }] }) } } });
+        await ecran.actualiser();
+        v.egal('Nouveau : une carte marquée, pastille de l\'onglet à 1', [racine.querySelectorAll('.pl-a-venir .pl-puce-nouveau').length, pastilles.at(-1)], [1, 1]);
+        await ecran.ouvrir();
+        v.egal('onglet ouvert : pastille à 0, vu gardé', [pastilles.at(-1), memoire.get('planning-etat')?.boites?.['boite-a']?.vu], [0, t]);
+
+        // Boîte en erreur.
+        t += 20 * 60000;
+        // La Boîte A garde sa 7e date à cette étape (correction accordée le 27/10/2026).
+        const aveca7 = calendrier({ calname: 'EventSoft / Boîte A', evenements: [...EVENEMENTS_A, { uid: 'a7@fictif', debut: '20261205T080000Z', fin: '20261205T170000Z', summary: 'Forum fictif 2 / Installation', categories: 'Installation', lieu: 'Centre fictif', client: 'Client fictif A' }] });
+        relais = relaisFictif({ boites: { 'boite-a': { texte: aveca7 }, 'boite-b': { statut: 503 } } });
+        await ecran.actualiser();
+        v.vrai('boîte en erreur : message avec la date de ses données', [...racine.querySelectorAll('.pl-etat-boite')].some((e) => /^Boîte B : pas joignable, données du 27\/10 à 10 h 20$/.test(texteDe(e))));
+        v.vrai('les autres boîtes lues', [...racine.querySelectorAll('.pl-etat-boite')].some((e) => /^Boîte A : Mis à jour le 27\/10 à 10 h 40$/.test(texteDe(e))));
+
+        // Disparition massive.
+        t += 20 * 60000;
+        relais = relaisFictif({ boites: { 'boite-a': { texte: calendrier({ calname: 'EventSoft / Boîte A', evenements: EVENEMENTS_A.slice(0, 4) }) } } });
+        await ecran.actualiser();
+        const question = racine.querySelector('.pl-demande');
+        v.vrai('question « Les retirer ? »', /Boîte A : 3 dates sur 3 ont disparu du planning\. Les retirer \?/.test(texteDe(question)));
+        [...(question?.querySelectorAll('button') ?? [])].find((b) => texteDe(b) === 'Retirer')?.click();
+        await ecran.calme();
+        v.egal('retraits confirmés : question retirée, dates barrées', [racine.querySelector('.pl-demande'), racine.querySelectorAll('.pl-a-venir .pl-retiree').length], [null, 2]);
+        v.vrai('toujours aucune adresse ni aucun jeton dans la page', !fuite(racine));
+        v.egal('aucun bouton data-copier', racine.querySelectorAll('[data-copier]').length, 0);
+
+        // Hors ligne : nouvel écran sur les mêmes données.
+        const appels = [];
+        const horsLigne = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+        document.body.append(horsLigne);
+        t += 60 * 60000;
+        const ecran2 = module.monterPlanning(horsLigne, {
+          stockage, fetch: (url) => { appels.push(url); return Promise.reject(new TypeError('hors ligne')); }, maintenant: () => t, enLigne: () => false, surNouvelles: () => {},
+        });
+        await ecran2.pret;
+        await ecran2.ouvrir();
+        v.egal('hors ligne : aucune requête, journées gardées affichées', [appels.length, horsLigne.querySelectorAll('.pl-a-venir .pl-carte').length >= 2], [0, true]);
+        v.vrai('hors ligne : « Mis à jour le … » par boîte', [...horsLigne.querySelectorAll('.pl-etat-boite')].some((e) => /Mis à jour le 27\/10/.test(texteDe(e))));
+        horsLigne.remove();
+      } finally {
+        racine.remove();
+      }
+    },
+  },
+  {
+    id: 'N122',
+    titre: 'Écran Planning, vues Mois et Totaux et conflits (étape 23, lot 23c2) : choix segmenté Liste | Mois | Totaux, Liste à l\'ouverture ; puces « Conflit » et « Repos court » et texte de l\'alerte sur les cartes citées ; grille du mois en cours (aujourd\'hui marqué), mois précédent et suivant, pastilles avec la lettre de la boîte, marque de conflit, hachures d\'une indisponibilité seule, jour touché et ses journées sous la grille, filtre par boîte ; tableau des Totaux dans son cadre, 12 derniers mois, mention des heures planifiées ; la vue choisie reste après une lecture ; aucune adresse ni aucun jeton dans la page',
+    etape: '23c2',
+    async verifier(v) {
+      const module = await importerSiPresent('../src/ecran-planning.js');
+      v.vrai('src/ecran-planning.js chargé', Boolean(module?.monterPlanning));
+      if (!module?.monterPlanning) return;
+      const memoire = new Map([['planning-reglages', { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: null, boites: [] }]]);
+      const stockage = { lire: async (cle) => structuredClone(memoire.get(cle) ?? null), ecrire: async (cle, val) => { memoire.set(cle, structuredClone(val)); return true; } };
+      const relais = relaisFictif();
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const fuite = () => racine.outerHTML.includes('exemple.test') || racine.outerHTML.includes(JETON_FICTIF);
+      const choisirVue = (nom) => {
+        const radio = [...racine.querySelectorAll('.pl-vues input[type=radio]')].find((r) => texteDe(r.closest('label')) === nom);
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      const carte = (date, boite) => [...racine.querySelectorAll('.pl-carte')].find((c) => c.dataset.cle?.startsWith(`${boite}|`) && c.dataset.cle.endsWith(`|${date}`));
+      const jour = (date) => racine.querySelector(`.pl-mois-grille [data-date="${date}"]`);
+      const titreMois = () => texteDe(racine.querySelector('.pl-mois-titre'));
+      try {
+        const ecran = module.monterPlanning(racine, { stockage, fetch: (url, o) => relais.fetch(url, o), maintenant: () => MAINTENANT_FICTIF, enLigne: () => true, surNouvelles: () => {} });
+        await ecran.pret;
+        await ecran.calme();
+        const vues = [...racine.querySelectorAll('.pl-vues label')];
+        v.egal('choix segmenté Liste | Mois | Totaux, Liste à l\'ouverture', [vues.map(texteDe), vues.map((l) => l.querySelector('input').checked), racine.querySelectorAll('.pl-a-venir .pl-carte').length],
+          [['Liste', 'Mois', 'Totaux'], [true, false, false], 2]);
+
+        // Conflits sur les cartes (dates passées).
+        racine.querySelector('.pl-voir-passees').click();
+        const salonA = carte('2026-06-12', 'boite-a');
+        const concertB = carte('2026-06-12', 'boite-b');
+        v.egal('puce « Conflit » sur les deux journées', [salonA?.querySelector('.pl-puce-conflit') !== null, concertB?.querySelector('.pl-puce-conflit') !== null, racine.querySelectorAll('.pl-puce-conflit').length], [true, true, 2]);
+        v.vrai('texte du conflit sur la carte', texteDe(salonA?.querySelector('.pl-alerte-conflit')).includes('Conflit : Boîte A (8 h – 18 h) et Boîte B (14 h – 22 h) le 12/06.'));
+        v.egal('repos court sur les deux journées, information « Deux boîtes »', [
+          racine.querySelectorAll('.pl-puce-repos').length,
+          texteDe(carte('2026-07-09', 'boite-b')?.querySelector('.pl-alerte-repos')).includes('4 h de repos entre Boîte A (fin 3 h) et Boîte B (début 7 h) le 09/07'),
+          texteDe(carte('2026-05-20', 'boite-c')?.querySelector('.pl-alerte-suite')).includes('Deux boîtes le 20/05 : 1 h entre les deux'),
+        ], [2, true, true]);
+
+        // Mois.
+        choisirVue('Mois');
+        v.egal('Mois : liste masquée, grille d\'octobre 2026 en 5 semaines', [racine.querySelector('.pl-a-venir'), titreMois(), racine.querySelectorAll('.pl-mois-grille [data-date]').length], [null, 'Octobre 2026', 35]);
+        v.egal('en-tête des jours du lundi au dimanche', [...racine.querySelectorAll('.pl-mois-semaine abbr')].map(texteDe), ['L', 'M', 'M', 'J', 'V', 'S', 'D']);
+        v.egal('aujourd\'hui marqué', [...racine.querySelectorAll('.pl-mois-grille [aria-current="date"]')].map((c) => c.dataset.date), ['2026-10-27']);
+        v.egal('pastille avec la lettre de la boîte, étiquette lue', [texteDe(jour('2026-10-20')?.querySelector('.pl-pastille')), jour('2026-10-20')?.getAttribute('aria-label')], ['I', 'mar. 20/10, Boîte C']);
+        v.vrai('jours hors du mois : pas de bouton', jour('2026-09-28')?.tagName !== 'BUTTON' && jour('2026-10-01')?.tagName === 'BUTTON');
+        for (let i = 0; i < 4; i += 1) racine.querySelector('.pl-mois-precedent').click();
+        v.egal('quatre fois « Mois précédent » : juin 2026', titreMois(), 'Juin 2026');
+        v.egal('le 12/06 : deux pastilles et la marque de conflit', [jour('2026-06-12')?.querySelectorAll('.pl-pastille').length, jour('2026-06-12')?.querySelector('.pl-marque-conflit') !== null], [2, true]);
+        v.vrai('le 20/06 : hachures d\'une indisponibilité seule', jour('2026-06-20')?.classList.contains('pl-jour-indispo'));
+        jour('2026-06-12').click();
+        const choisi = racine.querySelector('.pl-jour-choisi');
+        v.egal('jour touché : ses deux journées sous la grille, jour enfoncé', [texteDe(choisi?.querySelector('h3')), choisi?.querySelectorAll('.pl-carte').length, jour('2026-06-12')?.getAttribute('aria-pressed')], ['ven. 12/06', 2, 'true']);
+        jour('2026-06-20').click();
+        v.vrai('jour d\'indisponibilité : son texte sous la grille', texteDe(racine.querySelector('.pl-jour-choisi')).includes('Boîte C : indisponible le sam. 20/06'));
+        const puce = (nom) => [...racine.querySelectorAll('.pl-filtres button')].find((b) => texteDe(b).includes(nom));
+        puce('Boîte B').click();
+        v.egal('filtre : Boîte B masquée, le conflit reste marqué, toujours juin', [jour('2026-06-12')?.querySelectorAll('.pl-pastille').length, jour('2026-06-12')?.querySelector('.pl-marque-conflit') !== null, titreMois()], [1, true, 'Juin 2026']);
+        puce('Boîte B').click();
+        racine.querySelector('.pl-mois-suivant').click();
+        v.egal('« Mois suivant » : juillet, aucun jour touché', [titreMois(), racine.querySelector('.pl-jour-choisi .pl-carte')], ['Juillet 2026', null]);
+
+        // Totaux.
+        choisirVue('Totaux');
+        const tableau = racine.querySelector('.tableau-defilant table.pl-totaux');
+        v.egal('Totaux : tableau dans son cadre, une colonne par boîte et le total, une ligne par mois', [
+          Boolean(tableau), [...(tableau?.querySelectorAll('thead th') ?? [])].map(texteDe), tableau?.querySelectorAll('tbody tr').length,
+          texteDe(tableau?.querySelector('tbody tr th')),
+        ], [true, ['Mois', 'B Boîte A', 'O Boîte B', 'I Boîte C', 'Total'], 8, 'Novembre 2026']);
+        const douze = texteDe(racine.querySelector('.pl-douze-mois'));
+        v.vrai('12 derniers mois', ['12 derniers mois, du 27/10/2025 au 27/10/2026', '9 journées, 62 h 30, 7 jours différents', '+ 2 journées à venir'].every((t) => douze.includes(t)), douze);
+        v.vrai('mention des heures planifiées', texteDe(racine).includes('Heures planifiées dans Eventsoft, pas les heures payées.'));
+        await ecran.actualiser();
+        v.vrai('après une lecture : toujours Totaux', racine.querySelector('table.pl-totaux') !== null && racine.querySelector('.pl-vues input:checked')?.closest('label') && texteDe(racine.querySelector('.pl-vues input:checked').closest('label')) === 'Totaux');
+        choisirVue('Liste');
+        v.vrai('retour à la Liste', racine.querySelectorAll('.pl-a-venir .pl-carte').length === 2 && racine.querySelector('.pl-mois-grille') === null);
+        v.vrai('aucune adresse ni aucun jeton dans la page', !fuite());
+        v.egal('aucun bouton data-copier', racine.querySelectorAll('[data-copier]').length, 0);
+      } finally {
+        racine.remove();
+      }
+    },
+  },
+  {
+    id: 'N123',
+    titre: 'Écran Planning, Intermittent, sauvegarde et Calendrier (étape 23, lot 23d) : case « Saisie dans Intermittent » et « Copier pour Intermittent » sur chaque carte ; filtre « À saisir dans Intermittent » avec son nombre (Liste seulement) ; alerte forte après une modification et « C\'est corrigé » ; « Exporter le planning » sans adresse ni jetons ; « Importer un planning » sur un téléphone neuf sans réglages (dates et cases reprises, réglages intacts), fichier illisible refusé ; « Ajouter à Calendrier » (webcal://) et « Copier l\'adresse » (https://) par boîte, rappel des doublons, rien sans jeton Apple ; aucune adresse ni aucun jeton dans la page',
+    etape: '23d',
+    async verifier(v) {
+      const module = await importerSiPresent('../src/ecran-planning.js');
+      v.vrai('src/ecran-planning.js chargé', Boolean(module?.monterPlanning));
+      if (!module?.monterPlanning) return;
+      const creerMemoire = (depart = []) => {
+        const memoire = new Map(depart);
+        return { memoire, stockage: { lire: async (cle) => structuredClone(memoire.get(cle) ?? null), ecrire: async (cle, val) => { memoire.set(cle, structuredClone(val)); return true; } } };
+      };
+      const { memoire, stockage } = creerMemoire([['planning-reglages', { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: JETON_APPLE_FICTIF, boites: [] }]]);
+      let relais = relaisFictif();
+      const copies = [];
+      const ouverts = [];
+      const partages = [];
+      const outils = {
+        copier: async (texte) => { copies.push(texte); },
+        ouvrir: (url) => { ouverts.push(url); },
+        partager: async (contenu, nom) => { partages.push({ contenu, nom }); return { mode: 'partage', note: null }; },
+      };
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const fuite = (r) => {
+        const tout = r.outerHTML + [...r.querySelectorAll('input')].map((i) => i.value).join(' ');
+        return ['exemple.test', JETON_FICTIF, JETON_APPLE_FICTIF].some((x) => tout.includes(x));
+      };
+      const carte = (r, date, boite) => [...r.querySelectorAll('.pl-carte')].find((c) => c.dataset.cle?.startsWith(`${boite}|`) && c.dataset.cle.endsWith(`|${date}`));
+      const filtreSaisir = (r) => r.querySelector('.pl-filtre-saisir');
+      const cocher = (c) => {
+        const caseSaisie = c.querySelector('.pl-saisie input[type=checkbox]');
+        caseSaisie.checked = !caseSaisie.checked;
+        caseSaisie.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      const racine2 = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine2);
+      try {
+        const ecran = module.monterPlanning(racine, {
+          stockage, fetch: (url, o) => relais.fetch(url, o), maintenant: () => MAINTENANT_FICTIF, enLigne: () => true, surNouvelles: () => {}, ...outils,
+        });
+        await ecran.pret;
+        await ecran.calme();
+        const seminaire = carte(racine, '2026-10-29', 'boite-b');
+        v.egal('chaque carte : case « Saisie dans Intermittent » non cochée et « Copier pour Intermittent »', [
+          racine.querySelectorAll('.pl-a-venir .pl-carte .pl-saisie input[type=checkbox]').length, texteDe(seminaire?.querySelector('.pl-saisie')),
+          seminaire?.querySelector('.pl-saisie input')?.checked, texteDe(seminaire?.querySelector('.pl-copier-intermittent')),
+        ], [2, 'Saisie dans Intermittent', false, 'Copier pour Intermittent']);
+        seminaire.querySelector('.pl-copier-intermittent').click();
+        await ecran.calme();
+        v.vrai('copie : la fiche de la journée', copies.at(-1)?.startsWith('Employeur : Boîte B\nDate : jeudi 29/10/2026\n'), copies.at(-1));
+        v.vrai('copie : message sur la carte', texteDe(carte(racine, '2026-10-29', 'boite-b')?.querySelector('.pl-statut-carte')).includes('Copié'));
+        v.egal('filtre « À saisir » : 11 journées', [texteDe(filtreSaisir(racine)), filtreSaisir(racine)?.getAttribute('aria-pressed')], ['À saisir dans Intermittent (11)', 'false']);
+
+        cocher(carte(racine, '2026-10-29', 'boite-b'));
+        await ecran.calme();
+        v.egal('case cochée : gardée sur l\'appareil, toujours cochée, 10 à saisir', [
+          Object.keys(memoire.get('planning-etat')?.boites?.['boite-b']?.saisies ?? {}).length,
+          carte(racine, '2026-10-29', 'boite-b')?.querySelector('.pl-saisie input').checked, texteDe(filtreSaisir(racine)),
+        ], [1, true, 'À saisir dans Intermittent (10)']);
+        filtreSaisir(racine).click();
+        v.egal('filtre actif : la journée cochée masquée, sans indisponibilités', [filtreSaisir(racine)?.getAttribute('aria-pressed'), racine.querySelectorAll('.pl-a-venir .pl-carte').length, racine.querySelector('.pl-indispos')], ['true', 1, null]);
+        racine.querySelector('.pl-voir-passees').click();
+        v.egal('filtre actif : neuf journées passées à saisir', racine.querySelectorAll('.pl-passees .pl-carte').length, 9);
+        filtreSaisir(racine).click();
+
+        // Saisie du salon (12/06, Boîte A), puis le salon change d'horaire dans Eventsoft.
+        cocher(carte(racine, '2026-06-12', 'boite-a'));
+        await ecran.calme();
+        relais = relaisFictif({ boites: { 'boite-a': { texte: calendrier({ calname: 'EventSoft / Boîte A', evenements: EVENEMENTS_A.map((e) => (e.uid === 'a1@fictif' ? { ...e, debut: '20260612T070000Z' } : e)) }) } } });
+        await ecran.actualiser();
+        const alerte = carte(racine, '2026-06-12', 'boite-a')?.querySelector('.pl-alerte-saisie');
+        v.vrai('alerte forte après la modification', texteDe(alerte).includes('Modifiée après saisie dans Intermittent : corrige-la là-bas'));
+        v.vrai('À saisir : la journée en alerte revient', texteDe(filtreSaisir(racine)) === 'À saisir dans Intermittent (10)');
+        [...(alerte?.querySelectorAll('button') ?? [])].find((b) => texteDe(b) === 'C\'est corrigé')?.click();
+        await ecran.calme();
+        v.egal('« C\'est corrigé » : alerte retirée, case gardée, 9 à saisir', [
+          carte(racine, '2026-06-12', 'boite-a')?.querySelector('.pl-alerte-saisie'), carte(racine, '2026-06-12', 'boite-a')?.querySelector('.pl-saisie input').checked, texteDe(filtreSaisir(racine)),
+        ], [null, true, 'À saisir dans Intermittent (9)']);
+        const choisirVue = (nom) => {
+          const radio = [...racine.querySelectorAll('.pl-vues input[type=radio]')].find((r) => texteDe(r.closest('label')) === nom);
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        choisirVue('Totaux');
+        v.egal('filtre « À saisir » absent des Totaux', filtreSaisir(racine), null);
+        choisirVue('Liste');
+
+        // Calendrier : deux boutons par boîte dans les réglages.
+        const reglages = racine.querySelector('details.pl-reglages');
+        reglages.open = true;
+        const ajouter = [...racine.querySelectorAll('.pl-ajouter-calendrier')];
+        v.egal('« Ajouter à Calendrier » et « Copier l\'adresse » par boîte', [ajouter.map(texteDe), [...racine.querySelectorAll('.pl-copier-adresse')].map(texteDe)],
+          [Array(3).fill('Ajouter à Calendrier'), Array(3).fill('Copier l\'adresse')]);
+        ajouter[0].click();
+        v.egal('Ajouter à Calendrier : abonnement webcal:// de la boîte', ouverts.at(-1), `webcal://relais.exemple.test/apple/${JETON_APPLE_FICTIF}/boite-a.ics`);
+        racine.querySelectorAll('.pl-copier-adresse')[1].click();
+        await ecran.calme();
+        v.egal('Copier l\'adresse : https:// de la boîte', copies.at(-1), `https://relais.exemple.test/apple/${JETON_APPLE_FICTIF}/boite-b.ics`);
+        v.vrai('message de copie sans l\'adresse', texteDe(racine.querySelector('.pl-apple-statut')).includes('Adresse copiée'));
+        v.vrai('rappel des doublons', /Se désabonner/.test(texteDe(racine.querySelector('.pl-rappel-apple'))));
+
+        // Export.
+        racine.querySelector('.pl-exporter').click();
+        await ecran.calme();
+        const exporte = partages.at(-1);
+        v.egal('Exporter le planning : fichier du jour', exporte?.nom, 'mur-led-planning-2026-10-27.json');
+        v.egal('export sans adresse ni jetons', ['exemple.test', JETON_FICTIF, JETON_APPLE_FICTIF].map((x) => exporte?.contenu.includes(x)), [false, false, false]);
+        v.egal('export : format du planning', JSON.parse(exporte?.contenu ?? '{}').format, 'appli-mur-led/planning');
+        v.vrai('message d\'export', texteDe(racine.querySelector('.pl-resultat-sauvegarde')).length > 0);
+        v.vrai('aucune adresse ni aucun jeton dans la page', !fuite(racine));
+        v.egal('aucun bouton data-copier', racine.querySelectorAll('[data-copier]').length, 0);
+
+        // Import sur un téléphone neuf, sans réglages.
+        const neuf = creerMemoire();
+        const ecran2 = module.monterPlanning(racine2, {
+          stockage: neuf.stockage, fetch: () => Promise.reject(new TypeError('aucune requête attendue')), maintenant: () => MAINTENANT_FICTIF, enLigne: () => true, surNouvelles: () => {}, ...outils,
+        });
+        await ecran2.pret;
+        v.vrai('téléphone neuf : carte d\'accueil', racine2.querySelector('.pl-accueil') !== null);
+        const choix = racine2.querySelector('#pl-import');
+        v.egal('Importer un planning : bouton et choix de fichier', [texteDe(racine2.querySelector('.pl-importer')), choix?.type], ['Importer un planning', 'file']);
+        const importer = async (contenu) => {
+          const dt = new DataTransfer();
+          dt.items.add(new File([contenu], 'mur-led-planning-2026-10-27.json', { type: 'application/json' }));
+          choix.files = dt.files;
+          choix.dispatchEvent(new Event('change', { bubbles: true }));
+          await new Promise((fin) => setTimeout(fin, 50));
+          await ecran2.calme();
+        };
+        await importer('pas un export');
+        v.vrai('fichier illisible refusé', texteDe(racine2.querySelector('.pl-resultat-sauvegarde')).includes('Fichier illisible : ce n\'est pas un export du planning.'));
+        await importer(exporte.contenu);
+        v.vrai('import : résumé', texteDe(racine2.querySelector('.pl-resultat-sauvegarde')).includes('Planning importé : 11 journées, 2 cases Intermittent et 3 boîtes ajoutées.'));
+        v.egal('import : dates et cases reprises, accueil retiré', [racine2.querySelectorAll('.pl-a-venir .pl-carte').length, carte(racine2, '2026-10-29', 'boite-b')?.querySelector('.pl-saisie input').checked, racine2.querySelector('.pl-accueil')], [2, true, null]);
+        const reglagesNeufs = neuf.memoire.get('planning-reglages');
+        v.egal('import : réglages du téléphone intacts, boîtes reprises', [reglagesNeufs?.relais ?? null, reglagesNeufs?.jeton ?? null, reglagesNeufs?.jetonApple ?? null, (reglagesNeufs?.boites ?? []).length], [null, null, null, 3]);
+        v.egal('sans jeton Apple : aucun bouton Calendrier, la raison', [racine2.querySelectorAll('.pl-ajouter-calendrier').length, /Saisis le jeton Apple/.test(texteDe(racine2.querySelector('.pl-reglages')))], [0, true]);
+        v.vrai('téléphone neuf : aucune adresse ni aucun jeton dans la page', !fuite(racine2));
+      } finally {
+        racine.remove();
+        racine2.remove();
       }
     },
   },

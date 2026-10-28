@@ -507,22 +507,23 @@ html[data-taille="grand"] { font-size: 19px; }
 
 .onglets {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   max-width: 760px;
   margin: 8px auto 0;
   padding: 0 16px 4px;
 }
-/* Onglets en grille de 3 × 3 (§ 3) : icône de trait dans la couleur de la famille de l'onglet, à gauche du libellé, 48 px
-   de haut (étape 11c) ; ouvert :
-   fond teinté, bordure de la famille, libellé en gras. « Dépannage » se coupe à son trait d'union conditionnel seulement
-   s'il ne tient pas (grand affichage). */
+/* Onglets (§ 3) : icône de trait dans la couleur de la famille de l'onglet, 48 px de haut (étape 11c) ; ouvert : fond
+   teinté, bordure de la famille, libellé en gras. « Dépannage » se coupe à son trait d'union conditionnel seulement
+   s'il ne tient pas (grand affichage). Étape 23c1 (choix de l'utilisateur sur captures) : 10 onglets en 4 colonnes,
+   icône au-dessus du libellé ; Apprendre et Planning en demi-largeur, icône à gauche. Même hauteur que la grille de
+   3 × 3 d'avant : le dessin du Schéma reste dans le premier écran. */
 .onglet {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
   min-height: var(--cible);
   padding: 2px;
@@ -539,6 +540,13 @@ html[data-taille="grand"] { font-size: 19px; }
   -webkit-hyphens: manual;
 }
 .icone-onglet { width: 18px; height: 18px; flex: none; color: var(--famille); }
+.onglet[href="#apprendre"], .onglet[href="#planning"] { grid-column: span 2; flex-direction: row; gap: 4px; }
+/* Pastille du Planning : nombre de journées nouvelles depuis la dernière ouverture de l'onglet. */
+.pastille-onglet {
+  min-width: 20px; height: 20px; margin-left: 2px; padding: 0 6px; border-radius: 10px;
+  background: var(--famille); color: var(--sur-famille); font-size: 0.75rem; font-weight: 700; line-height: 20px; text-align: center;
+}
+.pastille-onglet[hidden] { display: none; }
 .onglet-libelle { max-width: 100%; }
 .onglet[aria-current="page"] { background: var(--famille-fond); border-color: var(--famille); font-weight: 700; }
 .onglet-inactif { color: var(--texte-doux); font-weight: 400; opacity: 0.7; }
@@ -561,7 +569,7 @@ html[data-taille="grand"] { font-size: 19px; }
 .champ { display: grid; gap: 6px; min-width: 0; }
 .champ label, .segmente legend { color: var(--texte-doux); font-size: 0.9rem; }
 
-input:not([type]), input[type="text"], input[type="date"], select {
+input:not([type]), input[type="text"], input[type="password"], input[type="date"], select {
   width: 100%;
   min-height: var(--cible);
   padding: 0 12px;
@@ -1658,3 +1666,139 @@ code.nl-menu { font-family: var(--police-chiffres); font-size: 0.9em; padding: 0
 .lignes-arrivees td { white-space: nowrap; }
 #autres-arrivees { display: grid; gap: 12px; }
 #autres-arrivees:empty { display: none; }
+
+/* Planning des piges (étape 23, lot 23c1) : état des boîtes, liste des journées, réglages. Repère de chaque boîte :
+   pastille de sa couleur (palette de src/planning/reglages.js) et sa lettre en foncé ; en mode rouge, toutes les
+   pastilles en rouge, la lettre les distingue. */
+.pl-pastille {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--boite, var(--texte-doux)); color: #0b0d11; font-size: 0.8rem; font-weight: 700; line-height: 1;
+}
+:root[data-mode="rouge"] .pl-pastille { background: #ff3b30; }
+.pl-etats { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pl-etats li { display: flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.pl-en-erreur .pl-etat-boite { color: var(--echec); }
+.pl-messages:empty { display: none; }
+.pl-messages .alerte { margin-top: 12px; }
+.pl-demande p { margin: 0 0 8px; }
+.pl-filtres { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pl-filtre[aria-pressed="false"] { color: var(--texte-doux); border-style: dashed; }
+.pl-a-venir, .pl-passees { margin-top: 16px; }
+.pl-vide { color: var(--texte-doux); }
+.pl-voir-passees { width: 100%; margin-top: 16px; }
+.pl-carte {
+  display: grid; gap: 4px; margin-top: 10px; padding: 12px 14px; min-width: 0;
+  background: var(--surface); border: 1px solid var(--bordure); border-top-color: var(--lisere); border-radius: 14px;
+}
+.pl-carte-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.pl-boite { color: var(--texte-doux); font-size: 0.85rem; }
+.pl-jour { font-weight: 700; }
+.pl-horaires { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pl-puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.pl-puce-nouveau { border-color: var(--famille); color: var(--famille); }
+.pl-puce-modifie, .pl-puce-verifier { border-color: var(--alerte); color: var(--alerte); }
+.pl-presta { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.pl-detail, .pl-retire-texte { margin: 0; color: var(--texte-doux); font-size: 0.9rem; overflow-wrap: anywhere; }
+.pl-detail a { display: inline-flex; align-items: center; min-height: var(--cible); color: var(--lien); }
+.pl-ancien { margin: 0; color: var(--alerte); font-size: 0.9rem; overflow-wrap: anywhere; }
+.pl-retiree .pl-jour, .pl-retiree .pl-horaires, .pl-retiree .pl-presta { color: var(--texte-doux); text-decoration: line-through; }
+.pl-indispos { margin-top: 10px; color: var(--texte-doux); }
+.pl-indispos summary, .pl-reglages summary { display: flex; align-items: center; min-height: var(--cible); cursor: pointer; }
+.pl-indispos ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pl-indispos li { display: flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.pl-reglages summary { font-weight: 600; }
+.pl-etat-reglage { margin: 8px 0 12px; padding-left: 18px; color: var(--texte-doux); }
+.pl-aide { margin: 0; color: var(--texte-doux); font-size: 0.85rem; }
+.pl-erreur-reglage { margin: 8px 0 0; color: var(--echec); }
+.pl-erreur-reglage:empty, .pl-resultat-test:empty { display: none; }
+.pl-resultat-test { margin-top: 12px; }
+.pl-resultat-test p { margin: 0; overflow-wrap: anywhere; }
+.pl-boites-reglage h3 { margin-top: 16px; }
+.pl-boite-reglage { display: grid; gap: 10px; min-width: 0; margin: 12px 0 0; padding: 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); }
+.pl-boite-reglage legend { display: flex; align-items: center; gap: 6px; padding: 0 4px; }
+.pl-actions-danger { margin-top: 16px; }
+
+/* Planning, lot 23c2 : choix de la vue, conflits sur les cartes, grille du mois, tableau des totaux. Marques de la grille
+   distinctes par la forme (rond plein : conflit ; rond vide : repos court), pour le mode rouge ; hachures par un masque
+   SVG (ni dégradé ni ombre, N49). Cases de la grille sans bordure extérieure. */
+.pl-vues { margin-top: 16px; }
+.pl-vues .segments label { flex: 1 1 0; }
+.pl-puce-conflit { border-color: var(--echec); color: var(--echec); }
+.pl-puce-repos { border-color: var(--alerte); color: var(--alerte); }
+.pl-alerte { margin: 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+.pl-alerte-conflit { color: var(--echec); font-weight: 600; }
+.pl-alerte-repos { color: var(--alerte); }
+.pl-alerte-suite { color: var(--texte-doux); }
+.pl-mois { margin-top: 16px; }
+.pl-mois-tete { display: grid; grid-template-columns: var(--cible) minmax(0, 1fr) var(--cible); align-items: center; gap: 8px; }
+main section h3.pl-mois-titre { justify-content: center; margin: 0; font-size: 1.05rem; }
+.pl-mois-semaine, .pl-mois-grille { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; }
+/* La grille déborde de 8 px dans la marge de la page (à 8 px du bord) : 7 cases de 48 px dès 358 px utiles. */
+.pl-mois-semaine, .pl-mois-grille { margin-left: -8px; margin-right: -8px; }
+.pl-mois-semaine { margin-top: 8px; color: var(--texte-doux); font-size: 0.8rem; font-weight: 600; text-align: center; }
+.pl-mois-semaine abbr { text-decoration: none; }
+.pl-mois-grille { margin-top: 4px; background: var(--bordure); border-radius: 12px; overflow: hidden; }
+.pl-mois-jour {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; min-height: 60px;
+  margin: 0; padding: 4px 1px; background: var(--surface); color: var(--texte); border: 0; border-radius: 0; font: inherit; cursor: pointer;
+}
+.pl-mois-hors { background: var(--surface-2); color: var(--texte-doux); cursor: default; }
+.pl-mois-jour[aria-pressed="true"] { background: var(--famille-fond); outline: 2px solid var(--famille); outline-offset: -2px; }
+.pl-mois-jour:focus-visible { outline: 2px solid var(--famille); outline-offset: -2px; }
+.pl-mois-num { min-width: 22px; padding: 0 4px; border-radius: 999px; font-size: 0.85rem; line-height: 20px; font-variant-numeric: tabular-nums; }
+.pl-aujourdhui .pl-mois-num { background: var(--famille); color: var(--sur-famille); font-weight: 700; }
+.pl-mois-pastilles { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; }
+.pl-mois-pastilles .pl-pastille { width: 18px; height: 18px; font-size: 0.65rem; }
+.pl-marque-conflit, .pl-marque-repos {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box;
+  width: 14px; height: 14px; border-radius: 50%; font-size: 0.65rem; font-weight: 800; line-height: 1;
+}
+.pl-mois-jour .pl-marque-conflit, .pl-mois-jour .pl-marque-repos { position: absolute; top: 3px; right: 2px; }
+.pl-marque-conflit { background: var(--echec); color: var(--fond); }
+.pl-marque-repos { border: 1.5px solid var(--alerte); color: var(--alerte); }
+.pl-jour-indispo::after, .pl-hachures {
+  content: ""; background: var(--texte-doux); opacity: 0.55;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M-2 2l4-4M0 8l8-8M6 10l4-4' stroke='black' stroke-width='1.6'/%3E%3C/svg%3E") 0 0 / 8px 8px repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M-2 2l4-4M0 8l8-8M6 10l4-4' stroke='black' stroke-width='1.6'/%3E%3C/svg%3E") 0 0 / 8px 8px repeat;
+}
+.pl-jour-indispo::after { position: absolute; inset: 26px 5px 5px; border-radius: 4px; pointer-events: none; }
+.pl-hachures { display: inline-block; flex: none; width: 14px; height: 14px; border-radius: 3px; }
+.pl-mois-legende { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 0; padding: 0; list-style: none; color: var(--texte-doux); font-size: 0.85rem; }
+.pl-mois-legende li { display: inline-flex; align-items: center; gap: 6px; }
+.pl-jour-choisi { margin-top: 16px; }
+.pl-indispos-jour { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; color: var(--texte-doux); }
+.pl-indispos-jour li { display: flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.pl-douze-mois { margin-top: 16px; }
+.pl-douze-mois p { margin: 0; }
+.pl-douze-valeur { margin-top: 4px; font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pl-douze-venir { color: var(--famille); }
+.pl-totaux-cadre { margin-top: 12px; }
+.pl-totaux { min-width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.pl-totaux th, .pl-totaux td { padding: 6px 8px; border-top: 1px solid var(--bordure); text-align: left; vertical-align: top; white-space: nowrap; }
+.pl-totaux thead th { border-top: 0; color: var(--texte-doux); font-weight: 600; }
+.pl-totaux thead .pl-pastille { width: 20px; height: 20px; font-size: 0.7rem; vertical-align: middle; }
+.pl-totaux tbody th { min-width: 6.5em; font-weight: 600; white-space: normal; }
+.pl-totaux th:first-child { position: sticky; left: 0; z-index: 1; background: var(--fond); }
+.pl-totaux td:last-child, .pl-totaux th:last-child { border-left: 1px solid var(--bordure); font-weight: 700; }
+.pl-totaux td span { display: block; font-variant-numeric: tabular-nums; }
+.pl-totaux-h, .pl-totaux-d { color: var(--texte-doux); font-size: 0.8rem; font-weight: 400; }
+.pl-zero { color: var(--texte-doux); }
+.pl-mois-en-cours th { color: var(--famille); }
+.pl-note-heures { margin-top: 8px; }
+/* Planning, lot 23d : case Intermittent et copie sur chaque carte, alerte forte après saisie, filtre « À saisir »,
+   abonnements Calendrier par boîte, sauvegarde. */
+.pl-intermittent { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-top: 6px; border-top: 1px solid var(--bordure); }
+.pl-intermittent .pl-saisie { flex: 1 1 auto; }
+.pl-copier-intermittent { flex: 1 1 auto; }
+.pl-statut-carte { flex-basis: 100%; margin: 0; color: var(--texte-doux); font-size: 0.85rem; }
+.pl-fiche-texte { flex-basis: 100%; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 0.85rem; user-select: text; -webkit-user-select: text; }
+.pl-alerte-saisie p { margin: 0 0 8px; overflow-wrap: anywhere; }
+.pl-filtres-saisir { margin-top: 8px; }
+.pl-filtre-saisir[aria-pressed="true"] { border-color: var(--famille); color: var(--famille); font-weight: 600; }
+.pl-rappel-apple { display: grid; gap: 6px; margin-top: 8px; }
+.pl-apple { margin-top: 2px; }
+.pl-apple-statut { margin: 12px 0 0; color: var(--texte-doux); font-size: 0.9rem; }
+.pl-apple-statut:empty, .pl-resultat-sauvegarde:empty { display: none; }
+.pl-reglages > h3 { margin-top: 20px; }
+.pl-sauvegarde { margin-top: 8px; }
+.pl-resultat-sauvegarde { margin: 8px 0 0; overflow-wrap: anywhere; }

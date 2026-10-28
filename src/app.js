@@ -42,6 +42,7 @@ import { monterMireFiche } from './ecran-mire.js';
 import { monterPourquoi, relierPourquoi } from './pourquoi.js';
 import { monterEntrainement } from './ecran-entrainement.js';
 import { monterApprendre } from './ecran-apprendre.js';
+import { monterPlanning } from './ecran-planning.js';
 import { CLE_ORDINATEUR, systemeConnu, marqueConnexion } from './connexion.js';
 import { carteConnexion, blocDepannage } from './ecran-connexion.js';
 import { FAMILLES_ONGLETS } from './look.js';
@@ -142,7 +143,7 @@ async function demanderStockagePersistant() {
 }
 let persistant = null;
 
-const ONGLETS = ['mur', 'data', 'canvas', 'elec', 'poids', 'schema', 'depannage', 'base', 'apprendre'];
+const ONGLETS = ['mur', 'data', 'canvas', 'elec', 'poids', 'schema', 'depannage', 'base', 'apprendre', 'planning'];
 
 async function lireJson(chemin) {
   const reponse = await fetch(chemin);
@@ -168,6 +169,28 @@ window.addEventListener('hashchange', () => {
   window.scrollTo(0, 0);
 });
 afficherOnglet();
+
+// Planning des piges (étape 23, lot 23c1) : monté avant la base, il ne dépend d'aucune donnée du mur. Lecture par le
+// relais à l'ouverture de l'appli, au retour sur l'appli et à l'ouverture de l'onglet (si la dernière a plus de 15 min).
+const ecranPlanning = monterPlanning(document.getElementById('ecran-planning'), {
+  stockage: { lire, ecrire },
+  surNouvelles: (n) => {
+    const pastille = document.querySelector('.onglet[href="#planning"] .pastille-onglet');
+    if (!pastille) return;
+    pastille.hidden = n === 0;
+    pastille.textContent = n > 0 ? String(n) : '';
+    pastille.setAttribute('aria-label', n > 1 ? `${n} nouvelles dates` : 'une nouvelle date');
+  },
+});
+if (location.hash === '#planning') ecranPlanning.ouvrir();
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#planning') ecranPlanning.ouvrir();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (location.hash === '#planning') ecranPlanning.ouvrir();
+  else ecranPlanning.lectureAuto();
+});
 
 const erreurAlerte = (message) => el('div', { class: 'alerte alerte-erreur', role: 'alert' }, message);
 

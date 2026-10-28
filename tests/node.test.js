@@ -10,7 +10,8 @@ import { CAS_ANGLES } from './cas-angles.js';
 import { REGLES } from './regles.js';
 import { DONNEES } from './donnees.js';
 import { BANC } from './banc.js';
-import { executerCas } from './verif.js';
+import { PLANNING } from './planning.js';
+import { executerCasAsync } from './verif.js';
 import { chargerFichiersAppli, chargerFichiersPublies } from './fichiers.js';
 
 const lireJson = (chemin) => JSON.parse(readFileSync(new URL(chemin, import.meta.url), 'utf8'));
@@ -71,14 +72,14 @@ const contexte = {
   }),
 };
 
-for (const cas of [...BANC, ...DONNEES, ...REGLES, ...CAS, ...CAS_REELS, ...CAS_FORMES, ...CAS_ANGLES]) {
+for (const cas of [...BANC, ...DONNEES, ...REGLES, ...CAS, ...CAS_REELS, ...CAS_FORMES, ...CAS_ANGLES, ...PLANNING]) {
   const nom = `${'attendu' in cas ? 'Cas ' : ''}${cas.id} : ${cas.titre}`;
   if (typeof cas.verifier !== 'function') {
     test.todo(`${nom} (étape ${cas.etape})`);
     continue;
   }
-  test(nom, () => {
-    const resultat = executerCas(cas, contexte);
+  test(nom, async () => {
+    const resultat = await executerCasAsync(cas, contexte);
     if (resultat.erreur) throw resultat.erreur;
     const echecs = resultat.controles.filter((c) => !c.ok);
     assert.equal(

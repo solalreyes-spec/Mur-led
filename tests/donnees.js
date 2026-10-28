@@ -91,6 +91,19 @@ const EMPREINTES_CAS_REELS = new Set([0x712ba18b, 0x62dfc8e0, 0x7cebfba5]);
 // Nom du studio d'un communiqué de presse cité par la spec de la 9b (cas F5), deux mots collés, par empreinte.
 const EMPREINTES_SOURCES_PUBLIQUES = new Set([0x36f7e1c3]);
 const internesDans = (texte) => [...empreintesDans(texte, EMPREINTES_ORGANISME, [8]), ...exactsDans(texte, EMPREINTES_INTERNES)];
+// Relais du planning (étape 23, test D69) : domaine des Workers de Cloudflare (deux mots collés), hôtes des Eventsoft
+// de l'utilisateur (premier mot de l'hôte et nom de la boîte collés) et chemin de leur export iCal (mot seul ou deux
+// mots collés), par empreintes, pour ne jamais les écrire dans un fichier publié.
+const EMPREINTES_RELAIS = new Set([0xb56cdf63]);
+const EMPREINTES_EVENTSOFT = new Set([0x3cbb0c3c, 0x7a5247da, 0x8184b97c, 0x1c54732c, 0x07602292, 0xa16ebef7]);
+// Suites de 32 caractères hexadécimaux ou plus (jetons des liens Eventsoft, jetons du relais tirés par
+// `openssl rand -hex 32`), hors empreintes des versions du cache (sw.js et tests/versions-cache.js).
+function suitesHexadecimales(chemin, texte) {
+  let reste = texte;
+  if (chemin === 'sw.js') reste = reste.replace(/const EMPREINTE = '[0-9a-f]{64}';/, '');
+  if (chemin === 'tests/versions-cache.js') reste = reste.replace(/empreinte: '[0-9a-f]{64}'/g, '');
+  return reste.match(/[0-9a-f]{32,}/gi) ?? [];
+}
 
 // Mire et fiche contenu (data/fiche-contenu.json).
 function ficheContenu(contexte) {
@@ -2273,6 +2286,22 @@ export const DONNEES = [
       const f = fichiersAppli(contexte);
       const cache = listeCache(f['sw.js']);
       v.egal('fichiers dans le cache', ['src/connexion.js', 'src/ecran-connexion.js'].filter((x) => !cache.includes(x)), []);
+    },
+  },
+  {
+    id: 'D69',
+    titre: 'Relais du planning (23b, spec § 5.1 et § 9) : aucun fichier publié ne contient d\'adresse du domaine des Workers de Cloudflare, d\'hôte ni de chemin des exports iCal Eventsoft de l\'utilisateur (cherchés par empreintes), ni de suite de 32 caractères hexadécimaux ou plus (jetons des liens Eventsoft et du relais) hors empreintes des versions du cache',
+    etape: '23b',
+    verifier(v, contexte) {
+      const publies = contexte.publies;
+      if (!publies) throw new Error(`fichiers publiés non lus${contexte.erreurPublies ? ` : ${contexte.erreurPublies}` : ''}`);
+      const lus = Object.entries(publies).filter(([, texte]) => typeof texte === 'string');
+      v.egal('modules du planning lus', ['src/planning/ics.js', 'src/planning/journees.js', 'tests/planning.js', 'tests/planning-fictif.js'].filter((c) => typeof publies[c] !== 'string'), []);
+      v.egal('adresse du domaine des Workers (fichier : empreinte trouvée)', lus.flatMap(([chemin, texte]) => exactsDans(texte, EMPREINTES_RELAIS).map((h) => `${chemin} : ${h}`)), []);
+      v.egal('hôte ou chemin d\'un export Eventsoft (fichier : empreinte trouvée)', lus.flatMap(([chemin, texte]) => exactsDans(texte, EMPREINTES_EVENTSOFT).map((h) => `${chemin} : ${h}`)), []);
+      v.egal('suites hexadécimales de 32 caractères ou plus (fichier : longueur)', lus.flatMap(([chemin, texte]) => suitesHexadecimales(chemin, texte).map((s) => `${chemin} : ${s.length}`)), []);
+      v.vrai('le contrôle trouve une adresse de Worker fictive', exactsDans(`https://relais.compte.work${'ers.dev'}/apple/`, EMPREINTES_RELAIS).length === 1);
+      v.egal('le contrôle trouve un jeton fictif, pas l\'empreinte de sw.js', [suitesHexadecimales('src/x.js', `j = '${'ab12'.repeat(8)}'`).length, suitesHexadecimales('sw.js', publies['sw.js'] ?? '').length], [1, 0]);
     },
   },
 ];

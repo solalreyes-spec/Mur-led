@@ -9,7 +9,7 @@ import { geometrieSchema } from './dessin-schema.js';
 // Famille de chaque onglet (§ 2) : sa couleur sert à l'icône, au titre, au bouton principal et au fond teinté.
 export const FAMILLES_ONGLETS = {
   mur: 'image', data: 'donnees', canvas: 'regie', elec: 'electricite', poids: 'accroche',
-  schema: 'schema', depannage: 'depannage', base: 'base', apprendre: 'apprendre',
+  schema: 'schema', depannage: 'depannage', base: 'base', apprendre: 'apprendre', planning: 'presta',
 };
 
 // Famille d'une fiche « pourquoi » ou d'une question, d'après la lettre de son identifiant (D, E, I, R, A).
