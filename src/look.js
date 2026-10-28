@@ -171,3 +171,44 @@ export function iconeTrait(nom, classe) {
 
 // Icônes des onglets, telles qu'écrites dans index.html (test N43 : même tracé que celui de l'appli).
 export const TRACES_ICONES = TRACES;
+
+// Animation d'ouverture du logo (étape 24, spec § 10 et § 12) : les 8 dalles du tour arrivent de hors de l'écran,
+// chacune de son côté, agrandies et tournées, puis rétrécissent à leur place ; celle du centre naît sur place. Seule
+// animation de l'appli (choix de l'utilisateur). Rien si la page est cachée (la ligne de temps n'avancerait pas) ou si
+// le téléphone demande moins d'animations ; dans tous les cas, les dalles cachées par index.html sont montrées.
+const ECHELLE_DEPART = 6;
+const ATTENTES_LOGO = [0, 60, 120, 60, 0, 180, 120, 180, 240];
+export function animerLogo(svg, {
+  largeur = innerWidth,
+  hauteur = innerHeight,
+  reduit = matchMedia('(prefers-reduced-motion: reduce)').matches,
+  visible = document.visibilityState === 'visible',
+} = {}) {
+  const dalles = [...(svg?.querySelectorAll('g.ld') ?? [])];
+  const animations = [];
+  if (!reduit && visible && typeof dalles[0]?.animate === 'function') {
+    dalles.forEach((g, k) => {
+      const b = g.getBoundingClientRect();
+      const dx = (k % 3) - 1;
+      const dy = Math.floor(k / 3) - 1;
+      const finale = { transform: 'none', opacity: 1 };
+      const depasse = { transform: 'scale(1.6)', opacity: 1, offset: 0.7 };
+      if (dx === 0 && dy === 0) {
+        animations.push(g.animate([{ transform: `scale(${ECHELLE_DEPART})`, opacity: 0 }, depasse, finale],
+          { duration: 900, delay: 0, easing: 'cubic-bezier(.2,.85,.3,1.12)', fill: 'backwards' }));
+        return;
+      }
+      // Hors de l'écran : centre de la dalle au-delà du bord, de la moitié de la diagonale de la dalle agrandie et 8 px.
+      const marge = (b.width / 2) * ECHELLE_DEPART * Math.SQRT2 + 8;
+      const cx = (b.left + b.right) / 2;
+      const cy = (b.top + b.bottom) / 2;
+      const tx = dx < 0 ? -(cx + marge) : dx > 0 ? largeur - cx + marge : 0;
+      const ty = dy < 0 ? -(cy + marge) : dy > 0 ? hauteur - cy + marge : 0;
+      const depart = { transform: `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) rotate(${k % 2 ? 30 : -30}deg) scale(${ECHELLE_DEPART})`, opacity: 0.9 };
+      animations.push(g.animate([depart, depasse, finale],
+        { duration: 900, delay: 120 + ATTENTES_LOGO[k], easing: 'cubic-bezier(.2,.85,.3,1.12)', fill: 'backwards' }));
+    });
+  }
+  delete document.documentElement.dataset.logo;
+  return animations;
+}

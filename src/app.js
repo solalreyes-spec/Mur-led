@@ -45,7 +45,7 @@ import { monterApprendre } from './ecran-apprendre.js';
 import { monterPlanning } from './ecran-planning.js';
 import { CLE_ORDINATEUR, systemeConnu, marqueConnexion } from './connexion.js';
 import { carteConnexion, blocDepannage } from './ecran-connexion.js';
-import { FAMILLES_ONGLETS } from './look.js';
+import { FAMILLES_ONGLETS, animerLogo } from './look.js';
 import { versionAppli } from './mire.js';
 
 // Hors ligne : le service worker garde les fichiers de l'appli. Il prévient quand une nouvelle version est prête.
@@ -193,6 +193,9 @@ document.addEventListener('visibilitychange', () => {
 });
 
 const erreurAlerte = (message) => el('div', { class: 'alerte alerte-erreur', role: 'alert' }, message);
+
+// Logo : animation d'ouverture avant la première attente (étape 24), pour qu'il n'apparaisse pas avant.
+animerLogo(document.querySelector('svg.logo-app'));
 
 // Base de départ (data/), en lecture seule.
 const depart = { dalles: null, processeurs: null, regies: null };

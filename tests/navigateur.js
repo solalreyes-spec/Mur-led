@@ -5999,6 +5999,154 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N125',
+    titre: 'Icônes (étape 24, spec § 4 et § 6) : PNG lus en octets, taille annoncée ; iPhone (180) et masquable en carré plein sans transparence (RGB), 192 et 512 aux coins transparents (RGBA) ; icône d\'onglet en SVG sans texte',
+    etape: 24,
+    async verifier(v) {
+      const manifeste = await (await fetch('manifest.webmanifest', { cache: 'no-store' })).json();
+      const index = await (await fetch('index.html', { cache: 'no-store' })).text();
+      const apple = /<link rel="apple-touch-icon" href="([^"]+)">/.exec(index)?.[1];
+      const attendus = [[apple, 180, 2], ...manifeste.icons.map((i) => [i.src, Number(i.sizes.split('x')[0]), i.purpose === 'maskable' ? 2 : 6])];
+      v.egal('quatre PNG : iPhone, 192, 512, masquable', attendus.map(([chemin]) => chemin),
+        ['icones/icone-180.png', 'icones/icone-192.png', 'icones/icone-512.png', 'icones/icone-masquable-512.png']);
+      for (const [chemin, taille, type] of attendus) {
+        const octets = new Uint8Array(await (await fetch(chemin, { cache: 'no-store' })).arrayBuffer());
+        const vue = new DataView(octets.buffer);
+        const signature = [...octets.slice(0, 8)].join(',') === '137,80,78,71,13,10,26,10';
+        v.egal(`${chemin} : PNG, ${taille} × ${taille}, type de couleur ${type === 2 ? '2 (RGB, opaque)' : '6 (RGBA)'}`,
+          [signature, vue.getUint32(16), vue.getUint32(20), octets[24], octets[25]], [true, taille, taille, 8, type]);
+      }
+      const svg = await (await fetch('icones/icone.svg', { cache: 'no-store' })).text();
+      v.vrai('icone.svg : SVG sans texte (<text>)', svg.startsWith('<svg') && !/<text\b/.test(svg));
+      v.vrai('icone.svg : neuf dalles aux couleurs des onglets (dégradés compris)', /<linearGradient\b/.test(svg) && (svg.match(/class="dalle"/g) ?? []).length === 9);
+    },
+  },
+  {
+    id: 'N126',
+    titre: 'Logo de l\'en-tête en verre (étape 24, spec § 9 et § 12) : à la place des trois barres, 9 dalles translucides aux couleurs des onglets (corps et bord en dégradé, reflet), sans cadre, 26 px, rangée du titre de 29 px ; en mode rouge, arrêts, bords et reflets rouges (critère de D62) aux opacités fortes, moyennes et faibles',
+    etape: '24b',
+    async verifier(v) {
+      const index = await (await fetch('index.html', { cache: 'no-store' })).text();
+      const page = new DOMParser().parseFromString(index, 'text/html');
+      v.vrai('plus de trois barres (.logo-barres)', !page.querySelector('.logo-barres'));
+      const titre = page.querySelector('.titre-app');
+      const logo = titre?.querySelector('h1 > svg.logo-app');
+      v.vrai('h1 : svg.logo-app avant « Mur LED », caché aux lecteurs d\'écran', Boolean(logo) && logo.getAttribute('aria-hidden') === 'true' && texteDe(titre.querySelector('h1')) === 'Mur LED');
+      if (!logo) return;
+      const ordre = ['presta', 'depannage', 'electricite', 'image', 'donnees', 'apprendre', 'regie', 'accroche', 'schema'];
+      v.egal('neuf dalles en roue (groupes g.ld ld-<famille>)', [...logo.querySelectorAll('g.ld')].map((g) => g.getAttribute('class').replace('ld ld-', '')), ordre);
+      v.vrai('sans cadre argent ni dalle sombre', !logo.querySelector('.lc, .lf'));
+      const degrades = page.querySelector('body > svg.logo-degrades');
+      v.vrai('dégradés à part, hors de l\'en-tête, cachés aux lecteurs d\'écran', Boolean(degrades) && degrades.getAttribute('aria-hidden') === 'true' && !page.querySelector('header svg.logo-degrades'));
+      if (!degrades) return;
+      v.vrai('remplissages par classes, jamais par var() dans le SVG', !/var\(/.test(logo.outerHTML + degrades.outerHTML));
+      v.vrai('chaque dalle : corps et bord en dégradé à identifiants préfixés, reflet', ordre.every((f) => {
+        const corps = logo.querySelector(`g.ld-${f} .ld-corps`);
+        return corps?.getAttribute('fill') === `url(#logo-corps-${f})` && corps.getAttribute('stroke') === `url(#logo-bord-${f})`
+          && degrades.querySelectorAll(`#logo-corps-${f} stop`).length === 2 && degrades.querySelectorAll(`#logo-bord-${f} stop`).length === 3
+          && Boolean(logo.querySelector(`g.ld-${f} .ld-reflet`));
+      }));
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const avant = html.dataset.mode;
+      const racine = el('div', { class: 'entete-app', style: 'position:absolute;left:-10000px;top:0;width:375px;background:var(--fond)' });
+      racine.append(document.importNode(titre, true), document.importNode(degrades, true));
+      document.body.append(racine);
+      const stops = (id) => [...racine.querySelectorAll(`#${id} stop`)].map((s) => getComputedStyle(s));
+      try {
+        delete html.dataset.mode;
+        const svg = racine.querySelector('svg.logo-app');
+        const boite = svg.getBoundingClientRect();
+        v.egal('logo de 26 × 26 px', [Math.round(boite.width), Math.round(boite.height)], [26, 26]);
+        v.egal('rangée du titre de 29 px', Math.round(racine.querySelector('.titre-app').getBoundingClientRect().height), 29);
+        const racineStyle = getComputedStyle(html);
+        const familles = ordre.map((f) => racineStyle.getPropertyValue(`--famille-${f}`).trim().toLowerCase());
+        v.egal('corps : deux arrêts de la couleur de l\'onglet', ordre.map((f) => stops(`logo-corps-${f}`).map((s) => rgbVersHex(s.stopColor))), familles.map((c) => [c, c]));
+        v.egal('bord : blanc en haut, couleur de l\'onglet ensuite', ordre.map((f) => stops(`logo-bord-${f}`).map((s) => rgbVersHex(s.stopColor))), familles.map((c) => ['#ffffff', c, c]));
+        v.egal('corps translucide : 0,95 en haut, 0,38 en bas', [...new Set(ordre.map((f) => stops(`logo-corps-${f}`).map((s) => Number(s.stopOpacity)).join(' ')))], ['0.95 0.38']);
+        v.egal('reflet blanc', [...new Set([...svg.querySelectorAll('.ld-reflet')].map((r) => rgbVersHex(getComputedStyle(r).stroke)))], ['#ffffff']);
+        v.egal('dalles tournées et agrandies autour de leur centre', [...new Set([...svg.querySelectorAll('g.ld')].map((g) => `${getComputedStyle(g).transformBox} ${getComputedStyle(g).transformOrigin}`))], ['fill-box 3.7px 3.7px']);
+        html.dataset.mode = 'rouge';
+        const rouge = (hex) => {
+          const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+          return r >= 200 && g <= 110 && b <= 110;
+        };
+        const couleursRouges = ordre.flatMap((f) => [...stops(`logo-corps-${f}`), ...stops(`logo-bord-${f}`)].map((s) => rgbVersHex(s.stopColor)))
+          .concat([...svg.querySelectorAll('.ld-reflet')].map((r) => rgbVersHex(getComputedStyle(r).stroke)));
+        v.vrai('mode rouge : arrêts, bords et reflets rouges (rouge ≥ 200, vert et bleu ≤ 110)', couleursRouges.every(rouge));
+        v.egal('mode rouge : opacités du corps (fortes 1 et 0,5, moyennes 0,75 et 0,35, faibles 0,5 et 0,22) en diagonale',
+          ordre.map((f) => stops(`logo-corps-${f}`).map((s) => Number(s.stopOpacity))),
+          [[1, 0.5], [0.75, 0.35], [0.5, 0.22], [0.75, 0.35], [0.5, 0.22], [1, 0.5], [0.5, 0.22], [1, 0.5], [0.75, 0.35]]);
+      } finally {
+        if (avant) html.dataset.mode = avant;
+        else delete html.dataset.mode;
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N127',
+    titre: 'Animation d\'ouverture du logo (étape 24, spec § 10 et § 12) : les 8 dalles du tour partent hors de l\'écran, chacune de son côté, tournées et agrandies, celle du centre naît sur place ; rien si la page est cachée ou si le téléphone demande moins d\'animations ; tout en place en 1,3 s, sans trace ; logo sans cible tactile ; dalles cachées avant l\'animation par le script de la page, avec un secours',
+    etape: '24b',
+    async verifier(v) {
+      const look = await moduleAppli(v, '../src/look.js');
+      v.vrai('src/look.js : animerLogo', typeof look?.animerLogo === 'function');
+      const index = await (await fetch('index.html', { cache: 'no-store' })).text();
+      const tete = index.slice(0, index.indexOf('</head>'));
+      v.vrai('script de la page : dalles cachées avant l\'animation (data-logo « arrivee ») si la page est visible et sans « moins d\'animations », secours de 2 s',
+        /dataset\.logo = 'arrivee'/.test(tete) && /prefers-reduced-motion: reduce/.test(tete) && /visibilityState === 'visible'/.test(tete) && /setTimeout\([^]*?delete document\.documentElement\.dataset\.logo[^]*?2000\)/.test(tete));
+      if (typeof look?.animerLogo !== 'function') return;
+      const page = new DOMParser().parseFromString(index, 'text/html');
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const cadre = el('div', { style: 'position:fixed;left:16px;top:20px;z-index:5' });
+      cadre.append(document.importNode(page.querySelector('svg.logo-app'), true));
+      document.body.append(cadre);
+      const svg = cadre.querySelector('svg');
+      const [largeur, hauteur] = [375, 812];
+      try {
+        html.dataset.logo = 'arrivee';
+        v.egal('« moins d\'animations » : aucune animation, dalles montrées', [look.animerLogo(svg, { largeur, hauteur, reduit: true, visible: true }).length, html.dataset.logo], [0, undefined]);
+        html.dataset.logo = 'arrivee';
+        v.egal('page cachée : aucune animation, dalles montrées', [look.animerLogo(svg, { largeur, hauteur, reduit: false, visible: false }).length, html.dataset.logo], [0, undefined]);
+        v.egal('logo sans cible tactile', getComputedStyle(svg).pointerEvents, 'none');
+        const repos = [...svg.querySelectorAll('g.ld')].map((g) => g.getBoundingClientRect());
+        html.dataset.logo = 'arrivee';
+        const animations = look.animerLogo(svg, { largeur, hauteur, reduit: false, visible: true });
+        v.egal('neuf animations, une par dalle ; dalles montrées', [animations.length, animations.every((a, k) => a.effect.target === svg.querySelectorAll('g.ld')[k]), html.dataset.logo], [9, true, undefined]);
+        const minutage = animations.map((a) => a.effect.getTiming());
+        v.vrai('fin au plus tard à 1,3 s', minutage.every((t) => t.delay + t.duration <= 1300));
+        v.vrai('premier instant pendant l\'attente, rien à la fin (fill « backwards »)', minutage.every((t) => t.fill === 'backwards'));
+        const images = animations.map((a) => a.effect.getKeyframes());
+        v.vrai('chaque dalle finit à sa place exacte', images.every((k) => (k[k.length - 1].transform ?? 'none') === 'none'));
+        const depart = images.map((k) => {
+          const t = k[0].transform ?? '';
+          const tr = /translate\((-?[\d.]+)px(?:,\s*(-?[\d.]+)px)?\)/.exec(t);
+          return { tx: tr ? Number(tr[1]) : 0, ty: tr?.[2] ? Number(tr[2]) : 0, rot: Number(/rotate\((-?[\d.]+)deg\)/.exec(t)?.[1] ?? 0), echelle: Number(/scale\(([\d.]+)\)/.exec(t)?.[1] ?? 1), opacite: k[0].opacity };
+        });
+        v.egal('dalle du centre : sur place, de × 6 transparente', [depart[4].tx, depart[4].ty, depart[4].echelle, Number(depart[4].opacite)], [0, 0, 6, 0]);
+        const demi = 3.7 * 6 * Math.SQRT2;
+        const dehors = depart.map((d, k) => {
+          if (k === 4) return true;
+          const dx = (k % 3) - 1;
+          const dy = Math.floor(k / 3) - 1;
+          const cx = (repos[k].left + repos[k].right) / 2 + d.tx;
+          const cy = (repos[k].top + repos[k].bottom) / 2 + d.ty;
+          const okx = dx < 0 ? cx + demi <= 0 : dx > 0 ? cx - demi >= largeur : d.tx === 0;
+          const oky = dy < 0 ? cy + demi <= 0 : dy > 0 ? cy - demi >= hauteur : d.ty === 0;
+          return okx && oky && Math.abs(d.rot) === 30 && d.echelle === 6;
+        });
+        v.egal('8 dalles du tour : entièrement hors de l\'écran de leur côté, tournées de ± 30°, × 6', dehors, Array(9).fill(true));
+        animations.forEach((a) => a.cancel());
+      } finally {
+        delete html.dataset.logo;
+        cadre.remove();
+        retirer();
+      }
+    },
+  },
 ];
 
 // Pas à pas NovaLCT d'essai (22c) : Upad IV 2.6 sur MCTRL4K, 8 × 6 (un principal) ou 32 × 8 (deux), départ en bas à gauche.

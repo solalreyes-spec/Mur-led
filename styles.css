@@ -215,15 +215,31 @@ a:focus-visible, .bouton:focus-visible, summary:focus-visible {
 /* En-tête et onglets de l'appli */
 
 .entete-app { display: grid; gap: 10px; }
-/* En-tête (§ 3) : trois barres rouge, vert, bleu puis « Mur LED » en 24 px gras, la version à droite ; dessous, les trois
+/* En-tête (§ 3) : logo (étape 24) puis « Mur LED » en 24 px gras, la version à droite ; dessous, les trois
    boutons sur une ligne, chacun avec sa petite icône (sur deux lignes en grand affichage). */
 .titre-app { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .entete-app h1 { display: flex; flex: none; align-items: center; gap: 10px; font-size: 24px; font-weight: 700; white-space: nowrap; }
-.logo-barres { display: inline-flex; gap: 3px; }
-.logo-barres span { display: block; width: 8px; height: 18px; border-radius: 2px; }
-.logo-barres span:nth-child(1) { background: #ff4d5e; }
-.logo-barres span:nth-child(2) { background: #3edc7a; }
-.logo-barres span:nth-child(3) { background: #4da3ff; }
+/* Logo (étape 24, spec § 9 à § 12) : 9 petites dalles en verre aux couleurs des onglets, sans cadre ; corps et bord en
+   dégradé SVG (arrêts colorés ici, par classes), reflet en arc. Animation d'ouverture : animerLogo (src/look.js), seule
+   animation de l'appli, choix de l'utilisateur ; dalles cachées tant que la racine porte data-logo="arrivee". */
+.logo-app { display: block; flex: none; width: 26px; height: 26px; overflow: visible; position: relative; z-index: 10; pointer-events: none; }
+.logo-app .ld { transform-box: fill-box; transform-origin: center; }
+:root[data-logo="arrivee"] .logo-app .ld { opacity: 0; }
+.logo-degrades .lg-presta stop { stop-color: var(--famille-presta); }
+.logo-degrades .lg-depannage stop { stop-color: var(--famille-depannage); }
+.logo-degrades .lg-electricite stop { stop-color: var(--famille-electricite); }
+.logo-degrades .lg-image stop { stop-color: var(--famille-image); }
+.logo-degrades .lg-donnees stop { stop-color: var(--famille-donnees); }
+.logo-degrades .lg-apprendre stop { stop-color: var(--famille-apprendre); }
+.logo-degrades .lg-regie stop { stop-color: var(--famille-regie); }
+.logo-degrades .lg-accroche stop { stop-color: var(--famille-accroche); }
+.logo-degrades .lg-schema stop { stop-color: var(--famille-schema); }
+.logo-degrades .lg-corps .a { stop-opacity: 0.95; }
+.logo-degrades .lg-corps .b { stop-opacity: 0.38; }
+.logo-degrades .lg-bord .a { stop-color: #ffffff; stop-opacity: 0.9; }
+.logo-degrades .lg-bord .m { stop-opacity: 0.5; }
+.logo-app .ld-reflet { stroke: #ffffff; stroke-opacity: 0.85; }
+.logo-degrades { position: absolute; width: 0; height: 0; overflow: hidden; }
 .version-appli { color: var(--texte-doux); font-size: 0.8125rem; font-family: var(--police-chiffres); }
 /* Bouton « Presta · Mur » (étape 10b) : entre le titre et la version, nom de la presta puis du mur, chacun sur une ligne
    coupée par « … » ; zone d'appui de la taille des cibles, rognée par des marges négatives : la rangée du titre (29 px)
@@ -242,9 +258,14 @@ a:focus-visible, .bouton:focus-visible, summary:focus-visible {
 .outils-entete .bouton { min-width: 0; gap: 6px; padding: 4px 6px; font-size: 0.875rem; line-height: 1.15; text-align: center; }
 .icone-bouton { width: 16px; height: 16px; flex: none; }
 :root[data-taille="grand"] .outils-entete { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-:root[data-mode="rouge"] .logo-barres span { background: var(--texte); }
-:root[data-mode="rouge"] .logo-barres span:nth-child(2) { opacity: 0.6; }
-:root[data-mode="rouge"] .logo-barres span:nth-child(3) { opacity: 0.3; }
+:root[data-mode="rouge"] .logo-degrades .lg-bord .a { stop-color: var(--texte); }
+:root[data-mode="rouge"] .logo-app .ld-reflet { stroke: var(--texte); }
+:root[data-mode="rouge"] .logo-degrades :is(.lg-presta, .lg-apprendre, .lg-accroche).lg-corps .a { stop-opacity: 1; }
+:root[data-mode="rouge"] .logo-degrades :is(.lg-presta, .lg-apprendre, .lg-accroche).lg-corps .b { stop-opacity: 0.5; }
+:root[data-mode="rouge"] .logo-degrades :is(.lg-depannage, .lg-image, .lg-schema).lg-corps .a { stop-opacity: 0.75; }
+:root[data-mode="rouge"] .logo-degrades :is(.lg-depannage, .lg-image, .lg-schema).lg-corps .b { stop-opacity: 0.35; }
+:root[data-mode="rouge"] .logo-degrades :is(.lg-electricite, .lg-donnees, .lg-regie).lg-corps .a { stop-opacity: 0.5; }
+:root[data-mode="rouge"] .logo-degrades :is(.lg-electricite, .lg-donnees, .lg-regie).lg-corps .b { stop-opacity: 0.22; }
 /* Zones à toucher de 48 px au moins, gants compris (audit terrain du 02/10/2026). */
 .bouton-petit { min-height: var(--cible); min-width: var(--cible); padding: 0 12px; font-size: 0.9rem; }
 .bouton[aria-pressed="true"] { background: var(--famille); border-color: var(--famille); color: var(--sur-famille); }
