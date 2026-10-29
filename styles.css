@@ -1829,3 +1829,15 @@ main section h3.pl-mois-titre { justify-content: center; margin: 0; font-size: 1
 .pl-sauvegarde { margin-top: 8px; }
 .pl-resultat-sauvegarde { margin: 8px 0 0; overflow-wrap: anywhere; }
 .pl-duree { flex-basis: 100%; text-align: right; color: var(--texte-doux); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+
+/* Fond de l'icône de l'écran d'accueil (étape 24d) : petite image au-dessus du nom ; le choix ne sert que dans Safari
+   (l'appli installée a son propre stockage), d'où la seule marche à suivre en mode application. */
+.segments-icone span { flex-direction: column; gap: 4px; padding: 6px 8px; }
+.segments-icone img { display: block; width: 28px; height: 28px; border-radius: 7px; }
+.apercu-icone { display: block; width: 60px; height: 60px; border-radius: 13px; margin: 10px 0 0; }
+#icone-appli { display: none; }
+@media (display-mode: standalone) {
+  #icone-safari { display: none; }
+  #icone-appli { display: block; }
+}
+:root[data-mode="rouge"] .segments-icone img, :root[data-mode="rouge"] .apercu-icone { display: none; }

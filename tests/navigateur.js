@@ -6024,6 +6024,22 @@ export const NAVIGATEUR = [
       v.vrai('image écrite dans la page = icones/icone-180.png', memes(ecrite, fichier180));
       for (const copie of ['apple-touch-icon.png', 'apple-touch-icon-precomposed.png']) v.vrai(`${copie} = icones/icone-180.png`, memes(await octetsDe(copie), fichier180));
       v.vrai(`icone-180.png allégé (${fichier180.length} octets, moins de 25 000)`, fichier180.length < 25000);
+      // Étape 24d (accord de l'utilisateur) : fond graphite par défaut, cinq autres fonds en variantes de 180 px.
+      const FONDS = [['clair', '#f4f5f8'], ['graphite', '#6b7280'], ['anthracite', '#454b56'], ['acier', '#55627a'], ['nuit', '#24335c'], ['violet', '#4a3a86']];
+      for (const [fond, haut] of FONDS) {
+        const chemin = fond === 'graphite' ? 'icones/icone-180.png' : `icones/icone-180-${fond}.png`;
+        const octets = await octetsDe(chemin);
+        const vue = new DataView(octets.buffer);
+        const png = octets.length > 26 && [...octets.slice(0, 8)].join(',') === '137,80,78,71,13,10,26,10';
+        let coin = [0, 0, 0];
+        try {
+          coin = pixel(await decoder(new Blob([octets], { type: 'image/png' })), 2, 2);
+        } catch (erreur) {
+          // illisible : le contrôle échoue
+        }
+        v.vrai(`${chemin} : 180 × 180 RGB, fond ${fond} en haut (${rgbHex(coin)} pour ${haut})`,
+          png && vue.getUint32(16) === 180 && vue.getUint32(20) === 180 && octets[25] === 2 && coin.every((c, i) => Math.abs(c - rgb(haut)[i]) <= 6));
+      }
       const attendus = [['icones/icone-180.png', 180, 2], ...manifeste.icons.map((i) => [i.src, Number(i.sizes.split('x')[0]), i.purpose === 'maskable' ? 2 : 6])];
       v.egal('quatre PNG : iPhone, 192, 512, masquable', attendus.map(([chemin]) => chemin),
         ['icones/icone-180.png', 'icones/icone-192.png', 'icones/icone-512.png', 'icones/icone-masquable-512.png']);
@@ -6174,6 +6190,90 @@ export const NAVIGATEUR = [
       } finally {
         delete html.dataset.logo;
         cadre.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N128',
+    titre: 'Fond de l\'icône au choix (étape 24d, spec § 14) : carte de la Base après « Configuration en cours », 6 fonds (graphite par défaut) avec leur petite image, aperçu, choix gardé sur l\'appareil, lien apple-touch-icon remplacé par l\'image du fond choisi (le dernier choix gagne, image non PNG refusée) ; en mode application, marche à suivre seule ; avertissement d\'export avant de retirer l\'appli ; mode rouge sans images',
+    etape: '24d',
+    async verifier(v) {
+      const look = await moduleAppli(v, '../src/look.js');
+      const index = await (await fetch('index.html', { cache: 'no-store' })).text();
+      const page = new DOMParser().parseFromString(index, 'text/html');
+      const carte = page.querySelector('#base section#carte-icone');
+      v.vrai('carte « Icône de l\'écran d\'accueil » juste après « Configuration en cours »', Boolean(carte) && texteDe(carte.querySelector('h3')) === 'Icône de l\'écran d\'accueil'
+        && texteDe(carte.previousElementSibling?.querySelector('h3')) === 'Configuration en cours');
+      if (!carte) return;
+      const ordre = ['clair', 'graphite', 'anthracite', 'acier', 'nuit', 'violet'];
+      const chemin = (f) => (f === 'graphite' ? 'icones/icone-180.png' : `icones/icone-180-${f}.png`);
+      const choix = [...carte.querySelectorAll('input[name="fondIcone"]')];
+      v.egal('six fonds dans l\'ordre, sous la légende « Fond de l\'icône »', [choix.map((c) => c.value), texteDe(carte.querySelector('fieldset legend'))], [ordre, 'Fond de l\'icône']);
+      v.vrai('chaque choix : petite image du fond (alt vide) et son nom', choix.every((c) => {
+        const img = c.closest('label').querySelector('img');
+        return img?.getAttribute('src') === chemin(c.value) && img.getAttribute('alt') === '' && texteDe(c.closest('label')).length > 2;
+      }));
+      v.vrai('marche à suivre pour l\'appli installée', /ouvre l'appli dans Safari, onglet Base, choisis le fond, puis Partager/.test(texteDe(carte.querySelector('#icone-appli'))));
+      v.vrai('avertissement : exporter avant de retirer l\'appli, qui efface ses données', /Avant de retirer l'appli/.test(texteDe(carte)) && /exporte ta base/.test(texteDe(carte)) && /efface ses données/.test(texteDe(carte)));
+      if (!look?.monterFondIcone) {
+        v.vrai('src/look.js : monterFondIcone, appliquerFondIcone, lireFondIcone', false);
+        return;
+      }
+      v.egal('fonds et défaut', [look.FONDS_ICONE.map((f) => f.id), look.FOND_ICONE_DEFAUT, look.FONDS_ICONE.map((f) => look.cheminIcone(f.id))], [ordre, 'graphite', ordre.map(chemin)]);
+      const memoire = new Map();
+      const stockage = { getItem: (k) => memoire.get(k) ?? null, setItem: (k, val) => memoire.set(k, String(val)) };
+      const lu = [look.lireFondIcone(stockage)];
+      memoire.set('mur-led-fond-icone', 'rose');
+      lu.push(look.lireFondIcone(stockage));
+      memoire.set('mur-led-fond-icone', 'nuit');
+      lu.push(look.lireFondIcone(stockage));
+      v.egal('choix lu : défaut sans choix ou si inconnu', lu, ['graphite', 'graphite', 'nuit']);
+      // Lien de test, jamais celui de la page ; le stockage de l'appareil n'est pas touché.
+      const lien = el('link', { rel: 'apple-touch-icon-test', href: 'avant' });
+      const base64 = (octets) => {
+        let texte = '';
+        for (const o of octets) texte += String.fromCharCode(o);
+        return btoa(texte);
+      };
+      const octetsDe = async (c) => new Uint8Array(await (await fetch(c, { cache: 'no-store' })).arrayBuffer());
+      const nuit = await octetsDe(chemin('nuit'));
+      const violet = await octetsDe(chemin('violet'));
+      v.vrai('fond « nuit » : lien remplacé par l\'image de la variante', await look.appliquerFondIcone('nuit', { lien }) === true && lien.getAttribute('href') === `data:image/png;base64,${base64(nuit)}`);
+      const lent = (url) => new Promise((ok) => setTimeout(() => ok(fetch(url, { cache: 'no-store' })), String(url).includes('nuit') ? 150 : 0));
+      await Promise.all([look.appliquerFondIcone('nuit', { lien, fetch: lent }), look.appliquerFondIcone('violet', { lien, fetch: lent })]);
+      v.vrai('deux choix rapides : le dernier gagne', lien.getAttribute('href') === `data:image/png;base64,${base64(violet)}`);
+      const pasPng = async () => new Response('<html></html>', { headers: { 'Content-Type': 'image/png' } });
+      v.vrai('réponse qui n\'est pas un PNG : lien laissé tel quel', await look.appliquerFondIcone('clair', { lien, fetch: pasPng }) === false && lien.getAttribute('href') === `data:image/png;base64,${base64(violet)}`);
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const avant = html.dataset.mode;
+      const racine = el('div', { id: 'base', 'data-famille': 'base', style: 'position:absolute;left:-10000px;top:0;width:375px;background:var(--fond)' });
+      racine.append(document.importNode(carte, true));
+      document.body.append(racine);
+      try {
+        const memoire2 = new Map();
+        const appels = [];
+        look.monterFondIcone(racine.querySelector('#carte-icone'), { stockage: { getItem: (k) => memoire2.get(k) ?? null, setItem: (k, val) => memoire2.set(k, val) }, appliquer: (f) => appels.push(f) });
+        const coche = () => racine.querySelector('input[name="fondIcone"]:checked')?.value;
+        const apercu = racine.querySelector('img.apercu-icone');
+        v.egal('défaut : graphite coché, aperçu graphite', [coche(), apercu?.getAttribute('src'), apercu?.getAttribute('alt')], ['graphite', chemin('graphite'), 'Icône au fond Graphite']);
+        racine.querySelector('input[value="nuit"]').click();
+        v.egal('choix « Bleu nuit » : gardé sur l\'appareil, aperçu, lien appliqué', [memoire2.get('mur-led-fond-icone'), apercu?.getAttribute('src'), apercu?.getAttribute('alt'), appels], ['nuit', chemin('nuit'), 'Icône au fond Bleu nuit', ['nuit']]);
+        const regles = [...document.styleSheets].filter((f) => f.href?.endsWith('styles.css')).flatMap((f) => [...f.cssRules]);
+        const appli = regles.filter((r) => r.conditionText?.includes('display-mode: standalone')).flatMap((r) => [...r.cssRules]);
+        v.vrai('en mode application : choix cachés, marche à suivre montrée', appli.some((r) => r.selectorText === '#icone-safari' && r.style.display === 'none') && appli.some((r) => r.selectorText === '#icone-appli' && r.style.display === 'block'));
+        v.egal('dans Safari : choix montrés, marche à suivre cachée', [getComputedStyle(racine.querySelector('#icone-safari')).display !== 'none', getComputedStyle(racine.querySelector('#icone-appli')).display], [true, 'none']);
+        const cibles = [...racine.querySelectorAll('.segments-icone span')].map((x) => x.getBoundingClientRect().height);
+        v.vrai('cibles de 48 px au moins', cibles.length === 6 && cibles.every((h) => h >= 47.5));
+        const droite = racine.getBoundingClientRect().right;
+        v.egal('rien ne dépasse à 375 px', [...racine.querySelectorAll('*')].filter((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().right > droite + 0.5).map((x) => x.tagName), []);
+        html.dataset.mode = 'rouge';
+        v.vrai('mode rouge : petites images et aperçu cachés', [...racine.querySelectorAll('img')].every((i) => getComputedStyle(i).display === 'none'));
+      } finally {
+        if (avant) html.dataset.mode = avant;
+        else delete html.dataset.mode;
+        racine.remove();
         retirer();
       }
     },

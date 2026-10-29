@@ -211,3 +211,75 @@ export function animerLogo(svg, {
   delete document.documentElement.dataset.logo;
   return animations;
 }
+
+// Fond de l'icône de l'écran d'accueil (étape 24d, spec § 14) : choisi dans Safari, juste avant « Sur l'écran
+// d'accueil » (Safari et l'appli installée ne partagent pas leur stockage). Le choix est gardé sur l'appareil ; le
+// lien apple-touch-icon reçoit l'image de la variante, écrite dans la page comme en v47.
+export const FONDS_ICONE = [
+  { id: 'clair', nom: 'Gris clair', chemin: 'icones/icone-180-clair.png' },
+  { id: 'graphite', nom: 'Graphite', chemin: 'icones/icone-180.png' },
+  { id: 'anthracite', nom: 'Anthracite', chemin: 'icones/icone-180-anthracite.png' },
+  { id: 'acier', nom: 'Acier bleuté', chemin: 'icones/icone-180-acier.png' },
+  { id: 'nuit', nom: 'Bleu nuit', chemin: 'icones/icone-180-nuit.png' },
+  { id: 'violet', nom: 'Violet', chemin: 'icones/icone-180-violet.png' },
+];
+export const FOND_ICONE_DEFAUT = 'graphite';
+const CLE_FOND_ICONE = 'mur-led-fond-icone';
+const fondConnu = (id) => FONDS_ICONE.find((f) => f.id === id) ?? FONDS_ICONE.find((f) => f.id === FOND_ICONE_DEFAUT);
+
+export function cheminIcone(id) {
+  return fondConnu(id).chemin;
+}
+
+export function lireFondIcone(stockage = localStorage) {
+  try {
+    return fondConnu(stockage.getItem(CLE_FOND_ICONE)).id;
+  } catch (erreur) {
+    return FOND_ICONE_DEFAUT; // stockage bloqué
+  }
+}
+
+// Seul le dernier choix demandé est appliqué (lectures asynchrones). Réponse illisible ou qui n'est pas un PNG : le
+// lien reste tel quel.
+let demandeFond = 0;
+export async function appliquerFondIcone(id, { lien = document.querySelector('link[rel="apple-touch-icon"]'), fetch: lire = globalThis.fetch } = {}) {
+  const numero = ++demandeFond;
+  if (!lien) return false;
+  let octets;
+  try {
+    octets = new Uint8Array(await (await lire(cheminIcone(id))).arrayBuffer());
+  } catch (erreur) {
+    return false;
+  }
+  const png = octets.length > 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((o, i) => octets[i] === o);
+  if (!png || numero !== demandeFond) return false;
+  let texte = '';
+  for (let i = 0; i < octets.length; i += 0x8000) texte += String.fromCharCode(...octets.subarray(i, i + 0x8000));
+  lien.setAttribute('href', `data:image/png;base64,${btoa(texte)}`);
+  return true;
+}
+
+// Carte de la Base : coche le choix gardé, met à jour l'aperçu, garde et applique chaque nouveau choix.
+export function monterFondIcone(carte, { stockage = localStorage, appliquer = (id) => appliquerFondIcone(id) } = {}) {
+  if (!carte) return;
+  const apercu = carte.querySelector('img.apercu-icone');
+  const montrer = (id) => {
+    const fond = fondConnu(id);
+    const choix = carte.querySelector(`input[name="fondIcone"][value="${fond.id}"]`);
+    if (choix) choix.checked = true;
+    apercu?.setAttribute('src', fond.chemin);
+    apercu?.setAttribute('alt', `Icône au fond ${fond.nom}`);
+  };
+  montrer(lireFondIcone(stockage));
+  carte.addEventListener('change', (evenement) => {
+    if (evenement.target.name !== 'fondIcone') return;
+    const id = fondConnu(evenement.target.value).id;
+    try {
+      stockage.setItem(CLE_FOND_ICONE, id);
+    } catch (erreur) {
+      // stockage bloqué : le choix vaut pour cette visite
+    }
+    montrer(id);
+    appliquer(id);
+  });
+}
