@@ -492,6 +492,22 @@ export function ajouterAuParc(base, parcId, { dalles = [], processeurs = [], ref
   };
 }
 
+// « Changer » une dalle retenue par le parc (lot 25e4) : la référence du devis est oubliée, la dalle redevient à choisir ;
+// les membres du parc ne changent pas. Référence inconnue : base inchangée.
+export function oublierReference(base, parcId, ref) {
+  const parc = base.parcs.find((p) => p.id === parcId);
+  if (!parc?.references || !(ref in parc.references)) return base;
+  return {
+    ...base,
+    parcs: base.parcs.map((p) => {
+      if (p !== parc) return p;
+      const { [ref]: _oubliee, ...references } = p.references;
+      const { references: _anciennes, ...copie } = p;
+      return Object.keys(references).length ? { ...copie, references } : copie;
+    }),
+  };
+}
+
 // Fiches du parc actif ; parcId null (« Tous ») : toute la liste.
 export function filtrerParParc(liste, base, parcId, type) {
   if (!parcId) return liste;

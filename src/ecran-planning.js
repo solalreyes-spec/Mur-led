@@ -35,6 +35,8 @@ const JOURS_GRILLE = [['L', 'lundi'], ['M', 'mardi'], ['M', 'mercredi'], ['J', '
 // Heures (« 17 h 06 ») et dates (« jeu. 29/10 ») jamais coupées en fin de ligne.
 const insecable = (t) => String(t).replace(/\d+ h( \d\d)?/g, (m) => m.replace(/ /g, '\u00a0')).replace(/(\p{L}+\.) (\d\d\/\d\d)/gu, '$1\u00a0$2');
 
+// Fiche proposée par le devis : nom avec la version, poids et puissance max entre parenthèses (lot 25e4).
+const libelleFiche = (x) => (x.detail ? `${x.nom} (${x.detail})` : x.nom);
 const pastille = (repere) => el('span', { class: 'pl-pastille', style: `--boite: ${repere.couleur}`, 'aria-hidden': 'true' }, repere.lettre);
 
 // `stockage` : { lire, ecrire } (IndexedDB de l'appli) ; `surNouvelles(n)` : pastille de l'onglet ; `copier(texte)` :
@@ -475,7 +477,9 @@ export function monterPlanning(racine, {
       m?.murs.length ? el('p', { class: 'pl-murs-titre' }, m.murs.length > 1 ? `Murs du devis (${m.murs.length})` : 'Mur du devis') : null,
       m?.murs.length ? el('ul', { class: 'pl-murs-liste' }, ...m.resume.map((t) => el('li', {}, t))) : null,
       ...(m?.alertes ?? []).map((t) => el('p', { class: 'pl-devis-alerte' }, t)),
+      parc ? null : choixParc(c, d, b.parcs ?? []),
       ...choixDalles(c, parc, m?.aChoisir ?? []),
+      ...dallesRetenues(parc, m?.retenues ?? []),
       m?.processeurs ? el('p', { class: `pl-devis-processeurs${m.processeurs.alerte ? ' pl-devis-processeurs-ecart' : ''}` }, m.processeurs.texte) : null,
       ajout && actions?.ajouterAuParc ? blocAjoutParc(c, parc, ajout) : null,
       lie ? el('p', { class: 'pl-aide pl-presta-liee' }, `Presta de l'appli : ${lie.nom}`) : null,
@@ -484,14 +488,32 @@ export function monterPlanning(racine, {
       boutons.length ? el('div', { class: 'actions' }, ...boutons) : null);
   }
 
+  // Parc de la boîte choisi sur la carte quand elle n'en a pas (lot 25e4), gardé dans les réglages du planning comme le
+  // sélecteur « Parc » de la boîte ; base sans parc : la phrase qui renvoie à l'onglet Base.
+  function choixParc(c, d, parcs) {
+    if (!parcs.length) return el('p', { class: 'pl-aide pl-aucun-parc' }, 'Aucun parc dans ta base : crée-le dans l\'onglet Base.');
+    const boite = (etat.reglages.boites ?? []).find((x) => x.id === d.boite);
+    const id = `pl-parc-carte-${c.cle.replace(/[^a-z0-9-]/gi, '-')}`;
+    const select = el('select', { id, class: 'pl-parc-carte' }, el('option', { value: '' }, 'Aucun'), ...parcs.map((x) => el('option', { value: x.id }, x.nom)));
+    select.addEventListener('change', () => {
+      if (!select.value) return;
+      etat.reglages = reglerParcBoite(etat.reglages, d.boite, select.value);
+      enregistrerReglages();
+      afficherEtatReglage();
+      afficher();
+    });
+    return el('div', { class: 'champ pl-champ-parc' },
+      el('label', { for: id }, `Parc de ${boite?.affichage ?? d.boite}`), select,
+      el('p', { class: 'pl-aide pl-parc-carte-aide' }, 'Le choix est retenu pour tous les devis de cette boîte.'));
+  }
+
   // Dalle du devis à choisir parmi plusieurs fiches (lot 25e3) : un sélecteur par référence, le choix est retenu par le
-  // parc de la boîte (`parc.references`) et sert aux devis suivants ; sans parc, la carte le demande.
+  // parc de la boîte (`parc.references`) et sert aux devis suivants ; sans parc, le parc se choisit d'abord (`choixParc`).
   function choixDalles(c, parc, aChoisir) {
-    if (!aChoisir.length || !actions?.ajouterAuParc) return [];
-    if (!parc) return [el('p', { class: 'pl-aide pl-dalle-sans-parc' }, 'Dalle à choisir : choisis d\'abord le parc de la boîte dans les réglages du planning, le choix y sera retenu.')];
+    if (!aChoisir.length || !actions?.ajouterAuParc || !parc) return [];
     return aChoisir.map((a, i) => {
       const id = `pl-dalle-${c.cle.replace(/[^a-z0-9-]/gi, '-')}-${i}`;
-      const select = el('select', { id, class: 'pl-choix-dalle' }, el('option', { value: '' }, 'Choisis la fiche'), ...a.candidats.map((x) => el('option', { value: x.id }, x.nom)));
+      const select = el('select', { id, class: 'pl-choix-dalle' }, el('option', { value: '' }, 'Choisis la fiche'), ...a.candidats.map((x) => el('option', { value: x.id }, libelleFiche(x))));
       select.addEventListener('change', () => {
         if (!select.value) return;
         enFile(async () => {
@@ -503,6 +525,20 @@ export function monterPlanning(racine, {
     });
   }
 
+  // Dalle retenue par le parc pour une référence du devis, avec « Changer » qui l'oublie (lot 25e4) : la dalle redevient
+  // à choisir sur la carte.
+  function dallesRetenues(parc, retenues) {
+    if (!parc || !actions?.changerDalle) return [];
+    return retenues.map((r) => {
+      const changer = el('button', { class: 'bouton pl-changer-dalle', type: 'button', 'aria-label': `Changer la dalle de ${r.ref}` }, 'Changer');
+      changer.addEventListener('click', () => enFile(async () => {
+        await actions.changerDalle(parc.id, r.ref);
+        afficher();
+      }));
+      return el('div', { class: 'pl-dalle-retenue-ligne' }, el('p', { class: 'pl-dalle-retenue' }, `${r.ref} : ${libelleFiche(r)}`), changer);
+    });
+  }
+
   // « Ajouter au parc » replié : fiches du devis absentes du parc de la boîte ; jamais de « Nombre dans le parc ».
   function blocAjoutParc(c, parc, ajout) {
     const nombre = ajout.dalles.length + ajout.processeurs.length;
@@ -511,7 +547,7 @@ export function monterPlanning(racine, {
       await actions.ajouterAuParc(parc.id, { dalles: ajout.dalles.map((x) => x.id), processeurs: ajout.processeurs.map((x) => x.id), references: {} });
       afficher();
     }));
-    const ligne = (type, x) => el('li', {}, `${type} : ${x.nom}`);
+    const ligne = (type, x) => el('li', {}, `${type} : ${libelleFiche(x)}`);
     return el('details', { class: 'pl-ajout-parc' },
       el('summary', {}, `Ajouter au parc ${parc.nom} (${nombre})`),
       el('ul', {}, ...ajout.dalles.map((x) => ligne('Dalle', x)), ...ajout.processeurs.map((x) => ligne('Processeur', x))),

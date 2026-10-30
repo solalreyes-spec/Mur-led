@@ -6490,8 +6490,8 @@ export const NAVIGATEUR = [
       const stockage = { lire: async (cle) => structuredClone(memoire.get(cle) ?? null), ecrire: async (cle, val) => { memoire.set(cle, structuredClone(val)); return true; } };
       const ligne = (ref, designation, quantite, composant = false) => ({ ref, designation, quantite, composant });
       const reel = { ...DEVIS_CONGRES, sections: [
-        { titre: 'Mur de led central L=4m x Ht=4m', lignes: [ligne('UPADIV2.6', DESIGNATIONS_FICTIVES.upad26, '64.0'), ligne('*UPADIV2.6FRAME', 'Châssis UNILUMIN 500 x 500mm', '64.0', true), ligne('MCTRL4K', 'Processeur mur led MCTRL4K', '1.0')] },
-        { titre: '4x Totem Led L=2m x Ht=4m', lignes: [ligne('UPADIV2.6', DESIGNATIONS_FICTIVES.upad26, '128.0'), ligne('MCTRL4K', 'Processeur mur led MCTRL4K', '2.0')] },
+        { titre: 'Mur de led central L=4m x Ht=4m', lignes: [ligne('UPAD-FICT', DESIGNATIONS_FICTIVES.upad26, '64.0'), ligne('*UPADIV2.6FRAME', 'Châssis UNILUMIN 500 x 500mm', '64.0', true), ligne('MCTRL4K', 'Processeur mur led MCTRL4K', '1.0')] },
+        { titre: '4x Totem Led L=2m x Ht=4m', lignes: [ligne('UPAD-FICT', DESIGNATIONS_FICTIVES.upad26, '128.0'), ligne('MCTRL4K', 'Processeur mur led MCTRL4K', '2.0')] },
       ] };
       const enveloppe = await scellerDevis({ ...LECTURE_DEVIS, boites: [{ id: 'boite-a', prestas: [DEVIS_SALON, reel] }] }, vec);
       const relais = relaisFictif({ devis: () => enveloppe });
@@ -6526,8 +6526,9 @@ export const NAVIGATEUR = [
         await ecran.pret;
         await ecran.calme();
         let c = carte();
-        v.egal('boîte sans parc : la carte demande le parc, rien à préparer', [texteDe(c?.querySelector('.pl-dalle-sans-parc')), c?.querySelector('.pl-preparer-murs'), c?.querySelector('.pl-choix-dalle')],
-          ['Dalle à choisir : choisis d\'abord le parc de la boîte dans les réglages du planning, le choix y sera retenu.', null, null]);
+        // Lot 25e4, accord de l'utilisateur : le parc se choisit sur la carte, l'aide qui renvoyait aux réglages disparaît.
+        v.egal('boîte sans parc : la carte demande le parc, rien à préparer', [texteDe(c?.querySelector('.pl-parc-carte-aide')), c?.querySelector('.pl-dalle-sans-parc'), c?.querySelector('.pl-preparer-murs'), c?.querySelector('.pl-choix-dalle')],
+          ['Le choix est retenu pour tous les devis de cette boîte.', null, null, null]);
         const choixParc = racine.querySelector('#pl-parc-boite-a');
         choixParc.value = 'parc-test';
         choixParc.dispatchEvent(new Event('change'));
@@ -6535,13 +6536,13 @@ export const NAVIGATEUR = [
         c = carte();
         const choix = c?.querySelector('select.pl-choix-dalle');
         v.egal('parc réglé : un sélecteur par référence sous « Murs du devis », « Préparer les murs » absent, pas de sélecteur dans « Ajouter au parc »', [
-          racine.querySelectorAll('select.pl-choix-dalle').length, choix?.options.length, texteDe(choix?.closest('.champ')?.querySelector('label')).startsWith('UPADIV2.6'), c?.querySelector('.pl-preparer-murs'), c?.querySelector('.pl-ajout-parc select'),
+          racine.querySelectorAll('select.pl-choix-dalle').length, choix?.options.length, texteDe(choix?.closest('.champ')?.querySelector('label')).startsWith('UPAD-FICT'), c?.querySelector('.pl-preparer-murs'), c?.querySelector('.pl-ajout-parc select'),
         ], [1, 6, true, null, null]);
         if (!choix) return;
         choix.value = 'unilumin-upad-iv-2-6';
         choix.dispatchEvent(new Event('change'));
         await ecran.calme();
-        v.egal('choix retenu par le parc de la boîte, sans rien d\'autre', appels[0], ['parc', 'parc-test', { dalles: [], processeurs: [], references: { 'UPADIV2.6': 'unilumin-upad-iv-2-6' } }]);
+        v.egal('choix retenu par le parc de la boîte, sans rien d\'autre', appels[0], ['parc', 'parc-test', { dalles: [], processeurs: [], references: { 'UPAD-FICT': 'unilumin-upad-iv-2-6' } }]);
         c = carte();
         v.egal('dalle choisie : plus de sélecteur, « Préparer les murs » présent', [c?.querySelector('select.pl-choix-dalle'), Boolean(c?.querySelector('.pl-preparer-murs'))], [null, true]);
         c?.querySelector('.pl-preparer-murs')?.click();
@@ -6549,6 +6550,94 @@ export const NAVIGATEUR = [
         const demande = appels.find((a) => a[0] === 'preparer')?.[1];
         v.egal('murs préparés : noms, dalle choisie, processeur du devis pour Data', [demande?.murs.map((m) => m.nom), demande?.murs[0].formulaires['form-mur'].dalle, demande?.murs.map((m) => m.formulaires['form-data']?.processeur)],
           [['Mur de led central', 'Totem Led 1', 'Totem Led 2', 'Totem Led 3', 'Totem Led 4'], 'unilumin-upad-iv-2-6', Array(5).fill('novastar-mctrl4k')]);
+      } finally {
+        racine.remove();
+      }
+    },
+  },
+  {
+    id: 'N132',
+    titre: 'Écran Planning, devis (étape 25, lot 25e4) : parc choisi sur la carte quand la boîte n\'en a pas (gardé dans les réglages du planning), « Aucun parc dans ta base » quand la base n\'en a aucun ; fiches à choisir et à ajouter au parc avec leur version, leur poids et leur puissance max ; « Changer » une dalle retenue par le parc',
+    etape: '25e4',
+    async verifier(v, contexte) {
+      const module = await importerSiPresent('../src/ecran-planning.js');
+      v.vrai('src/ecran-planning.js chargé', Boolean(module?.monterPlanning));
+      if (!module?.monterPlanning) return;
+      const vec = await (await fetch(new URL('./vecteur-chiffrement.json', import.meta.url), { cache: 'no-store' })).json();
+      const memoire = new Map([['planning-reglages', { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: null, cleDevis: vec.cle, boites: [] }]]);
+      const stockage = { lire: async (cle) => structuredClone(memoire.get(cle) ?? null), ecrire: async (cle, val) => { memoire.set(cle, structuredClone(val)); return true; } };
+      const ligne = (ref, quantite) => ({ ref, designation: DESIGNATIONS_FICTIVES.upad26, quantite, composant: false });
+      const devis = { ...DEVIS_CONGRES, sections: [
+        { titre: 'Mur de led central L=4m x Ht=4m', lignes: [ligne('UPAD-FICT', '64.0'), { ref: 'MCTRL4K', designation: 'Processeur mur led MCTRL4K', quantite: '1.0', composant: false }] },
+        { titre: 'Contre-marche L=4m x Ht=0.5m', lignes: [ligne('UPADIV2.6', '8.0')] },
+      ] };
+      const enveloppe = await scellerDevis({ ...LECTURE_DEVIS, boites: [{ id: 'boite-a', prestas: [DEVIS_SALON, devis] }] }, vec);
+      const relais = relaisFictif({ devis: () => enveloppe });
+      const d = contexte.dalles;
+      const p = contexte.processeurs;
+      let parcs = [];
+      const base = () => ({
+        dalles: d.dalles.map((f) => calculs.resoudreFiche(f, d.sources)), processeurs: p.processeurs.map((f) => calculs.resoudreFiche(f, p.sources)), parcs,
+        contexteParc: () => ({ quantites: {}, bitsParFamille: {} }),
+      });
+      const appels = [];
+      const actions = {
+        lien: () => null, preparer: async () => {}, ouvrir: async () => {}, vu: async () => {},
+        ajouterAuParc: async (parcId, ajout) => {
+          appels.push(['parc', parcId, ajout]);
+          parcs = parcs.map((x) => (x.id === parcId ? { ...x, references: { ...(x.references ?? {}), ...ajout.references } } : x));
+        },
+        changerDalle: async (parcId, ref) => {
+          appels.push(['changer', parcId, ref]);
+          parcs = parcs.map((x) => (x.id === parcId ? { ...x, references: {} } : x));
+        },
+      };
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const carte = () => [...racine.querySelectorAll('.pl-carte')].find((c) => c.dataset.cle?.startsWith('boite-a|') && c.dataset.cle.endsWith('|2026-11-16'));
+      const options = (s) => [...(s?.options ?? [])].map((o) => o.textContent);
+      try {
+        const ecran = module.monterPlanning(racine, {
+          stockage, fetch: (url, o) => relais.fetch(url, o), maintenant: () => MAINTENANT_FICTIF, enLigne: () => true, surNouvelles: () => {}, base, actions,
+        });
+        await ecran.pret;
+        await ecran.calme();
+        let c = carte();
+        v.egal('base sans parc : la phrase, aucun sélecteur de parc sur la carte', [texteDe(c?.querySelector('.pl-aucun-parc')), c?.querySelector('select.pl-parc-carte')],
+          ['Aucun parc dans ta base : crée-le dans l\'onglet Base.', null]);
+        parcs = [{ id: 'parc-test', nom: 'Parc test', membres: [] }];
+        await ecran.ouvrir();
+        await ecran.calme();
+        c = carte();
+        const choixParc = c?.querySelector('select.pl-parc-carte');
+        v.egal('boîte sans parc : le parc se choisit sur la carte', [c?.querySelector('.pl-aucun-parc'), texteDe(choixParc?.closest('.champ')?.querySelector('label')), options(choixParc),
+          texteDe(c?.querySelector('.pl-parc-carte-aide')), c?.querySelector('select.pl-choix-dalle')],
+        [null, 'Parc de Boîte A', ['Aucun', 'Parc test'], 'Le choix est retenu pour tous les devis de cette boîte.', null]);
+        if (!choixParc) return;
+        choixParc.value = 'parc-test';
+        choixParc.dispatchEvent(new Event('change'));
+        await ecran.calme();
+        c = carte();
+        const choix = c?.querySelector('select.pl-choix-dalle');
+        v.egal('parc choisi sur la carte : gardé dans les réglages, sélecteur des réglages à jour, plus de choix du parc sur la carte',
+          [memoire.get('planning-reglages').boites.find((b) => b.id === 'boite-a')?.parc, racine.querySelector('#pl-parc-boite-a')?.value, c?.querySelector('select.pl-parc-carte')],
+          ['parc-test', 'parc-test', null]);
+        v.egal('fiches à choisir : version, poids et puissance max', options(choix), ['Choisis la fiche', 'Unilumin Upad IV 2.6 (6,3 kg, 165 W max)', 'Unilumin Upad IV 2.6 Pro (6,4 kg, 150 W max)',
+          'Unilumin Upad IV-C (7,2 kg, 155 W max)', 'Unilumin Upad IV-S (7,7 kg, 160 W max)', 'Unilumin URMIII2.6 (8 kg, 140 W max)']);
+        v.vrai('« Ajouter au parc » : la dalle reconnue avec sa version', [...(c?.querySelectorAll('.pl-ajout-parc li') ?? [])].some((li) => texteDe(li) === 'Dalle : Unilumin Upad IV 2.6 (6,3 kg, 165 W max)'), texteDe(c?.querySelector('.pl-ajout-parc')));
+        if (!choix) return;
+        choix.value = 'unilumin-upad-iv-c';
+        choix.dispatchEvent(new Event('change'));
+        await ecran.calme();
+        c = carte();
+        const changer = c?.querySelector('button.pl-changer-dalle');
+        v.egal('dalle retenue par le parc : rappelée avec « Changer »', [texteDe(c?.querySelector('.pl-dalle-retenue')), texteDe(changer), c?.querySelector('select.pl-choix-dalle')],
+          ['UPAD-FICT : Unilumin Upad IV-C (7,2 kg, 155 W max)', 'Changer', null]);
+        changer?.click();
+        await ecran.calme();
+        c = carte();
+        v.egal('« Changer » : référence oubliée par le parc, sélecteur de retour', [appels.at(-1), Boolean(c?.querySelector('select.pl-choix-dalle')), c?.querySelector('.pl-dalle-retenue')],
+          [['changer', 'parc-test', 'UPAD-FICT'], true, null]);
       } finally {
         racine.remove();
       }

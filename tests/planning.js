@@ -1092,15 +1092,15 @@ export const PLANNING = [
       const court = (r) => [r.statut, r.fiche, r.demi, r.par];
       const reco = (designation, ref = '', options = {}, dalles = base.dalles) => dv.reconnaitreDalle({ ref, designation }, dalles, options);
       const cinq = ['unilumin-upad-iv-2-6', 'unilumin-upad-iv-2-6-pro', 'unilumin-upad-iv-c', 'unilumin-upad-iv-s', 'unilumin-urmiii2-6'];
-      const ambigu = reco(DESIGNATIONS_FICTIVES.upad26, 'UPADIV2.6');
+      const ambigu = reco(DESIGNATIONS_FICTIVES.upad26, 'UPAD-FICT');
       v.egal('5 fiches Unilumin : choix de l\'utilisateur', [ambigu.statut, ambigu.fiche, ambigu.candidats], ['choix', null, cinq]);
       const avecIncompletes = [...base.dalles,
         { id: 'fictive-information', marque: 'Unilumin', statut: 'information', pitchMm: 2.6, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 },
         { id: 'fictive-a-completer', marque: 'Unilumin', pitchMm: 2.6, largeurMm: 500, hauteurMm: 500 }];
-      v.egal('fiches d\'information et à compléter écartées', reco(DESIGNATIONS_FICTIVES.upad26, 'UPADIV2.6', {}, avecIncompletes).candidats, cinq);
-      v.egal('choix retenu par la référence du parc', court(reco(DESIGNATIONS_FICTIVES.upad26, 'UPADIV2.6', { references: { 'UPADIV2.6': 'unilumin-upad-iv-c' } })),
+      v.egal('fiches d\'information et à compléter écartées', reco(DESIGNATIONS_FICTIVES.upad26, 'UPAD-FICT', {}, avecIncompletes).candidats, cinq);
+      v.egal('choix retenu par la référence du parc', court(reco(DESIGNATIONS_FICTIVES.upad26, 'UPAD-FICT', { references: { 'UPAD-FICT': 'unilumin-upad-iv-c' } })),
         ['reconnue', 'unilumin-upad-iv-c', false, 'parc']);
-      v.egal('référence du parc vers une fiche disparue : choix', reco(DESIGNATIONS_FICTIVES.upad26, 'UPADIV2.6', { references: { 'UPADIV2.6': 'fiche-retiree' } }).statut, 'choix');
+      v.egal('référence du parc vers une fiche disparue : choix', reco(DESIGNATIONS_FICTIVES.upad26, 'UPAD-FICT', { references: { 'UPAD-FICT': 'fiche-retiree' } }).statut, 'choix');
       v.egal('alias de la fiche', court(reco('DALLE LED UNILUMIN UPAD IV 2 PRO', 'UPADIV2PRO')), ['reconnue', 'unilumin-upad-iv-2-6-pro', false, 'reference']);
       v.egal('modèle de la fiche : la dalle entière, pas sa demi-dalle', court(reco('Dalle LED', 'URMIII04')), ['reconnue', 'unilumin-urmiii04-500x1000', false, 'reference']);
       v.egal('par les caractéristiques', court(reco(DESIGNATIONS_FICTIVES.urm48, 'REF-FICT')), ['reconnue', 'unilumin-urmiii04-500x1000', false, 'caracteristiques']);
@@ -1148,10 +1148,13 @@ export const PLANNING = [
         [[], true, 8, ['Titre sans dimensions : 8 dalles, forme à choisir.']]);
       const section = (titre, ref, designation, quantite) => dv.classerDevis([{ titre, lignes: [{ ref, designation, quantite, composant: false }] }], base)[0];
       const cinq = ['unilumin-upad-iv-2-6', 'unilumin-upad-iv-2-6-pro', 'unilumin-upad-iv-c', 'unilumin-upad-iv-s', 'unilumin-urmiii2-6'];
-      const amb = dv.configurationProposee(section('ECRAN L=4m H=2m', 'UPADIV2.6', DESIGNATIONS_FICTIVES.upad26, '32.0'), base);
-      v.egal('dalle à choisir : mur proposé sans dalle, sans contrôle de quantité', [amb.dalle, amb.choixDalle, amb.murs[0].formulaires['form-mur'].dalle, amb.alertes], [null, cinq, '', []]);
-      const parc = dv.configurationProposee(dv.classerDevis([{ titre: 'ECRAN L=4m H=2m', lignes: [{ ref: 'UPADIV2.6', designation: DESIGNATIONS_FICTIVES.upad26, quantite: '32.0', composant: false }] }],
-        { ...base, references: { 'UPADIV2.6': 'unilumin-upad-iv-c' } })[0], base);
+      // Lot 25e4, accord de l'utilisateur : « UPADIV2.6 » (modèle et version) reconnue seule, plus à choisir.
+      const upad = dv.configurationProposee(section('ECRAN L=4m H=2m', 'UPADIV2.6', DESIGNATIONS_FICTIVES.upad26, '32.0'), base);
+      v.egal('« UPADIV2.6 » : modèle et version de la fiche Upad IV 2.6, reconnue seule', [upad.dalle, upad.choixDalle, upad.murs[0].formulaires['form-mur'].dalle, upad.alertes], ['unilumin-upad-iv-2-6', [], 'unilumin-upad-iv-2-6', []]);
+      const amb = dv.configurationProposee(section('ECRAN L=4m H=2m', 'UPAD-FICT', DESIGNATIONS_FICTIVES.upad26, '32.0'), base);
+      v.egal('référence qui ne nomme aucune fiche : dalle à choisir, mur sans dalle, sans contrôle de quantité', [amb.dalle, amb.choixDalle, amb.murs[0].formulaires['form-mur'].dalle, amb.alertes], [null, cinq, '', []]);
+      const parc = dv.configurationProposee(dv.classerDevis([{ titre: 'ECRAN L=4m H=2m', lignes: [{ ref: 'UPAD-FICT', designation: DESIGNATIONS_FICTIVES.upad26, quantite: '32.0', composant: false }] }],
+        { ...base, references: { 'UPAD-FICT': 'unilumin-upad-iv-c' } })[0], base);
       v.egal('dalle retenue par le parc, quantité juste', [parc.dalle, parc.murs[0].formulaires['form-mur'].dalle, parc.alertes], ['unilumin-upad-iv-c', 'unilumin-upad-iv-c', []]);
       const long = dv.configurationProposee(section(`${'X'.repeat(50)} 2x L=2m H=1m`, 'URMIII04', DESIGNATIONS_FICTIVES.urm48, '8.0'), base);
       v.egal('noms coupés à 40 caractères', long.murs.map((m) => m.nom), [`${'X'.repeat(38)} 1`, `${'X'.repeat(38)} 2`]);
@@ -1183,7 +1186,7 @@ export const PLANNING = [
       const seul4k = presta(DEVIS_CONGRES.sections, deux.filter((p) => p.id === 'novastar-mctrl4k'));
       v.egal('même modèle, nombre différent', seul4k.texte, 'Le devis prévoit 2 × MCTRL4K ; l\'appli conseille 3 × MCTRL4K.');
       v.egal('devis sans processeur', presta(DEVIS_CONGRES.sections.slice(0, 2)).texte, 'Le devis ne prévoit aucun processeur ; l\'appli conseille 3 × MCTRL660.');
-      const amb = presta([{ titre: 'ECRAN L=4m H=2m', lignes: [{ ref: 'UPADIV2.6', designation: DESIGNATIONS_FICTIVES.upad26, quantite: '32.0', composant: false }] }, ...DEVIS_SALON.sections.slice(1, 2)]);
+      const amb = presta([{ titre: 'ECRAN L=4m H=2m', lignes: [{ ref: 'UPAD-FICT', designation: DESIGNATIONS_FICTIVES.upad26, quantite: '32.0', composant: false }] }, ...DEVIS_SALON.sections.slice(1, 2)]);
       v.egal('mur dont la dalle est à choisir : hors du conseil, signalé', [amb.sansConseil, amb.conseil, amb.texte],
         [['ECRAN'], [], 'Le devis prévoit 1 × MCTRL660 ; l\'appli ne conseille rien tant qu\'une dalle reste à choisir.']);
     },
@@ -1543,9 +1546,9 @@ export const PLANNING = [
       const totems = dv.mursDuDevis({ ...DEVIS_CONGRES, sections: [{ titre: '[6 x Totems en T 4m ]', lignes: [ligne('URMIII04', DESIGNATIONS_FICTIVES.urm48, '24.0')] }] }, base, { parc });
       v.egal('totems : six murs sans forme, hors du conseil', [totems.murs.length, totems.resume[0], totems.processeurs.sansConseil.length, totems.processeurs.texte],
         [6, 'Totems en T 1 : forme à choisir', 6, 'Le devis ne prévoit aucun processeur ; l\'appli ne conseille rien tant qu\'une dalle ou une forme reste à choisir.']);
-      const amb = { ...DEVIS_CONGRES, sections: [{ titre: 'ECRAN L=4m H=2m', lignes: [ligne('UPADIV2.6', DESIGNATIONS_FICTIVES.upad26, '32.0')] }] };
+      const amb = { ...DEVIS_CONGRES, sections: [{ titre: 'ECRAN L=4m H=2m', lignes: [ligne('UPAD-FICT', DESIGNATIONS_FICTIVES.upad26, '32.0')] }] };
       const sansRef = dv.mursDuDevis(amb, base, { parc });
-      const avecRef = dv.mursDuDevis(amb, base, { parc: { ...parc, references: { 'UPADIV2.6': 'unilumin-upad-iv-c' } } });
+      const avecRef = dv.mursDuDevis(amb, base, { parc: { ...parc, references: { 'UPAD-FICT': 'unilumin-upad-iv-c' } } });
       v.egal('dalle à choisir, puis retenue par la référence du parc', [sansRef.resume, sansRef.alertes, avecRef.murs[0].formulaires['form-mur'].dalle, avecRef.alertes],
         [['ECRAN : 4 × 2 m, dalle à choisir'], ['ECRAN L=4m H=2m : Dalle à choisir parmi 5 fiches : choisis-la ci-dessous.'], 'unilumin-upad-iv-c', []]);
       v.egal('devis refusé au compte, devis sans mur LED ni processeur : rien', [dv.mursDuDevis(DEVIS_EXPO, base, { parc }), dv.mursDuDevis({ ...DEVIS_SALON, sections: DEVIS_SALON.sections.slice(2) }, base, {})], [null, null]);
@@ -1583,17 +1586,17 @@ export const PLANNING = [
         [['unilumin-urmiii04-500x1000', 'unilumin-urmiii04-500x500'], ['novastar-mctrl4k'], []]);
       const plein = { ...parcVide, membres: [...a1.dalles.map((d) => ({ type: 'dalle', id: d.id })), { type: 'processeur', id: 'novastar-mctrl4k' }] };
       v.egal('parc qui a tout : rien à ajouter', dv.ajoutsParc(DEVIS_CONGRES, base, plein), null);
-      const amb = { ...DEVIS_CONGRES, sections: [{ titre: 'ECRAN L=4m H=2m', lignes: [{ ref: 'UPADIV2.6', designation: DESIGNATIONS_FICTIVES.upad26, quantite: '32.0', composant: false }] }] };
+      const amb = { ...DEVIS_CONGRES, sections: [{ titre: 'ECRAN L=4m H=2m', lignes: [{ ref: 'UPAD-FICT', designation: DESIGNATIONS_FICTIVES.upad26, quantite: '32.0', composant: false }] }] };
       const a2 = dv.ajoutsParc(amb, base, parcVide);
-      v.egal('dalle à choisir : ses 5 fiches', [a2.dalles, a2.aChoisir.map((c) => [c.ref, c.candidats.length])], [[], [['UPADIV2.6', 5]]]);
-      const a3 = dv.ajoutsParc(amb, base, { ...parcVide, references: { 'UPADIV2.6': 'unilumin-upad-iv-c' } });
+      v.egal('dalle à choisir : ses 5 fiches', [a2.dalles, a2.aChoisir.map((c) => [c.ref, c.candidats.length])], [[], [['UPAD-FICT', 5]]]);
+      const a3 = dv.ajoutsParc(amb, base, { ...parcVide, references: { 'UPAD-FICT': 'unilumin-upad-iv-c' } });
       v.egal('référence du parc : la fiche retenue proposée', [a3.dalles.map((d) => d.id), a3.aChoisir], [['unilumin-upad-iv-c'], []]);
 
       const b1 = fi.ajouterAuParc({ parcs: [{ ...parcVide, quantites: { 'novastar-mctrl4k': 2 } }] }, 'parc-test',
-        { dalles: ['unilumin-urmiii04-500x1000'], processeurs: ['novastar-mctrl4k'], references: { 'UPADIV2.6': 'unilumin-upad-iv-c' } });
+        { dalles: ['unilumin-urmiii04-500x1000'], processeurs: ['novastar-mctrl4k'], references: { 'UPAD-FICT': 'unilumin-upad-iv-c' } });
       v.egal('ajouté : membres, référence retenue (sa fiche entre au parc), nombre dans le parc intact', [b1.parcs[0].membres, b1.parcs[0].references, b1.parcs[0].quantites], [
         [{ type: 'dalle', id: 'unilumin-urmiii04-500x1000' }, { type: 'processeur', id: 'novastar-mctrl4k' }, { type: 'dalle', id: 'unilumin-upad-iv-c' }],
-        { 'UPADIV2.6': 'unilumin-upad-iv-c' }, { 'novastar-mctrl4k': 2 }]);
+        { 'UPAD-FICT': 'unilumin-upad-iv-c' }, { 'novastar-mctrl4k': 2 }]);
       v.egal('second ajout : aucun doublon', fi.ajouterAuParc(b1, 'parc-test', { dalles: ['unilumin-urmiii04-500x1000'] }).parcs[0].membres.length, 3);
       v.egal('jamais de nombre dans le parc', 'quantites' in fi.ajouterAuParc({ parcs: [parcVide] }, 'parc-test', { processeurs: ['novastar-mctrl4k'], quantites: { 'novastar-mctrl4k': 3 } }).parcs[0], false);
 
@@ -1618,7 +1621,7 @@ export const PLANNING = [
       const chassis = ligne('*UPADIV2.6FRAME', 'Châssis UNILUMIN 500 x 500mm', '64.0', true);
       const tile = ligne('*UPADIV2.6TILE', 'Tile UNILUMIN UPADVI2.6 96 x 96 pixels', '64.0', true);
       const mctrl = (n) => ligne('MCTRL4K', 'Processeur mur led Input DVI-D & HDMI 4K 16 sorties Ethernet / 4 opt ports MCTRL4K', n);
-      const dalle = (n) => ligne('UPADIV2.6', DESIGNATIONS_FICTIVES.upad26, n);
+      const dalle = (n) => ligne('UPAD-FICT', DESIGNATIONS_FICTIVES.upad26, n);
       const reel = { ...DEVIS_CONGRES, sections: [
         { titre: 'Mur de led central L=4m x Ht=4m', lignes: [dalle('64.0'), chassis, mctrl('1.0')] },
         { titre: '4x Totem Led L=2m x Ht=4m', lignes: [dalle('128.0'), chassis, mctrl('2.0')] },
@@ -1626,7 +1629,7 @@ export const PLANNING = [
       ] };
       const classe = dv.classerDevis(reel.sections, base);
       v.egal('châssis et tiles « * » : ni dalle ni processeur', classe[2].lignes.slice(1).map((l) => [l.dalle, l.processeur]), [[null, null], [null, null]]);
-      const parc = { id: 'parc-test', nom: 'Parc test', membres: [], references: { 'UPADIV2.6': 'unilumin-upad-iv-2-6' } };
+      const parc = { id: 'parc-test', nom: 'Parc test', membres: [], references: { 'UPAD-FICT': 'unilumin-upad-iv-2-6' } };
       const m = dv.mursDuDevis(reel, base, { parc });
       v.egal('noms sans « x », aucune fausse alerte « Plusieurs dalles »', [m.murs.map((x) => x.nom), m.alertes.filter((a) => /Plusieurs dalles/.test(a))],
         [['Mur de led central', 'Totem Led 1', 'Totem Led 2', 'Totem Led 3', 'Totem Led 4', 'Contre-marche'], []]);
@@ -1637,7 +1640,7 @@ export const PLANNING = [
       v.egal('deux modèles dans le devis : mur sans processeur dans sa section laissé au conseil', [deux.murs[0].formulaires['form-data']?.processeur, deux.murs[5].formulaires['form-data']], ['novastar-mctrl4k', undefined]);
       const sans = dv.mursDuDevis(reel, base, { parc: { ...parc, references: {} } });
       v.egal('dalle à choisir : une fois par référence, murs pas prêts, alerte', [sans.pret, sans.aChoisir.map((a) => [a.ref, a.candidats.length]), sans.alertes[0]],
-        [false, [['UPADIV2.6', 5]], 'Mur de led central L=4m x Ht=4m : Dalle à choisir parmi 5 fiches : choisis-la ci-dessous.']);
+        [false, [['UPAD-FICT', 5]], 'Mur de led central L=4m x Ht=4m : Dalle à choisir parmi 5 fiches : choisis-la ci-dessous.']);
       let refus = null;
       try {
         pr.preparerMurs(pr.migrer({}), { nom: 'X', murs: sans.murs, lien: { boite: 'boite-a', idEventsoft: '1', empreinte: 'e' } });
@@ -1645,6 +1648,51 @@ export const PLANNING = [
         refus = erreur.message;
       }
       v.egal('« Préparer les murs » sans dalle : refus, rien de créé', refus, 'Choisis la dalle de chaque mur avant de préparer les murs.');
+    },
+  },
+  {
+    id: 'PL37',
+    titre: 'Devis Eventsoft (lot 25e4) : référence égale au modèle et à la version d\'une fiche (« UPADIV2.6 », « UPADIV2.6PRO ») reconnue seule ; fiches à choisir et à ajouter au parc nommées avec leur version, leur poids et leur puissance max ; dalles retenues par le parc listées pour « Changer » ; `oublierReference` retire la référence du parc, sans toucher à ses membres',
+    etape: '25e4',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      const fi = await importerPlanning(v, '../src/fiches.js');
+      if (!dv || !fi) return;
+      const base = baseDevis(contexte);
+      const reco = (ref) => { const r = dv.reconnaitreDalle({ ref, designation: DESIGNATIONS_FICTIVES.upad26 }, base.dalles); return [r.statut, r.fiche, r.par]; };
+      v.egal('modèle et version : 2.6 et 2.6 Pro, chacune seule', [reco('UPADIV2.6'), reco('UPADIV2.6PRO'), reco('UpadIV 2.6 Pro')],
+        [['reconnue', 'unilumin-upad-iv-2-6', 'reference'], ['reconnue', 'unilumin-upad-iv-2-6-pro', 'reference'], ['reconnue', 'unilumin-upad-iv-2-6-pro', 'reference']]);
+      const ligne = (ref, quantite = '32.0') => ({ ref, designation: DESIGNATIONS_FICTIVES.upad26, quantite, composant: false });
+      const amb = { ...DEVIS_CONGRES, sections: [{ titre: 'ECRAN L=4m H=2m', lignes: [ligne('UPAD-FICT')] }] };
+      const parc = { id: 'parc-test', nom: 'Parc test', membres: [] };
+      const cinq = [
+        ['unilumin-upad-iv-2-6', 'Unilumin Upad IV 2.6', '6,3 kg, 165 W max'],
+        ['unilumin-upad-iv-2-6-pro', 'Unilumin Upad IV 2.6 Pro', '6,4 kg, 150 W max'],
+        ['unilumin-upad-iv-c', 'Unilumin Upad IV-C', '7,2 kg, 155 W max'],
+        ['unilumin-upad-iv-s', 'Unilumin Upad IV-S', '7,7 kg, 160 W max'],
+        ['unilumin-urmiii2-6', 'Unilumin URMIII2.6', '8 kg, 140 W max'],
+      ];
+      const fiches = (liste) => liste.map((x) => [x.id, x.nom, x.detail]);
+      v.egal('dalle à choisir : version, poids et puissance max de chaque fiche', fiches(dv.mursDuDevis(amb, base, { parc }).aChoisir[0].candidats), cinq);
+      v.egal('« Ajouter au parc » : même nom, même détail', fiches(dv.ajoutsParc(amb, base, parc).aChoisir[0].candidats), cinq);
+      const reconnue = { ...DEVIS_CONGRES, sections: [{ titre: 'ECRAN L=4m H=2m', lignes: [ligne('UPADIV2.6')] }] };
+      v.egal('dalle reconnue à ajouter au parc : sa version', fiches(dv.ajoutsParc(reconnue, base, parc).dalles), [cinq[0]]);
+      v.egal('fiche sans poids ni puissance : pas de détail', fiches(dv.ajoutsParc(reconnue, { ...base, dalles: base.dalles.map((d) => (d.id === 'unilumin-upad-iv-2-6' ? { ...d, poidsKg: null, pMaxW: null } : d)) }, parc).dalles),
+        [['unilumin-upad-iv-2-6', 'Unilumin Upad IV 2.6', null]]);
+      const deux = { ...amb, sections: [...amb.sections, { titre: 'TOTEM L=1m H=2m', lignes: [ligne('UPAD-FICT', '8.0')] }, { titre: 'ECRAN 2 L=4m H=2m', lignes: [ligne('UPADIV2.6')] }] };
+      const retenue = dv.mursDuDevis(deux, base, { parc: { ...parc, references: { 'UPAD-FICT': 'unilumin-upad-iv-c' } } });
+      v.egal('dalle retenue par le parc : listée une fois pour « Changer », pas celle reconnue par sa référence', retenue.retenues,
+        [{ ref: 'UPAD-FICT', designation: DESIGNATIONS_FICTIVES.upad26, id: 'unilumin-upad-iv-c', nom: 'Unilumin Upad IV-C', detail: '7,2 kg, 155 W max' }]);
+      v.egal('aucune dalle retenue par le parc : liste vide', dv.mursDuDevis(amb, base, { parc }).retenues, []);
+      const depart = { parcs: [
+        { ...parc, membres: [{ type: 'dalle', id: 'unilumin-upad-iv-c' }], references: { 'UPAD-FICT': 'unilumin-upad-iv-c', 'URMIII04': 'unilumin-urmiii04-500x1000' } },
+        { id: 'parc-b', nom: 'Parc B', membres: [], references: { 'UPAD-FICT': 'unilumin-upad-iv-s' } },
+      ] };
+      const apres = fi.oublierReference(depart, 'parc-test', 'UPAD-FICT');
+      v.egal('« Changer » : référence oubliée, membres et autre parc intacts', [apres.parcs[0].references, apres.parcs[0].membres, apres.parcs[1]],
+        [{ 'URMIII04': 'unilumin-urmiii04-500x1000' }, depart.parcs[0].membres, depart.parcs[1]]);
+      v.egal('dernière référence oubliée : plus de champ references', 'references' in fi.oublierReference(apres, 'parc-test', 'URMIII04').parcs[0], false);
+      v.egal('référence inconnue : rien ne change', fi.oublierReference(depart, 'parc-test', 'AUTRE'), depart);
     },
   },
 ];

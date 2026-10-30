@@ -4,7 +4,7 @@ import { resoudreFiche, listeMateriel, totalMateriel, stockPresta, ErreurSaisie,
 import { el, remplacer } from './dom.js';
 import {
   baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc, quantitesParc, logicielParc, codeNovaLCT,
-  ajouterAuParc,
+  ajouterAuParc, oublierReference,
 } from './fiches.js';
 import { lire, ecrire, stockageDisponible, suspendreEcritures } from './stockage.js';
 import { surveillerOnglets } from './onglets.js';
@@ -193,6 +193,7 @@ const ecranPlanning = monterPlanning(document.getElementById('ecran-planning'), 
     },
     vu: (prestaId, empreinte) => operationPrestas((e) => prestas.lienDevisVu(e, prestaId, empreinte)),
     ajouterAuParc: (parcId, ajout) => enregistrerBase(ajouterAuParc(base, parcId, ajout)),
+    changerDalle: (parcId, ref) => enregistrerBase(oublierReference(base, parcId, ref)),
   },
   surNouvelles: (n) => {
     const pastille = document.querySelector('.onglet[href="#planning"] .pastille-onglet');

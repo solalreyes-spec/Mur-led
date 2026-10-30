@@ -1863,8 +1863,11 @@ main section h3.pl-mois-titre { justify-content: center; margin: 0; font-size: 1
 .pl-ajout-parc[open] { padding-bottom: 8px; }
 .pl-ajout-parc > summary { display: flex; align-items: center; min-height: var(--cible); cursor: pointer; overflow-wrap: anywhere; }
 .pl-ajout-parc ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 0.9rem; }
-.pl-ajout-parc li, .pl-champ-dalle label { overflow-wrap: anywhere; }
-.pl-champ-dalle select { max-width: 100%; }
+.pl-ajout-parc li, .pl-champ-dalle label, .pl-champ-parc label { overflow-wrap: anywhere; }
+.pl-champ-dalle select, .pl-champ-parc select { max-width: 100%; }
+/* Lot 25e4 : dalle retenue par le parc, « Changer » à droite (dessous quand la place manque). */
+.pl-dalle-retenue-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.pl-dalle-retenue { flex: 1 1 12rem; min-width: 0; font-size: 0.9rem; }
 
 /* Fond de l'icône de l'écran d'accueil (étape 24d) : petite image au-dessus du nom ; le choix ne sert que dans Safari
    (l'appli installée a son propre stockage), d'où la seule marche à suivre en mode application. */

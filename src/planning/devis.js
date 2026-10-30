@@ -193,7 +193,8 @@ const PITCH_TOLERANCE_MM = 0.05;
 const pitchDe = (d) => d.pitchMm ?? (d.largeurMm && d.pxH ? d.largeurMm / d.pxH : null);
 // Fiches utilisables : ni fiche d'information, ni fiche à compléter (dimensions et pixels).
 const dalleUtilisable = (d) => d.statut !== 'information' && ['pxH', 'pxV', 'largeurMm', 'hauteurMm'].every((k) => d[k] > 0);
-const nomsFiche = (f) => [f.modele, ...[].concat(f.alias ?? [])].filter(Boolean).map(compact);
+// Noms d'une fiche : modèle, alias, et modèle suivi de la version (« UPADIV2.6 » = Upad IV 2.6, lot 25e4).
+const nomsFiche = (f) => [f.modele, ...[].concat(f.alias ?? []), f.modele && f.version ? `${f.modele} ${f.version}` : null].filter(Boolean).map(compact);
 
 // Ligne de devis → dalle de la base. Ordre : référence retenue par la boîte (`references[ref]`), puis référence
 // égale au modèle ou à un alias, puis marque, pitch (à 0,05 mm), dimensions et pixels de la désignation. Une ligne de
@@ -399,7 +400,14 @@ export function processeursPresta(sections, murs, { dalles = [], processeurs = [
 // ---------------------------------------------------------------------------
 
 const membresDe = (parc, type) => new Set((parc?.membres ?? []).filter((m) => m.type === type).map((m) => m.id));
-const nomFiche = (f) => [f.marque, f.modele].filter(Boolean).join(' ') || f.id;
+const nomFiche = (f) => [f.marque, f.modele, f.version, f.variante].filter(Boolean).join(' ') || f.id;
+// Fiche proposée (dalle à choisir, « Ajouter au parc ») : nom avec la version, poids et puissance max retenus pour
+// départager des fiches voisines (lot 25e4) ; sans l'un ni l'autre, pas de détail.
+const ficheProposee = (id, fiches) => {
+  const f = fiches.find((x) => x.id === id) ?? { id };
+  const detail = [f.poidsKg > 0 ? `${virgule(f.poidsKg)} kg` : null, f.pMaxW > 0 ? `${virgule(f.pMaxW)} W max` : null].filter(Boolean).join(', ');
+  return { id, nom: nomFiche(f), detail: detail || null };
+};
 
 // Murs proposés pour toute une presta du devis (`configurationProposee` de chaque section, murs sans forme compris),
 // résumé et alertes de chaque mur, processeurs comparés au niveau de la presta (`processeursPresta`) dans le parc de la
@@ -437,18 +445,23 @@ export function mursDuDevis(presta, base, { parc = null, quantites = null, bitsP
       alertes.push(`${titre} : Dalle à choisir parmi ${c.choixDalle.length} fiches : choisis-la ci-dessous.`);
       const l = s.lignes.find((x) => x.dalle?.statut === 'choix' && !x.dalle.demi);
       if (l?.ref && !aChoisir.some((a) => a.ref === l.ref)) {
-        aChoisir.push({ ref: l.ref, designation: l.designation, candidats: c.choixDalle.map((id) => ({ id, nom: nomFiche(dalles.find((f) => f.id === id) ?? { id }) })) });
+        aChoisir.push({ ref: l.ref, designation: l.designation, candidats: c.choixDalle.map((id) => ficheProposee(id, dalles)) });
       }
     }
     alertes.push(...c.alertes.map((a) => `${titre} : ${a}`));
   }
   const avecProcesseur = classe.some((s) => s.lignes.some((l) => l.processeur));
   if (!murs.length && !avecProcesseur) return null;
+  // Dalles retenues par le parc de la boîte (`parc.references`), une fois par référence : « Changer » sur la carte (lot 25e4).
+  const retenues = [];
+  for (const l of classe.flatMap((s) => s.lignes)) {
+    if (l.dalle?.par === 'parc' && !retenues.some((r) => r.ref === l.ref)) retenues.push({ ref: l.ref, designation: l.designation, ...ficheProposee(l.dalle.fiche, dalles) });
+  }
   const duParc = membresDe(parc, 'processeur');
   const processeurs = duParc.size ? tous.filter((p) => duParc.has(p.id)) : tous;
   // Prêts : chaque mur a sa dalle (une dalle à choisir se choisit d'abord sur la carte, retenue par le parc).
   const pret = murs.length > 0 && murs.every((m) => m.formulaires['form-mur'].dalle);
-  return { murs, resume, alertes, aChoisir, pret, processeurs: processeursPresta(classe, murs, { dalles, processeurs, reglages: { frequenceHz: 60, bits: 8 }, quantites, bitsParFamille }) };
+  return { murs, resume, alertes, aChoisir, retenues, pret, processeurs: processeursPresta(classe, murs, { dalles, processeurs, reglages: { frequenceHz: 60, bits: 8 }, quantites, bitsParFamille }) };
 }
 
 // « Ajouter au parc » : dalles (demi-dalles comprises) et processeurs reconnus dans le devis qui manquent au parc de la
@@ -465,14 +478,13 @@ export function ajoutsParc(presta, base, parc) {
   const proposer = (type, liste, id, fiches) => {
     if (dansParc[type].has(id) || vus.has(`${type}:${id}`)) return;
     vus.add(`${type}:${id}`);
-    const f = fiches.find((x) => x.id === id);
-    liste.push({ id, nom: f ? nomFiche(f) : id });
+    liste.push(type === 'dalle' ? ficheProposee(id, fiches) : { id, nom: nomFiche(fiches.find((x) => x.id === id) ?? { id }) });
   };
   for (const l of classe.flatMap((s) => s.lignes)) {
     if (l.dalle?.statut === 'reconnue') proposer('dalle', ajout.dalles, l.dalle.fiche, dalles);
     else if (l.dalle?.statut === 'choix' && l.ref && !vus.has(`ref:${l.ref}`)) {
       vus.add(`ref:${l.ref}`);
-      ajout.aChoisir.push({ ref: l.ref, designation: l.designation, candidats: l.dalle.candidats.map((id) => ({ id, nom: nomFiche(dalles.find((d) => d.id === id) ?? { id }) })) });
+      ajout.aChoisir.push({ ref: l.ref, designation: l.designation, candidats: l.dalle.candidats.map((id) => ficheProposee(id, dalles)) });
     } else if (l.processeur) proposer('processeur', ajout.processeurs, l.processeur, processeurs);
   }
   return ajout.dalles.length || ajout.processeurs.length || ajout.aChoisir.length ? ajout : null;
