@@ -111,14 +111,13 @@ export function monterPlanning(racine, {
     jeton.entree.placeholder = r.jeton ? 'Enregistré, laisse vide' : '';
     jetonApple.entree.placeholder = r.jetonApple ? 'Enregistré, laisse vide' : '';
     const avecApple = Boolean(adressesApple(r, 'x'));
-    remplacer(listeBoites, (r.boites ?? []).filter((b) => !b.absente).length === 0 ? null : [
+    const presentes = (r.boites ?? []).filter((b) => !b.absente);
+    // Abonnements Calendrier repliés (lot 23e) : faits une fois par téléphone ; le repli garde son état d'ouverture.
+    const abonnementsOuverts = Boolean(listeBoites.querySelector('details.pl-abonnements')?.open);
+    remplacer(listeBoites, presentes.length === 0 ? null : [
       el('h3', {}, 'Boîtes'),
-      avecApple
-        ? el('div', { class: 'pl-rappel-apple' },
-          el('p', { class: 'pl-aide' }, '« Ajouter à Calendrier » t\'abonne au planning de la boîte, sans les indisponibilités. Si tu es déjà abonné aux liens Eventsoft dans Calendrier, désabonne-toi de ceux-là pour éviter les doublons : dans Calendrier, Calendriers, bouton i du calendrier, Se désabonner.'),
-          el('p', { class: 'pl-aide' }, 'Si le bouton n\'ouvre pas Calendrier : « Copier l\'adresse », puis dans Calendrier, Calendriers, Nouv. calendrier, Ajouter un calendrier avec abonnement, et colle l\'adresse.'))
-        : el('p', { class: 'pl-aide pl-apple-manque' }, 'Saisis le jeton Apple pour t\'abonner dans Calendrier : un bouton par boîte apparaîtra ici.'),
-      ...r.boites.filter((b) => !b.absente).map((b) => {
+      avecApple ? null : el('p', { class: 'pl-aide pl-apple-manque' }, 'Saisis le jeton Apple pour t\'abonner dans Calendrier : un abonnement par boîte apparaîtra sous les boîtes.'),
+      ...presentes.map((b) => {
         const nom = el('input', { type: 'text', id: `pl-nom-${b.id}`, value: b.affichage, maxlength: '40', autocomplete: 'off' });
         const lettre = el('input', { type: 'text', id: `pl-lettre-${b.id}`, value: b.lettre, maxlength: '1', autocomplete: 'off', autocapitalize: 'characters', class: 'pl-lettre' });
         const couleur = el('select', { id: `pl-couleur-${b.id}` }, ...PALETTE_BOITES.map((c, i) => el('option', { value: c, selected: c === b.couleur ? '' : null }, NOMS_COULEURS[i])));
@@ -137,9 +136,18 @@ export function monterPlanning(racine, {
           el('div', { class: 'champ' }, el('label', { for: nom.id }, 'Nom affiché'), nom),
           el('div', { class: 'paire' },
             el('div', { class: 'champ' }, el('label', { for: lettre.id }, 'Lettre'), lettre),
-            el('div', { class: 'champ' }, el('label', { for: couleur.id }, 'Couleur'), couleur)),
-          avecApple ? boutonsApple(b) : null);
+            el('div', { class: 'champ' }, el('label', { for: couleur.id }, 'Couleur'), couleur)));
       }),
+      avecApple
+        ? el('details', { class: 'pl-abonnements', open: abonnementsOuverts ? '' : null },
+          el('summary', {}, 'Refaire un abonnement Calendrier'),
+          el('div', { class: 'pl-rappel-apple' },
+            el('p', { class: 'pl-aide' }, '« Ajouter à Calendrier » t\'abonne au planning de la boîte, sans les indisponibilités. Si tu es déjà abonné aux liens Eventsoft dans Calendrier, désabonne-toi de ceux-là pour éviter les doublons : dans Calendrier, Calendriers, bouton i du calendrier, Se désabonner.'),
+            el('p', { class: 'pl-aide' }, 'Si le bouton n\'ouvre pas Calendrier : « Copier l\'adresse », puis dans Calendrier, Calendriers, Nouv. calendrier, Ajouter un calendrier avec abonnement, et colle l\'adresse.')),
+          ...presentes.map((b) => el('div', { class: 'pl-abonnement' },
+            el('p', { class: 'pl-abonnement-titre' }, pastille(b), el('span', { class: 'pl-abonnement-nom' }, b.affichage)),
+            boutonsApple(b))))
+        : null,
     ]);
   }
 

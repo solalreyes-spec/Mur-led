@@ -1825,6 +1825,11 @@ main section h3.pl-mois-titre { justify-content: center; margin: 0; font-size: 1
 .pl-apple { margin-top: 2px; }
 .pl-apple-statut { margin: 12px 0 0; color: var(--texte-doux); font-size: 0.9rem; }
 .pl-apple-statut:empty, .pl-resultat-sauvegarde:empty { display: none; }
+/* Abonnements Calendrier repliés sous les boîtes (lot 23e). */
+.pl-abonnements { margin-top: 12px; padding: 0 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); }
+.pl-abonnements[open] { padding-bottom: 12px; }
+.pl-abonnement { display: grid; gap: 6px; min-width: 0; margin-top: 12px; }
+.pl-abonnement-titre { display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0; overflow-wrap: anywhere; }
 .pl-reglages > h3 { margin-top: 20px; }
 .pl-sauvegarde { margin-top: 8px; }
 .pl-resultat-sauvegarde { margin: 8px 0 0; overflow-wrap: anywhere; }

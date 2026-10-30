@@ -181,3 +181,38 @@ export function relaisFictif({ reseau = false, jamais = false, statut = null, bo
   }
   return { fetch, appels };
 }
+
+// Devis lus dans Eventsoft (étape 25, lot 25b), inventés : format de la spec 25, § 5.3 (référence, désignation,
+// quantité « 26.0 » telle que lue, composant « * »), titres de section avec dimensions, note interne en titre,
+// processeur dans la régie vidéo, postes par créneau (« JJ/MM ») en majuscules ou en casse mixte. Aucun nom réel.
+const ligneDevis = (ref, designation, quantite, composant = false) => ({ ref, designation, quantite, composant });
+export const DESIGNATIONS_FICTIVES = {
+  upad26: 'DALLE LED UNILUMIN Pitch 2.6mm 500 x 500mm - 192 x 192 pixels',
+  urm48: 'DALLE LED UNILUMIN Pitch 4.8mm 500 x 1000mm - 104 x 208 pixels',
+  urm48demi: 'DEMI DALLE LED UNILUMIN Pitch 4.8mm 500 x 500mm - 104 x 104 pixels',
+};
+export const DEVIS_SALON = {
+  idEventsoft: '000000101', nom: 'SALON FICTIF - HALL 1 - STAND 12', debut: '2026-06-12', fin: '2026-06-13',
+  postes: [{ jour: '12/06', poste: 'TECHNICIEN MUR LED' }, { jour: '12/06', poste: 'Technicien mur LED' }, { jour: '13/06', poste: 'ASSISTANT MUR LED' }],
+  sections: [
+    { titre: 'ECRAN LED FOND DE SCENE L=4m H=3m', lignes: [ligneDevis('URMIII04', DESIGNATIONS_FICTIVES.urm48, '26.0'), ligneDevis('BUMP-FICT', '* Bumper fictif 1 m', '4.0', true)] },
+    { titre: 'REGIE VIDEO', lignes: [ligneDevis('MCTRL660', 'Processeur NOVASTAR MCTRL660', '1.0'), ligneDevis('MEL-FICT', 'Mélangeur vidéo fictif', '1.0')] },
+    { titre: 'ECLAIRAGE', lignes: [ligneDevis('PAR-FICT', 'Projecteur PAR LED fictif', '12.0')] },
+    { titre: 'SONORISATION', lignes: [ligneDevis('ENC-FICT', 'Enceinte fictive', '4.0')] },
+    { titre: 'STRUCTURE', lignes: [ligneDevis('PONT-FICT', 'Pont alu fictif 3 m', '6.0')] },
+    { titre: 'HABILLAGE', lignes: [ligneDevis('PEND-FICT', 'Pendrillon noir fictif', '10.0')] },
+    { titre: 'Note : à revoir le 03/11', lignes: [ligneDevis('ARM-FICT', 'Armoire électrique fictive 63A', '1.0')] },
+    { titre: 'DIVERS', lignes: [ligneDevis('GAF-FICT', 'Gaffer fictif', '3.0')] },
+  ],
+  empreintes: { devis: 'empreinte-devis-fictive', personnel: 'empreinte-personnel-fictive' },
+};
+export const DEVIS_CONGRES = {
+  idEventsoft: '000000102', nom: 'Congrès fictif', debut: '2026-11-16', fin: '2026-11-16',
+  postes: [{ jour: '16/11', poste: 'Assistant Mur Led' }, { jour: '16/11', poste: 'Road 4h' }, { poste: 'TECHNICIEN VIDEO SV' }],
+  sections: [
+    { titre: 'ECRANS LATERAUX 2x L=2m H=1m', lignes: [ligneDevis('URMIII04', DESIGNATIONS_FICTIVES.urm48, '8.0')] },
+    { titre: 'ECRAN CENTRAL L=4m H=2,5m', lignes: [ligneDevis('URMIII04', DESIGNATIONS_FICTIVES.urm48, '16.0'), ligneDevis('URMIII04-D', DESIGNATIONS_FICTIVES.urm48demi, '8.0')] },
+    { titre: 'REGIE VIDEO', lignes: [ligneDevis('MCTRL4K', 'Processeur NOVASTAR MCTRL4K', '2.0')] },
+  ],
+  empreintes: { devis: 'empreinte-devis-fictive-2', personnel: 'empreinte-personnel-fictive-2' },
+};

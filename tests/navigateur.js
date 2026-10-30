@@ -5824,7 +5824,7 @@ export const NAVIGATEUR = [
   },
   {
     id: 'N123',
-    titre: 'Écran Planning, Intermittent, sauvegarde et Calendrier (étape 23, lot 23d) : case « Saisie dans Intermittent » et « Copier pour Intermittent » sur chaque carte ; filtre « À saisir dans Intermittent » avec son nombre (Liste seulement) ; alerte forte après une modification et « C\'est corrigé » ; « Exporter le planning » sans adresse ni jetons ; « Importer un planning » sur un téléphone neuf sans réglages (dates et cases reprises, réglages intacts), fichier illisible refusé ; « Ajouter à Calendrier » (webcal://) et « Copier l\'adresse » (https://) par boîte, rappel des doublons, rien sans jeton Apple ; aucune adresse ni aucun jeton dans la page',
+    titre: 'Écran Planning, Intermittent, sauvegarde et Calendrier (étape 23, lot 23d) : case « Saisie dans Intermittent » et « Copier pour Intermittent » sur chaque carte ; filtre « À saisir dans Intermittent » avec son nombre (Liste seulement) ; alerte forte après une modification et « C\'est corrigé » ; « Exporter le planning » sans adresse ni jetons ; « Importer un planning » sur un téléphone neuf sans réglages (dates et cases reprises, réglages intacts), fichier illisible refusé ; « Ajouter à Calendrier » (webcal://) et « Copier l\'adresse » (https://) par boîte, repliés sous « Refaire un abonnement Calendrier » (lot 23e), rappel des doublons, rien sans jeton Apple ; aucune adresse ni aucun jeton dans la page',
     etape: '23d',
     async verifier(v) {
       const module = await importerSiPresent('../src/ecran-planning.js');
@@ -5910,9 +5910,17 @@ export const NAVIGATEUR = [
         v.egal('filtre « À saisir » absent des Totaux', filtreSaisir(racine), null);
         choisirVue('Liste');
 
-        // Calendrier : deux boutons par boîte dans les réglages.
+        // Calendrier : deux boutons par boîte, repliés sous « Refaire un abonnement Calendrier » (lot 23e, fermé par défaut).
         const reglages = racine.querySelector('details.pl-reglages');
         reglages.open = true;
+        const replis = [...racine.querySelectorAll('details.pl-abonnements')];
+        v.egal('un seul repli « Refaire un abonnement Calendrier », fermé par défaut', [replis.length, texteDe(replis[0]?.querySelector('summary')), replis[0]?.open],
+          [1, 'Refaire un abonnement Calendrier', false]);
+        v.egal('plus aucun bouton Calendrier dans les fiches des boîtes', racine.querySelectorAll('.pl-boite-reglage button').length, 0);
+        const nomsAffiches = [...racine.querySelectorAll('.pl-boite-reglage input[id^="pl-nom-"]')].map((e) => e.value);
+        v.egal('dans le repli : rappel Apple, puis pastille, nom et deux boutons par boîte', [Boolean(replis[0]?.querySelector('.pl-rappel-apple')),
+          [...(replis[0]?.querySelectorAll('.pl-abonnement') ?? [])].map((l) => [Boolean(l.querySelector('.pl-pastille')), texteDe(l.querySelector('.pl-abonnement-nom')), l.querySelectorAll('button').length])],
+        [true, nomsAffiches.map((nom) => [true, nom, 2])]);
         const ajouter = [...racine.querySelectorAll('.pl-ajouter-calendrier')];
         v.egal('« Ajouter à Calendrier » et « Copier l\'adresse » par boîte', [ajouter.map(texteDe), [...racine.querySelectorAll('.pl-copier-adresse')].map(texteDe)],
           [Array(3).fill('Ajouter à Calendrier'), Array(3).fill('Copier l\'adresse')]);
@@ -5959,7 +5967,8 @@ export const NAVIGATEUR = [
         v.egal('import : dates et cases reprises, accueil retiré', [racine2.querySelectorAll('.pl-a-venir .pl-carte').length, carte(racine2, '2026-10-29', 'boite-b')?.querySelector('.pl-saisie input').checked, racine2.querySelector('.pl-accueil')], [2, true, null]);
         const reglagesNeufs = neuf.memoire.get('planning-reglages');
         v.egal('import : réglages du téléphone intacts, boîtes reprises', [reglagesNeufs?.relais ?? null, reglagesNeufs?.jeton ?? null, reglagesNeufs?.jetonApple ?? null, (reglagesNeufs?.boites ?? []).length], [null, null, null, 3]);
-        v.egal('sans jeton Apple : aucun bouton Calendrier, la raison', [racine2.querySelectorAll('.pl-ajouter-calendrier').length, /Saisis le jeton Apple/.test(texteDe(racine2.querySelector('.pl-reglages')))], [0, true]);
+        v.egal('sans jeton Apple : aucun bouton Calendrier ni repli, la raison visible hors du repli', [racine2.querySelectorAll('.pl-ajouter-calendrier').length, racine2.querySelector('details.pl-abonnements'),
+          /Saisis le jeton Apple/.test(texteDe(racine2.querySelector('.pl-reglages .pl-apple-manque')))], [0, null, true]);
         v.vrai('téléphone neuf : aucune adresse ni aucun jeton dans la page', !fuite(racine2));
       } finally {
         racine.remove();

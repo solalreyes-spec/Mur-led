@@ -6,7 +6,10 @@ import * as jr from '../src/planning/journees.js';
 import {
   MAINTENANT_FICTIF, calendrier, EVENEMENTS_A, EVENEMENTS_B, EVENEMENTS_C,
   PLANNING_A, PLANNING_B, PLANNING_C, NOMS_FICTIFS, ADRESSE_FICTIVE, JETON_FICTIF, JETON_APPLE_FICTIF, relaisFictif,
+  DEVIS_SALON, DEVIS_CONGRES, DESIGNATIONS_FICTIVES,
 } from './planning-fictif.js';
+import * as calculs from '../src/calculs.js';
+import { baseDalles, baseProcesseurs } from './base.js';
 
 const H = 3600000;
 const JOUR = 24 * H;
@@ -27,6 +30,12 @@ function etatFictif() {
     boites[id] = jr.appliquerLecture(undefined, lire(texte, NOMS_FICTIFS[id]), MAINTENANT_FICTIF, { nom: NOMS_FICTIFS[id] }).etat;
   }
   return { boites };
+}
+// Devis (lot 25b) : dalles et processeurs de data/, valeurs retenues comme dans l'appli.
+function baseDevis(contexte) {
+  const d = baseDalles(contexte);
+  const p = baseProcesseurs(contexte);
+  return { dalles: d.dalles.map((f) => calculs.resoudreFiche(f, d.sources)), processeurs: p.processeurs.map((f) => calculs.resoudreFiche(f, p.sources)) };
 }
 const resumeJournee = (j) => [j.boite, j.date, j.presta, j.phases.map((p) => p.uid), j.heures];
 
@@ -972,6 +981,211 @@ export const PLANNING = [
       const visite = { uid: 'c9@fictif', debut: '20261105T090000Z', fin: '20261105T094500Z', summary: 'Visite fictive / Livraison', categories: 'Livraison' };
       const avecVisite = { ...etat, boites: { ...etat.boites, 'boite-c': jr.appliquerLecture(etat.boites['boite-c'], lire(calendrier({ calname: 'EventSoft / Boîte C', evenements: [...EVENEMENTS_C, visite] }), 'Boîte C'), apres, { nom: 'Boîte C' }).etat } };
       v.egal('journée de 45 min', carteDe(avecVisite, 'boite-c', '2026-11-05', { t: apres })?.duree, '45 min de travail');
+    },
+  },
+  {
+    id: 'PL23',
+    titre: 'Devis Eventsoft (lot 25b) : presta du devis rapprochée de celle du planning de la même boîte, par nom souple (casse, accents, tirets) et dates qui se chevauchent ; même nom à d\'autres dates (salon annuel) écarté ; deux candidates : aucune choisie, le choix de l\'utilisateur gardé',
+    etape: '25b',
+    async verifier(v) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const salon = 'Salon fictif / Hall 1 / Stand 12';
+      const phases = [
+        phase('boite-a', salon, 'Installation', utc(2026, 6, 12, 6), utc(2026, 6, 12, 16), 's1'),
+        phase('boite-a', salon, 'Démontage', utc(2026, 6, 12, 22, 30), utc(2026, 6, 13, 3), 's2'),
+        phase('boite-a', salon, 'Installation', utc(2027, 6, 11, 6), utc(2027, 6, 11, 16), 's3'),
+        phase('boite-b', salon, 'Installation', utc(2026, 6, 12, 6), utc(2026, 6, 12, 16), 's4'),
+        phase('boite-a', 'Congrès fictif / Salle 1', 'Installation', utc(2026, 11, 16, 8), utc(2026, 11, 16, 17), 'c1'),
+        phase('boite-a', 'Congrès fictif / Salle 2', 'Installation', utc(2026, 11, 16, 8), utc(2026, 11, 16, 17), 'c2'),
+        phase('boite-a', 'Gala fictif', 'Prestation', utc(2026, 7, 8, 17), utc(2026, 7, 9, 1), 'g1'),
+        phase('boite-a', 'Gala fictif / Soirée', 'Prestation', utc(2026, 7, 8, 17), utc(2026, 7, 9, 1), 'g2'),
+        phase('boite-a', 'Autre', 'Autre', utc(2026, 7, 8, 0), utc(2026, 7, 9, 0), 'i1', { indispo: true }),
+      ];
+      const r = (presta, options = {}) => dv.rapprocher(presta, phases, { boite: 'boite-a', ...options });
+      v.egal('salon : lié, phases de la boîte A de 2026 seulement', r(DEVIS_SALON), { statut: 'liee', presta: salon, candidates: [salon], phases: ['s1', 's2'] });
+      v.egal('édition suivante du salon : celle de 2027', r({ ...DEVIS_SALON, debut: '2027-06-11', fin: '2027-06-11' }).phases, ['s3']);
+      v.egal('salon à d\'autres dates : aucune', r({ ...DEVIS_SALON, debut: '2025-06-12', fin: '2025-06-13' }).statut, 'aucune');
+      v.egal('même salon dans la boîte B : la phase de la boîte B seule', dv.rapprocher(DEVIS_SALON, phases, { boite: 'boite-b' }).phases, ['s4']);
+      v.egal('nom identique préféré à un nom qui le contient', r({ nom: 'GALA FICTIF', debut: '2026-07-08', fin: '2026-07-08' }).presta, 'Gala fictif');
+      v.egal('nom du planning contenu dans celui du devis', r({ nom: 'Gala Fictif 2026', debut: '2026-07-08', fin: '2026-07-09' }).presta, 'Gala fictif');
+      const deux = r(DEVIS_CONGRES);
+      v.egal('deux candidates : aucune choisie', [deux.statut, deux.presta, deux.candidates], ['a-choisir', null, ['Congrès fictif / Salle 1', 'Congrès fictif / Salle 2']]);
+      const choisie = r(DEVIS_CONGRES, { choix: 'Congrès fictif / Salle 2' });
+      v.egal('choix de l\'utilisateur gardé', [choisie.statut, choisie.presta, choisie.phases], ['liee', 'Congrès fictif / Salle 2', ['c2']]);
+      v.egal('choix qui n\'est plus candidat : à choisir', r(DEVIS_CONGRES, { choix: 'Congrès fictif / Salle 3' }).statut, 'a-choisir');
+      v.egal('indisponibilité jamais rapprochée', r({ nom: 'Autre', debut: '2026-07-08', fin: '2026-07-08' }).statut, 'aucune');
+      v.egal('nom trop court : pas de rapprochement par inclusion', r({ nom: 'Ga', debut: '2026-07-08', fin: '2026-07-09' }).statut, 'aucune');
+    },
+  },
+  {
+    id: 'PL24',
+    titre: 'Devis Eventsoft (lot 25b) : domaine de chaque section par le titre puis les lignes (note interne en titre), ligne reconnue comme dalle ou processeur de la base classée MUR LED où qu\'elle soit (processeur de la régie vidéo), projecteur « PAR LED » en lumière ; poste → domaine en majuscules ou en casse mixte, AUTRE sinon',
+    etape: '25b',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const base = baseDevis(contexte);
+      const classe = dv.classerDevis(DEVIS_SALON.sections, base);
+      v.egal('domaine de chaque section', classe.map((s) => s.domaine),
+        ['MUR LED', 'VIDÉO', 'LUMIÈRE', 'SON', 'STRUCTURE / ACCROCHE', 'DÉCO / TAPISSERIE', 'ÉLECTRICITÉ', 'AUTRE']);
+      v.egal('régie vidéo : processeur reconnu en MUR LED, mélangeur en VIDÉO', classe[1].lignes.map((l) => [l.domaine, l.processeur]),
+        [['MUR LED', 'novastar-mctrl660'], ['VIDÉO', null]]);
+      const [dalle, bumper] = classe[0].lignes;
+      v.egal('dalle reconnue, quantités lues, composant « * »', [dalle.dalle?.fiche, dalle.quantite, bumper.composant, bumper.quantite, bumper.dalle],
+        ['unilumin-urmiii04-500x1000', 26, true, 4, null]);
+      v.egal('projecteur « PAR LED » : lumière, pas mur LED', classe[2].lignes[0].domaine, 'LUMIÈRE');
+      v.egal('quantités', ['64.0', '999.9', '2,5', '', 'abc', null].map(dv.lireQuantite), [64, 999.9, 2.5, null, null, null]);
+      const sansMot = dv.classerDevis([{ titre: 'Lot 2', lignes: [{ ref: 'X1', designation: DESIGNATIONS_FICTIVES.urm48, quantite: '4.0', composant: false }] }], base);
+      v.egal('titre sans mot-clé, ligne de dalle : MUR LED', sansMot[0].domaine, 'MUR LED');
+      v.egal('poste → domaine', ['TECHNICIEN MUR LED', 'Assistant Mur Led', 'TECHNICIEN VIDEO SV', 'TECHNICIEN MODULOPI / WATCHOUT', 'PUPITREUR LUMIERE NIV 1',
+        'Technicien Son', 'ROAD 4H', 'RESPONSABLE TECHNIQUE', 'TSL', '*', ''].map(dv.domainePoste),
+      ['MUR LED', 'MUR LED', 'VIDÉO', 'VIDÉO', 'LUMIÈRE', 'SON', 'AUTRE', 'AUTRE', 'AUTRE', 'AUTRE', 'AUTRE']);
+    },
+  },
+  {
+    id: 'PL25',
+    titre: 'Devis Eventsoft (lot 25b) : « Ton matériel : mur LED » (sections et lignes du domaine du poste, processeur de la régie compris) puis « Le reste du devis » ; deux postes : les deux domaines ; poste AUTRE ou inconnu : tout replié ; postes par créneau (« JJ/MM »), même poste en casse différente fusionné, poste sans jour sur chaque jour',
+    etape: '25b',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const classe = dv.classerDevis(DEVIS_SALON.sections, baseDevis(contexte));
+      const titres = (liste) => liste.map((s) => [s.titre, s.lignes.map((l) => l.ref)]);
+      const mur = dv.vueDevis(classe, ['TECHNICIEN MUR LED', 'Assistant Mur Led']);
+      v.egal('poste mur LED', [mur.domaines, mur.titre, mur.toutReplie], [['MUR LED'], 'Ton matériel : mur LED', false]);
+      v.egal('ton matériel : l\'écran et le processeur de la régie', titres(mur.tonMateriel),
+        [['ECRAN LED FOND DE SCENE L=4m H=3m', ['URMIII04', 'BUMP-FICT']], ['REGIE VIDEO', ['MCTRL660']]]);
+      v.egal('le reste du devis : 7 sections, la régie sans le processeur', [mur.reste.length, titres(mur.reste).slice(0, 2)],
+        [7, [['REGIE VIDEO', ['MEL-FICT']], ['ECLAIRAGE', ['PAR-FICT']]]]);
+      const video = dv.vueDevis(classe, ['TECHNICIEN VIDEO SV']);
+      v.egal('poste vidéo : toute la régie', [video.titre, titres(video.tonMateriel), video.reste.length],
+        ['Ton matériel : vidéo', [['REGIE VIDEO', ['MCTRL660', 'MEL-FICT']]], 7]);
+      const deux = dv.vueDevis(classe, ['TECHNICIEN MUR LED', 'Technicien Son']);
+      v.egal('deux postes : les deux domaines', [deux.titre, deux.tonMateriel.map((s) => s.titre)],
+        ['Ton matériel : mur LED, son', ['ECRAN LED FOND DE SCENE L=4m H=3m', 'REGIE VIDEO', 'SONORISATION']]);
+      for (const postes of [['ROAD 4H'], []]) {
+        const autre = dv.vueDevis(classe, postes);
+        v.egal(`poste ${postes[0] ?? 'inconnu'} : tout replié`, [autre.titre, autre.tonMateriel, autre.reste.length, autre.toutReplie], [null, [], 8, true]);
+      }
+      v.egal('postes du 12/06 : même poste en casse différente fusionné', dv.postesDuJour(DEVIS_SALON.postes, '2026-06-12'), ['TECHNICIEN MUR LED']);
+      v.egal('postes du 13/06', dv.postesDuJour(DEVIS_SALON.postes, '2026-06-13'), ['ASSISTANT MUR LED']);
+      v.egal('aucun créneau ce jour-là : rien', dv.postesDuJour(DEVIS_SALON.postes, '2026-06-14'), []);
+      v.egal('casse mixte, deux postes le même jour, poste sans jour en plus', dv.postesDuJour(DEVIS_CONGRES.postes, '2026-11-16'),
+        ['Assistant Mur Led', 'Road 4h', 'TECHNICIEN VIDEO SV']);
+      v.egal('poste sans jour : chaque jour', dv.postesDuJour(DEVIS_CONGRES.postes, '2026-11-17'), ['TECHNICIEN VIDEO SV']);
+      v.egal('texte des postes : un, deux, aucun', [dv.textePostes(['TECHNICIEN MUR LED']), dv.textePostes(['Assistant Mur Led', 'Road 4h']), dv.textePostes([])],
+        ['TECHNICIEN MUR LED', 'Assistant Mur Led et Road 4h', '']);
+    },
+  },
+  {
+    id: 'PL26',
+    titre: 'Devis Eventsoft (lot 25b) : dalle reconnue par la désignation (marque, pitch à 0,05 mm, dimensions, pixels) et la référence (modèle, alias) ; les 5 fiches Unilumin 500 × 500 mm en 192 × 192 px : choix, retenu ensuite par la référence du parc ; fiches d\'information et à compléter écartées ; demi-dalle par sa propre fiche ; processeur par référence ou désignation',
+    etape: '25b',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const base = baseDevis(contexte);
+      v.egal('désignation lue', dv.lireDesignation(DESIGNATIONS_FICTIVES.upad26), { pitchMm: 2.6, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 });
+      v.egal('autre écriture, puis aucune', [dv.lireDesignation('Ecran P3,9 500x1000 mm 128x256px'), dv.lireDesignation('Câble DMX 10 m')],
+        [{ pitchMm: 3.9, largeurMm: 500, hauteurMm: 1000, pxH: 128, pxV: 256 }, null]);
+      const court = (r) => [r.statut, r.fiche, r.demi, r.par];
+      const reco = (designation, ref = '', options = {}, dalles = base.dalles) => dv.reconnaitreDalle({ ref, designation }, dalles, options);
+      const cinq = ['unilumin-upad-iv-2-6', 'unilumin-upad-iv-2-6-pro', 'unilumin-upad-iv-c', 'unilumin-upad-iv-s', 'unilumin-urmiii2-6'];
+      const ambigu = reco(DESIGNATIONS_FICTIVES.upad26, 'UPADIV2.6');
+      v.egal('5 fiches Unilumin : choix de l\'utilisateur', [ambigu.statut, ambigu.fiche, ambigu.candidats], ['choix', null, cinq]);
+      const avecIncompletes = [...base.dalles,
+        { id: 'fictive-information', marque: 'Unilumin', statut: 'information', pitchMm: 2.6, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 },
+        { id: 'fictive-a-completer', marque: 'Unilumin', pitchMm: 2.6, largeurMm: 500, hauteurMm: 500 }];
+      v.egal('fiches d\'information et à compléter écartées', reco(DESIGNATIONS_FICTIVES.upad26, 'UPADIV2.6', {}, avecIncompletes).candidats, cinq);
+      v.egal('choix retenu par la référence du parc', court(reco(DESIGNATIONS_FICTIVES.upad26, 'UPADIV2.6', { references: { 'UPADIV2.6': 'unilumin-upad-iv-c' } })),
+        ['reconnue', 'unilumin-upad-iv-c', false, 'parc']);
+      v.egal('référence du parc vers une fiche disparue : choix', reco(DESIGNATIONS_FICTIVES.upad26, 'UPADIV2.6', { references: { 'UPADIV2.6': 'fiche-retiree' } }).statut, 'choix');
+      v.egal('alias de la fiche', court(reco('DALLE LED UNILUMIN UPAD IV 2 PRO', 'UPADIV2PRO')), ['reconnue', 'unilumin-upad-iv-2-6-pro', false, 'reference']);
+      v.egal('modèle de la fiche : la dalle entière, pas sa demi-dalle', court(reco('Dalle LED', 'URMIII04')), ['reconnue', 'unilumin-urmiii04-500x1000', false, 'reference']);
+      v.egal('par les caractéristiques', court(reco(DESIGNATIONS_FICTIVES.urm48, 'REF-FICT')), ['reconnue', 'unilumin-urmiii04-500x1000', false, 'caracteristiques']);
+      v.egal('pitch à 0,05 mm près : 4,83 oui, 4,9 non', [reco(DESIGNATIONS_FICTIVES.urm48.replace('4.8mm', '4.83mm')).fiche, reco(DESIGNATIONS_FICTIVES.urm48.replace('4.8mm', '4.9mm')).statut],
+        ['unilumin-urmiii04-500x1000', 'aucune']);
+      v.egal('demi-dalle : sa propre fiche', court(reco(DESIGNATIONS_FICTIVES.urm48demi)), ['reconnue', 'unilumin-urmiii04-500x500', true, 'caracteristiques']);
+      v.egal('ligne qui n\'est pas une dalle', reco('Câble DMX 10 m', 'DMX10'), { statut: 'aucune', fiche: null, candidats: [], demi: false, par: null, lue: null });
+      const proc = (ref, designation) => dv.reconnaitreProcesseur({ ref, designation }, base.processeurs);
+      v.egal('processeurs : par référence, par désignation, aucun', [proc('MCTRL4K', 'Processeur NOVASTAR MCTRL4K'), proc('PROC-12', 'Processeur NOVASTAR MCTRL660'), proc('MEL-FICT', 'Mélangeur vidéo fictif')],
+        ['novastar-mctrl4k', 'novastar-mctrl660', null]);
+    },
+  },
+  {
+    id: 'PL27',
+    titre: 'Devis Eventsoft (lot 25b) : dimensions lues dans les titres (« L=4m », « L=4,5m », « H= », « Ht= », cm, « 4x », « x4 », « 4 x ») et configuration proposée au format de l\'onglet Mur (mode taille, dalle) ; quantité contrôlée sans bloquer (spares), non multiple du multiplicateur, titre sans dimensions, demi-dalles proposées, dalle à choisir, noms coupés à 40 caractères',
+    etape: '25b',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const base = baseDevis(contexte);
+      const t = (largeurM, hauteurM, multiplicateur = 1) => ({ largeurM, hauteurM, multiplicateur });
+      v.egal('formats de titre', ['ECRAN LED L=4m H=3m', 'Mur LED L=4,5m Ht=2.5m', 'Ecran L=450cm H=250cm', 'L = 6 m / H = 3,5 m',
+        'ECRAN LED 4x L=2m H=1m', 'ECRAN x4 L=2m H=1m', 'ECRAN 4 x L=2m H=1m', 'ECRAN LED'].map(dv.lireTitre),
+      [t(4, 3), t(4.5, 2.5), t(4.5, 2.5), t(6, 3.5), t(2, 1, 4), t(2, 1, 4), t(2, 1, 4), t(null, null)]);
+      const salon = dv.classerDevis(DEVIS_SALON.sections, base);
+      const fond = dv.configurationProposee(salon[0], base);
+      v.egal('fond de scène : un mur de 4 × 3 m en URMIII04, 26 dalles pour 24', [fond.murs, fond.alertes], [
+        [{ nom: 'ECRAN LED FOND DE SCENE', demi: null, formulaires: { 'form-mur': { mode: 'taille', largeurM: '4', hauteurM: '3', dalle: 'unilumin-urmiii04-500x1000', demi: false } } }],
+        ['Le devis prévoit 26 dalles ; 4 × 3 m en demande 24 (spares possibles).'],
+      ]);
+      v.egal('section sans dalle : rien', dv.configurationProposee(salon[1], base), null);
+      const congres = dv.classerDevis(DEVIS_CONGRES.sections, base);
+      const lat = dv.configurationProposee(congres[0], base);
+      const resume = (c) => c.murs.map((m) => [m.nom, m.formulaires['form-mur'].largeurM, m.formulaires['form-mur'].hauteurM]);
+      v.egal('« 2x » : deux murs nommés 1 et 2, quantité juste', [resume(lat), lat.alertes], [[['ECRANS LATERAUX 1', '2', '1'], ['ECRANS LATERAUX 2', '2', '1']], []]);
+      const centre = dv.configurationProposee(congres[1], base);
+      const formCentre = centre.murs[0].formulaires['form-mur'];
+      v.egal('demi-dalles : leur fiche, « demi-dalles disponibles » coché, haut ou bas au choix', [resume(centre), centre.murs[0].demi, formCentre.demi, 'positionDemi' in formCentre, centre.choixPositionDemi, centre.alertes],
+        [[['ECRAN CENTRAL', '4', '2.5']], 'unilumin-urmiii04-500x500', true, false, true, []]);
+      const neuf = dv.configurationProposee({ ...congres[0], lignes: [{ ...congres[0].lignes[0], quantite: 9 }] }, base);
+      v.egal('quantité non multiple du multiplicateur', neuf.alertes,
+        ['9 dalles ne se partagent pas en 2 murs égaux.', 'Le devis prévoit 9 dalles ; 2 murs de 2 × 1 m en demandent 8 (spares possibles).']);
+      const sansDim = dv.configurationProposee({ ...congres[0], titre: 'ECRANS LATERAUX' }, base);
+      v.egal('titre sans dimensions : quantité seule, forme au choix', [sansDim.murs, sansDim.formeAChoisir, sansDim.quantite, sansDim.alertes],
+        [[], true, 8, ['Titre sans dimensions : 8 dalles, forme à choisir.']]);
+      const section = (titre, ref, designation, quantite) => dv.classerDevis([{ titre, lignes: [{ ref, designation, quantite, composant: false }] }], base)[0];
+      const cinq = ['unilumin-upad-iv-2-6', 'unilumin-upad-iv-2-6-pro', 'unilumin-upad-iv-c', 'unilumin-upad-iv-s', 'unilumin-urmiii2-6'];
+      const amb = dv.configurationProposee(section('ECRAN L=4m H=2m', 'UPADIV2.6', DESIGNATIONS_FICTIVES.upad26, '32.0'), base);
+      v.egal('dalle à choisir : mur proposé sans dalle, sans contrôle de quantité', [amb.dalle, amb.choixDalle, amb.murs[0].formulaires['form-mur'].dalle, amb.alertes], [null, cinq, '', []]);
+      const parc = dv.configurationProposee(dv.classerDevis([{ titre: 'ECRAN L=4m H=2m', lignes: [{ ref: 'UPADIV2.6', designation: DESIGNATIONS_FICTIVES.upad26, quantite: '32.0', composant: false }] }],
+        { ...base, references: { 'UPADIV2.6': 'unilumin-upad-iv-c' } })[0], base);
+      v.egal('dalle retenue par le parc, quantité juste', [parc.dalle, parc.murs[0].formulaires['form-mur'].dalle, parc.alertes], ['unilumin-upad-iv-c', 'unilumin-upad-iv-c', []]);
+      const long = dv.configurationProposee(section(`${'X'.repeat(50)} 2x L=2m H=1m`, 'URMIII04', DESIGNATIONS_FICTIVES.urm48, '8.0'), base);
+      v.egal('noms coupés à 40 caractères', long.murs.map((m) => m.nom), [`${'X'.repeat(38)} 1`, `${'X'.repeat(38)} 2`]);
+    },
+  },
+  {
+    id: 'PL28',
+    titre: 'Devis Eventsoft (lot 25b) : processeurs comparés au niveau de la presta (somme des processeurs conseillés pour les murs proposés, toutes marques de la liste, face au total du devis) : « Le devis prévoit 1 × MCTRL660 ; l\'appli en conseille 1. » ou l\'écart',
+    etape: '25b',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const base = baseDevis(contexte);
+      const deux = base.processeurs.filter((p) => ['novastar-mctrl660', 'novastar-mctrl4k'].includes(p.id));
+      const reglages = { frequenceHz: 60, bits: 8 };
+      const presta = (sections, processeurs = deux) => {
+        const classe = dv.classerDevis(sections, base);
+        const murs = classe.flatMap((s) => dv.configurationProposee(s, base)?.murs ?? []);
+        return dv.processeursPresta(classe, murs, { dalles: base.dalles, processeurs, reglages });
+      };
+      const un660 = [{ id: 'novastar-mctrl660', modele: 'MCTRL660', nombre: 1 }];
+      const salon = presta(DEVIS_SALON.sections);
+      v.egal('salon : le devis et l\'appli d\'accord', [salon.devis, salon.conseil, salon.identique, salon.texte],
+        [un660, un660, true, 'Le devis prévoit 1 × MCTRL660 ; l\'appli en conseille 1.']);
+      const congres = presta(DEVIS_CONGRES.sections);
+      v.egal('congrès : 3 murs, un MCTRL660 chacun, face aux 2 MCTRL4K du devis', [congres.devis, congres.conseil, congres.identique, congres.texte],
+        [[{ id: 'novastar-mctrl4k', modele: 'MCTRL4K', nombre: 2 }], [{ id: 'novastar-mctrl660', modele: 'MCTRL660', nombre: 3 }], false,
+          'Le devis prévoit 2 × MCTRL4K ; l\'appli conseille 3 × MCTRL660.']);
+      const seul4k = presta(DEVIS_CONGRES.sections, deux.filter((p) => p.id === 'novastar-mctrl4k'));
+      v.egal('même modèle, nombre différent', seul4k.texte, 'Le devis prévoit 2 × MCTRL4K ; l\'appli conseille 3 × MCTRL4K.');
+      v.egal('devis sans processeur', presta(DEVIS_CONGRES.sections.slice(0, 2)).texte, 'Le devis ne prévoit aucun processeur ; l\'appli conseille 3 × MCTRL660.');
+      const amb = presta([{ titre: 'ECRAN L=4m H=2m', lignes: [{ ref: 'UPADIV2.6', designation: DESIGNATIONS_FICTIVES.upad26, quantite: '32.0', composant: false }] }, ...DEVIS_SALON.sections.slice(1, 2)]);
+      v.egal('mur dont la dalle est à choisir : hors du conseil, signalé', [amb.sansConseil, amb.conseil, amb.texte],
+        [['ECRAN'], [], 'Le devis prévoit 1 × MCTRL660 ; l\'appli ne conseille rien tant qu\'une dalle reste à choisir.']);
     },
   },
 ];
