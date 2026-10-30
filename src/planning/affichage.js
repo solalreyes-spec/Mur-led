@@ -1,7 +1,8 @@
 // Mise en forme du planning (étape 23, spec § 7) : dates courtes, horaires, lien Plans, état de chaque boîte, journées
 // à venir et passées, retirées, indisponibilités, filtre par boîte (lot 23c1) ; alertes de conflit sur les cartes,
 // grille du mois et tableau des totaux (lot 23c2) ; case Intermittent, alertes après saisie, texte à copier et filtre
-// « À saisir » (lot 23d) ; durée de travail de chaque journée (lot 23d2). Fonctions pures.
+// « À saisir » (lot 23d) ; durée de travail de chaque journée (lot 23d2) ; poste et devis de chaque journée (étape 25,
+// lot 25e1). Fonctions pures.
 
 import { dateParis, partiesParis } from './ics.js';
 import {
@@ -9,6 +10,7 @@ import {
   alertesSaisies, texteIntermittent,
 } from './journees.js';
 import { PALETTE_BOITES } from './reglages.js';
+import { liensDevis, devisDeJournee, avecPoste } from './devis.js';
 
 const JOURS_COURTS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
 const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
@@ -97,7 +99,17 @@ function saisiesParBoite(etat, actives) {
   });
 }
 
-function carte(j, repere, retiree = null, alertes = [], saisies = []) {
+// Devis de chaque journée : `devis` = { garde, base } (option des vues), null sans devis gardé.
+function devisJournees(devis, etat) {
+  if (!devis?.garde) return () => null;
+  const liens = liensDevis(devis.garde, phasesActives(etat));
+  return (j) => {
+    const touches = j.uids.map((u) => liens.get(u)).filter(Boolean);
+    return devisDeJournee(touches.find((l) => l.presta) ?? touches[0] ?? null, j.date, devis.garde, devis.base);
+  };
+}
+
+function carte(j, repere, retiree = null, alertes = [], saisies = [], devis = null) {
   const r = repere(j.boite);
   const liees = saisies.filter((s) => s.boite === j.boite && s.uids.some((u) => j.uids.includes(u)));
   const alerteSaisie = liees.map((s) => s.alerte).find((a) => a && a.type === (retiree ? 'retiree' : 'modifiee')) ?? null;
@@ -116,7 +128,8 @@ function carte(j, repere, retiree = null, alertes = [], saisies = []) {
     retiree: retiree ? `Retirée du planning de ${r.nom} le ${jourMois(dateParis(retiree))}` : null,
     aVerifier: Boolean(j.aVerifier),
     alertes, conflit: alertes.some((a) => a.type === 'conflit'), repos: alertes.some((a) => a.type === 'repos'),
-    saisie: retiree ? liees.length > 0 : Boolean(j.saisie), alerteSaisie, copie: retiree ? null : texteIntermittent(j, r.nom),
+    saisie: retiree ? liees.length > 0 : Boolean(j.saisie), alerteSaisie, copie: retiree ? null : avecPoste(texteIntermittent(j, r.nom), devis?.postes),
+    devis: retiree ? null : devis,
   };
 }
 
@@ -145,8 +158,8 @@ function texteIndispo(p, nom) {
 // Liste : journées à venir (aujourd'hui en premier), puis passées (les plus récentes d'abord), retirées comprises
 // (barrées) ; indisponibilités à part, à venir et passées. `boites` : identifiants gardés par le filtre (toutes sinon) ;
 // `aSaisir` : seulement les journées à saisir dans Intermittent, sans indisponibilités. `nombreASaisir` : leur nombre,
-// avec le filtre par boîte.
-export function vueListe(etat, reglages, maintenant, { boites = null, aSaisir = false } = {}) {
+// avec le filtre par boîte. `devis` : { garde, base }, poste et devis sur les cartes (lot 25e1).
+export function vueListe(etat, reglages, maintenant, { boites = null, aSaisir = false, devis = null } = {}) {
   const garder = (id) => !boites || boites.includes(id);
   const repere = reperes(reglages);
   const aujourdhui = dateParis(maintenant);
@@ -154,8 +167,9 @@ export function vueListe(etat, reglages, maintenant, { boites = null, aSaisir = 
   const retirees = etat?.boites ? phasesRetirees(etat) : [];
   const alertes = alertesParJournee(actives, repere);
   const saisies = saisiesParBoite(etat, actives);
+  const devisDe = devisJournees(devis, etat);
   const toutes = [
-    ...actives.filter((j) => garder(j.boite)).map((j) => carte(j, repere, null, alertes.get(j.cle) ?? [], saisies)),
+    ...actives.filter((j) => garder(j.boite)).map((j) => carte(j, repere, null, alertes.get(j.cle) ?? [], saisies, devisDe(j))),
     ...construireJournees(retirees.map((p) => ({ ...p, indispo: false })))
       .filter((j) => garder(j.boite))
       .map((j) => carte(j, repere, Math.max(...j.phases.map((p) => p.retiree)), [], saisies)),
@@ -184,7 +198,7 @@ const dateValide = (d) => /^\d{4}-\d\d-\d\d$/.test(d ?? '');
 const moisVoisin = (m, n) => new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1 + n, 1)).toISOString().slice(0, 7);
 const titreMois = (m) => `${MOIS[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 
-export function vueMois(etat, reglages, maintenant, { mois = null, boites = null, jour = null } = {}) {
+export function vueMois(etat, reglages, maintenant, { mois = null, boites = null, jour = null, devis = null } = {}) {
   const garder = (id) => !boites || boites.includes(id);
   const repere = reperes(reglages);
   const aujourdhui = dateParis(maintenant);
@@ -232,7 +246,7 @@ export function vueMois(etat, reglages, maintenant, { mois = null, boites = null
 
   let choisi = null;
   if (dateValide(jour) && jour.slice(0, 7) === m) {
-    const liste = vueListe(etat, reglages, maintenant, { boites });
+    const liste = vueListe(etat, reglages, maintenant, { boites, devis });
     choisi = {
       date: jour, titre: dateCourte(jour),
       cartes: [...liste.aVenir, ...liste.passees].filter((c) => c.date === jour).sort((a, b) => a.debut - b.debut),

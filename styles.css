@@ -1834,6 +1834,37 @@ main section h3.pl-mois-titre { justify-content: center; margin: 0; font-size: 1
 .pl-sauvegarde { margin-top: 8px; }
 .pl-resultat-sauvegarde { margin: 8px 0 0; overflow-wrap: anywhere; }
 .pl-duree { flex-basis: 100%; text-align: right; color: var(--texte-doux); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+/* Devis lus par le robot du Mac (étape 25, lot 25e1) : fraîcheur en haut, poste et devis lié au poste sur la carte. */
+.pl-devis-fraicheur { margin: 8px 0 0; color: var(--texte-doux); font-size: 0.9rem; }
+.pl-devis-erreur { margin: 4px 0 0; color: var(--echec); font-size: 0.9rem; overflow-wrap: anywhere; }
+.pl-devis-vieux { margin-top: 8px; }
+.pl-devis { display: grid; gap: 6px; min-width: 0; }
+.pl-poste { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.pl-devis-bloc { padding: 0 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); min-width: 0; }
+.pl-devis-bloc[open] { padding-bottom: 8px; }
+.pl-devis-bloc > summary { display: flex; align-items: center; min-height: var(--cible); cursor: pointer; overflow-wrap: anywhere; }
+.pl-devis-section { min-width: 0; margin-top: 8px; }
+.pl-devis-section h4 { margin: 0 0 4px; font-size: 0.9rem; color: var(--texte-doux); overflow-wrap: anywhere; }
+.pl-devis-section ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.pl-devis-section li { font-size: 0.9rem; overflow-wrap: anywhere; }
+.pl-devis-qte { font-variant-numeric: tabular-nums; font-weight: 600; }
+.pl-devis-ref { color: var(--texte-doux); }
+.pl-devis-choix p { margin: 0; overflow-wrap: anywhere; }
+/* Murs du devis (lot 25e2) : murs proposés, processeurs, « Ajouter au parc », « Préparer les murs » ou la presta liée. */
+.pl-devis-murs { display: grid; gap: 6px; min-width: 0; padding-top: 8px; border-top: 1px solid var(--bordure); }
+.pl-devis-murs p { margin: 0; overflow-wrap: anywhere; }
+.pl-murs-titre { font-weight: 600; }
+.pl-murs-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.pl-murs-liste li { font-size: 0.9rem; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.pl-devis-alerte, .pl-devis-processeurs-ecart { color: var(--alerte); font-size: 0.9rem; }
+.pl-devis-processeurs { font-size: 0.9rem; }
+.pl-devis-ecart, .pl-devis-erreur-murs { color: var(--echec); font-weight: 600; }
+.pl-ajout-parc { padding: 0 12px; border: 1px solid var(--bordure); border-radius: var(--rayon); min-width: 0; }
+.pl-ajout-parc[open] { padding-bottom: 8px; }
+.pl-ajout-parc > summary { display: flex; align-items: center; min-height: var(--cible); cursor: pointer; overflow-wrap: anywhere; }
+.pl-ajout-parc ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 0.9rem; }
+.pl-ajout-parc li, .pl-ajout-parc label { overflow-wrap: anywhere; }
+.pl-ajout-parc select { max-width: 100%; }
 
 /* Fond de l'icône de l'écran d'accueil (étape 24d) : petite image au-dessus du nom ; le choix ne sert que dans Safari
    (l'appli installée a son propre stockage), d'où la seule marche à suivre en mode application. */

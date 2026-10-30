@@ -3,13 +3,24 @@
 // clés : jamais dans l'export de la base, d'une presta, « Tout copier » ni « Repartir des réglages par défaut ».
 
 export const CLES_PLANNING = { reglages: 'planning-reglages', etat: 'planning-etat' };
+// Devis lus par le robot du Mac (étape 25, lot 25e1, spec § 5.5) : dernière lecture acceptée par presta, gardée à part,
+// jamais dans un export de la base, d'une presta, « Tout copier » ni « Repartir ».
+export const CLE_DEVIS = 'planning-devis';
 
 // Repère des boîtes : couleurs distinctes, hors familles des onglets (comme les couleurs des ports), lettre foncée à
 // 4,5:1 au moins sur chacune ; en mode rouge, toutes les pastilles passent en #ff3b30 et la lettre les distingue.
 export const PALETTE_BOITES = ['#ff8a5c', '#7ee081', '#ffd166', '#c39bff', '#5cc8ff', '#ff7eb6', '#e0c49c', '#9fe8d8'];
 export const TEXTE_PASTILLE = '#0b0d11';
 
-export const reglagesVides = () => ({ relais: null, jeton: null, jetonApple: null, boites: [] });
+export const reglagesVides = () => ({ relais: null, jeton: null, jetonApple: null, cleDevis: null, boites: [] });
+
+// Clé des devis (§ 5.4) : 64 caractères hexadécimaux, gardée en minuscules. Les refus ne répètent jamais la saisie.
+export function cleDevisValide(saisie) {
+  const texte = String(saisie ?? '').trim();
+  if (!texte) return { ok: false, erreur: 'Saisis la clé des devis.' };
+  if (!/^[0-9a-f]{64}$/i.test(texte)) return { ok: false, erreur: 'Clé des devis illisible : colle la clé entière (64 caractères, chiffres et lettres de a à f).' };
+  return { ok: true, cle: texte.toLowerCase() };
+}
 
 // Adresse du relais : https:// seulement (le jeton ne passe jamais en clair), sans chemin ni paramètre. Les refus ne
 // répètent jamais la saisie.
@@ -63,12 +74,37 @@ export function fusionnerBoites(enregistrees = [], lues = []) {
   const lettres = lettresParDefaut(nouvelles.map((b) => b.nom), enregistrees.map((b) => b.lettre));
   const resultat = lues.map((b) => {
     const g = gardees.get(b.id);
-    if (g) return { id: b.id, nom: b.nom, affichage: g.affichage || b.nom, couleur: g.couleur, lettre: g.lettre };
+    if (g) return { id: b.id, nom: b.nom, affichage: g.affichage || b.nom, couleur: g.couleur, lettre: g.lettre, ...(g.parc ? { parc: g.parc } : {}) };
     const couleur = PALETTE_BOITES.find((c) => !couleurs.has(c)) ?? PALETTE_BOITES[couleurs.size % PALETTE_BOITES.length];
     couleurs.add(couleur);
     return { id: b.id, nom: b.nom, affichage: b.nom, couleur, lettre: lettres[nouvelles.indexOf(b)] };
   });
   return [...resultat, ...enregistrees.filter((b) => !ids.has(b.id)).map((b) => ({ ...b, absente: true }))];
+}
+
+// Parc de chaque boîte (étape 25, lot 25e2, spec § 5.5) : repris par les murs préparés depuis ses devis. `parcId` null
+// (« Aucun ») : réglage retiré.
+export function reglerParcBoite(reglages, boiteId, parcId) {
+  return {
+    ...reglages,
+    boites: (reglages?.boites ?? []).map((b) => {
+      if (b.id !== boiteId) return b;
+      const { parc, ...reste } = b;
+      return parcId ? { ...reste, parc: parcId } : reste;
+    }),
+  };
+}
+
+// Parc réglé pour une boîte, s'il existe encore (`parcIds` : identifiants des parcs de la base) ; sinon null.
+export function parcBoite(reglages, boiteId, parcIds) {
+  const parc = (reglages?.boites ?? []).find((b) => b.id === boiteId)?.parc ?? null;
+  return parc && parcIds.includes(parc) ? parc : null;
+}
+
+// Parc supprimé de la base : le réglage de ses boîtes est vidé. Rien à vider : les mêmes réglages.
+export function nettoyerParcsBoites(reglages, parcIds) {
+  const orphelines = (reglages?.boites ?? []).filter((b) => b.parc && !parcIds.includes(b.parc));
+  return orphelines.reduce((r, b) => reglerParcBoite(r, b.id, null), reglages);
 }
 
 // Réglages complets : adresse et jeton de l'appli (le jeton Apple ne sert qu'aux abonnements).

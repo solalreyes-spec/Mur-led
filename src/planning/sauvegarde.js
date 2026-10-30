@@ -1,6 +1,8 @@
 // Sauvegarde du planning des piges (étape 23, lot 23d, spec § 6.8) : export et import en JSON (format
 // appli-mur-led/planning) de l'historique, des cases Intermittent et des repères des boîtes, pour changer de téléphone.
 // Jamais l'adresse du relais ni les jetons : seuls les champs de la liste blanche sont écrits et relus. Fonctions pures.
+// Étape 25, lot 25e1 : le poste de chaque presta des devis suit l'export (nom, dates, postes) ; jamais les sections du
+// devis, ses empreintes ni la clé des devis.
 
 import { dateParis } from './ics.js';
 import { journeesDeEtat } from './journees.js';
@@ -22,7 +24,8 @@ const idValide = (id) => typeof id === 'string' && /^[a-z0-9-]+$/.test(id);
 function repere(b) {
   if (!objet(b) || !idValide(b.id) || !/^#[0-9a-f]{6}$/i.test(b.couleur ?? '')) return null;
   const lettre = texte(b.lettre).slice(0, 1);
-  return { id: b.id, nom: texte(b.nom).slice(0, 80) || b.id, affichage: texte(b.affichage).slice(0, 40) || texte(b.nom) || b.id, couleur: b.couleur, lettre: lettre || '?' };
+  const parc = typeof b.parc === 'string' && /^[a-z0-9-]{1,120}$/.test(b.parc) ? { parc: b.parc } : {};
+  return { id: b.id, nom: texte(b.nom).slice(0, 80) || b.id, affichage: texte(b.affichage).slice(0, 40) || texte(b.nom) || b.id, couleur: b.couleur, lettre: lettre || '?', ...parc };
 }
 
 const resume = (a) => (objet(a) && nombre(a.debut) !== null && nombre(a.fin) !== null
@@ -60,18 +63,30 @@ const nettoyees = (source, fonction) => Object.fromEntries(Object.entries(objet(
 // État d'une boîte : dernière lecture, phases et saisies ; jamais son erreur (elle peut citer une adresse).
 const etatBoite = (eb) => ({ lu: nombre(eb?.lu), vu: nombre(eb?.vu), phases: nettoyees(eb?.phases, entree), saisies: nettoyees(eb?.saisies, saisie), erreur: null });
 
+// Postes des devis (lot 25e1) : par boîte et par presta Eventsoft, nom, dates et postes seulement.
+function poste(p) {
+  if (!objet(p) || !texte(p.poste)) return null;
+  return { ...(texte(p.jour) ? { jour: texte(p.jour).slice(0, 10) } : {}), poste: texte(p.poste).slice(0, 80) };
+}
+const prestaPostes = (p) => (objet(p)
+  ? { nom: texte(p.nom).slice(0, 200), debut: texte(p.debut).slice(0, 10), fin: texte(p.fin).slice(0, 10), postes: (Array.isArray(p.postes) ? p.postes : []).map(poste).filter(Boolean) }
+  : null);
+const postesBoites = (source) => Object.fromEntries(Object.entries(objet(source) ? source : {}).filter(([id]) => idValide(id)).map(([id, prestas]) => [id, nettoyees(prestas, prestaPostes)]));
+
 const etatBoites = (boites) => Object.fromEntries(Object.entries(objet(boites) ? boites : {}).filter(([id]) => idValide(id)).map(([id, eb]) => [id, etatBoite(eb)]));
 
 // ---------------------------------------------------------------------------
 
 // Contenu du fichier exporté.
-export function exporterPlanning(reglages, etat, maintenant) {
+// `devis` : garde des devis (clé CLE_DEVIS), pour les postes.
+export function exporterPlanning(reglages, etat, maintenant, devis = null) {
   return {
     format: FORMAT_PLANNING,
     version: VERSION,
     exporte: maintenant,
     boites: (reglages?.boites ?? []).map(repere).filter(Boolean),
     etat: { boites: etatBoites(etat?.boites) },
+    postes: postesBoites(Object.fromEntries(Object.entries(devis?.boites ?? {}).map(([id, b]) => [id, b?.prestas]))),
   };
 }
 
@@ -86,18 +101,22 @@ export function lireExportPlanning(contenu) {
   if (!objet(brut) || brut.format !== FORMAT_PLANNING || brut.version !== VERSION || !Array.isArray(brut.boites) || !objet(brut.etat) || !objet(brut.etat.boites)) {
     return { ok: false, erreur: ILLISIBLE };
   }
-  return { ok: true, donnees: { exporte: nombre(brut.exporte), boites: brut.boites.map(repere).filter(Boolean), etat: { boites: etatBoites(brut.etat.boites) } } };
+  return {
+    ok: true,
+    donnees: { exporte: nombre(brut.exporte), boites: brut.boites.map(repere).filter(Boolean), etat: { boites: etatBoites(brut.etat.boites) }, postes: postesBoites(brut.postes) },
+  };
 }
 
-const reglagesVidesSiBesoin = (r) => ({ relais: null, jeton: null, jetonApple: null, ...(r ?? {}) });
+const reglagesVidesSiBesoin = (r) => ({ relais: null, jeton: null, jetonApple: null, cleDevis: null, ...(r ?? {}) });
 const pluriel = (n, mot, suite = '') => `${n} ${mot}${n > 1 ? 's' : ''}${suite}`;
 
 // Import d'un fichier relu par lireExportPlanning : ajoute seulement ce qui manque. Le téléphone garde ses propres phases,
 // lectures, repères et réglages (adresse du relais et jetons jamais touchés). Une phase du fichier absente du téléphone
 // n'est pas ajoutée si elle tombe dans la fenêtre que le téléphone a lue après le fichier (retirée depuis) ; une case
-// Intermittent n'est ajoutée que si ses phases sont là et qu'aucune case du téléphone ne les couvre.
-// Renvoie { reglages, etat, texte }.
-export function importerPlanning(reglages, etat, donnees) {
+// Intermittent n'est ajoutée que si ses phases sont là et qu'aucune case du téléphone ne les couvre. Postes des devis
+// (lot 25e1) : ajoutés aux prestas absentes de la garde `devis` du téléphone (sans section ni empreinte), les siennes gardées.
+// Renvoie { reglages, etat, devis, texte }.
+export function importerPlanning(reglages, etat, donnees, devis = null) {
   const avant = { boites: {}, essai: null, ...(etat ?? {}) };
   const clesAvant = new Set(journeesDeEtat(avant).map((j) => j.cle));
   const boites = { ...avant.boites };
@@ -142,9 +161,20 @@ export function importerPlanning(reglages, etat, donnees) {
     resumeTexte = 'Planning importé : indisponibilités ou dates retirées ajoutées, aucune nouvelle journée.';
   } else resumeTexte = 'Planning importé : rien de nouveau, tout était déjà sur ce téléphone.';
 
+  const garde = { lueLe: null, recu: null, vu: null, choix: {}, boites: {}, ...(devis ?? {}) };
+  const boitesDevis = { ...garde.boites };
+  for (const [id, prestas] of Object.entries(donnees.postes ?? {})) {
+    const b = boitesDevis[id] ?? { erreur: null, lueLe: null, prestas: {} };
+    const ajout = Object.fromEntries(Object.entries(prestas).filter(([idEventsoft]) => !b.prestas?.[idEventsoft]).map(([idEventsoft, p]) => [idEventsoft, {
+      idEventsoft, ...p, sections: [], devisNonAutorise: false, empreintes: null, lueLe: null, change: null, importee: true,
+    }]));
+    if (Object.keys(ajout).length) boitesDevis[id] = { ...b, prestas: { ...b.prestas, ...ajout } };
+  }
+
   return {
     reglages: { ...reglagesVidesSiBesoin(reglages), boites: [...(reglages?.boites ?? []), ...nouvelles] },
     etat: apres,
+    devis: { ...garde, boites: boitesDevis },
     texte: resumeTexte,
   };
 }

@@ -4,6 +4,7 @@ import { resoudreFiche, listeMateriel, totalMateriel, stockPresta, ErreurSaisie,
 import { el, remplacer } from './dom.js';
 import {
   baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc, quantitesParc, logicielParc, codeNovaLCT,
+  ajouterAuParc,
 } from './fiches.js';
 import { lire, ecrire, stockageDisponible, suspendreEcritures } from './stockage.js';
 import { surveillerOnglets } from './onglets.js';
@@ -172,8 +173,26 @@ afficherOnglet();
 
 // Planning des piges (étape 23, lot 23c1) : monté avant la base, il ne dépend d'aucune donnée du mur. Lecture par le
 // relais à l'ouverture de l'appli, au retour sur l'appli et à l'ouverture de l'onglet (si la dernière a plus de 15 min).
+// Dalles et processeurs des devis (étape 25, lot 25e1) : reconnus dès que la base est chargée.
+let baseDevis = null;
 const ecranPlanning = monterPlanning(document.getElementById('ecran-planning'), {
   stockage: { lire, ecrire },
+  base: () => baseDevis,
+  // Murs préparés depuis un devis (lot 25e2) : presta de l'appli liée au devis, ouverte dans l'onglet Mur ; « Ajouter au
+  // parc » change ma base (jamais le nombre dans le parc).
+  actions: {
+    lien: (lien, noms) => prestas.etatLienDevis(etatPrestas, lien, noms),
+    preparer: async (demande) => {
+      await operationPrestas((e) => prestas.preparerMurs(e, { ...demande, parc: demande.parc ?? parcActif }));
+      location.hash = 'mur';
+    },
+    ouvrir: async (prestaId, murId) => {
+      await operationPrestas((e) => prestas.ouvrir(e, prestaId, murId));
+      location.hash = 'mur';
+    },
+    vu: (prestaId, empreinte) => operationPrestas((e) => prestas.lienDevisVu(e, prestaId, empreinte)),
+    ajouterAuParc: (parcId, ajout) => enregistrerBase(ajouterAuParc(base, parcId, ajout)),
+  },
   surNouvelles: (n) => {
     const pastille = document.querySelector('.onglet[href="#planning"] .pastille-onglet');
     if (!pastille) return;
@@ -526,6 +545,15 @@ function remplirParcs() {
 }
 
 let courant = construire();
+// Dalles, processeurs et parcs pour les devis du planning ; parc de chaque boîte (lot 25e2) : nombre dans le parc et
+// profondeur réseau de chaque marque.
+const FAMILLES_BITS = ['brompton', 'novastar', 'colorlight', 'megapixel', 'linsn', 'kystar', 'mooncell'];
+const pourDevis = () => ({
+  dalles: courant.dalles, processeurs: courant.processeurs, parcs: base.parcs,
+  contexteParc: (id) => ({ quantites: quantitesParc(base, id), bitsParFamille: Object.fromEntries(FAMILLES_BITS.map((f) => [f, bitsReseauParc(base, id, f).bits])) }),
+});
+baseDevis = pourDevis();
+ecranPlanning.rafraichirBase();
 const nomParc = () => base.parcs.find((p) => p.id === parcActif)?.nom ?? null;
 // Dalles vues dans le parc actif : carte de réception et fichier de config réglés pour ce parc.
 const pourMur = () => {
@@ -561,7 +589,7 @@ const pourData = () => ({
   // Cartes de réception de la base : capacité d'une carte face à la dalle.
   cartesReception: courant.cartesReception,
   // Profondeur réseau par défaut dans le parc actif, par marque.
-  bitsParDefaut: Object.fromEntries(['brompton', 'novastar', 'colorlight', 'megapixel', 'linsn', 'kystar', 'mooncell'].map((f) => [f, bitsReseauParc(base, parcActif, f)])),
+  bitsParDefaut: Object.fromEntries(FAMILLES_BITS.map((f) => [f, bitsReseauParc(base, parcActif, f)])),
   // Lots et configs des dalles, version des logiciels relevée dans le parc actif.
   lots: { base, parcId: parcActif },
   // Nombre de chaque processeur dans le parc actif (étape 15c).
@@ -571,6 +599,8 @@ const pourData = () => ({
 // Après chaque changement de ma base ou du parc actif : tous les onglets suivent.
 function appliquer() {
   courant = construire();
+  baseDevis = pourDevis();
+  ecranPlanning.rafraichirBase();
   remplirParcs();
   if (depart.processeurs) actualiserData(pourData());
   if (connectique) actualiserRegies(courant.regies, courant.sourcesRegies);

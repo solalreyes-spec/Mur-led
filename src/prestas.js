@@ -457,9 +457,86 @@ export function dupliquerPresta(etat, prestaId, opts) {
     ...p, id: pid, nom: avecSuffixe(p.nom, ' (copie)', LIMITES.nomPresta), creeeLe: o.iso, modifieeLe: o.iso, exporteeLe: null, archivee: false,
     murs: murs.map(({ id, nom }) => ({ id, nom })),
   };
+  // Lien avec le devis (étape 25) : la copie n'est pas la presta du devis.
+  delete presta.lienDevis;
   const donnees = { ...etat.murs };
   for (const m of murs) donnees[m.id] = { ...copie(etat.murs[m.source] ?? murVide()), montage: null, novalct: null };
   return { index: { ...etat.index, ouverte: { presta: pid, mur: murs[0].id }, prestas: [...etat.index.prestas, presta] }, murs: donnees };
+}
+
+// ---------------------------------------------------------------------------
+// Murs préparés depuis un devis Eventsoft (étape 25, lot 25e2, spec § 5.5)
+// ---------------------------------------------------------------------------
+
+// Saisies gardées d'un mur proposé : format de configuration.js (version 2), la source suit le conseil.
+const VERSION_CONFIGURATION = 2;
+const configurationProposee = (m) => ({ version: VERSION_CONFIGURATION, sourceModifiee: false, formulaires: copie(m.formulaires) });
+const prestaDuDevis = (etat, lien) => etat.index.prestas.find((p) => p.lienDevis?.boite === lien.boite && p.lienDevis?.idEventsoft === lien.idEventsoft) ?? null;
+const ECART_DEVIS = 'Devis modifié depuis la préparation des murs : vérifie tes murs, rien n\'a été changé.';
+
+// Nom libre dans la presta : « ECRAN », puis « ECRAN 2 », « ECRAN 3 »…, 40 caractères au plus.
+function nomLibre(pris, nom) {
+  const base = String(nom ?? '').trim().slice(0, LIMITES.nomMur) || 'Mur';
+  let n = base;
+  for (let k = 2; pris.has(n); k += 1) n = avecSuffixe(base, ` ${k}`, LIMITES.nomMur);
+  pris.add(n);
+  return n;
+}
+const dateOuNull = (x) => {
+  try {
+    return dateValide(x);
+  } catch {
+    return null;
+  }
+};
+
+// Presta liée au devis (`lien` : { boite, idEventsoft, empreinte }) : null si aucune ; sinon son nom, l'écart (devis
+// modifié depuis la préparation), les murs proposés pas encore préparés et le premier mur à ouvrir.
+export function etatLienDevis(etat, lien, nomsProposes = []) {
+  const p = prestaDuDevis(etat, lien);
+  if (!p) return null;
+  const prepares = new Set(p.lienDevis.murs ?? []);
+  return { prestaId: p.id, nom: p.nom, ecart: p.lienDevis.empreinte !== lien.empreinte, manquants: nomsProposes.filter((n) => !prepares.has(n)), murOuvrir: p.murs[0]?.id ?? null };
+}
+
+// « Préparer les murs » : crée la presta du devis (le « Mur 1 » vide de `prestaVide` remplacé par les murs proposés,
+// nom à 60 caractères, lieu à 80, dates du devis, parc de la boîte) avec le lien `lienDevis`, ou complète la presta liée
+// des seuls murs pas encore préparés. Devis modifié depuis : refus, murs non touchés. Rien à compléter : même état.
+export function preparerMurs(etat, { nom, debut = null, fin = null, lieu = '', murs = [], lien, parc = null }, opts) {
+  if (!murs.length) throw new ErreurSaisie('Aucun mur à préparer dans ce devis.');
+  const o = options(opts);
+  const pris = idsPris(etat);
+  const liee = prestaDuDevis(etat, lien);
+  if (liee && liee.lienDevis.empreinte !== lien.empreinte) throw new ErreurSaisie(ECART_DEVIS);
+  const dejaPrepares = new Set(liee?.lienDevis.murs ?? []);
+  const nouveaux = murs.filter((m) => !dejaPrepares.has(m.nom));
+  if (!nouveaux.length) return etat;
+  const noms = new Set(liee ? liee.murs.map((m) => m.nom) : []);
+  const ajoutes = nouveaux.map((m) => ({ id: nouvelId('m', o.alea, pris), nom: nomLibre(noms, m.nom), configuration: configurationProposee(m) }));
+  const donnees = { ...etat.murs };
+  for (const m of ajoutes) donnees[m.id] = { ...murVide(parc), configuration: m.configuration };
+  const lienDevis = { boite: lien.boite, idEventsoft: lien.idEventsoft, empreinte: lien.empreinte, murs: [...dejaPrepares, ...nouveaux.map((m) => m.nom)] };
+  const listeMurs = ajoutes.map(({ id, nom: n }) => ({ id, nom: n }));
+  if (liee) {
+    const e = avecPresta(etat, liee.id, (x) => ({ ...x, modifieeLe: o.iso, lienDevis, murs: [...x.murs, ...listeMurs] }));
+    return { index: { ...e.index, ouverte: { presta: liee.id, mur: ajoutes[0].id } }, murs: donnees };
+  }
+  const pid = nouvelId('p', o.alea, pris);
+  const d = dateOuNull(debut);
+  const f = d ? dateOuNull(fin) : null;
+  const presta = {
+    ...prestaVide(pid, String(nom ?? '').trim().slice(0, LIMITES.nomPresta).trim() || 'Presta du devis', null, o.iso),
+    debut: d, fin: f && f >= d ? f : null, lieu: String(lieu ?? '').trim().slice(0, LIMITES.lieu).trim(), murs: listeMurs, lienDevis,
+  };
+  return { index: { ...etat.index, ouverte: { presta: pid, mur: ajoutes[0].id }, prestas: [...etat.index.prestas, presta] }, murs: donnees };
+}
+
+// « C'est vu » : le devis modifié est retenu pour la presta liée ; ses murs ne changent pas.
+export function lienDevisVu(etat, prestaId, empreinte, opts) {
+  const p = trouverPresta(etat, prestaId);
+  if (!p.lienDevis) return etat;
+  const o = options(opts);
+  return avecPresta(etat, prestaId, (x) => ({ ...x, modifieeLe: o.iso, lienDevis: { ...x.lienDevis, empreinte } }));
 }
 
 // Archiver ne change pas la date de modification : la presta garde sa place.

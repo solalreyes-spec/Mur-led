@@ -1,0 +1,14 @@
+{
+ "note": "Vecteur commun du chiffrement des devis (étape 25, lot 25d, spec § 5.4). Clé et contenu fictifs, calculés à part avec l'outil openssl (HMAC et aes-256-cbc), jamais avec le code testé. Relu par PL29 (appli) et par les tests du robot.",
+ "cle": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+ "cleEnc": "a59051516b091272b205399911d800240371b3fbfb94e8586a8b07df4e289280",
+ "cleMac": "170a46ba266bea1062856b5fb4cc18703225c5cb0bef0d1e78fba36df8df7123",
+ "iv": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+ "clair": "{\"version\":1,\"lueLe\":\"2026-11-01T07:00:00Z\",\"boites\":[{\"id\":\"boite-a\",\"prestas\":[{\"idEventsoft\":\"10001\",\"nom\":\"Salon fictif\",\"debut\":\"2026-11-16\",\"fin\":\"2026-11-18\",\"postes\":[{\"poste\":\"TECHNICIEN MUR LED\"}],\"sections\":[{\"titre\":\"Écran fictif L=4m x Ht=2m\",\"lignes\":[{\"ref\":\"DALLE-F\",\"designation\":\"Dalle fictive 500 x 500 … 1/2\",\"quantite\":\"32.0\",\"composant\":false}]}],\"empreintes\":{\"devis\":\"0123456789abcdef\",\"personnel\":\"fedcba9876543210\"}}]}]}",
+ "enveloppe": {
+  "v": 1,
+  "iv": "oKGio6SlpqeoqaqrrK2urw==",
+  "chiffre": "3taSCdLAaKZVeaCA6C6QvKXyhMz7qXBLEAMVo0MP8DzCuw1ptiyJ7tYOTp6VwR/WaO58aqDJ8wLknE/qoF2ydaDCfkxfZU2sMxTVwZ2ffJjYGNRBQu9yr6jMiERs4jO9QOqU+jE75JHN0gw42XLYwZzIO8ZlUuWzKJYagDzdHwrDelimR0f3kjiJxQJ9XUnxvFtWn33Xtf64e4HlCiyn08m0gwE3vAelZJRX0PVF5ojAXuVMIVxw+L6vUEMRU/3qdLUP2mzU1qapKmRn+R7XbXxaHCDM5R4jXwh0wSwuNsh8U4Xb+FqEsUbbDAGf6Xd766Am6flIQn9j+r53UYZbxnvrD10oJm+rC5u/dE3H3sh+0L86/apRqsuIIBQXVtI19V2XsPevmUDxst3nIn5E8QHpFJ1U7zJ94nL04auq9+/QHjIMAVZW4UB68LahoMeGm1R+BZGFtO3BvQc7I3OKwrELY+VdRON+CIiIg4SarZ7k5RH9VyfmdrVQBLV3rrt3Hft4FQALtHJezG6HrMDTR5N3cgqm+5snjsjKw2vik+iGlZVrTOWr722O2PnwpPvjn+JqOwjblUh6tOMZZJ2WurwrR12KYoOkQS2x/4OMOqA=",
+  "mac": "7YGpRjk+tj3Knm/cHCUGbfUkd0uAqwwvbZPKDSmQM/E="
+ }
+}

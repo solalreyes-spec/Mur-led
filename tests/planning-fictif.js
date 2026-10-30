@@ -157,7 +157,9 @@ export const ADRESSE_FICTIVE = 'https://relais.exemple.test';
 export const JETON_FICTIF = 'jeton-fictif-de-l-appli-pour-les-tests-abcdefghij';
 // Jeton Apple inventé (lot 23d) : abonnements Calendrier, jamais celui du vrai relais.
 export const JETON_APPLE_FICTIF = 'jeton-fictif-apple-pour-les-tests-klmnopqrstuvwxyz';
-export function relaisFictif({ reseau = false, jamais = false, statut = null, boites = {} } = {}) {
+// `devis` (lot 25e1) : enveloppe chiffrée rendue par GET /devis (texte), ou rien (204) tant qu'elle n'est pas donnée ;
+// une fonction est relue à chaque appel.
+export function relaisFictif({ reseau = false, jamais = false, statut = null, boites = {}, devis = null } = {}) {
   const appels = [];
   const textes = { 'boite-a': PLANNING_A, 'boite-b': PLANNING_B, 'boite-c': PLANNING_C };
   const reponse = (code, corps, type = 'application/json') => ({ ok: code >= 200 && code < 300, status: code, headers: { get: () => type }, text: async () => corps, json: async () => JSON.parse(corps) });
@@ -172,6 +174,10 @@ export function relaisFictif({ reseau = false, jamais = false, statut = null, bo
     if (statut) return reponse(statut, 'Erreur', 'text/plain');
     if (options.headers?.Authorization !== `Bearer ${JETON_FICTIF}`) return reponse(404, 'Introuvable', 'text/plain');
     const chemin = url.slice(ADRESSE_FICTIVE.length);
+    if (chemin === '/devis') {
+      const enveloppe = typeof devis === 'function' ? devis() : devis;
+      return enveloppe === null ? reponse(204, '') : reponse(200, enveloppe);
+    }
     if (chemin === '/boites.json') return reponse(200, JSON.stringify(Object.entries(NOMS_FICTIFS).map(([id, nom]) => ({ id, nom }))));
     const m = /^\/ics\/([a-z0-9-]+)$/.exec(chemin);
     if (!m || !NOMS_FICTIFS[m[1]]) return reponse(404, 'Introuvable', 'text/plain');
@@ -216,3 +222,32 @@ export const DEVIS_CONGRES = {
   ],
   empreintes: { devis: 'empreinte-devis-fictive-2', personnel: 'empreinte-personnel-fictive-2' },
 };
+
+// Lecture du robot (lot 25e1), format de la spec 25, § 5.3 : boîte A lue (salon passé, congrès à venir), boîte B en
+// erreur, boîte C lue avec un devis refusé au compte (poste seul).
+export const DEVIS_EXPO = {
+  idEventsoft: '000000301', nom: 'Expo fictive 2', debut: '2026-10-20', fin: '2026-10-20', postes: [{ jour: '20/10', poste: 'ASSISTANT LUMIERE' }],
+  devisNonAutorise: true, sections: [], empreintes: { devis: '0000000000000000', personnel: '1111111111111111' },
+};
+export const LECTURE_DEVIS = {
+  version: 1, lueLe: '2026-10-27T07:00:00Z',
+  boites: [
+    { id: 'boite-a', prestas: [DEVIS_SALON, DEVIS_CONGRES] },
+    { id: 'boite-b', erreur: 'connexion-refusee', prestas: [] },
+    { id: 'boite-c', prestas: [DEVIS_EXPO] },
+  ],
+};
+
+// Enveloppe chiffrée comme par le robot (§ 5.4), scellée avec des clés dérivées données (celles du vecteur commun,
+// tests/vecteur-chiffrement.json), sans passer par le code testé.
+export async function scellerDevis(contenu, { cleEnc, cleMac }, version = 1) {
+  const hex = (h) => Uint8Array.from(h.match(/../g), (x) => parseInt(x, 16));
+  const b64 = (o) => btoa(String.fromCharCode(...new Uint8Array(o)));
+  const clair = typeof contenu === 'string' ? contenu : JSON.stringify(contenu);
+  const iv = crypto.getRandomValues(new Uint8Array(16));
+  const kEnc = await crypto.subtle.importKey('raw', hex(cleEnc), 'AES-CBC', false, ['encrypt']);
+  const kMac = await crypto.subtle.importKey('raw', hex(cleMac), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const chiffre = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-CBC', iv }, kEnc, new TextEncoder().encode(clair)));
+  const mac = await crypto.subtle.sign('HMAC', kMac, Uint8Array.from([version, ...iv, ...chiffre]));
+  return JSON.stringify({ v: version, iv: b64(iv), chiffre: b64(chiffre), mac: b64(mac) });
+}

@@ -13,7 +13,7 @@ import * as couleurs from '../src/couleurs.js';
 import * as dessinSchema from '../src/dessin-schema.js';
 import { el } from '../src/dom.js';
 import * as exportImage from '../src/export.js';
-import { MAINTENANT_FICTIF, ADRESSE_FICTIVE, JETON_FICTIF, JETON_APPLE_FICTIF, relaisFictif, EVENEMENTS_A, calendrier } from './planning-fictif.js';
+import { MAINTENANT_FICTIF, ADRESSE_FICTIVE, JETON_FICTIF, JETON_APPLE_FICTIF, relaisFictif, EVENEMENTS_A, calendrier, LECTURE_DEVIS, scellerDevis } from './planning-fictif.js';
 
 const DALLE_192 = { id: 'fictive-192', nom: 'Dalle 500 mm, 192 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
 
@@ -6284,6 +6284,193 @@ export const NAVIGATEUR = [
         else delete html.dataset.mode;
         racine.remove();
         retirer();
+      }
+    },
+  },
+  {
+    id: 'N129',
+    titre: 'Écran Planning et devis (étape 25, lot 25e1) : clé des devis en champ masqué, refusée si illisible, vidée une fois enregistrée et jamais écrite dans la page ; devis lus par le relais avec le planning, déchiffrés et gardés sur l\'appareil ; fraîcheur et erreur de chaque boîte en haut ; sur la carte : poste, « Ton matériel » ouvert, « Le reste du devis » replié, devis refusé au compte ; poste dans « Copier pour Intermittent » ; prestas d\'une boîte en erreur gardées ; rejeu ignoré, clé fausse signalée ; alerte au-delà de 36 h ; « Effacer » efface la clé et garde les devis ; export sans clé ni devis',
+    etape: '25e1',
+    async verifier(v) {
+      const module = await importerSiPresent('../src/ecran-planning.js');
+      v.vrai('src/ecran-planning.js chargé', Boolean(module?.monterPlanning));
+      if (!module?.monterPlanning) return;
+      const vec = await (await fetch(new URL('./vecteur-chiffrement.json', import.meta.url), { cache: 'no-store' })).json();
+      const memoire = new Map([['planning-reglages', { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: null, boites: [] }]]);
+      const stockage = { lire: async (cle) => structuredClone(memoire.get(cle) ?? null), ecrire: async (cle, val) => { memoire.set(cle, structuredClone(val)); return true; } };
+      let enveloppe = await scellerDevis(LECTURE_DEVIS, vec);
+      const relais = relaisFictif({ devis: () => enveloppe });
+      let t = MAINTENANT_FICTIF;
+      const copies = [];
+      const partages = [];
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const fuite = () => (racine.outerHTML + [...racine.querySelectorAll('input')].map((i) => i.value).join(' ')).includes(vec.cle);
+      const carte = (date, boite) => [...racine.querySelectorAll('.pl-carte')].find((c) => c.dataset.cle?.startsWith(`${boite}|`) && c.dataset.cle.endsWith(`|${date}`));
+      const appelsDevis = () => relais.appels.filter((a) => a.url.endsWith('/devis')).length;
+      const confirmAvant = window.confirm;
+      window.confirm = () => true;
+      try {
+        const ecran = module.monterPlanning(racine, {
+          stockage, fetch: (url, o) => relais.fetch(url, o), maintenant: () => t, enLigne: () => true, surNouvelles: () => {},
+          copier: async (texte) => { copies.push(texte); return true; },
+          partager: async (contenu, nom) => { partages.push({ contenu, nom }); return { mode: 'partage', note: null }; },
+        });
+        await ecran.pret;
+        await ecran.calme();
+        const champ = racine.querySelector('#pl-cle-devis');
+        v.egal('champ « Clé des devis » masqué, état « à saisir », aucune lecture des devis sans clé', [champ?.type, champ?.autocomplete, texteDe(racine.querySelector('.pl-etat-reglage')).includes('Clé des devis : à saisir'), appelsDevis()],
+          ['password', 'off', true, 0]);
+        if (!champ) return;
+        champ.value = vec.cle.slice(1);
+        racine.querySelector('.pl-enregistrer').click();
+        await ecran.calme();
+        v.egal('clé illisible : refus sans la saisie, rien d\'enregistré', [texteDe(racine.querySelector('.pl-erreur-reglage')).includes('Clé des devis'), texteDe(racine.querySelector('.pl-erreur-reglage')).includes(vec.cle.slice(1, 20)), memoire.get('planning-reglages').cleDevis ?? null],
+          [true, false, null]);
+        champ.value = `  ${vec.cle.toUpperCase()} `;
+        racine.querySelector('.pl-enregistrer').click();
+        await ecran.calme();
+        v.egal('clé enregistrée sur l\'appareil, champ vidé, « enregistrée », devis lus avec le planning', [
+          memoire.get('planning-reglages').cleDevis, champ.value, texteDe(racine.querySelector('.pl-etat-reglage')).includes('Clé des devis : enregistrée'), appelsDevis(), memoire.get('planning-devis')?.lueLe,
+        ], [vec.cle, '', true, 1, LECTURE_DEVIS.lueLe]);
+        v.vrai('clé jamais écrite dans la page', !fuite());
+        v.egal('fraîcheur et erreur de la boîte B en haut', [texteDe(racine.querySelector('.pl-devis-fraicheur')), [...racine.querySelectorAll('.pl-devis-erreur')].map(texteDe)],
+          ['Devis lus le 27/10 à 8 h', ['Boîte B : devis non lus (connexion refusée), aucun devis gardé']]);
+        const congres = carte('2026-11-16', 'boite-a');
+        const ton = congres?.querySelector('details.pl-ton-materiel');
+        const reste = congres?.querySelector('details.pl-reste-devis');
+        v.egal('carte du congrès : poste, « Ton matériel » ouvert avec ses sections, rien dans le reste', [
+          texteDe(congres?.querySelector('.pl-poste')), texteDe(ton?.querySelector('summary')), ton?.open, ton?.querySelectorAll('.pl-devis-section').length, reste,
+        ], ['Poste : Assistant Mur Led, Road 4h et TECHNICIEN VIDEO SV', 'Ton matériel : mur LED, vidéo', true, 3, null]);
+        v.vrai('ligne du devis : quantité, référence et désignation', texteDe(ton?.querySelector('.pl-devis-section li')).includes('8 × URMIII04'));
+        congres?.querySelector('.pl-copier-intermittent')?.click();
+        await ecran.calme();
+        v.vrai('« Copier pour Intermittent » : poste en plus', (copies.at(-1) ?? '').includes('Poste : Assistant Mur Led, Road 4h et TECHNICIEN VIDEO SV'));
+        racine.querySelector('.pl-voir-passees').click();
+        const salon = carte('2026-06-12', 'boite-a');
+        v.egal('salon : « Le reste du devis » replié', [salon?.querySelector('details.pl-reste-devis')?.open, texteDe(salon?.querySelector('details.pl-reste-devis summary')).startsWith('Le reste du devis')], [false, true]);
+        v.egal('devis refusé au compte : poste et mention', [texteDe(carte('2026-10-20', 'boite-c')?.querySelector('.pl-poste')), carte('2026-10-20', 'boite-c')?.querySelector('.pl-devis-refuse') !== null, carte('2026-10-20', 'boite-c')?.querySelector('details') ?? null],
+          ['Poste : ASSISTANT LUMIERE', true, null]);
+
+        // Boîte A en erreur à la lecture suivante : ses prestas restent.
+        enveloppe = await scellerDevis({ version: 1, lueLe: '2026-10-27T17:00:00Z', boites: [{ id: 'boite-a', erreur: 'captcha', prestas: [] }, { id: 'boite-b', prestas: [] }, { id: 'boite-c', prestas: [] }] }, vec);
+        await ecran.actualiser();
+        v.egal('boîte A en erreur : devis du congrès toujours là, erreur affichée', [texteDe(carte('2026-11-16', 'boite-a')?.querySelector('.pl-poste')), [...racine.querySelectorAll('.pl-devis-erreur')].map(texteDe)],
+          ['Poste : Assistant Mur Led, Road 4h et TECHNICIEN VIDEO SV', ['Boîte A : devis non lus (captcha demandé, le robot s\'est arrêté), devis du 27/10 à 8 h gardés']]);
+        enveloppe = await scellerDevis(LECTURE_DEVIS, vec);
+        await ecran.actualiser();
+        v.egal('rejeu (lecture plus ancienne) : ignoré sans message', [memoire.get('planning-devis').lueLe, racine.querySelector('.pl-messages .alerte-erreur')], ['2026-10-27T17:00:00Z', null]);
+        enveloppe = await scellerDevis({ ...LECTURE_DEVIS, lueLe: '2026-10-28T07:00:00Z' }, { cleEnc: vec.cleEnc, cleMac: 'ee'.repeat(32) });
+        await ecran.actualiser();
+        v.vrai('clé fausse (HMAC refusé) : message, devis gardés', texteDe(racine.querySelector('.pl-messages .alerte-erreur')).length > 10 && memoire.get('planning-devis').lueLe === '2026-10-27T17:00:00Z');
+        enveloppe = await scellerDevis({ ...LECTURE_DEVIS, lueLe: '2026-10-27T17:00:00Z' }, vec);
+        t = Date.parse('2026-10-27T17:00:00Z') + 37 * 3600000;
+        await ecran.actualiser();
+        v.vrai('plus de 36 h sans nouvelle lecture : alerte', texteDe(racine.querySelector('.pl-devis-vieux')).includes('36 h'));
+
+        // Export et effacement.
+        racine.querySelector('.pl-exporter').click();
+        await ecran.calme();
+        const exporte = partages.at(-1)?.contenu ?? '';
+        v.egal('export du planning : postes, sans clé ni devis', [exporte.includes('"postes"'), exporte.includes(vec.cle), exporte.includes('URMIII04')], [true, false, false]);
+        racine.querySelector('.pl-effacer').click();
+        await ecran.calme();
+        v.egal('« Effacer » : clé effacée, devis gardés, « à saisir »', [memoire.get('planning-reglages').cleDevis, Boolean(memoire.get('planning-devis')?.boites), texteDe(racine.querySelector('.pl-etat-reglage')).includes('Clé des devis : à saisir')], [null, true, true]);
+        v.vrai('clé jamais écrite dans la page, à la fin non plus', !fuite());
+      } finally {
+        window.confirm = confirmAvant;
+        racine.remove();
+      }
+    },
+  },
+  {
+    id: 'N130',
+    titre: 'Écran Planning et murs du devis (étape 25, lot 25e2) : parc de chaque boîte choisi dans les réglages (vidé si le parc est supprimé) ; sur la carte, murs proposés, processeurs du devis face au conseil, « Ajouter au parc » (dalles et processeurs manquants, rien sans appui), « Préparer les murs » (presta créée seulement à l\'appui, avec le lien et le parc de la boîte), puis « Ouvrir la presta » ; devis modifié depuis : écart et « C\'est vu »',
+    etape: '25e2',
+    async verifier(v, contexte) {
+      const module = await importerSiPresent('../src/ecran-planning.js');
+      v.vrai('src/ecran-planning.js chargé', Boolean(module?.monterPlanning));
+      if (!module?.monterPlanning) return;
+      const vec = await (await fetch(new URL('./vecteur-chiffrement.json', import.meta.url), { cache: 'no-store' })).json();
+      const memoire = new Map([['planning-reglages', { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: null, cleDevis: vec.cle, boites: [] }]]);
+      const stockage = { lire: async (cle) => structuredClone(memoire.get(cle) ?? null), ecrire: async (cle, val) => { memoire.set(cle, structuredClone(val)); return true; } };
+      const enveloppe = await scellerDevis(LECTURE_DEVIS, vec);
+      const relais = relaisFictif({ devis: () => enveloppe });
+      const d = contexte.dalles;
+      const p = contexte.processeurs;
+      let parcs = [{ id: 'parc-test', nom: 'Parc test', membres: [] }];
+      const base = () => ({
+        dalles: d.dalles.map((f) => calculs.resoudreFiche(f, d.sources)), processeurs: p.processeurs.map((f) => calculs.resoudreFiche(f, p.sources)), parcs,
+        contexteParc: () => ({ quantites: {}, bitsParFamille: {} }),
+      });
+      // Prestas de l'appli simulées : appels relevés, lien rendu après « Préparer les murs ».
+      const appels = [];
+      let lie = null;
+      const actions = {
+        lien: (lien, noms) => (lie && lie.idEventsoft === lien.idEventsoft ? { prestaId: 'p-1', nom: 'Congrès fictif', ecart: lie.empreinte !== lien.empreinte, manquants: noms.filter((n) => !lie.murs.includes(n)), murOuvrir: 'm-1' } : null),
+        preparer: async (demande) => {
+          appels.push(['preparer', demande]);
+          lie = { ...demande.lien, murs: demande.murs.map((m) => m.nom) };
+        },
+        ouvrir: async (prestaId, murId) => appels.push(['ouvrir', prestaId, murId]),
+        vu: async (prestaId, empreinte) => {
+          appels.push(['vu', prestaId, empreinte]);
+          lie = { ...lie, empreinte };
+        },
+        ajouterAuParc: async (parcId, ajout) => {
+          appels.push(['parc', parcId, ajout]);
+          parcs = parcs.map((x) => (x.id === parcId ? { ...x, membres: [...x.membres, ...ajout.dalles.map((id) => ({ type: 'dalle', id })), ...ajout.processeurs.map((id) => ({ type: 'processeur', id }))] } : x));
+        },
+      };
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const carte = () => [...racine.querySelectorAll('.pl-carte')].find((c) => c.dataset.cle?.startsWith('boite-a|') && c.dataset.cle.endsWith('|2026-11-16'));
+      try {
+        const ecran = module.monterPlanning(racine, {
+          stockage, fetch: (url, o) => relais.fetch(url, o), maintenant: () => MAINTENANT_FICTIF, enLigne: () => true, surNouvelles: () => {}, base, actions,
+        });
+        await ecran.pret;
+        await ecran.calme();
+        const choixParc = racine.querySelector('#pl-parc-boite-a');
+        v.egal('réglages : parc de chaque boîte, « Aucun » par défaut', [choixParc?.value, [...(choixParc?.options ?? [])].map((o) => o.textContent)], ['', ['Aucun', 'Parc test']]);
+        if (!choixParc) return;
+        choixParc.value = 'parc-test';
+        choixParc.dispatchEvent(new Event('change'));
+        await ecran.calme();
+        v.egal('parc enregistré pour la boîte A', memoire.get('planning-reglages').boites.find((b) => b.id === 'boite-a')?.parc, 'parc-test');
+        let c = carte();
+        v.egal('carte du congrès : murs proposés, processeurs du devis', [
+          [...(c?.querySelectorAll('.pl-murs-liste li') ?? [])].map(texteDe), texteDe(c?.querySelector('.pl-devis-processeurs')).startsWith('Le devis prévoit 2 × MCTRL4K ; l\'appli'),
+        ], [['ECRANS LATERAUX 1 : 2 × 1 m', 'ECRANS LATERAUX 2 : 2 × 1 m', 'ECRAN CENTRAL : 4 × 2,5 m'], true]);
+        v.egal('« Ajouter au parc » replié, rien d\'ajouté sans appui', [texteDe(c?.querySelector('.pl-ajout-parc summary')), c?.querySelector('.pl-ajout-parc')?.open, appels.length], ['Ajouter au parc Parc test (3)', false, 0]);
+        c?.querySelector('.pl-ajouter-parc')?.click();
+        await ecran.calme();
+        v.egal('ajout au parc : dalles et processeur du devis, sans nombre', appels[0], ['parc', 'parc-test', { dalles: ['unilumin-urmiii04-500x1000', 'unilumin-urmiii04-500x500'], processeurs: ['novastar-mctrl4k'], references: {} }]);
+        c = carte();
+        v.egal('parc complet : plus rien à ajouter ; le conseil suit le parc', [c?.querySelector('.pl-ajout-parc'), texteDe(c?.querySelector('.pl-devis-processeurs'))], [null, 'Le devis prévoit 2 × MCTRL4K ; l\'appli conseille 3 × MCTRL4K.']);
+        c?.querySelector('.pl-preparer-murs')?.click();
+        await ecran.calme();
+        const demande = appels.find((a) => a[0] === 'preparer')?.[1];
+        v.egal('« Préparer les murs » : presta du devis, ses murs, lien et parc de la boîte', [demande?.nom, demande?.debut, demande?.fin, demande?.murs.map((m) => m.nom), demande?.lien, demande?.parc],
+          ['Congrès fictif', '2026-11-16', '2026-11-16', ['ECRANS LATERAUX 1', 'ECRANS LATERAUX 2', 'ECRAN CENTRAL'], { boite: 'boite-a', idEventsoft: '000000102', empreinte: 'empreinte-devis-fictive-2' }, 'parc-test']);
+        c = carte();
+        v.egal('presta liée : « Ouvrir la presta » à la place', [c?.querySelector('.pl-preparer-murs'), texteDe(c?.querySelector('.pl-ouvrir-presta'))], [null, 'Ouvrir la presta']);
+        c?.querySelector('.pl-ouvrir-presta')?.click();
+        await ecran.calme();
+        v.egal('« Ouvrir la presta » : la presta et son premier mur', appels.at(-1), ['ouvrir', 'p-1', 'm-1']);
+        lie = { ...lie, empreinte: 'ancienne-empreinte' };
+        await ecran.ouvrir();
+        c = carte();
+        v.egal('devis modifié depuis : écart, « C\'est vu »', [texteDe(c?.querySelector('.pl-devis-ecart')), texteDe(c?.querySelector('.pl-lien-vu'))],
+          ['Devis modifié depuis la préparation des murs : vérifie tes murs, rien n\'a été changé.', 'C\'est vu']);
+        c?.querySelector('.pl-lien-vu')?.click();
+        await ecran.calme();
+        v.egal('« C\'est vu » : empreinte du devis retenue, écart effacé', [appels.at(-1), carte()?.querySelector('.pl-devis-ecart')], [['vu', 'p-1', 'empreinte-devis-fictive-2'], null]);
+        parcs = [];
+        await ecran.ouvrir();
+        v.egal('parc supprimé : réglage de la boîte vidé', 'parc' in (memoire.get('planning-reglages').boites.find((b) => b.id === 'boite-a') ?? {}), false);
+      } finally {
+        racine.remove();
       }
     },
   },

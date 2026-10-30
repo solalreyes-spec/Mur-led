@@ -9,12 +9,21 @@
 // (Liste seulement) ; « Exporter le planning » et « Importer un planning » (sans adresse ni jetons) ; par boîte,
 // « Ajouter à Calendrier » (webcal://) et « Copier l'adresse » (https://), adresses construites au moment de l'appui :
 // le jeton Apple n'est jamais écrit dans la page.
+// Étape 25, lot 25e1 : clé des devis (champ masqué comme les jetons) ; devis chiffrés lus par le relais avec le planning,
+// déchiffrés et gardés sur l'appareil ; fraîcheur et erreur de chaque boîte ; sur la carte d'une journée, poste,
+// « Ton matériel » et « Le reste du devis » ; poste ajouté à « Copier pour Intermittent ».
+// Lot 25e2 : parc de chaque boîte dans les réglages ; sur la carte, murs du devis, processeurs du devis face au conseil,
+// « Ajouter au parc », « Préparer les murs » puis « Ouvrir la presta », écart quand le devis a changé depuis.
 
 import { el, remplacer } from './dom.js';
 import { copier as copierTexte } from './copie.js';
 import { partagerFichier } from './export.js';
-import { CLES_PLANNING, PALETTE_BOITES, reglagesVides, reglagesComplets, adresseRelais, jetonValide, adressesApple } from './planning/reglages.js';
-import { lirePlanning, testerConnexion, lectureDue } from './planning/relais.js';
+import {
+  CLES_PLANNING, CLE_DEVIS, PALETTE_BOITES, reglagesVides, reglagesComplets, adresseRelais, jetonValide, cleDevisValide, adressesApple,
+  reglerParcBoite, parcBoite, nettoyerParcsBoites,
+} from './planning/reglages.js';
+import { lirePlanning, testerConnexion, lectureDue, lireDevis } from './planning/relais.js';
+import { dechiffrerDevis, garderDevis, fraicheurDevis, choisirPresta, devisVu, mursDuDevis, ajoutsParc } from './planning/devis.js';
 import { vueListe, vueMois, vueTotaux, etatBoites } from './planning/affichage.js';
 import { marquerVu, nombreNouvelles, saisirJournee, confirmerAlerteSaisie } from './planning/journees.js';
 import { exporterPlanning, lireExportPlanning, importerPlanning, nomFichierPlanning } from './planning/sauvegarde.js';
@@ -30,15 +39,20 @@ const pastille = (repere) => el('span', { class: 'pl-pastille', style: `--boite:
 
 // `stockage` : { lire, ecrire } (IndexedDB de l'appli) ; `surNouvelles(n)` : pastille de l'onglet ; `copier(texte)` :
 // presse-papiers (false si la copie échoue) ; `ouvrir(url)` : abonnement webcal:// ; `partager(contenu, nom)` : fichier
-// exporté (feuille de partage, sinon téléchargement).
+// exporté (feuille de partage, sinon téléchargement) ; `base()` : { dalles, processeurs } de la base de l'appli (dalles et
+// processeurs des devis reconnus), null tant qu'elle n'est pas chargée ; avec `parcs` et `contexteParc(id)` ({ quantites,
+// bitsParFamille }) pour le parc de chaque boîte (lot 25e2). `actions` (lot 25e2, prestas de l'appli) : `lien(lien, noms)`
+// (presta liée au devis ou null), `preparer(demande)`, `ouvrir(prestaId, murId)`, `vu(prestaId, empreinte)`,
+// `ajouterAuParc(parcId, ajout)`.
 export function monterPlanning(racine, {
   stockage, fetch = (...a) => globalThis.fetch(...a), maintenant = () => Date.now(), enLigne = () => navigator.onLine, surNouvelles = () => {},
   copier = copierTexte, ouvrir = (url) => { window.location.href = url; },
-  partager = (contenu, nom) => partagerFichier(contenu, nom, 'application/json'),
+  partager = (contenu, nom) => partagerFichier(contenu, nom, 'application/json'), base = () => null, actions = null,
 }) {
   const etat = {
     reglages: reglagesVides(), donnees: null, masquees: new Set(), passees: false, demandes: [], message: null, enCours: false,
     vue: 'liste', mois: null, jour: null, aSaisir: false, statutCarte: null,
+    devis: null, messageDevis: null, devisOuverts: new Set(), erreurMurs: null,
   };
   racine.classList.add('pl');
   const contenu = el('div', { class: 'pl-contenu' });
@@ -60,6 +74,7 @@ export function monterPlanning(racine, {
 
   const enregistrerReglages = () => stockage?.ecrire(CLES_PLANNING.reglages, etat.reglages);
   const enregistrerDonnees = () => stockage?.ecrire(CLES_PLANNING.etat, etat.donnees);
+  const enregistrerDevis = () => stockage?.ecrire(CLE_DEVIS, etat.devis);
   const signaler = () => surNouvelles(etat.donnees ? nombreNouvelles(etat.donnees) : 0);
 
   // ---------------------------------------------------------------------------
@@ -72,6 +87,7 @@ export function monterPlanning(racine, {
   const relais = champ('pl-relais', 'Adresse du relais', 'Adresse https:// de ton relais Cloudflare (guide du relais).');
   const jeton = champ('pl-jeton', 'Jeton de l\'appli');
   const jetonApple = champ('pl-jeton-apple', 'Jeton Apple', 'Pour les abonnements Calendrier : un bouton par boîte, plus bas.');
+  const cleDevis = champ('pl-cle-devis', 'Clé des devis', 'Pour lire les devis envoyés par le robot du Mac : 64 caractères.');
   const etatReglage = el('ul', { class: 'pl-etat-reglage' });
   const erreurReglage = el('p', { class: 'pl-erreur-reglage', role: 'alert' });
   const resultatTest = el('div', { class: 'pl-resultat-test', role: 'status', 'aria-live': 'polite' });
@@ -88,7 +104,7 @@ export function monterPlanning(racine, {
   const reglages = el('details', { class: 'carte pl-reglages' },
     el('summary', {}, 'Réglages du planning'),
     etatReglage,
-    el('div', { class: 'formulaire' }, relais.bloc, jeton.bloc, jetonApple.bloc),
+    el('div', { class: 'formulaire' }, relais.bloc, jeton.bloc, jetonApple.bloc, cleDevis.bloc),
     erreurReglage,
     el('div', { class: 'actions' }, boutonEnregistrer, boutonTester),
     resultatTest,
@@ -98,7 +114,7 @@ export function monterPlanning(racine, {
     el('p', { class: 'pl-aide' }, 'Pour changer de téléphone : tes dates gardées, les cases Intermittent, les noms, couleurs et lettres des boîtes. Sans l\'adresse du relais ni les jetons, à saisir à nouveau.'),
     el('div', { class: 'actions pl-sauvegarde' }, boutonExporter, boutonImporter, choixImport),
     resultatSauvegarde,
-    el('p', { class: 'pl-aide' }, 'L\'adresse et les jetons restent sur ce téléphone : jamais dans un export, une presta ni « Tout copier ».'),
+    el('p', { class: 'pl-aide' }, 'L\'adresse, les jetons et la clé des devis restent sur ce téléphone : jamais dans un export, une presta ni « Tout copier ».'),
     el('div', { class: 'actions pl-actions-danger' }, boutonEffacer));
 
   function afficherEtatReglage() {
@@ -106,10 +122,12 @@ export function monterPlanning(racine, {
     remplacer(etatReglage,
       el('li', {}, `Adresse du relais : ${r.relais ? 'enregistrée' : 'à saisir'}`),
       el('li', {}, `Jeton de l'appli : ${r.jeton ? 'enregistré' : 'à saisir'}`),
-      el('li', {}, `Jeton Apple : ${r.jetonApple ? 'enregistré' : 'à saisir'}`));
+      el('li', {}, `Jeton Apple : ${r.jetonApple ? 'enregistré' : 'à saisir'}`),
+      el('li', {}, `Clé des devis : ${r.cleDevis ? 'enregistrée' : 'à saisir'}`));
     relais.entree.placeholder = r.relais ? 'Enregistrée, laisse vide' : 'https://…';
     jeton.entree.placeholder = r.jeton ? 'Enregistré, laisse vide' : '';
     jetonApple.entree.placeholder = r.jetonApple ? 'Enregistré, laisse vide' : '';
+    cleDevis.entree.placeholder = r.cleDevis ? 'Enregistrée, laisse vide' : '';
     const avecApple = Boolean(adressesApple(r, 'x'));
     const presentes = (r.boites ?? []).filter((b) => !b.absente);
     // Abonnements Calendrier repliés (lot 23e) : faits une fois par téléphone ; le repli garde son état d'ouverture.
@@ -131,12 +149,23 @@ export function monterPlanning(racine, {
           afficher();
         };
         for (const e of [nom, lettre, couleur]) e.addEventListener('change', changer);
+        // Parc de la boîte (lot 25e2) : repris par les murs préparés depuis ses devis.
+        const parcs = base()?.parcs ?? [];
+        const parc = el('select', { id: `pl-parc-${b.id}` }, el('option', { value: '' }, 'Aucun'),
+          ...parcs.map((x) => el('option', { value: x.id, selected: x.id === b.parc ? '' : null }, x.nom)));
+        parc.addEventListener('change', () => {
+          etat.reglages = reglerParcBoite(etat.reglages, b.id, parc.value || null);
+          enregistrerReglages();
+          afficher();
+        });
         return el('fieldset', { class: 'pl-boite-reglage' },
           el('legend', {}, pastille(b), ` ${b.nom}`),
           el('div', { class: 'champ' }, el('label', { for: nom.id }, 'Nom affiché'), nom),
           el('div', { class: 'paire' },
             el('div', { class: 'champ' }, el('label', { for: lettre.id }, 'Lettre'), lettre),
-            el('div', { class: 'champ' }, el('label', { for: couleur.id }, 'Couleur'), couleur)));
+            el('div', { class: 'champ' }, el('label', { for: couleur.id }, 'Couleur'), couleur)),
+          el('div', { class: 'champ' }, el('label', { for: parc.id }, 'Parc'), parc,
+            el('p', { class: 'pl-aide' }, 'Repris par les murs préparés depuis les devis de cette boîte.')));
       }),
       avecApple
         ? el('details', { class: 'pl-abonnements', open: abonnementsOuverts ? '' : null },
@@ -179,7 +208,7 @@ export function monterPlanning(racine, {
       return;
     }
     const t = maintenant();
-    const envoi = partager(JSON.stringify(exporterPlanning(etat.reglages, etat.donnees, t), null, 2), nomFichierPlanning(t));
+    const envoi = partager(JSON.stringify(exporterPlanning(etat.reglages, etat.donnees, t, etat.devis), null, 2), nomFichierPlanning(t));
     enFile(async () => {
       try {
         const r = await envoi;
@@ -209,11 +238,13 @@ export function monterPlanning(racine, {
         resultatSauvegarde.textContent = lu.erreur;
         return;
       }
-      const r = importerPlanning(etat.reglages, etat.donnees, lu.donnees);
+      const r = importerPlanning(etat.reglages, etat.donnees, lu.donnees, etat.devis);
       etat.reglages = r.reglages;
       etat.donnees = r.etat;
+      etat.devis = r.devis;
       await enregistrerDonnees();
       await enregistrerReglages();
+      await enregistrerDevis();
       resultatSauvegarde.textContent = r.texte;
       afficherEtatReglage();
       afficher();
@@ -235,9 +266,14 @@ export function monterPlanning(racine, {
       if (j.ok) r[cle] = j.jeton;
       else erreurs.push(`${nom} : ${j.erreur}`);
     }
+    if (cleDevis.entree.value.trim()) {
+      const c = cleDevisValide(cleDevis.entree.value);
+      if (c.ok) r.cleDevis = c.cle;
+      else erreurs.push(c.erreur);
+    }
     erreurReglage.textContent = erreurs.join(' ');
     if (erreurs.length) return;
-    for (const c of [relais, jeton, jetonApple]) c.entree.value = '';
+    for (const c of [relais, jeton, jetonApple, cleDevis]) c.entree.value = '';
     etat.reglages = r;
     enFile(async () => {
       await enregistrerReglages();
@@ -259,8 +295,8 @@ export function monterPlanning(racine, {
   }));
 
   boutonEffacer.addEventListener('click', () => {
-    if (!confirm('Effacer l\'adresse du relais et les jetons de ce téléphone ? Tes dates gardées restent.')) return;
-    etat.reglages = { ...etat.reglages, relais: null, jeton: null, jetonApple: null };
+    if (!confirm('Effacer l\'adresse du relais, les jetons et la clé des devis de ce téléphone ? Tes dates et tes devis gardés restent.')) return;
+    etat.reglages = { ...etat.reglages, relais: null, jeton: null, jetonApple: null, cleDevis: null };
     enFile(async () => {
       await enregistrerReglages();
       afficherEtatReglage();
@@ -284,9 +320,31 @@ export function monterPlanning(racine, {
       await enregistrerDonnees();
       await enregistrerReglages();
       afficherEtatReglage();
+      await lireLesDevis();
     } else etat.message = res.texte;
     signaler();
     afficher();
+  }
+
+  // Devis envoyés par le robot (§ 5.4) : lus avec le planning quand la clé est enregistrée. Lecture plus ancienne que la
+  // dernière acceptée (rejeu, ou relais pas encore à jour) : ignorée sans message.
+  async function lireLesDevis() {
+    const r = etat.reglages;
+    etat.messageDevis = null;
+    if (!r.cleDevis) return;
+    const lu = await lireDevis({ adresse: r.relais, jeton: r.jeton, fetch });
+    if (!lu.ok) {
+      etat.messageDevis = `Devis non lus : ${lu.texte}`;
+      return;
+    }
+    if (lu.enveloppe === null) return;
+    const d = await dechiffrerDevis(lu.enveloppe, r.cleDevis, { dernierLueLe: etat.devis?.lueLe ?? null });
+    if (!d.ok) {
+      if (d.code !== 'rejeu') etat.messageDevis = d.erreur;
+      return;
+    }
+    etat.devis = garderDevis(etat.devis, d.devis, maintenant());
+    await enregistrerDevis();
   }
   const lectureAuto = () => enFile(async () => {
     if (reglagesComplets(etat.reglages) && lectureDue(etat.donnees, maintenant(), { enLigne: enLigne() })) await lire();
@@ -303,6 +361,8 @@ export function monterPlanning(racine, {
       c.aVerifier ? el('span', { class: 'puce-info pl-puce-verifier' }, 'À vérifier') : null,
       c.conflit ? el('span', { class: 'puce-info pl-puce-conflit' }, 'Conflit') : null,
       c.repos ? el('span', { class: 'puce-info pl-puce-repos' }, 'Repos court') : null,
+      c.devis?.posteModifie ? el('span', { class: 'puce-info pl-puce-modifie pl-puce-poste-modifie' }, 'Poste modifié') : null,
+      c.devis?.devisModifie ? el('span', { class: 'puce-info pl-puce-modifie pl-puce-devis-modifie' }, 'Devis modifié') : null,
     ].filter(Boolean);
     const lieu = c.lieu ? (c.plans ? el('a', { href: c.plans, target: '_blank', rel: 'noopener noreferrer' }, c.lieu) : c.lieu) : null;
     return el('article', { class: `pl-carte${c.retiree ? ' pl-retiree' : ''}`, 'data-cle': c.cle },
@@ -318,10 +378,131 @@ export function monterPlanning(racine, {
       lieu ? el('p', { class: 'pl-detail' }, lieu, c.autresLieux?.length ? ` (aussi : ${c.autresLieux.join(', ')})` : '') : null,
       c.client ? el('p', { class: 'pl-detail' }, c.client, c.autresClients?.length ? ` (aussi : ${c.autresClients.join(', ')})` : '') : null,
       ...c.ancien.map((a) => el('p', { class: 'pl-ancien' }, insecable(a))),
+      blocDevis(c),
       ...(c.alertes ?? []).map((a) => el('p', { class: `pl-alerte pl-alerte-${a.type}` }, insecable(a.texte))),
       c.retiree ? el('p', { class: 'pl-retire-texte' }, c.retiree) : null,
       c.alerteSaisie ? alerteSaisie(c.alerteSaisie) : null,
       c.retiree ? null : blocIntermittent(c));
+  }
+
+  // Devis de la journée : poste, « Ton matériel » ouvert, « Le reste du devis » replié (repli gardé jusqu'à la fermeture
+  // de l'appli) ; devis qui touche deux prestas : « C'est cette presta » ; devis refusé au compte : poste seul.
+  function blocDevis(c) {
+    const d = c.devis;
+    if (!d) return null;
+    if (d.aChoisir) {
+      const choisir = el('button', { class: 'bouton', type: 'button', 'data-focus': `choix-devis-${c.cle}` }, 'C\'est cette presta');
+      choisir.addEventListener('click', () => enFile(async () => {
+        etat.devis = choisirPresta(etat.devis, d.aChoisir.boite, d.aChoisir.idEventsoft, c.presta);
+        await enregistrerDevis();
+        afficher();
+      }));
+      return el('div', { class: 'pl-devis pl-devis-choix' }, el('p', {}, `Devis « ${d.aChoisir.nomDevis} » : est-ce cette presta ?`), el('div', { class: 'actions' }, choisir));
+    }
+    const section = (s) => el('section', { class: 'pl-devis-section' },
+      el('h4', {}, s.titre || 'Sans titre'),
+      el('ul', {}, ...s.lignes.map((l) => el('li', {},
+        l.quantiteTexte ? el('span', { class: 'pl-devis-qte' }, `${l.quantiteTexte}\u00a0× `) : null,
+        l.ref ? el('span', { class: 'pl-devis-ref' }, l.ref) : null,
+        l.ref ? ' ' : null,
+        l.designation))));
+    const repli = (classe, titre, sections, ouvert) => {
+      const cle = `${c.cle}|${classe}`;
+      const bloc = el('details', { class: `pl-devis-bloc ${classe}`, open: (ouvert ? !etat.devisOuverts.has(`${cle}|ferme`) : etat.devisOuverts.has(cle)) ? '' : null },
+        el('summary', {}, titre), ...sections.map(section));
+      bloc.addEventListener('toggle', () => {
+        etat.devisOuverts.delete(cle);
+        etat.devisOuverts.delete(`${cle}|ferme`);
+        if (bloc.open !== ouvert) etat.devisOuverts.add(ouvert ? `${cle}|ferme` : cle);
+      });
+      return bloc;
+    };
+    const nombre = (n) => `${n} ${n > 1 ? 'sections' : 'section'}`;
+    const v = d.vue;
+    return el('div', { class: 'pl-devis' },
+      d.postes ? el('p', { class: 'pl-poste' }, `Poste : ${d.postes}`) : null,
+      d.ancienPoste ? el('p', { class: 'pl-ancien' }, `Avant : ${d.ancienPoste}`) : null,
+      d.nonAutorise ? el('p', { class: 'pl-aide pl-devis-refuse' }, 'Devis non ouvert à ton compte dans Eventsoft : poste seul.') : null,
+      v && v.toutReplie && v.reste.length ? repli('pl-reste-devis', `Le devis (${nombre(v.reste.length)})`, v.reste, false) : null,
+      v && !v.toutReplie ? (v.tonMateriel.length ? repli('pl-ton-materiel', v.titre, v.tonMateriel, true) : el('p', { class: 'pl-aide' }, `${v.titre} : rien dans le devis.`)) : null,
+      v && !v.toutReplie && v.reste.length ? repli('pl-reste-devis', `Le reste du devis (${nombre(v.reste.length)})`, v.reste, false) : null,
+      blocMurs(c, d));
+  }
+
+  // Murs du devis (lot 25e2) : murs proposés, processeurs du devis face au conseil, « Ajouter au parc » de la boîte,
+  // « Préparer les murs » (rien n'est créé sans appui) ou « Ouvrir la presta », écart quand le devis a changé depuis.
+  function blocMurs(c, d) {
+    const b = base();
+    const presta = etat.devis?.boites?.[d.boite]?.prestas?.[d.idEventsoft];
+    if (!b || !presta || d.nonAutorise) return null;
+    const parcId = parcBoite(etat.reglages, d.boite, (b.parcs ?? []).map((x) => x.id));
+    const parc = parcId ? b.parcs.find((x) => x.id === parcId) : null;
+    const contexte = parcId ? b.contexteParc?.(parcId) ?? {} : {};
+    const m = mursDuDevis(presta, b, { parc, quantites: contexte.quantites ?? null, bitsParFamille: contexte.bitsParFamille ?? {} });
+    const ajout = parc ? ajoutsParc(presta, b, parc) : null;
+    if (!m && !ajout) return null;
+    const lien = { boite: d.boite, idEventsoft: d.idEventsoft, empreinte: presta.empreintes?.devis ?? null };
+    const noms = m?.murs.map((x) => x.nom) ?? [];
+    const lie = noms.length ? actions?.lien?.(lien, noms) ?? null : null;
+    const agir = (classe, texte, operation, principal = false) => {
+      const bouton = el('button', { class: `bouton${principal ? ' bouton-principal' : ''} ${classe}`, type: 'button' }, texte);
+      bouton.addEventListener('click', () => enFile(async () => {
+        etat.erreurMurs = null;
+        try {
+          await operation();
+        } catch (erreur) {
+          etat.erreurMurs = { cle: c.cle, texte: erreur.message };
+        }
+        afficher();
+      }));
+      return bouton;
+    };
+    const preparer = () => actions.preparer({ nom: presta.nom, debut: presta.debut, fin: presta.fin, lieu: c.lieu ?? '', murs: m.murs, lien, parc: parcId });
+    const boutons = [];
+    if (actions && noms.length) {
+      if (!lie) boutons.push(agir('pl-preparer-murs', 'Préparer les murs', preparer, true));
+      else {
+        boutons.push(agir('pl-ouvrir-presta', 'Ouvrir la presta', () => actions.ouvrir(lie.prestaId, lie.murOuvrir), !lie.ecart && !lie.manquants.length));
+        if (lie.ecart) boutons.push(agir('pl-lien-vu', 'C\'est vu', () => actions.vu(lie.prestaId, lien.empreinte)));
+        else if (lie.manquants.length) boutons.push(agir('pl-completer-murs', `Compléter les murs (${lie.manquants.length})`, preparer, true));
+      }
+    }
+    return el('div', { class: 'pl-devis-murs' },
+      m?.murs.length ? el('p', { class: 'pl-murs-titre' }, m.murs.length > 1 ? `Murs du devis (${m.murs.length})` : 'Mur du devis') : null,
+      m?.murs.length ? el('ul', { class: 'pl-murs-liste' }, ...m.resume.map((t) => el('li', {}, t))) : null,
+      ...(m?.alertes ?? []).map((t) => el('p', { class: 'pl-devis-alerte' }, t)),
+      m?.processeurs ? el('p', { class: `pl-devis-processeurs${m.processeurs.alerte ? ' pl-devis-processeurs-ecart' : ''}` }, m.processeurs.texte) : null,
+      ajout && actions?.ajouterAuParc ? blocAjoutParc(c, parc, ajout) : null,
+      lie ? el('p', { class: 'pl-aide pl-presta-liee' }, `Presta de l'appli : ${lie.nom}`) : null,
+      lie?.ecart ? el('p', { class: 'pl-devis-ecart' }, 'Devis modifié depuis la préparation des murs : vérifie tes murs, rien n\'a été changé.') : null,
+      etat.erreurMurs?.cle === c.cle ? el('p', { class: 'pl-devis-erreur-murs', role: 'alert' }, etat.erreurMurs.texte) : null,
+      boutons.length ? el('div', { class: 'actions' }, ...boutons) : null);
+  }
+
+  // « Ajouter au parc » replié : fiches du devis absentes du parc de la boîte, dalle à choisir parmi plusieurs fiches ;
+  // jamais de « Nombre dans le parc ».
+  function blocAjoutParc(c, parc, ajout) {
+    const choix = ajout.aChoisir.map((a, i) => {
+      const id = `pl-ref-${c.cle.replace(/[^a-z0-9-]/gi, '-')}-${i}`;
+      const select = el('select', { id }, el('option', { value: '' }, 'Choisis la fiche'), ...a.candidats.map((x) => el('option', { value: x.id }, x.nom)));
+      return { ref: a.ref, select, bloc: el('div', { class: 'champ' }, el('label', { for: id }, `${a.ref} : ${a.designation}`), select) };
+    });
+    const nombre = ajout.dalles.length + ajout.processeurs.length + ajout.aChoisir.length;
+    const bouton = el('button', { class: 'bouton pl-ajouter-parc', type: 'button' }, 'Ajouter au parc');
+    bouton.addEventListener('click', () => enFile(async () => {
+      const references = Object.fromEntries(choix.filter((x) => x.select.value).map((x) => [x.ref, x.select.value]));
+      await actions.ajouterAuParc(parc.id, { dalles: ajout.dalles.map((x) => x.id), processeurs: ajout.processeurs.map((x) => x.id), references });
+      afficher();
+    }));
+    const ligne = (type, x) => el('li', {}, `${type} : ${x.nom}`);
+    return el('details', { class: 'pl-ajout-parc' },
+      el('summary', {}, `Ajouter au parc ${parc.nom} (${nombre})`),
+      ajout.dalles.length || ajout.processeurs.length
+        ? el('ul', {}, ...ajout.dalles.map((x) => ligne('Dalle', x)), ...ajout.processeurs.map((x) => ligne('Processeur', x)))
+        : null,
+      ...choix.map((x) => x.bloc),
+      el('p', { class: 'pl-aide' }, 'Le nombre dans le parc ne change pas : saisis-le dans l\'onglet Base.'),
+      el('div', { class: 'actions' }, bouton));
   }
 
   // Alerte forte « Modifiée (ou Retirée) après saisie dans Intermittent », jusqu'à « C'est corrigé ».
@@ -386,6 +567,16 @@ export function monterPlanning(racine, {
   }
 
   function afficher() {
+    // Parc supprimé de la base (lot 25e2) : le réglage de ses boîtes est vidé.
+    const parcs = base()?.parcs;
+    if (parcs) {
+      const nettoyes = nettoyerParcsBoites(etat.reglages, parcs.map((x) => x.id));
+      if (nettoyes !== etat.reglages) {
+        etat.reglages = nettoyes;
+        enregistrerReglages();
+        afficherEtatReglage();
+      }
+    }
     if (!reglagesComplets(etat.reglages) && !etat.donnees) {
       remplacer(contenu, accueil());
       return;
@@ -426,7 +617,8 @@ export function monterPlanning(racine, {
         return el('label', {}, radio, el('span', {}, nom));
       })));
     const filtre = etat.masquees.size ? visibles : null;
-    const liste = etat.vue === 'liste' ? vueListe(etat.donnees, etat.reglages, maintenant(), { boites: filtre, aSaisir: etat.aSaisir }) : null;
+    const devis = etat.devis ? { garde: etat.devis, base: base() } : null;
+    const liste = etat.vue === 'liste' ? vueListe(etat.donnees, etat.reglages, maintenant(), { boites: filtre, aSaisir: etat.aSaisir, devis }) : null;
     const filtreSaisir = liste ? el('button', {
       class: 'puce-trajet pl-filtre-saisir', type: 'button', 'aria-pressed': etat.aSaisir ? 'true' : 'false', 'data-focus': 'filtre-saisir',
     }, `À saisir dans Intermittent (${liste.nombreASaisir})`) : null;
@@ -434,9 +626,15 @@ export function monterPlanning(racine, {
       etat.aSaisir = !etat.aSaisir;
       afficher();
     });
-    const corps = etat.vue === 'mois' ? vueMoisElements(filtre)
+    const corps = etat.vue === 'mois' ? vueMoisElements(filtre, devis)
       : etat.vue === 'totaux' ? vueTotauxElements(filtre)
         : vueListeElements(liste);
+    const fraicheur = fraicheurDevis(etat.devis, etat.reglages, maintenant());
+    const etatDevis = etat.reglages.cleDevis || etat.devis ? [
+      el('p', { class: 'pl-devis-fraicheur' }, fraicheur.texte ? insecable(fraicheur.texte) : 'Aucun devis reçu du robot du Mac pour l\'instant.'),
+      fraicheur.alerte ? el('p', { class: 'alerte pl-devis-vieux' }, fraicheur.alerte) : null,
+      ...fraicheur.erreurs.map((e) => el('p', { class: 'pl-devis-erreur' }, insecable(e.texte))),
+    ] : [];
     const focus = contenu.contains(document.activeElement) ? document.activeElement.dataset?.focus : null;
     remplacer(contenu,
       el('section', { class: 'carte pl-haut' },
@@ -444,8 +642,10 @@ export function monterPlanning(racine, {
           const b = boites.find((x) => x.id === e.boite);
           return el('li', { class: e.erreur ? 'pl-en-erreur' : null }, b ? pastille(b) : null, el('span', { class: 'pl-etat-boite' }, insecable(e.erreur ? e.texte : `${e.nom} : ${e.texte}`)));
         })),
+        ...etatDevis,
         el('div', { class: 'pl-messages', role: 'status', 'aria-live': 'polite' },
           etat.message ? el('p', { class: 'alerte alerte-erreur' }, etat.message) : null,
+          etat.messageDevis ? el('p', { class: 'alerte alerte-erreur' }, etat.messageDevis) : null,
           !enLigne() ? el('p', { class: 'alerte alerte-info' }, 'Hors ligne : dates gardées sur ce téléphone.') : null,
           ...demandes),
         el('div', { class: 'actions' }, actualiser)),
@@ -477,8 +677,8 @@ export function monterPlanning(racine, {
 
   // Grille du mois : un bouton par jour du mois (étiquette lue : date, boîtes, indisponible, conflit, repos court),
   // le jour touché enfoncé et ses journées sous la grille ; mois précédent et suivant.
-  function vueMoisElements(filtre) {
-    const m = vueMois(etat.donnees, etat.reglages, maintenant(), { mois: etat.mois, boites: filtre, jour: etat.jour });
+  function vueMoisElements(filtre, devis) {
+    const m = vueMois(etat.donnees, etat.reglages, maintenant(), { mois: etat.mois, boites: filtre, jour: etat.jour, devis });
     const changerMois = (mois) => {
       etat.mois = mois;
       etat.jour = null;
@@ -560,6 +760,7 @@ export function monterPlanning(racine, {
     try {
       etat.reglages = { ...reglagesVides(), ...((await stockage?.lire(CLES_PLANNING.reglages)) ?? {}) };
       etat.donnees = (await stockage?.lire(CLES_PLANNING.etat)) ?? null;
+      etat.devis = (await stockage?.lire(CLE_DEVIS)) ?? null;
     } catch {
       // Stockage indisponible : écran vide, réglages à saisir.
     }
@@ -573,6 +774,12 @@ export function monterPlanning(racine, {
     pret,
     calme,
     lectureAuto,
+    // Base de l'appli chargée ou changée (parcs, fiches) : choix du parc des boîtes et murs des devis refaits.
+    rafraichirBase: async () => {
+      await pret;
+      afficherEtatReglage();
+      afficher();
+    },
     actualiser: () => {
       enFile(() => lire());
       return calme();
@@ -587,6 +794,10 @@ export function monterPlanning(racine, {
         const t = maintenant();
         etat.donnees = { ...etat.donnees, boites: Object.fromEntries(Object.entries(etat.donnees.boites).map(([id, eb]) => [id, marquerVu(eb, t)])) };
         await enregistrerDonnees();
+      }
+      if (etat.devis) {
+        etat.devis = devisVu(etat.devis, maintenant());
+        await enregistrerDevis();
       }
       surNouvelles(0);
     },

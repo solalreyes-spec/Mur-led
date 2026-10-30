@@ -142,6 +142,17 @@ export async function lirePlanning({ reglages, etat, maintenant, fetch, confirme
   return { ok: true, etat: { ...avant, boites: etatBoites, essai: maintenant }, reglages: { ...reglages, boites }, messages, nouveaux };
 }
 
+// Devis chiffrés envoyés par le robot du Mac (étape 25, lot 25e1, spec § 5.4) : { ok, enveloppe } (texte, null tant que
+// rien n'est envoyé : 204) ou { ok: false, type, texte }. Le déchiffrement se fait dans l'appli (dechiffrerDevis).
+export async function lireDevis({ adresse, jeton, fetch, delai = DELAI_RELAIS }) {
+  const { reponse, reseau } = await appeler(fetch, adresse, '/devis', jeton, delai);
+  if (reseau) return { ok: false, type: 'injoignable', texte: TEXTES.injoignable };
+  if (reponse.status === 404) return { ok: false, type: 'jeton', texte: TEXTES.jeton };
+  if (reponse.status === 204) return { ok: true, enveloppe: null };
+  if (!reponse.ok) return { ok: false, type: 'reponse', texte: inattendue(reponse.status) };
+  return { ok: true, enveloppe: await reponse.text() };
+}
+
 // Lecture automatique : en réseau seulement, jamais lue ou dernier essai de plus de 15 min.
 export function lectureDue(etat, maintenant, { enLigne = true } = {}) {
   if (!enLigne) return false;

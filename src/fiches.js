@@ -469,6 +469,29 @@ export function basculerMembre(base, parcId, type, id) {
   };
 }
 
+// « Ajouter au parc » depuis un devis Eventsoft (étape 25, lot 25e2) : dalles et processeurs ajoutés aux membres sans
+// doublon ; `references` ({ référence du devis: dalle choisie }) retenues par le parc, leur dalle ajoutée aussi. Jamais
+// de « Nombre dans le parc » : il ne vient pas d'un devis.
+export function ajouterAuParc(base, parcId, { dalles = [], processeurs = [], references = {} } = {}) {
+  return {
+    ...base,
+    parcs: base.parcs.map((p) => {
+      if (p.id !== parcId) return p;
+      const membres = [...(p.membres ?? [])];
+      const ajouter = (type, id) => {
+        if (typeof id === 'string' && id && !membres.some((m) => m.type === type && m.id === id)) membres.push({ type, id });
+      };
+      dalles.forEach((id) => ajouter('dalle', id));
+      processeurs.forEach((id) => ajouter('processeur', id));
+      const choisies = Object.entries(references).filter(([ref, id]) => ref && typeof id === 'string' && id);
+      choisies.forEach(([, id]) => ajouter('dalle', id));
+      const copie = { ...p, membres };
+      if (choisies.length) copie.references = { ...(p.references ?? {}), ...Object.fromEntries(choisies) };
+      return copie;
+    }),
+  };
+}
+
 // Fiches du parc actif ; parcId null (« Tous ») : toute la liste.
 export function filtrerParParc(liste, base, parcId, type) {
   if (!parcId) return liste;
@@ -1726,6 +1749,8 @@ export function fichesRetirees(base, depart) {
       ...Object.keys(parc.cases ?? {}).map((id) => ['dalle', id]),
       ...Object.keys(parc.logiciels ?? {}).map((id) => ['processeur', id]),
       ...Object.keys(parc.quantites ?? {}).map((id) => ['processeur', id]),
+      // Références de dalles retenues depuis les devis (étape 25, lot 25e2).
+      ...Object.values(parc.references ?? {}).map((id) => ['dalle', id]),
     ];
     const vus = new Set();
     for (const [type, id] of cites) {
@@ -1752,6 +1777,11 @@ export function retirerFicheRetiree(base, parcId, type, id) {
       delete reste[id];
       if (Object.keys(reste).length) copie[cle] = reste;
       else delete copie[cle];
+    }
+    if (type === 'dalle' && Object.values(copie.references ?? {}).includes(id)) {
+      const reste = Object.fromEntries(Object.entries(copie.references).filter(([, f]) => f !== id));
+      if (Object.keys(reste).length) copie.references = reste;
+      else delete copie.references;
     }
     return copie;
   });

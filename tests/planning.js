@@ -6,7 +6,7 @@ import * as jr from '../src/planning/journees.js';
 import {
   MAINTENANT_FICTIF, calendrier, EVENEMENTS_A, EVENEMENTS_B, EVENEMENTS_C,
   PLANNING_A, PLANNING_B, PLANNING_C, NOMS_FICTIFS, ADRESSE_FICTIVE, JETON_FICTIF, JETON_APPLE_FICTIF, relaisFictif,
-  DEVIS_SALON, DEVIS_CONGRES, DESIGNATIONS_FICTIVES,
+  DEVIS_SALON, DEVIS_CONGRES, DESIGNATIONS_FICTIVES, DEVIS_EXPO, LECTURE_DEVIS,
 } from './planning-fictif.js';
 import * as calculs from '../src/calculs.js';
 import { baseDalles, baseProcesseurs } from './base.js';
@@ -1186,6 +1186,423 @@ export const PLANNING = [
       const amb = presta([{ titre: 'ECRAN L=4m H=2m', lignes: [{ ref: 'UPADIV2.6', designation: DESIGNATIONS_FICTIVES.upad26, quantite: '32.0', composant: false }] }, ...DEVIS_SALON.sections.slice(1, 2)]);
       v.egal('mur dont la dalle est à choisir : hors du conseil, signalé', [amb.sansConseil, amb.conseil, amb.texte],
         [['ECRAN'], [], 'Le devis prévoit 1 × MCTRL660 ; l\'appli ne conseille rien tant qu\'une dalle reste à choisir.']);
+    },
+  },
+  {
+    id: 'PL29',
+    titre: 'Devis Eventsoft (lot 25d) : déchiffrement de bout en bout (HKDF-SHA-256, AES-256-CBC, HMAC-SHA-256 vérifié avant) sur le vecteur commun au robot ; refus d\'une clé illisible, d\'une enveloppe mal formée, d\'une version inconnue, d\'un HMAC faux, d\'un contenu illisible et d\'un rejeu ; la clé jamais dans une erreur ni dans l\'export du planning',
+    etape: '25d',
+    async verifier(v) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      const sv = await importerPlanning(v, '../src/planning/sauvegarde.js');
+      if (!dv || !sv) return;
+      if (typeof dv.dechiffrerDevis !== 'function') {
+        v.vrai('dechiffrerDevis exportée par src/planning/devis.js', false);
+        return;
+      }
+      const vec = await (await fetch(new URL('./vecteur-chiffrement.json', import.meta.url), { cache: 'no-store' })).json();
+      const hex = (h) => Uint8Array.from(h.match(/../g), (x) => parseInt(x, 16));
+      const b64 = (o) => btoa(String.fromCharCode(...new Uint8Array(o)));
+      const d64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+      // Enveloppe scellée ici avec les clés dérivées du vecteur (calculées par openssl), sans passer par le code testé.
+      async function sceller(clair, { version = 1, cleEnc = vec.cleEnc, cleMac = vec.cleMac } = {}) {
+        const iv = crypto.getRandomValues(new Uint8Array(16));
+        const kEnc = await crypto.subtle.importKey('raw', hex(cleEnc), 'AES-CBC', false, ['encrypt']);
+        const kMac = await crypto.subtle.importKey('raw', hex(cleMac), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const chiffre = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-CBC', iv }, kEnc, new TextEncoder().encode(clair)));
+        const mac = await crypto.subtle.sign('HMAC', kMac, Uint8Array.from([version, ...iv, ...chiffre]));
+        return JSON.stringify({ v: version, iv: b64(iv), chiffre: b64(chiffre), mac: b64(mac) });
+      }
+      const texte = JSON.stringify(vec.enveloppe);
+      const bon = await dv.dechiffrerDevis(texte, vec.cle);
+      v.egal('vecteur commun : contenu retrouvé à l\'octet près', [bon.ok, JSON.stringify(bon.devis)], [true, JSON.stringify(JSON.parse(vec.clair))]);
+      v.egal('enveloppe donnée en objet', (await dv.dechiffrerDevis(vec.enveloppe, vec.cle)).ok, true);
+      v.egal('clé en majuscules, espaces de bord retirés', (await dv.dechiffrerDevis(texte, `  ${vec.cle.toUpperCase()}\n`)).ok, true);
+      const code = async (env, cle = vec.cle, options) => (await dv.dechiffrerDevis(env, cle, options)).code;
+      v.egal('clé illisible (63 caractères, lettre hors hexadécimal, absente)', [await code(texte, vec.cle.slice(1)), await code(texte, `${vec.cle.slice(1)}g`), await code(texte, null)], ['cle', 'cle', 'cle']);
+      const env = vec.enveloppe;
+      v.egal('enveloppe mal formée (texte, champ absent, base64 faux, IV de 15 octets, MAC de 31 octets)', [
+        await code('{ pas du json'), await code(JSON.stringify({ v: 1, iv: env.iv, mac: env.mac })), await code(JSON.stringify({ ...env, chiffre: '%%%' })),
+        await code(JSON.stringify({ ...env, iv: b64(d64(env.iv).slice(1)) })), await code(JSON.stringify({ ...env, mac: b64(d64(env.mac).slice(1)) })),
+      ], ['format', 'format', 'format', 'format', 'format']);
+      v.egal('version d\'enveloppe inconnue', await code(JSON.stringify({ ...env, v: 2 })), 'version');
+      const macFaux = d64(env.mac);
+      macFaux[0] ^= 1;
+      const chiffreTouche = d64(env.chiffre);
+      chiffreTouche[chiffreTouche.length - 1] ^= 1;
+      const ivTouche = d64(env.iv);
+      ivTouche[0] ^= 1;
+      v.egal('HMAC faux, chiffré ou IV retouché, autre clé : refus avant de déchiffrer', [
+        await code(JSON.stringify({ ...env, mac: b64(macFaux) })), await code(JSON.stringify({ ...env, chiffre: b64(chiffreTouche) })),
+        await code(JSON.stringify({ ...env, iv: b64(ivTouche) })), await code(texte, 'ff'.repeat(32)),
+      ], ['mac', 'mac', 'mac', 'mac']);
+      v.egal('version 2 scellée avec la bonne clé : refusée aussi', await code(await sceller(vec.clair, { version: 2 })), 'version');
+      const contenu = JSON.parse(vec.clair);
+      v.egal('contenu illisible (pas du JSON, sans boîtes, sans date de lecture)', [
+        await code(await sceller('pas du json')), await code(await sceller(JSON.stringify({ ...contenu, boites: null }))),
+        await code(await sceller(JSON.stringify({ ...contenu, lueLe: 'hier' }))),
+      ], ['contenu', 'contenu', 'contenu']);
+      v.egal('version de contenu inconnue', await code(await sceller(JSON.stringify({ ...contenu, version: 2 }))), 'version');
+      v.egal('rejeu : lecture plus ancienne que la dernière acceptée refusée, même date acceptée, plus récente acceptée', [
+        await code(texte, vec.cle, { dernierLueLe: '2026-11-01T07:00:01Z' }),
+        (await dv.dechiffrerDevis(texte, vec.cle, { dernierLueLe: contenu.lueLe })).ok,
+        (await dv.dechiffrerDevis(texte, vec.cle, { dernierLueLe: '2026-10-31T19:00:00Z' })).ok,
+      ], ['rejeu', true, true]);
+      const deux = [await sceller(vec.clair), await sceller(vec.clair)];
+      v.vrai('IV tiré à chaque envoi : deux enveloppes du même contenu diffèrent et se lisent', deux[0] !== deux[1] && (await Promise.all(deux.map((e) => dv.dechiffrerDevis(e, vec.cle)))).every((r) => r.ok));
+      const refus = await Promise.all([[texte, vec.cle.slice(1)], [JSON.stringify({ ...env, mac: b64(macFaux) })], [texte, vec.cle, { dernierLueLe: '2027-01-01T00:00:00Z' }]].map(([e, c = vec.cle, o]) => dv.dechiffrerDevis(e, c, o)));
+      v.vrai('chaque refus a un texte en français, sans la clé ni les clés dérivées', refus.every((r) => !r.ok && typeof r.erreur === 'string' && r.erreur.length > 10
+        && ![vec.cle, vec.cle.slice(1), vec.cleEnc, vec.cleMac].some((k) => r.erreur.toLowerCase().includes(k))));
+      const reglages = { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: JETON_APPLE_FICTIF, cleDevis: vec.cle, boites: [] };
+      v.vrai('clé du devis absente de l\'export du planning', !JSON.stringify(sv.exporterPlanning(reglages, null, Date.UTC(2026, 10, 1))).includes(vec.cle));
+      const imp = sv.importerPlanning(reglages, null, sv.lireExportPlanning(JSON.stringify({ ...sv.exporterPlanning({ boites: [] }, null, 0), cleDevis: 'ff'.repeat(32) })).donnees);
+      v.egal('import d\'un planning : la clé du téléphone gardée, jamais celle du fichier', imp.reglages.cleDevis, vec.cle);
+    },
+  },
+  {
+    id: 'PL30',
+    titre: 'Devis Eventsoft sur l\'appareil (lot 25e1) : GET /devis par le relais (jeton dans l\'en-tête, 204 = rien encore) ; clé des devis de 64 caractères hexadécimaux, refus sans répéter la saisie ; dernière lecture gardée par presta, gardée après la presta, prestas d\'une boîte en erreur gardées, poste ou devis changé marqué « Modifié » jusqu\'à l\'ouverture de l\'onglet ; fraîcheur (« Devis lus le 27/10 à 8 h », alerte au-delà de 36 h, erreur de chaque boîte) ; poste et devis lié au poste sur la carte de la journée rapprochée, deux candidates à trancher, devis refusé au compte, poste ajouté au texte pour Intermittent',
+    etape: '25e1',
+    async verifier(v, contexte) {
+      const rl = await importerPlanning(v, '../src/planning/relais.js');
+      const rg = await importerPlanning(v, '../src/planning/reglages.js');
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      const af = await importerPlanning(v, '../src/planning/affichage.js');
+      if (!rl || !rg || !dv || !af) return;
+      const manque = ['lireDevis'].filter((f) => typeof rl[f] !== 'function')
+        .concat(['cleDevisValide'].filter((f) => typeof rg[f] !== 'function'))
+        .concat(['garderDevis', 'fraicheurDevis', 'choisirPresta', 'devisVu'].filter((f) => typeof dv[f] !== 'function'));
+      v.egal('fonctions du lot 25e1 exportées', manque, []);
+      if (manque.length) return;
+
+      // Relais.
+      const relais = relaisFictif({ devis: 'enveloppe-fictive' });
+      const lu = await rl.lireDevis({ adresse: ADRESSE_FICTIVE, jeton: JETON_FICTIF, fetch: relais.fetch });
+      const appel = relais.appels[0];
+      v.egal('GET /devis : enveloppe rendue, jeton dans l\'en-tête, jamais dans l\'adresse', [lu, appel.url, appel.options.method, appel.options.headers.Authorization, appel.url.includes(JETON_FICTIF)],
+        [{ ok: true, enveloppe: 'enveloppe-fictive' }, `${ADRESSE_FICTIVE}/devis`, 'GET', `Bearer ${JETON_FICTIF}`, false]);
+      v.egal('204 : rien encore', await rl.lireDevis({ adresse: ADRESSE_FICTIVE, jeton: JETON_FICTIF, fetch: relaisFictif().fetch }), { ok: true, enveloppe: null });
+      const refus = await Promise.all([
+        rl.lireDevis({ adresse: ADRESSE_FICTIVE, jeton: 'autre-jeton', fetch: relaisFictif().fetch }),
+        rl.lireDevis({ adresse: ADRESSE_FICTIVE, jeton: JETON_FICTIF, fetch: relaisFictif({ reseau: true }).fetch }),
+        rl.lireDevis({ adresse: ADRESSE_FICTIVE, jeton: JETON_FICTIF, fetch: relaisFictif({ statut: 500 }).fetch }),
+      ]);
+      v.egal('jeton refusé, relais injoignable, réponse inattendue', refus.map((r) => [r.ok, r.type]), [[false, 'jeton'], [false, 'injoignable'], [false, 'reponse']]);
+      v.vrai('aucun texte de refus ne cite l\'adresse ni le jeton', refus.every((r) => r.texte && !r.texte.includes('exemple.test') && !r.texte.includes(JETON_FICTIF)));
+
+      // Clé des devis.
+      const cle = 'ab'.repeat(32);
+      v.egal('clé de 64 caractères hexadécimaux, en minuscules, espaces de bord retirés', rg.cleDevisValide(`  ${cle.toUpperCase()}\n`), { ok: true, cle });
+      const mauvaises = [cle.slice(1), `${cle.slice(1)}g`, '', `${cle} ${cle}`].map(rg.cleDevisValide);
+      v.vrai('clé trop courte, hors hexadécimal, vide ou double : refus en français sans la saisie', mauvaises.every((r) => !r.ok && r.erreur.length > 10 && !r.erreur.includes(cle.slice(1, 20))));
+      v.egal('réglages vides : clé des devis à saisir ; clé de la garde des devis', [rg.reglagesVides().cleDevis, rg.CLE_DEVIS], [null, 'planning-devis']);
+
+      // Garde.
+      const recu1 = Date.UTC(2026, 9, 27, 8, 0);
+      const g1 = dv.garderDevis(null, LECTURE_DEVIS, recu1);
+      v.egal('première lecture : lueLe, prestas par boîte, boîte B en erreur sans presta', [
+        g1.lueLe, g1.recu, Object.keys(g1.boites['boite-a'].prestas).sort(), g1.boites['boite-b'].erreur, Object.keys(g1.boites['boite-b'].prestas), g1.boites['boite-a'].erreur,
+      ], ['2026-10-27T07:00:00Z', recu1, ['000000101', '000000102'], 'connexion-refusee', [], null]);
+      const salon1 = g1.boites['boite-a'].prestas['000000101'];
+      v.egal('presta gardée telle que lue, sans marque à la première lecture', [salon1.nom, salon1.debut, salon1.fin, salon1.postes, salon1.sections, salon1.empreintes, salon1.change],
+        [DEVIS_SALON.nom, DEVIS_SALON.debut, DEVIS_SALON.fin, DEVIS_SALON.postes, DEVIS_SALON.sections, DEVIS_SALON.empreintes, null]);
+      v.egal('devis refusé au compte : poste seul', [g1.boites['boite-c'].prestas['000000301'].devisNonAutorise, g1.boites['boite-c'].prestas['000000301'].sections], [true, []]);
+      const recu2 = Date.UTC(2026, 9, 27, 18, 0);
+      const salonChange = { ...DEVIS_SALON, postes: [{ jour: '12/06', poste: 'ASSISTANT MUR LED' }], empreintes: { devis: 'autre-empreinte-devis', personnel: 'autre-empreinte-personnel' } };
+      const g2 = dv.garderDevis(g1, {
+        version: 1, lueLe: '2026-10-27T17:00:00Z',
+        boites: [{ id: 'boite-a', erreur: 'reseau', prestas: [] }, { id: 'boite-b', prestas: [salonChange] }, { id: 'boite-c', prestas: [] }],
+      }, recu2);
+      v.egal('boîte A en erreur : ses prestas et sa dernière lecture gardées', [Object.keys(g2.boites['boite-a'].prestas).sort(), g2.boites['boite-a'].erreur, g2.boites['boite-a'].lueLe],
+        [['000000101', '000000102'], 'reseau', '2026-10-27T07:00:00Z']);
+      v.egal('boîte C lue sans sa presta passée : presta gardée (Intermittent plus tard)', [Object.keys(g2.boites['boite-c'].prestas), g2.boites['boite-c'].erreur, g2.boites['boite-c'].lueLe], [['000000301'], null, '2026-10-27T17:00:00Z']);
+      v.egal('boîte B lue à nouveau : erreur effacée', [g2.boites['boite-b'].erreur, Object.keys(g2.boites['boite-b'].prestas)], [null, ['000000101']]);
+      const g3 = dv.garderDevis(g2, { version: 1, lueLe: '2026-10-28T07:00:00Z', boites: [{ id: 'boite-a', prestas: [salonChange, DEVIS_CONGRES] }] }, recu2 + 3600000);
+      const c3 = g3.boites['boite-a'].prestas['000000101'].change;
+      v.egal('poste et devis changés : marque avec l\'ancien poste', [c3?.le, c3?.postes, c3?.devis, c3?.anciensPostes], [recu2 + 3600000, true, true, DEVIS_SALON.postes]);
+      const g4 = dv.garderDevis(g3, { version: 1, lueLe: '2026-10-28T17:00:00Z', boites: [{ id: 'boite-a', prestas: [salonChange, DEVIS_CONGRES] }] }, recu2 + 7200000);
+      v.egal('lecture suivante sans changement : la marque reste', g4.boites['boite-a'].prestas['000000101'].change, c3);
+      v.egal('congrès inchangé : aucune marque', g4.boites['boite-a'].prestas['000000102'].change, null);
+
+      // Fraîcheur.
+      const reglages = { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: null, cleDevis: cle, boites: Object.entries(NOMS_FICTIFS).map(([id, nom]) => ({ id, nom, affichage: nom, lettre: nom.slice(-1), couleur: '#ff8a5c' })) };
+      const f1 = dv.fraicheurDevis(g1, reglages, Date.parse(g1.lueLe) + 36 * 3600000);
+      v.egal('fraîcheur : date de lecture, pas d\'alerte à 36 h', [f1.texte, f1.alerte], ['Devis lus le 27/10 à 8 h', null]);
+      v.vrai('au-delà de 36 h : alerte (Mac éteint ou envoi raté)', /36 h/.test(dv.fraicheurDevis(g1, reglages, Date.parse(g1.lueLe) + 36 * 3600000 + 60000).alerte ?? ''));
+      v.egal('erreur de chaque boîte, avec ce qui est gardé', [dv.fraicheurDevis(g1, reglages, recu1).erreurs, dv.fraicheurDevis(g2, reglages, recu2).erreurs], [
+        [{ boite: 'boite-b', texte: 'Boîte B : devis non lus (connexion refusée), aucun devis gardé' }],
+        [{ boite: 'boite-a', texte: 'Boîte A : devis non lus (Eventsoft injoignable), devis du 27/10 à 8 h gardés' }],
+      ]);
+      v.egal('aucune lecture : rien à dire', dv.fraicheurDevis(null, reglages, recu1), { texte: null, alerte: null, erreurs: [] });
+
+      // Cartes.
+      const etat = etatFictif();
+      const base = baseDevis(contexte);
+      const tout = (vue) => [...vue.aVenir, ...vue.passees];
+      const carteDe = (vue, boite, date) => tout(vue).find((c) => c.boite === boite && c.date === date && !c.retiree);
+      const sans = af.vueListe(etat, reglages, MAINTENANT_FICTIF);
+      const avec = af.vueListe(etat, reglages, MAINTENANT_FICTIF, { devis: { garde: g1, base } });
+      v.egal('sans devis : cartes et texte Intermittent inchangés', [carteDe(sans, 'boite-a', '2026-11-16')?.devis ?? null, carteDe(sans, 'boite-a', '2026-11-16')?.copie === carteDe(avec, 'boite-a', '2026-11-16')?.copie.split('\nPoste : ')[0]], [null, true]);
+      const congres = carteDe(avec, 'boite-a', '2026-11-16')?.devis;
+      v.egal('congrès : postes du jour, matériel du poste ouvert, reste replié', [
+        congres?.postes, congres?.vue.titre, congres?.vue.tonMateriel.map((s) => s.titre), congres?.vue.reste.length, congres?.vue.toutReplie, congres?.nonAutorise, congres?.aChoisir,
+      ], ['Assistant Mur Led, Road 4h et TECHNICIEN VIDEO SV', 'Ton matériel : mur LED, vidéo', ['ECRANS LATERAUX 2x L=2m H=1m', 'ECRAN CENTRAL L=4m H=2,5m', 'REGIE VIDEO'], 0, false, false, null]);
+      v.vrai('poste ajouté au texte pour Intermittent, en dernière ligne', carteDe(avec, 'boite-a', '2026-11-16')?.copie.includes('\nPoste : Assistant Mur Led, Road 4h et TECHNICIEN VIDEO SV'));
+      const salon = carteDe(avec, 'boite-a', '2026-06-12')?.devis;
+      v.egal('salon : un poste le 12/06 (casse différente comptée une fois), processeur de la régie dans le matériel mur LED, mélangeur dans le reste', [
+        salon?.postes, salon?.vue.tonMateriel.map((s) => [s.titre, s.lignes.map((l) => l.ref)]), salon?.vue.reste.find((s) => s.titre === 'REGIE VIDEO')?.lignes.map((l) => l.ref),
+      ], ['TECHNICIEN MUR LED', [['ECRAN LED FOND DE SCENE L=4m H=3m', ['URMIII04', 'BUMP-FICT']], ['REGIE VIDEO', ['MCTRL660']]], ['MEL-FICT']]);
+      v.egal('lignes prêtes à afficher : quantité lue sans « .0 »', salon?.vue.tonMateriel[0].lignes.map((l) => l.quantiteTexte), ['26', '4']);
+      const expo = carteDe(avec, 'boite-c', '2026-10-20')?.devis;
+      v.egal('devis refusé au compte : poste seul, sans section', [expo?.postes, expo?.nonAutorise, expo?.vue], ['ASSISTANT LUMIERE', true, null]);
+      v.egal('boîte en erreur sans devis gardé : rien sur ses cartes', tout(avec).filter((c) => c.boite === 'boite-b').map((c) => c.devis ?? null).filter(Boolean), []);
+      v.egal('journée sans devis rapproché : rien', carteDe(avec, 'boite-a', '2026-07-08')?.devis ?? null, null);
+      const gModif = dv.garderDevis(g1, { version: 1, lueLe: '2026-10-27T17:00:00Z', boites: [{ id: 'boite-a', prestas: [salonChange] }] }, recu2);
+      const modifiee = (g) => carteDe(af.vueListe(etat, reglages, MAINTENANT_FICTIF, { devis: { garde: g, base } }), 'boite-a', '2026-06-12')?.devis;
+      v.egal('poste changé : « Modifié » avec l\'ancien poste, jusqu\'à l\'ouverture de l\'onglet', [
+        modifiee(gModif)?.posteModifie, modifiee(gModif)?.ancienPoste, modifiee(gModif)?.devisModifie, modifiee(dv.devisVu(gModif, recu2 + 1))?.posteModifie, modifiee(dv.devisVu(gModif, recu2 + 1))?.devisModifie,
+      ], [true, 'TECHNICIEN MUR LED', true, false, false]);
+
+      // Deux candidates.
+      const deux = jr.appliquerLecture(undefined, lire(calendrier({ calname: 'EventSoft / Boîte A', evenements: [
+        { uid: 'k1@fictif', debut: '20261116T080000Z', fin: '20261116T170000Z', summary: 'Congrès fictif / Salle 1 / Installation', categories: 'Installation' },
+        { uid: 'k2@fictif', debut: '20261116T080000Z', fin: '20261116T170000Z', summary: 'Congrès fictif / Salle 2 / Installation', categories: 'Installation' },
+      ] }), 'Boîte A'), MAINTENANT_FICTIF, { nom: 'Boîte A' }).etat;
+      const etatDeux = { boites: { 'boite-a': deux } };
+      const cartesDeux = (g) => af.vueListe(etatDeux, reglages, MAINTENANT_FICTIF, { devis: { garde: g, base } }).aVenir;
+      v.egal('deux candidates : question sur chaque carte, aucun devis affiché', cartesDeux(g1).map((c) => [c.presta, c.devis?.aChoisir ?? null, c.devis?.vue ?? null]), [
+        ['Congrès fictif / Salle 1', { boite: 'boite-a', idEventsoft: '000000102', nomDevis: 'Congrès fictif' }, null],
+        ['Congrès fictif / Salle 2', { boite: 'boite-a', idEventsoft: '000000102', nomDevis: 'Congrès fictif' }, null],
+      ]);
+      const gChoix = dv.choisirPresta(g1, 'boite-a', '000000102', 'Congrès fictif / Salle 2');
+      v.egal('choix gardé : le devis sur la presta choisie seulement', cartesDeux(gChoix).map((c) => [c.presta, Boolean(c.devis?.vue), c.devis?.aChoisir ?? null]),
+        [['Congrès fictif / Salle 1', false, null], ['Congrès fictif / Salle 2', true, null]]);
+      v.egal('garde d\'origine non modifiée par le choix', g1.choix?.['boite-a|000000102'] ?? null, null);
+    },
+  },
+  {
+    id: 'PL31',
+    titre: 'Devis Eventsoft et sauvegarde (lot 25e1) : le poste suit l\'export du planning (liste blanche : nom, dates et postes de chaque presta), jamais les sections du devis, les empreintes ni la clé ; import : postes ajoutés aux prestas absentes, celles du téléphone et sa clé gardées ; ancien export sans postes lu ; clé de la garde des devis écrite seulement dans src/planning/reglages.js, absente de l\'export de la base, d\'une presta, de « Tout copier » et de « Repartir »',
+    etape: '25e1',
+    async verifier(v, contexte) {
+      const sv = await importerPlanning(v, '../src/planning/sauvegarde.js');
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!sv || !dv || typeof dv.garderDevis !== 'function') {
+        v.vrai('garderDevis exportée par src/planning/devis.js', false);
+        return;
+      }
+      const cle = 'cd'.repeat(32);
+      const reglages = { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: JETON_APPLE_FICTIF, cleDevis: cle, boites: [] };
+      const garde = dv.garderDevis(null, LECTURE_DEVIS, Date.UTC(2026, 9, 27, 8));
+      const etat = etatFictif();
+      const exporte = sv.exporterPlanning(reglages, etat, MAINTENANT_FICTIF, garde);
+      v.egal('postes exportés par boîte et presta : nom, dates, postes', exporte.postes?.['boite-a']?.['000000101'], { nom: DEVIS_SALON.nom, debut: DEVIS_SALON.debut, fin: DEVIS_SALON.fin, postes: DEVIS_SALON.postes });
+      v.egal('poste d\'un devis refusé au compte exporté aussi', exporte.postes?.['boite-c']?.['000000301']?.postes, DEVIS_EXPO.postes);
+      const texte = JSON.stringify(exporte);
+      v.egal('ni sections, ni désignations, ni empreintes, ni clé, ni adresse ni jetons dans l\'export', ['URMIII04', 'ECRAN CENTRAL', DESIGNATIONS_FICTIVES.urm48, 'empreinte-devis-fictive', cle, 'exemple.test', JETON_FICTIF].filter((x) => texte.includes(x)), []);
+      v.egal('export sans garde : postes vides', sv.exporterPlanning(reglages, etat, MAINTENANT_FICTIF).postes, {});
+      const relu = sv.lireExportPlanning(JSON.stringify({ ...exporte, postes: { ...exporte.postes, 'boite-x': { 1: { nom: 'X', debut: '2026-01-01', fin: '2026-01-01', postes: [{ poste: 'P'.repeat(200), sections: [1] }], sections: [{ titre: 'T' }] } }, 'MAUVAIS ID': {} } }));
+      v.egal('relu en liste blanche : champs inconnus retirés, poste coupé à 80, identifiant de boîte contrôlé', [relu.ok, relu.donnees.postes['boite-x']['1'], relu.donnees.postes['MAUVAIS ID']],
+        [true, { nom: 'X', debut: '2026-01-01', fin: '2026-01-01', postes: [{ poste: 'P'.repeat(80) }] }, undefined]);
+      const ancien = sv.lireExportPlanning(JSON.stringify({ ...exporte, postes: undefined }));
+      v.egal('ancien export sans postes : lu, postes vides', [ancien.ok, ancien.donnees?.postes], [true, {}]);
+      const local = dv.garderDevis(null, { version: 1, lueLe: '2026-10-29T07:00:00Z', boites: [{ id: 'boite-a', prestas: [{ ...DEVIS_SALON, postes: [{ poste: 'POSTE DU TELEPHONE' }] }] }] }, Date.UTC(2026, 9, 29, 8));
+      const imp = sv.importerPlanning({ ...reglages, cleDevis: 'ef'.repeat(32) }, null, sv.lireExportPlanning(texte).donnees, local);
+      v.egal('import : presta du téléphone gardée telle quelle, prestas absentes ajoutées avec leurs postes seuls, clé du téléphone gardée', [
+        imp.devis.boites['boite-a'].prestas['000000101'].postes, imp.devis.boites['boite-a'].prestas['000000101'].sections.length > 0,
+        imp.devis.boites['boite-a'].prestas['000000102'].postes, imp.devis.boites['boite-a'].prestas['000000102'].sections, imp.devis.boites['boite-c'].prestas['000000301'].postes,
+        imp.devis.lueLe, imp.reglages.cleDevis,
+      ], [[{ poste: 'POSTE DU TELEPHONE' }], true, DEVIS_CONGRES.postes, [], DEVIS_EXPO.postes, '2026-10-29T07:00:00Z', 'ef'.repeat(32)]);
+      const sansGarde = sv.importerPlanning(reglages, null, sv.lireExportPlanning(texte).donnees);
+      v.egal('import sans garde sur le téléphone : postes repris, aucune date de lecture (le prochain envoi est accepté)', [sansGarde.devis?.boites['boite-a'].prestas['000000102'].postes, sansGarde.devis?.lueLe], [DEVIS_CONGRES.postes, null]);
+
+      const f = contexte?.fichiers ?? {};
+      const js = Object.entries(f).filter(([chemin, t]) => chemin.endsWith('.js') && typeof t === 'string');
+      v.egal('clé « planning-devis » écrite en clair dans un seul module', js.filter(([, t]) => /planning-devis/.test(t)).map(([c]) => c), ['src/planning/reglages.js']);
+      v.egal('export de la base, d\'une presta, copie, réglages par défaut, écran Base : ni garde des devis ni clé',
+        ['src/fiches.js', 'src/prestas.js', 'src/prestas-appareil.js', 'src/copie.js', 'src/resumes.js', 'src/configuration.js', 'src/ecran-base.js', 'src/app.js'].filter((c) => typeof f[c] !== 'string' || /planning-devis|cleDevis|CLE_DEVIS/.test(f[c])), []);
+    },
+  },
+  {
+    id: 'PL32',
+    titre: 'Devis Eventsoft (lot 25e2) : titres sans « L= » (F12) : « [6 x Totems en T 4m ] » (6 murs, hauteur de 4 m à confirmer, largeur absente) et « Installation de 6 totem » (6 murs sans dimensions) ; murs sans forme proposés avec leur dalle, forme à choisir dans l\'onglet Mur ; noms sans crochets ni « Installation de » ; titres avec « L= » lus comme avant',
+    etape: '25e2',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const base = baseDevis(contexte);
+      const t = (largeurM, hauteurM, multiplicateur = 1, extra = {}) => ({ largeurM, hauteurM, multiplicateur, ...extra });
+      const confirmer = { hauteurAConfirmer: true };
+      v.egal('titres sans « L= »', ['[6 x Totems en T 4m ]', 'Installation de 6 totem', 'Installation de 6 totems LED', 'ECRAN LED 3m', '2 ECRANS 250cm', 'Installation de 6 jours'].map(dv.lireTitre),
+        [t(null, 4, 6, confirmer), t(null, null, 6), t(null, null, 6), t(null, 3, 1, confirmer), t(null, 2.5, 2, confirmer), t(null, null)]);
+      v.egal('titres avec « L= » ou « H= » : une dimension seule ignorée', ['ECRAN 3 m L=4m H=2m', 'ECRAN L=4m'].map(dv.lireTitre), [t(4, 2), t(4, null)]);
+      const dalle = 'unilumin-urmiii04-500x1000';
+      const section = (titre, quantite) => dv.classerDevis([{ titre, lignes: [{ ref: 'URMIII04', designation: DESIGNATIONS_FICTIVES.urm48, quantite, composant: false }] }], base)[0];
+      const noms = (nom) => [1, 2, 3, 4, 5, 6].map((i) => `${nom} ${i}`);
+      const totems = dv.configurationProposee(section('[6 x Totems en T 4m ]', '24.0'), base);
+      v.egal('totems : forme à choisir, six murs sans forme avec leur dalle, hauteur à confirmer', [
+        totems.murs, totems.formeAChoisir, totems.multiplicateur, totems.hauteurM, totems.mursSansForme?.map((m) => m.nom), totems.mursSansForme?.[0]?.formulaires, totems.alertes,
+      ], [[], true, 6, 4, noms('Totems en T'), { 'form-mur': { dalle, demi: false } }, ['Hauteur lue dans le titre : 4 m, à confirmer ; largeur absente : 24 dalles, forme à choisir.']]);
+      const install = dv.configurationProposee(section('Installation de 6 totem', '25.0'), base);
+      v.egal('« Installation de 6 totem » : « Totem 1 » à « Totem 6 », quantité non multiple signalée', [install.mursSansForme?.map((m) => m.nom), install.alertes],
+        [noms('Totem'), ['25 dalles ne se partagent pas en 6 murs égaux.', 'Titre sans dimensions : 25 dalles, forme à choisir.']]);
+      const sansDim = dv.configurationProposee(section('ECRANS LATERAUX', '8.0'), base);
+      v.egal('titre sans dimensions ni nombre : un mur sans forme', [sansDim.murs, sansDim.mursSansForme?.map((m) => m.nom), sansDim.alertes], [[], ['ECRANS LATERAUX'], ['Titre sans dimensions : 8 dalles, forme à choisir.']]);
+      v.egal('mur avec ses dimensions : aucun mur sans forme', dv.configurationProposee(section('ECRAN L=4m H=2m', '16.0'), base).mursSansForme, []);
+    },
+  },
+  {
+    id: 'PL33',
+    titre: 'Devis Eventsoft (lot 25e2) : « Préparer les murs » : presta créée avec les murs proposés à la place du « Mur 1 » vide (nom coupé à 60, lieu à 80, dates du devis, saisies de l\'onglet Mur, parc de la boîte), lien au devis, `lienDevis` (boîte, presta Eventsoft, empreinte) ; presta liée complétée sans doublon ; devis modifié depuis : écart signalé, murs non touchés, « C\'est vu » ; lien ni dupliqué ni exporté ; aucun mur : rien de créé',
+    etape: '25e2',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      const pr = await importerPlanning(v, '../src/prestas.js');
+      const fi = await importerPlanning(v, '../src/fiches.js');
+      if (!dv || !pr || !fi) return;
+      if (typeof pr.preparerMurs !== 'function') {
+        v.vrai('preparerMurs exportée par src/prestas.js', false);
+        return;
+      }
+      const base = baseDevis(contexte);
+      const opts = { maintenant: new Date(Date.UTC(2026, 9, 30, 9)) };
+      const depart = pr.migrer({}, opts);
+      const murs = dv.classerDevis(DEVIS_CONGRES.sections, base).map((s) => dv.configurationProposee(s, base)).filter(Boolean).flatMap((p) => [...p.murs, ...p.mursSansForme]);
+      const nomsProposes = murs.map((m) => m.nom);
+      const lien = { boite: 'boite-a', idEventsoft: DEVIS_CONGRES.idEventsoft, empreinte: DEVIS_CONGRES.empreintes.devis };
+      const e1 = pr.preparerMurs(depart, { nom: `${DEVIS_CONGRES.nom} ${'N'.repeat(80)}`, debut: DEVIS_CONGRES.debut, fin: DEVIS_CONGRES.fin, lieu: 'L'.repeat(100), murs, lien, parc: 'parc-test' }, opts);
+      const p1 = pr.prestaOuverte(e1);
+      v.egal('presta créée : nom à 60, lieu à 80, dates, murs du devis sans « Mur 1 », lien', [
+        e1.index.prestas.length, p1.nom.length, p1.nom.startsWith('Congrès fictif'), p1.lieu.length, p1.debut, p1.fin, p1.murs.map((m) => m.nom), p1.lienDevis,
+      ], [2, 60, true, 80, '2026-11-16', '2026-11-16', ['ECRANS LATERAUX 1', 'ECRANS LATERAUX 2', 'ECRAN CENTRAL'], { ...lien, murs: nomsProposes }]);
+      const m1 = e1.murs[p1.murs[0].id];
+      v.egal('premier mur ouvert, parc de la boîte, saisies de l\'onglet Mur', [e1.index.ouverte.mur, m1.parc, m1.configuration], [p1.murs[0].id, 'parc-test',
+        { version: 2, sourceModifiee: false, formulaires: { 'form-mur': { mode: 'taille', largeurM: '2', hauteurM: '1', dalle: 'unilumin-urmiii04-500x1000', demi: false } } }]);
+      v.egal('mur avec demi-dalles : « demi-dalles disponibles » coché', e1.murs[p1.murs[2].id].configuration.formulaires['form-mur'].demi, true);
+      v.egal('état du lien : presta, sans écart, rien à compléter', pr.etatLienDevis(e1, lien, nomsProposes), { prestaId: p1.id, nom: p1.nom, ecart: false, manquants: [], murOuvrir: p1.murs[0].id });
+      v.egal('aucune presta liée : null', pr.etatLienDevis(depart, lien, nomsProposes), null);
+      v.vrai('second appui : rien de changé, aucun doublon', pr.preparerMurs(e1, { nom: 'X', murs, lien }, opts) === e1);
+
+      const lien2 = { ...lien, empreinte: 'empreinte-devis-fictive-3' };
+      const murs2 = [...murs, { nom: 'ECRAN SCENE', demi: null, formulaires: { 'form-mur': { mode: 'taille', largeurM: '3', hauteurM: '2', dalle: 'unilumin-urmiii04-500x1000', demi: false } } }];
+      const e2 = pr.renommerMur(pr.ajouterMur(e1, p1.id, { nom: 'ECRAN SCENE' }, opts), p1.id, p1.murs[0].id, 'Latéral jardin', opts);
+      const etat2 = pr.etatLienDevis(e2, lien2, murs2.map((m) => m.nom));
+      v.egal('devis modifié depuis : écart, mur nouveau à compléter', [etat2.ecart, etat2.manquants], [true, ['ECRAN SCENE']]);
+      let refus = null;
+      try {
+        pr.preparerMurs(e2, { nom: 'X', murs: murs2, lien: lien2 }, opts);
+      } catch (erreur) {
+        refus = erreur.message;
+      }
+      v.egal('écart : murs non touchés, refus expliqué', refus, 'Devis modifié depuis la préparation des murs : vérifie tes murs, rien n\'a été changé.');
+      const e4 = pr.preparerMurs(pr.lienDevisVu(e2, p1.id, lien2.empreinte, opts), { nom: 'X', murs: murs2, lien: lien2 }, opts);
+      const p4 = pr.prestaOuverte(e4);
+      v.egal('« C\'est vu » puis compléter : seul le mur nouveau, sous un nom libre ; murs renommés gardés', [p4.id, p4.nom, p4.murs.map((m) => m.nom), p4.lienDevis.murs, e4.index.ouverte.mur === p4.murs.at(-1).id],
+        [p1.id, p1.nom, ['Latéral jardin', 'ECRANS LATERAUX 2', 'ECRAN CENTRAL', 'ECRAN SCENE', 'ECRAN SCENE 2'], [...nomsProposes, 'ECRAN SCENE'], true]);
+      v.egal('plus rien à compléter', pr.etatLienDevis(e4, lien2, murs2.map((m) => m.nom)).manquants, []);
+
+      v.egal('presta dupliquée : sans lien', 'lienDevis' in pr.prestaOuverte(pr.dupliquerPresta(e4, p1.id, opts)), false);
+      const exporte = JSON.stringify(pr.exporterPresta(e4, p1.id, fi.baseVide(), opts).donnees);
+      v.vrai('presta exportée : sans lien', !exporte.includes('"lienDevis"') && !exporte.includes(DEVIS_CONGRES.idEventsoft) && !exporte.includes(lien2.empreinte));
+      let vide = null;
+      try {
+        pr.preparerMurs(depart, { nom: 'X', murs: [], lien }, opts);
+      } catch (erreur) {
+        vide = erreur.message;
+      }
+      v.egal('aucun mur : rien de créé', vide, 'Aucun mur à préparer dans ce devis.');
+      const autre = pr.prestaOuverte(pr.preparerMurs(depart, { nom: '  ', debut: '2026-13-01', fin: '2026-06-01', murs: [murs[2], murs[2]], lien: { ...lien, idEventsoft: '9' } }, opts));
+      v.egal('nom vide, date illisible, deux murs du même nom : nom par défaut, sans dates, noms rendus uniques', [autre.nom, autre.debut, autre.fin, autre.murs.map((m) => m.nom)],
+        ['Presta du devis', null, null, ['ECRAN CENTRAL', 'ECRAN CENTRAL 2']]);
+    },
+  },
+  {
+    id: 'PL34',
+    titre: 'Devis Eventsoft (lot 25e2) : murs proposés pour toute la presta et processeurs comparés au niveau de la presta dans le parc de la boîte (ses processeurs, ses références de dalles) ; alertes des sections avec leur titre ; murs sans forme hors du conseil ; devis sans mur LED ni processeur : rien',
+    etape: '25e2',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      if (typeof dv.mursDuDevis !== 'function') {
+        v.vrai('mursDuDevis exportée par src/planning/devis.js', false);
+        return;
+      }
+      const base = baseDevis(contexte);
+      const parc = { id: 'parc-test', nom: 'Parc test', membres: [{ type: 'processeur', id: 'novastar-mctrl4k' }] };
+      const congres = dv.mursDuDevis(DEVIS_CONGRES, base, { parc });
+      v.egal('congrès : trois murs, résumé, processeurs du parc', [congres.murs.map((m) => m.nom), congres.resume, congres.processeurs?.texte, congres.processeurs?.alerte],
+        [['ECRANS LATERAUX 1', 'ECRANS LATERAUX 2', 'ECRAN CENTRAL'], ['ECRANS LATERAUX 1 : 2 × 1 m', 'ECRANS LATERAUX 2 : 2 × 1 m', 'ECRAN CENTRAL : 4 × 2,5 m'],
+          'Le devis prévoit 2 × MCTRL4K ; l\'appli conseille 3 × MCTRL4K.', true]);
+      const salon = dv.mursDuDevis(DEVIS_SALON, base, { parc: { ...parc, membres: [{ type: 'processeur', id: 'novastar-mctrl660' }] } });
+      v.egal('salon : d\'accord, alerte de la section reprise avec son titre', [salon.processeurs?.texte, salon.processeurs?.alerte, salon.alertes],
+        ['Le devis prévoit 1 × MCTRL660 ; l\'appli en conseille 1.', false, ['ECRAN LED FOND DE SCENE L=4m H=3m : Le devis prévoit 26 dalles ; 4 × 3 m en demande 24 (spares possibles).']]);
+      const tous = dv.mursDuDevis(DEVIS_CONGRES, base, {});
+      v.egal('sans parc (ou parc sans processeur) : toute la base', [tous.processeurs.devis, tous.processeurs.conseil.length > 0, dv.mursDuDevis(DEVIS_CONGRES, base, { parc: { ...parc, membres: [] } }).processeurs.texte === tous.processeurs.texte],
+        [[{ id: 'novastar-mctrl4k', modele: 'MCTRL4K', nombre: 2 }], true, true]);
+      const ligne = (ref, designation, quantite) => ({ ref, designation, quantite, composant: false });
+      const totems = dv.mursDuDevis({ ...DEVIS_CONGRES, sections: [{ titre: '[6 x Totems en T 4m ]', lignes: [ligne('URMIII04', DESIGNATIONS_FICTIVES.urm48, '24.0')] }] }, base, { parc });
+      v.egal('totems : six murs sans forme, hors du conseil', [totems.murs.length, totems.resume[0], totems.processeurs.sansConseil.length, totems.processeurs.texte],
+        [6, 'Totems en T 1 : forme à choisir', 6, 'Le devis ne prévoit aucun processeur ; l\'appli ne conseille rien tant qu\'une dalle ou une forme reste à choisir.']);
+      const amb = { ...DEVIS_CONGRES, sections: [{ titre: 'ECRAN L=4m H=2m', lignes: [ligne('UPADIV2.6', DESIGNATIONS_FICTIVES.upad26, '32.0')] }] };
+      const sansRef = dv.mursDuDevis(amb, base, { parc });
+      const avecRef = dv.mursDuDevis(amb, base, { parc: { ...parc, references: { 'UPADIV2.6': 'unilumin-upad-iv-c' } } });
+      v.egal('dalle à choisir, puis retenue par la référence du parc', [sansRef.resume, sansRef.alertes, avecRef.murs[0].formulaires['form-mur'].dalle, avecRef.alertes],
+        [['ECRAN : 4 × 2 m, dalle à choisir'], ['ECRAN L=4m H=2m : Dalle à choisir parmi 5 fiches : choisis-la dans « Ajouter au parc ».'], 'unilumin-upad-iv-c', []]);
+      v.egal('devis refusé au compte, devis sans mur LED ni processeur : rien', [dv.mursDuDevis(DEVIS_EXPO, base, { parc }), dv.mursDuDevis({ ...DEVIS_SALON, sections: DEVIS_SALON.sections.slice(2) }, base, {})], [null, null]);
+    },
+  },
+  {
+    id: 'PL35',
+    titre: 'Planning (lot 25e2) : parc de chaque boîte (réglages du planning, gardé à la lecture des boîtes, dans l\'export du planning, vidé si le parc est supprimé) ; « Ajouter au parc » : dalles, demi-dalles et processeurs du devis absents du parc, dalle à choisir retenue par sa référence, jamais « Nombre dans le parc » ; fiche retirée citée par une référence signalée et retirée',
+    etape: '25e2',
+    async verifier(v, contexte) {
+      const rg = await importerPlanning(v, '../src/planning/reglages.js');
+      const sv = await importerPlanning(v, '../src/planning/sauvegarde.js');
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      const fi = await importerPlanning(v, '../src/fiches.js');
+      if (!rg || !sv || !dv || !fi) return;
+      if (typeof rg.reglerParcBoite !== 'function' || typeof dv.ajoutsParc !== 'function' || typeof fi.ajouterAuParc !== 'function') {
+        v.vrai('reglerParcBoite, ajoutsParc et ajouterAuParc exportées', false);
+        return;
+      }
+      const boite = { id: 'boite-a', nom: 'Boîte A', affichage: 'A', couleur: '#ff8a5c', lettre: 'A' };
+      const r1 = rg.reglerParcBoite({ ...rg.reglagesVides(), boites: [boite] }, 'boite-a', 'parc-test');
+      v.egal('parc réglé pour la boîte, lu seulement s\'il existe', [r1.boites[0].parc, rg.parcBoite(r1, 'boite-a', ['parc-test']), rg.parcBoite(r1, 'boite-a', []), rg.parcBoite(r1, 'boite-z', ['parc-test'])],
+        ['parc-test', 'parc-test', null, null]);
+      v.egal('« Aucun » : réglage retiré', 'parc' in rg.reglerParcBoite(r1, 'boite-a', null).boites[0], false);
+      v.egal('lecture des boîtes sur le relais : parc gardé', rg.fusionnerBoites(r1.boites, [{ id: 'boite-a', nom: 'Boîte A' }])[0].parc, 'parc-test');
+      v.egal('parc supprimé : réglage vidé ; rien à vider : mêmes réglages', ['parc' in rg.nettoyerParcsBoites(r1, ['autre']).boites[0], rg.nettoyerParcsBoites(r1, ['parc-test']) === r1], [false, true]);
+      const exporte = sv.exporterPlanning(r1, etatFictif(), MAINTENANT_FICTIF);
+      const relu = sv.lireExportPlanning(JSON.stringify({ ...exporte, boites: [...exporte.boites, { ...boite, id: 'boite-x', parc: 'Parc illisible !' }] }));
+      v.egal('export du planning : parc de la boîte, identifiant contrôlé à la relecture', [exporte.boites[0].parc, relu.donnees.boites[0].parc, 'parc' in relu.donnees.boites[1]], ['parc-test', 'parc-test', false]);
+
+      const base = baseDevis(contexte);
+      const parcVide = { id: 'parc-test', nom: 'Parc test', membres: [] };
+      const a1 = dv.ajoutsParc(DEVIS_CONGRES, base, parcVide);
+      v.egal('congrès, parc vide : dalle, demi-dalle et processeur proposés', [a1.dalles.map((d) => d.id), a1.processeurs.map((p) => p.id), a1.aChoisir],
+        [['unilumin-urmiii04-500x1000', 'unilumin-urmiii04-500x500'], ['novastar-mctrl4k'], []]);
+      const plein = { ...parcVide, membres: [...a1.dalles.map((d) => ({ type: 'dalle', id: d.id })), { type: 'processeur', id: 'novastar-mctrl4k' }] };
+      v.egal('parc qui a tout : rien à ajouter', dv.ajoutsParc(DEVIS_CONGRES, base, plein), null);
+      const amb = { ...DEVIS_CONGRES, sections: [{ titre: 'ECRAN L=4m H=2m', lignes: [{ ref: 'UPADIV2.6', designation: DESIGNATIONS_FICTIVES.upad26, quantite: '32.0', composant: false }] }] };
+      const a2 = dv.ajoutsParc(amb, base, parcVide);
+      v.egal('dalle à choisir : ses 5 fiches', [a2.dalles, a2.aChoisir.map((c) => [c.ref, c.candidats.length])], [[], [['UPADIV2.6', 5]]]);
+      const a3 = dv.ajoutsParc(amb, base, { ...parcVide, references: { 'UPADIV2.6': 'unilumin-upad-iv-c' } });
+      v.egal('référence du parc : la fiche retenue proposée', [a3.dalles.map((d) => d.id), a3.aChoisir], [['unilumin-upad-iv-c'], []]);
+
+      const b1 = fi.ajouterAuParc({ parcs: [{ ...parcVide, quantites: { 'novastar-mctrl4k': 2 } }] }, 'parc-test',
+        { dalles: ['unilumin-urmiii04-500x1000'], processeurs: ['novastar-mctrl4k'], references: { 'UPADIV2.6': 'unilumin-upad-iv-c' } });
+      v.egal('ajouté : membres, référence retenue (sa fiche entre au parc), nombre dans le parc intact', [b1.parcs[0].membres, b1.parcs[0].references, b1.parcs[0].quantites], [
+        [{ type: 'dalle', id: 'unilumin-urmiii04-500x1000' }, { type: 'processeur', id: 'novastar-mctrl4k' }, { type: 'dalle', id: 'unilumin-upad-iv-c' }],
+        { 'UPADIV2.6': 'unilumin-upad-iv-c' }, { 'novastar-mctrl4k': 2 }]);
+      v.egal('second ajout : aucun doublon', fi.ajouterAuParc(b1, 'parc-test', { dalles: ['unilumin-urmiii04-500x1000'] }).parcs[0].membres.length, 3);
+      v.egal('jamais de nombre dans le parc', 'quantites' in fi.ajouterAuParc({ parcs: [parcVide] }, 'parc-test', { processeurs: ['novastar-mctrl4k'], quantites: { 'novastar-mctrl4k': 3 } }).parcs[0], false);
+
+      const depart = { dalles: contexte.dalles, processeurs: contexte.processeurs, regies: contexte.regies };
+      let ancienne = fi.creerParc(fi.baseVide(), 'Parc test');
+      ancienne = { ...ancienne, parcs: [{ ...ancienne.parcs[0], references: { 'OLD-REF': 'dalle-disparue', 'URMIII04': 'unilumin-urmiii04-500x1000' } }] };
+      const pid = ancienne.parcs[0].id;
+      v.egal('fiche retirée citée par une référence : signalée', fi.fichesRetirees(ancienne, depart), [{ parcId: pid, parcNom: 'Parc test', type: 'dalle', id: 'dalle-disparue', reglage: false, lots: 0 }]);
+      v.egal('retirée du parc : sa référence aussi', fi.retirerFicheRetiree(ancienne, pid, 'dalle', 'dalle-disparue').parcs[0].references, { 'URMIII04': 'unilumin-urmiii04-500x1000' });
     },
   },
 ];
