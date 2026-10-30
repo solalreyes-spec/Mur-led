@@ -133,11 +133,13 @@ function domaineDesLignes(lignes) {
 export function classerDevis(sections, { dalles = [], processeurs = [], references = {} } = {}) {
   return (sections ?? []).map((s) => {
     const lignes = (s.lignes ?? []).map((l) => {
-      const dalle = reconnaitreDalle(l, dalles, { references });
+      // Composant « * » (châssis, tile d'une dalle, devis réel du lot 25e3) : jamais une dalle ni un processeur.
+      const composant = Boolean(l.composant);
+      const dalle = composant ? { statut: 'aucune' } : reconnaitreDalle(l, dalles, { references });
       return {
-        ref: l.ref ?? '', designation: l.designation ?? '', composant: Boolean(l.composant), quantite: lireQuantite(l.quantite),
+        ref: l.ref ?? '', designation: l.designation ?? '', composant, quantite: lireQuantite(l.quantite),
         dalle: dalle.statut === 'aucune' ? null : dalle,
-        processeur: dalle.statut === 'aucune' ? reconnaitreProcesseur(l, processeurs) : null,
+        processeur: dalle.statut === 'aucune' && !composant ? reconnaitreProcesseur(l, processeurs) : null,
       };
     });
     const domaine = domaineTexte(s.titre) ?? domaineDesLignes(lignes) ?? 'AUTRE';
@@ -282,6 +284,7 @@ function nomsMurs(titre, n) {
     .replace(/(^|\s)\d+(?:[.,]\d+)?\s*(?:cm|m)(?=\s|$)/gi, ' ')
     .replace(/(^|\s)\d+\s?x(?=\s|$)/gi, ' ')
     .replace(/(^|\s)x\s?\d+(?=\s|$)/gi, ' ')
+    .replace(/(^|\s)x(?=\s|$)/gi, ' ')
     .replace(/^\s*installation\s+d(?:e|es|u)\s+/i, ' ')
     .replace(/(^|\s)\d+\s+(?=(?:totems?|[ée]crans?|murs?)\b)/i, ' ')
     .replace(/\s+/g, ' ')
@@ -410,23 +413,42 @@ export function mursDuDevis(presta, base, { parc = null, quantites = null, bitsP
   const murs = [];
   const resume = [];
   const alertes = [];
+  const aChoisir = [];
+  // Processeur du devis repris dans Data (lot 25e3) : celui de la section du mur (un seul modèle), sinon le seul modèle
+  // du devis ; aucun ou plusieurs : le conseil de l'appli.
+  const modeles = (lignes) => [...new Set(lignes.filter((l) => l.processeur).map((l) => l.processeur))];
+  const duDevis = modeles(classe.flatMap((s) => s.lignes));
+  const formData = (id) => {
+    const fiche = id ? tous.find((p) => p.id === id) : null;
+    return fiche ? { 'form-data': { famille: fiche.famille, processeur: fiche.id } } : {};
+  };
   for (const s of classe) {
     const c = configurationProposee(s, { dalles });
     if (!c) continue;
+    const section = modeles(s.lignes);
+    const processeur = section.length === 1 ? section[0] : (section.length === 0 && duDevis.length === 1 ? duDevis[0] : null);
     const forme = c.formeAChoisir ? 'forme à choisir' : `${virgule(c.largeurM)} × ${virgule(c.hauteurM)} m${c.dalle ? '' : ', dalle à choisir'}`;
     for (const m of [...c.murs, ...c.mursSansForme]) {
-      murs.push(m);
+      murs.push({ ...m, formulaires: { ...m.formulaires, ...formData(processeur) } });
       resume.push(`${m.nom} : ${forme}`);
     }
     const titre = s.titre || 'Sans titre';
-    if (!c.dalle && c.choixDalle.length) alertes.push(`${titre} : Dalle à choisir parmi ${c.choixDalle.length} fiches : choisis-la dans « Ajouter au parc ».`);
+    if (!c.dalle && c.choixDalle.length) {
+      alertes.push(`${titre} : Dalle à choisir parmi ${c.choixDalle.length} fiches : choisis-la ci-dessous.`);
+      const l = s.lignes.find((x) => x.dalle?.statut === 'choix' && !x.dalle.demi);
+      if (l?.ref && !aChoisir.some((a) => a.ref === l.ref)) {
+        aChoisir.push({ ref: l.ref, designation: l.designation, candidats: c.choixDalle.map((id) => ({ id, nom: nomFiche(dalles.find((f) => f.id === id) ?? { id }) })) });
+      }
+    }
     alertes.push(...c.alertes.map((a) => `${titre} : ${a}`));
   }
   const avecProcesseur = classe.some((s) => s.lignes.some((l) => l.processeur));
   if (!murs.length && !avecProcesseur) return null;
   const duParc = membresDe(parc, 'processeur');
   const processeurs = duParc.size ? tous.filter((p) => duParc.has(p.id)) : tous;
-  return { murs, resume, alertes, processeurs: processeursPresta(classe, murs, { dalles, processeurs, reglages: { frequenceHz: 60, bits: 8 }, quantites, bitsParFamille }) };
+  // Prêts : chaque mur a sa dalle (une dalle à choisir se choisit d'abord sur la carte, retenue par le parc).
+  const pret = murs.length > 0 && murs.every((m) => m.formulaires['form-mur'].dalle);
+  return { murs, resume, alertes, aChoisir, pret, processeurs: processeursPresta(classe, murs, { dalles, processeurs, reglages: { frequenceHz: 60, bits: 8 }, quantites, bitsParFamille }) };
 }
 
 // « Ajouter au parc » : dalles (demi-dalles comprises) et processeurs reconnus dans le devis qui manquent au parc de la

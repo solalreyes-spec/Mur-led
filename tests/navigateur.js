@@ -13,7 +13,10 @@ import * as couleurs from '../src/couleurs.js';
 import * as dessinSchema from '../src/dessin-schema.js';
 import { el } from '../src/dom.js';
 import * as exportImage from '../src/export.js';
-import { MAINTENANT_FICTIF, ADRESSE_FICTIVE, JETON_FICTIF, JETON_APPLE_FICTIF, relaisFictif, EVENEMENTS_A, calendrier, LECTURE_DEVIS, scellerDevis } from './planning-fictif.js';
+import {
+  MAINTENANT_FICTIF, ADRESSE_FICTIVE, JETON_FICTIF, JETON_APPLE_FICTIF, relaisFictif, EVENEMENTS_A, calendrier, LECTURE_DEVIS, scellerDevis,
+  DEVIS_SALON, DEVIS_CONGRES, DESIGNATIONS_FICTIVES,
+} from './planning-fictif.js';
 
 const DALLE_192 = { id: 'fictive-192', nom: 'Dalle 500 mm, 192 px', fictive: true, largeurMm: 500, hauteurMm: 500, pxH: 192, pxV: 192 };
 
@@ -6469,6 +6472,83 @@ export const NAVIGATEUR = [
         parcs = [];
         await ecran.ouvrir();
         v.egal('parc supprimé : réglage de la boîte vidé', 'parc' in (memoire.get('planning-reglages').boites.find((b) => b.id === 'boite-a') ?? {}), false);
+      } finally {
+        racine.remove();
+      }
+    },
+  },
+  {
+    id: 'N131',
+    titre: 'Écran Planning et devis réel (étape 25, lot 25e3) : dalle à choisir parmi plusieurs fiches choisie sur la carte, sous « Murs du devis », retenue par le parc de la boîte (sans parc : la carte le demande) ; « Préparer les murs » seulement quand chaque dalle est choisie, avec le processeur du devis pour Data ; « Ajouter au parc » sans sélecteur de dalle',
+    etape: '25e3',
+    async verifier(v, contexte) {
+      const module = await importerSiPresent('../src/ecran-planning.js');
+      v.vrai('src/ecran-planning.js chargé', Boolean(module?.monterPlanning));
+      if (!module?.monterPlanning) return;
+      const vec = await (await fetch(new URL('./vecteur-chiffrement.json', import.meta.url), { cache: 'no-store' })).json();
+      const memoire = new Map([['planning-reglages', { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: null, cleDevis: vec.cle, boites: [] }]]);
+      const stockage = { lire: async (cle) => structuredClone(memoire.get(cle) ?? null), ecrire: async (cle, val) => { memoire.set(cle, structuredClone(val)); return true; } };
+      const ligne = (ref, designation, quantite, composant = false) => ({ ref, designation, quantite, composant });
+      const reel = { ...DEVIS_CONGRES, sections: [
+        { titre: 'Mur de led central L=4m x Ht=4m', lignes: [ligne('UPADIV2.6', DESIGNATIONS_FICTIVES.upad26, '64.0'), ligne('*UPADIV2.6FRAME', 'Châssis UNILUMIN 500 x 500mm', '64.0', true), ligne('MCTRL4K', 'Processeur mur led MCTRL4K', '1.0')] },
+        { titre: '4x Totem Led L=2m x Ht=4m', lignes: [ligne('UPADIV2.6', DESIGNATIONS_FICTIVES.upad26, '128.0'), ligne('MCTRL4K', 'Processeur mur led MCTRL4K', '2.0')] },
+      ] };
+      const enveloppe = await scellerDevis({ ...LECTURE_DEVIS, boites: [{ id: 'boite-a', prestas: [DEVIS_SALON, reel] }] }, vec);
+      const relais = relaisFictif({ devis: () => enveloppe });
+      const d = contexte.dalles;
+      const p = contexte.processeurs;
+      let parcs = [{ id: 'parc-test', nom: 'Parc test', membres: [] }];
+      const base = () => ({
+        dalles: d.dalles.map((f) => calculs.resoudreFiche(f, d.sources)), processeurs: p.processeurs.map((f) => calculs.resoudreFiche(f, p.sources)), parcs,
+        contexteParc: () => ({ quantites: {}, bitsParFamille: {} }),
+      });
+      const appels = [];
+      const actions = {
+        lien: () => null,
+        preparer: async (demande) => appels.push(['preparer', demande]),
+        ouvrir: async () => {},
+        vu: async () => {},
+        ajouterAuParc: async (parcId, ajout) => {
+          appels.push(['parc', parcId, ajout]);
+          parcs = parcs.map((x) => (x.id === parcId ? {
+            ...x, membres: [...x.membres, ...ajout.dalles.map((id) => ({ type: 'dalle', id })), ...ajout.processeurs.map((id) => ({ type: 'processeur', id })), ...Object.values(ajout.references).map((id) => ({ type: 'dalle', id }))],
+            references: { ...(x.references ?? {}), ...ajout.references },
+          } : x));
+        },
+      };
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const carte = () => [...racine.querySelectorAll('.pl-carte')].find((c) => c.dataset.cle?.startsWith('boite-a|') && c.dataset.cle.endsWith('|2026-11-16'));
+      try {
+        const ecran = module.monterPlanning(racine, {
+          stockage, fetch: (url, o) => relais.fetch(url, o), maintenant: () => MAINTENANT_FICTIF, enLigne: () => true, surNouvelles: () => {}, base, actions,
+        });
+        await ecran.pret;
+        await ecran.calme();
+        let c = carte();
+        v.egal('boîte sans parc : la carte demande le parc, rien à préparer', [texteDe(c?.querySelector('.pl-dalle-sans-parc')), c?.querySelector('.pl-preparer-murs'), c?.querySelector('.pl-choix-dalle')],
+          ['Dalle à choisir : choisis d\'abord le parc de la boîte dans les réglages du planning, le choix y sera retenu.', null, null]);
+        const choixParc = racine.querySelector('#pl-parc-boite-a');
+        choixParc.value = 'parc-test';
+        choixParc.dispatchEvent(new Event('change'));
+        await ecran.calme();
+        c = carte();
+        const choix = c?.querySelector('select.pl-choix-dalle');
+        v.egal('parc réglé : un sélecteur par référence sous « Murs du devis », « Préparer les murs » absent, pas de sélecteur dans « Ajouter au parc »', [
+          racine.querySelectorAll('select.pl-choix-dalle').length, choix?.options.length, texteDe(choix?.closest('.champ')?.querySelector('label')).startsWith('UPADIV2.6'), c?.querySelector('.pl-preparer-murs'), c?.querySelector('.pl-ajout-parc select'),
+        ], [1, 6, true, null, null]);
+        if (!choix) return;
+        choix.value = 'unilumin-upad-iv-2-6';
+        choix.dispatchEvent(new Event('change'));
+        await ecran.calme();
+        v.egal('choix retenu par le parc de la boîte, sans rien d\'autre', appels[0], ['parc', 'parc-test', { dalles: [], processeurs: [], references: { 'UPADIV2.6': 'unilumin-upad-iv-2-6' } }]);
+        c = carte();
+        v.egal('dalle choisie : plus de sélecteur, « Préparer les murs » présent', [c?.querySelector('select.pl-choix-dalle'), Boolean(c?.querySelector('.pl-preparer-murs'))], [null, true]);
+        c?.querySelector('.pl-preparer-murs')?.click();
+        await ecran.calme();
+        const demande = appels.find((a) => a[0] === 'preparer')?.[1];
+        v.egal('murs préparés : noms, dalle choisie, processeur du devis pour Data', [demande?.murs.map((m) => m.nom), demande?.murs[0].formulaires['form-mur'].dalle, demande?.murs.map((m) => m.formulaires['form-data']?.processeur)],
+          [['Mur de led central', 'Totem Led 1', 'Totem Led 2', 'Totem Led 3', 'Totem Led 4'], 'unilumin-upad-iv-2-6', Array(5).fill('novastar-mctrl4k')]);
       } finally {
         racine.remove();
       }

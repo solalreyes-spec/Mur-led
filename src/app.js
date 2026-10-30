@@ -182,13 +182,14 @@ const ecranPlanning = monterPlanning(document.getElementById('ecran-planning'), 
   // parc » change ma base (jamais le nombre dans le parc).
   actions: {
     lien: (lien, noms) => prestas.etatLienDevis(etatPrestas, lien, noms),
+    // Presta préparée ou ouverte : onglet Mur, puis l'écran Prestas avec tous ses murs (lot 25e3).
     preparer: async (demande) => {
       await operationPrestas((e) => prestas.preparerMurs(e, { ...demande, parc: demande.parc ?? parcActif }));
-      location.hash = 'mur';
+      ouvrirPrestasSurMur();
     },
     ouvrir: async (prestaId, murId) => {
       await operationPrestas((e) => prestas.ouvrir(e, prestaId, murId));
-      location.hash = 'mur';
+      ouvrirPrestasSurMur();
     },
     vu: (prestaId, empreinte) => operationPrestas((e) => prestas.lienDevisVu(e, prestaId, empreinte)),
     ajouterAuParc: (parcId, ajout) => enregistrerBase(ajouterAuParc(base, parcId, ajout)),
@@ -923,6 +924,16 @@ async function operationPrestas(calcul) {
   if (etatPrestas.index.ouverte.mur !== avant.index.ouverte.mur) await ouvrirMurCourant();
   actualiserBoutonPresta();
   ecranPrestas?.afficher(etatPrestas, { persistant });
+}
+// Écran Prestas sur l'onglet Mur (murs préparés depuis un devis, lot 25e3) : un changement d'onglet ferme l'écran
+// Prestas, il s'ouvre donc après.
+function ouvrirPrestasSurMur() {
+  if (location.hash === '#mur') {
+    ouvrirPrestas();
+    return;
+  }
+  window.addEventListener('hashchange', () => ouvrirPrestas(), { once: true });
+  location.hash = 'mur';
 }
 function fermerPrestas() {
   if (panneauPrestas.hidden) return false;

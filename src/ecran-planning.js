@@ -439,7 +439,9 @@ export function monterPlanning(racine, {
     const parc = parcId ? b.parcs.find((x) => x.id === parcId) : null;
     const contexte = parcId ? b.contexteParc?.(parcId) ?? {} : {};
     const m = mursDuDevis(presta, b, { parc, quantites: contexte.quantites ?? null, bitsParFamille: contexte.bitsParFamille ?? {} });
-    const ajout = parc ? ajoutsParc(presta, b, parc) : null;
+    const ajoutBrut = parc ? ajoutsParc(presta, b, parc) : null;
+    // Dalle à choisir (lot 25e3) : sous « Murs du devis », plus dans « Ajouter au parc ».
+    const ajout = ajoutBrut && (ajoutBrut.dalles.length || ajoutBrut.processeurs.length) ? ajoutBrut : null;
     if (!m && !ajout) return null;
     const lien = { boite: d.boite, idEventsoft: d.idEventsoft, empreinte: presta.empreintes?.devis ?? null };
     const noms = m?.murs.map((x) => x.nom) ?? [];
@@ -460,17 +462,20 @@ export function monterPlanning(racine, {
     const preparer = () => actions.preparer({ nom: presta.nom, debut: presta.debut, fin: presta.fin, lieu: c.lieu ?? '', murs: m.murs, lien, parc: parcId });
     const boutons = [];
     if (actions && noms.length) {
-      if (!lie) boutons.push(agir('pl-preparer-murs', 'Préparer les murs', preparer, true));
+      if (!lie) {
+        if (m.pret) boutons.push(agir('pl-preparer-murs', 'Préparer les murs', preparer, true));
+      }
       else {
         boutons.push(agir('pl-ouvrir-presta', 'Ouvrir la presta', () => actions.ouvrir(lie.prestaId, lie.murOuvrir), !lie.ecart && !lie.manquants.length));
         if (lie.ecart) boutons.push(agir('pl-lien-vu', 'C\'est vu', () => actions.vu(lie.prestaId, lien.empreinte)));
-        else if (lie.manquants.length) boutons.push(agir('pl-completer-murs', `Compléter les murs (${lie.manquants.length})`, preparer, true));
+        else if (lie.manquants.length && m.pret) boutons.push(agir('pl-completer-murs', `Compléter les murs (${lie.manquants.length})`, preparer, true));
       }
     }
     return el('div', { class: 'pl-devis-murs' },
       m?.murs.length ? el('p', { class: 'pl-murs-titre' }, m.murs.length > 1 ? `Murs du devis (${m.murs.length})` : 'Mur du devis') : null,
       m?.murs.length ? el('ul', { class: 'pl-murs-liste' }, ...m.resume.map((t) => el('li', {}, t))) : null,
       ...(m?.alertes ?? []).map((t) => el('p', { class: 'pl-devis-alerte' }, t)),
+      ...choixDalles(c, parc, m?.aChoisir ?? []),
       m?.processeurs ? el('p', { class: `pl-devis-processeurs${m.processeurs.alerte ? ' pl-devis-processeurs-ecart' : ''}` }, m.processeurs.texte) : null,
       ajout && actions?.ajouterAuParc ? blocAjoutParc(c, parc, ajout) : null,
       lie ? el('p', { class: 'pl-aide pl-presta-liee' }, `Presta de l'appli : ${lie.nom}`) : null,
@@ -479,28 +484,37 @@ export function monterPlanning(racine, {
       boutons.length ? el('div', { class: 'actions' }, ...boutons) : null);
   }
 
-  // « Ajouter au parc » replié : fiches du devis absentes du parc de la boîte, dalle à choisir parmi plusieurs fiches ;
-  // jamais de « Nombre dans le parc ».
-  function blocAjoutParc(c, parc, ajout) {
-    const choix = ajout.aChoisir.map((a, i) => {
-      const id = `pl-ref-${c.cle.replace(/[^a-z0-9-]/gi, '-')}-${i}`;
-      const select = el('select', { id }, el('option', { value: '' }, 'Choisis la fiche'), ...a.candidats.map((x) => el('option', { value: x.id }, x.nom)));
-      return { ref: a.ref, select, bloc: el('div', { class: 'champ' }, el('label', { for: id }, `${a.ref} : ${a.designation}`), select) };
+  // Dalle du devis à choisir parmi plusieurs fiches (lot 25e3) : un sélecteur par référence, le choix est retenu par le
+  // parc de la boîte (`parc.references`) et sert aux devis suivants ; sans parc, la carte le demande.
+  function choixDalles(c, parc, aChoisir) {
+    if (!aChoisir.length || !actions?.ajouterAuParc) return [];
+    if (!parc) return [el('p', { class: 'pl-aide pl-dalle-sans-parc' }, 'Dalle à choisir : choisis d\'abord le parc de la boîte dans les réglages du planning, le choix y sera retenu.')];
+    return aChoisir.map((a, i) => {
+      const id = `pl-dalle-${c.cle.replace(/[^a-z0-9-]/gi, '-')}-${i}`;
+      const select = el('select', { id, class: 'pl-choix-dalle' }, el('option', { value: '' }, 'Choisis la fiche'), ...a.candidats.map((x) => el('option', { value: x.id }, x.nom)));
+      select.addEventListener('change', () => {
+        if (!select.value) return;
+        enFile(async () => {
+          await actions.ajouterAuParc(parc.id, { dalles: [], processeurs: [], references: { [a.ref]: select.value } });
+          afficher();
+        });
+      });
+      return el('div', { class: 'champ pl-champ-dalle' }, el('label', { for: id }, `${a.ref} : ${a.designation}`), select);
     });
-    const nombre = ajout.dalles.length + ajout.processeurs.length + ajout.aChoisir.length;
+  }
+
+  // « Ajouter au parc » replié : fiches du devis absentes du parc de la boîte ; jamais de « Nombre dans le parc ».
+  function blocAjoutParc(c, parc, ajout) {
+    const nombre = ajout.dalles.length + ajout.processeurs.length;
     const bouton = el('button', { class: 'bouton pl-ajouter-parc', type: 'button' }, 'Ajouter au parc');
     bouton.addEventListener('click', () => enFile(async () => {
-      const references = Object.fromEntries(choix.filter((x) => x.select.value).map((x) => [x.ref, x.select.value]));
-      await actions.ajouterAuParc(parc.id, { dalles: ajout.dalles.map((x) => x.id), processeurs: ajout.processeurs.map((x) => x.id), references });
+      await actions.ajouterAuParc(parc.id, { dalles: ajout.dalles.map((x) => x.id), processeurs: ajout.processeurs.map((x) => x.id), references: {} });
       afficher();
     }));
     const ligne = (type, x) => el('li', {}, `${type} : ${x.nom}`);
     return el('details', { class: 'pl-ajout-parc' },
       el('summary', {}, `Ajouter au parc ${parc.nom} (${nombre})`),
-      ajout.dalles.length || ajout.processeurs.length
-        ? el('ul', {}, ...ajout.dalles.map((x) => ligne('Dalle', x)), ...ajout.processeurs.map((x) => ligne('Processeur', x)))
-        : null,
-      ...choix.map((x) => x.bloc),
+      el('ul', {}, ...ajout.dalles.map((x) => ligne('Dalle', x)), ...ajout.processeurs.map((x) => ligne('Processeur', x))),
       el('p', { class: 'pl-aide' }, 'Le nombre dans le parc ne change pas : saisis-le dans l\'onglet Base.'),
       el('div', { class: 'actions' }, bouton));
   }

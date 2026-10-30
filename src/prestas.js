@@ -504,6 +504,8 @@ export function etatLienDevis(etat, lien, nomsProposes = []) {
 // des seuls murs pas encore préparés. Devis modifié depuis : refus, murs non touchés. Rien à compléter : même état.
 export function preparerMurs(etat, { nom, debut = null, fin = null, lieu = '', murs = [], lien, parc = null }, opts) {
   if (!murs.length) throw new ErreurSaisie('Aucun mur à préparer dans ce devis.');
+  // Jamais de mur sans dalle (lot 25e3) : l'onglet Mur garderait sa dalle par défaut sans le dire.
+  if (murs.some((m) => !m.formulaires?.['form-mur']?.dalle)) throw new ErreurSaisie('Choisis la dalle de chaque mur avant de préparer les murs.');
   const o = options(opts);
   const pris = idsPris(etat);
   const liee = prestaDuDevis(etat, lien);

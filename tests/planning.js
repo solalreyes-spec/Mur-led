@@ -1547,7 +1547,7 @@ export const PLANNING = [
       const sansRef = dv.mursDuDevis(amb, base, { parc });
       const avecRef = dv.mursDuDevis(amb, base, { parc: { ...parc, references: { 'UPADIV2.6': 'unilumin-upad-iv-c' } } });
       v.egal('dalle à choisir, puis retenue par la référence du parc', [sansRef.resume, sansRef.alertes, avecRef.murs[0].formulaires['form-mur'].dalle, avecRef.alertes],
-        [['ECRAN : 4 × 2 m, dalle à choisir'], ['ECRAN L=4m H=2m : Dalle à choisir parmi 5 fiches : choisis-la dans « Ajouter au parc ».'], 'unilumin-upad-iv-c', []]);
+        [['ECRAN : 4 × 2 m, dalle à choisir'], ['ECRAN L=4m H=2m : Dalle à choisir parmi 5 fiches : choisis-la ci-dessous.'], 'unilumin-upad-iv-c', []]);
       v.egal('devis refusé au compte, devis sans mur LED ni processeur : rien', [dv.mursDuDevis(DEVIS_EXPO, base, { parc }), dv.mursDuDevis({ ...DEVIS_SALON, sections: DEVIS_SALON.sections.slice(2) }, base, {})], [null, null]);
     },
   },
@@ -1603,6 +1603,48 @@ export const PLANNING = [
       const pid = ancienne.parcs[0].id;
       v.egal('fiche retirée citée par une référence : signalée', fi.fichesRetirees(ancienne, depart), [{ parcId: pid, parcNom: 'Parc test', type: 'dalle', id: 'dalle-disparue', reglage: false, lots: 0 }]);
       v.egal('retirée du parc : sa référence aussi', fi.retirerFicheRetiree(ancienne, pid, 'dalle', 'dalle-disparue').parcs[0].references, { 'URMIII04': 'unilumin-urmiii04-500x1000' });
+    },
+  },
+  {
+    id: 'PL36',
+    titre: 'Devis Eventsoft (lot 25e3, devis réel) : lignes « * » (châssis, tiles) jamais lues comme des dalles ni des processeurs ; noms des murs sans « x » entre les dimensions ; processeur du devis repris dans Data pour chaque mur (celui de sa section, sinon le seul modèle du devis) ; dalle à choisir listée une fois par référence, murs prêts seulement quand chaque dalle est choisie ; « Préparer les murs » refuse un mur sans dalle',
+    etape: '25e3',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      const pr = await importerPlanning(v, '../src/prestas.js');
+      if (!dv || !pr) return;
+      const base = baseDevis(contexte);
+      const ligne = (ref, designation, quantite, composant = false) => ({ ref, designation, quantite, composant });
+      const chassis = ligne('*UPADIV2.6FRAME', 'Châssis UNILUMIN 500 x 500mm', '64.0', true);
+      const tile = ligne('*UPADIV2.6TILE', 'Tile UNILUMIN UPADVI2.6 96 x 96 pixels', '64.0', true);
+      const mctrl = (n) => ligne('MCTRL4K', 'Processeur mur led Input DVI-D & HDMI 4K 16 sorties Ethernet / 4 opt ports MCTRL4K', n);
+      const dalle = (n) => ligne('UPADIV2.6', DESIGNATIONS_FICTIVES.upad26, n);
+      const reel = { ...DEVIS_CONGRES, sections: [
+        { titre: 'Mur de led central L=4m x Ht=4m', lignes: [dalle('64.0'), chassis, mctrl('1.0')] },
+        { titre: '4x Totem Led L=2m x Ht=4m', lignes: [dalle('128.0'), chassis, mctrl('2.0')] },
+        { titre: 'Contre-marche L=8m x Ht=0.5m', lignes: [dalle('16.0'), chassis, tile] },
+      ] };
+      const classe = dv.classerDevis(reel.sections, base);
+      v.egal('châssis et tiles « * » : ni dalle ni processeur', classe[2].lignes.slice(1).map((l) => [l.dalle, l.processeur]), [[null, null], [null, null]]);
+      const parc = { id: 'parc-test', nom: 'Parc test', membres: [], references: { 'UPADIV2.6': 'unilumin-upad-iv-2-6' } };
+      const m = dv.mursDuDevis(reel, base, { parc });
+      v.egal('noms sans « x », aucune fausse alerte « Plusieurs dalles »', [m.murs.map((x) => x.nom), m.alertes.filter((a) => /Plusieurs dalles/.test(a))],
+        [['Mur de led central', 'Totem Led 1', 'Totem Led 2', 'Totem Led 3', 'Totem Led 4', 'Contre-marche'], []]);
+      v.egal('processeur du devis dans Data : celui de la section, sinon le seul modèle du devis', m.murs.map((x) => x.formulaires['form-data']),
+        Array(6).fill({ famille: 'novastar', processeur: 'novastar-mctrl4k' }));
+      v.egal('dalle retenue par le parc : murs prêts', [m.pret, m.aChoisir, m.murs[0].formulaires['form-mur'].dalle], [true, [], 'unilumin-upad-iv-2-6']);
+      const deux = dv.mursDuDevis({ ...reel, sections: [...reel.sections, { titre: 'REGIE VIDEO', lignes: [ligne('MCTRL660', 'Processeur NOVASTAR MCTRL660', '1.0')] }] }, base, { parc });
+      v.egal('deux modèles dans le devis : mur sans processeur dans sa section laissé au conseil', [deux.murs[0].formulaires['form-data']?.processeur, deux.murs[5].formulaires['form-data']], ['novastar-mctrl4k', undefined]);
+      const sans = dv.mursDuDevis(reel, base, { parc: { ...parc, references: {} } });
+      v.egal('dalle à choisir : une fois par référence, murs pas prêts, alerte', [sans.pret, sans.aChoisir.map((a) => [a.ref, a.candidats.length]), sans.alertes[0]],
+        [false, [['UPADIV2.6', 5]], 'Mur de led central L=4m x Ht=4m : Dalle à choisir parmi 5 fiches : choisis-la ci-dessous.']);
+      let refus = null;
+      try {
+        pr.preparerMurs(pr.migrer({}), { nom: 'X', murs: sans.murs, lien: { boite: 'boite-a', idEventsoft: '1', empreinte: 'e' } });
+      } catch (erreur) {
+        refus = erreur.message;
+      }
+      v.egal('« Préparer les murs » sans dalle : refus, rien de créé', refus, 'Choisis la dalle de chaque mur avant de préparer les murs.');
     },
   },
 ];
