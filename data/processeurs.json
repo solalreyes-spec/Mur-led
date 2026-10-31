@@ -8149,6 +8149,9 @@
       "modele": "Z6 (Super Controller)",
       "gamme": "Z",
       "famille": "colorlight",
+      "alias": [
+        "Z6"
+      ],
       "capacitePort60Hz8bits": {
         "valeurs": [
           {
@@ -8261,7 +8264,7 @@
         "valeur": 2160,
         "source": "novelty-colorlight-z6-v1-6"
       },
-      "note": "16 ports 1G. Fiche V2.2 (copie) : 8,30 M px, 8192 px de large ou 4096 de haut (8192 × 8192 sur la V1.6, non retenu : plus favorable).",
+      "note": "16 ports 1G. Fiche V2.2 (copie) : 8,30 M px, 8192 px de large ou 4096 de haut (8192 × 8192 sur la V1.6, non retenu : plus favorable). Nom « Z6 » de la fiche V2.2 (p. 1 et 2), alias pour les devis.",
       "ports": {
         "valeur": 16,
         "source": "colorlight-z6-v2-2-copie",

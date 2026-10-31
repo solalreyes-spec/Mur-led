@@ -35,7 +35,10 @@ function etatFictif() {
 function baseDevis(contexte) {
   const d = baseDalles(contexte);
   const p = baseProcesseurs(contexte);
-  return { dalles: d.dalles.map((f) => calculs.resoudreFiche(f, d.sources)), processeurs: p.processeurs.map((f) => calculs.resoudreFiche(f, p.sources)) };
+  return {
+    dalles: d.dalles.map((f) => calculs.resoudreFiche(f, d.sources)), processeurs: p.processeurs.map((f) => calculs.resoudreFiche(f, p.sources)),
+    informationsProcesseurs: (p.informations ?? []).map((f) => calculs.resoudreFiche(f, p.sources)),
+  };
 }
 const resumeJournee = (j) => [j.boite, j.date, j.presta, j.phases.map((p) => p.uid), j.heures];
 
@@ -1882,6 +1885,45 @@ export const PLANNING = [
       v.egal('section : la première ligne reconnue avant une ligne à choisir', dv.configurationProposee(premiere, base).dalle, 'unilumin-upad-iv-2-6');
       const devis = { ...DEVIS_CONGRES, sections: [{ titre: 'Mur fictif L=2m H=1m', lignes: [ligne('M2.9', 'Dalle LED Absen Pitch 3.9mm', '8.0')] }] };
       v.vrai('alerte de pitch dans les murs du devis', dv.mursDuDevis(devis, base).alertes.includes('Mur fictif L=2m H=1m : M2.9 : Pitch lu 3,9 mm, fiche à 2,97 mm : vérifie la dalle.'));
+    },
+  },
+  {
+    id: 'PL42',
+    titre: 'Devis Eventsoft (lot 26c2) : processeur reconnu par le nom le plus long (« VX1000 Pro », « X100 Pro 4U »), fiche d\'information ou à compléter qui bloque les noms plus courts (« Z6 Pro »), marque lue par famille de calcul (COEX dans Novastar), nom de la désignation seulement avec la marque ou un mot comme « Processeur », nom porté par deux fiches sans la marque : rien, « HELIOS » seulement avec « Megapixel », nom de 2 caractères (Z6) avec un mot comme « Processeur » s\'il est unique dans la base, ou avec la marque',
+    etape: '26c2',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const base = baseDevis(contexte);
+      const informations = base.informationsProcesseurs;
+      const proc = (designation, ref = 'REF-FICT') => dv.reconnaitreProcesseur({ ref, designation }, base.processeurs, { informations });
+      v.egal('fiche Z6 (Super Controller) : alias « Z6 »', [].concat(base.processeurs.find((p) => p.id === 'colorlight-z6')?.alias ?? []).includes('Z6'), true);
+      v.egal('noms courants sans marque ni « Processeur » : rien', ['Tube led autonome HELIOS ASTERA', 'Lyre pour projecteur (x16)', 'Pendrillon 3m X12', 'SM58 H20',
+        'Enceinte X8 > coaxiale passive 2 voies', 'HELIOS 4K'].map((d) => proc(d)), Array(6).fill(null));
+      v.egal('le nom le plus long gagne', [proc('Colorlight X100 Pro 4U'), proc('Novastar VX1000 Pro')], ['colorlight-x100-pro-4u', 'novastar-vx1000-pro']);
+      v.egal('HELIOS : seulement avec « Megapixel »', [proc('Megapixel HELIOS 4K'), proc('Processeur HELIOS'), proc('Megapixel HELIOS')],
+        ['megapixel-helios-4k', null, 'megapixel-helios-8k']);
+      v.egal('marque par famille de calcul : COEX dans Novastar', [proc('COEX MX40 Pro'), proc('Novastar MX40 Pro'), proc('Brompton MX40 Pro')],
+        ['coex-mx40-pro', 'coex-mx40-pro', null]);
+      v.egal('cas réel 1 : « Processeur Z6 4K > 16 Outputs »', proc('Processeur Z6 4K > 16 Outputs 8bit output 3840*2160 (60hz)', 'VI5A40A3'), 'colorlight-z6');
+      v.egal('Z6 avec la marque, Z6 PRO-G2 (fiche complète), Z6 Pro (fiche d\'information) : rien', [proc('Colorlight Z6'), proc('Colorlight Z6 PRO-G2'), proc('Colorlight Z6 Pro')],
+        ['colorlight-z6', 'colorlight-z6-pro-g2', null]);
+      v.egal('nom de 2 caractères seul : rien ; avec « Processeur » ou « contrôleur »', [proc('Z6'), proc('Contrôleur T1'), proc('Carte d\'envoi S8')],
+        [null, 'brompton-t1', 'brompton-s8']);
+      v.egal('fiche à compléter : bloque les noms plus courts', dv.reconnaitreProcesseur({ ref: '', designation: 'Processeur Fictif AB12 Pro' },
+        [{ id: 'fict-ab12', marque: 'Fictive', famille: 'fictive', modele: 'AB12' }, { id: 'fict-ab12-pro', marque: 'Fictive', famille: 'fictive', modele: 'AB12 Pro' }]
+          .map((p, i) => (i === 0 ? { ...base.processeurs.find((x) => x.id === 'novastar-mctrl660'), ...p } : p))), null);
+      v.egal('réf. S4 : avec « Colorlight » la Colorlight, seule rien', [proc('Processeur Colorlight 4 ports', 'S4'), proc('Processeur 4 ports', 'S4'), proc('Processeur Brompton', 'S4')],
+        ['colorlight-s4', null, 'brompton-s4']);
+      v.egal('réf. de 2 caractères sans « Processeur » ni marque : rien', proc('Enceinte 2 voies 8 pouces', 'X8'), null);
+      v.egal('réf. de 3 caractères ou plus, unique : reconnue comme avant', [proc('Processeur mur led MCTRL4K', 'MCTRL4K'), proc('Boîtier', 'MCTRL660')], ['novastar-mctrl4k', 'novastar-mctrl660']);
+      const ligne = (ref, designation, quantite) => ({ ref, designation, quantite, composant: false });
+      const devis = { ...DEVIS_CONGRES, sections: [{ titre: 'REGIE VIDEO', lignes: [ligne('VI5A40A3', 'Processeur Z6 4K > 16 Outputs 8bit output 3840*2160 (60hz)', '1.0'),
+        ligne('ZPRO-FICT', 'Colorlight Z6 Pro', '1.0')] }] };
+      const m = dv.mursDuDevis(devis, base);
+      v.egal('murs du devis : le Z6 dans les processeurs du devis, le Z6 Pro (information) ignoré', m.processeurs.devis, [{ id: 'colorlight-z6', modele: 'Z6 (Super Controller)', nombre: 1 }]);
+      const parc = { id: 'parc-test', nom: 'Parc test', membres: [] };
+      v.egal('« Ajouter au parc » : le Z6', dv.ajoutsParc(devis, base, parc).processeurs.map((p) => p.id), ['colorlight-z6']);
     },
   },
 ];

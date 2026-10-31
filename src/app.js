@@ -551,7 +551,7 @@ let courant = construire();
 // profondeur réseau de chaque marque.
 const FAMILLES_BITS = ['brompton', 'novastar', 'colorlight', 'megapixel', 'linsn', 'kystar', 'mooncell'];
 const pourDevis = () => ({
-  dalles: courant.dalles, processeurs: courant.processeurs, parcs: base.parcs,
+  dalles: courant.dalles, processeurs: courant.processeurs, informationsProcesseurs: courant.informationsProcesseurs, parcs: base.parcs,
   contexteParc: (id) => ({ quantites: quantitesParc(base, id), bitsParFamille: Object.fromEntries(FAMILLES_BITS.map((f) => [f, bitsReseauParc(base, id, f).bits])) }),
 });
 baseDevis = pourDevis();

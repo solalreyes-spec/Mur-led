@@ -130,8 +130,9 @@ function domaineDesLignes(lignes) {
 // Sections du devis classées : domaine de la section par son titre, puis ses lignes ; chaque ligne avec sa
 // quantité lue, sa dalle ou son processeur reconnus dans la base, et son domaine (MUR LED si reconnue, où qu'elle
 // soit ; celui de la section sinon). `references` : choix de dalle retenus par la boîte (`parc.references`) ; `membres`
-// et `sansMembre` : dalles du parc de la boîte et références à rechoisir (lot 26c1).
-export function classerDevis(sections, { dalles = [], processeurs = [], references = {}, membres = null, sansMembre = null } = {}) {
+// et `sansMembre` : dalles du parc de la boîte et références à rechoisir (lot 26c1) ; `informations` : fiches
+// d'information des processeurs, qui bloquent les noms plus courts (lot 26c2).
+export function classerDevis(sections, { dalles = [], processeurs = [], informations = [], references = {}, membres = null, sansMembre = null } = {}) {
   return (sections ?? []).map((s) => {
     const lignes = (s.lignes ?? []).map((l) => {
       // Composant « * » (châssis, tile d'une dalle, devis réel du lot 25e3) : jamais une dalle ni un processeur.
@@ -140,7 +141,7 @@ export function classerDevis(sections, { dalles = [], processeurs = [], referenc
       return {
         ref: l.ref ?? '', designation: l.designation ?? '', composant, quantite: lireQuantite(l.quantite),
         dalle: dalle.statut === 'aucune' ? null : dalle,
-        processeur: dalle.statut === 'aucune' && !composant ? reconnaitreProcesseur(l, processeurs) : null,
+        processeur: dalle.statut === 'aucune' && !composant ? reconnaitreProcesseur(l, processeurs, { informations }) : null,
       };
     });
     const domaine = domaineTexte(s.titre) ?? domaineDesLignes(lignes) ?? 'AUTRE';
@@ -361,17 +362,55 @@ export function reconnaitreDalle(ligne, dalles, { references = {}, membres = nul
   return resultat(fiches.length === 1 ? 'reconnue' : 'choix', fiches, par, alerte);
 }
 
-// Ligne de devis → processeur de la base (complet, hors fiche d'information) : référence égale au modèle ou à un
-// alias, sinon un mot de la désignation (3 caractères au moins). Aucun : null.
-export function reconnaitreProcesseur(ligne, processeurs) {
-  const utilisables = (processeurs ?? []).filter((p) => p.statut !== 'information' && champsManquants(p).length === 0);
-  const cle = compact(ligne.ref);
-  let trouve = cle ? utilisables.find((p) => nomsFiche(p).includes(cle)) : null;
-  if (!trouve) {
-    const jetons = new Set(String(ligne.designation ?? '').split(/\s+/).map(compact).filter((j) => j.length >= 3));
-    trouve = utilisables.find((p) => nomsFiche(p).some((n) => jetons.has(n)));
+// Mots qui annoncent un processeur (lot 26c2) : sans eux ni la marque, un nom de la désignation ne compte pas.
+const INDICES_PROCESSEUR = / (?:processeurs?|controllers?|controleurs?|cartes? d envoi) /;
+const processeurUtilisable = (p) => p.statut !== 'information' && champsManquants(p).length === 0;
+// Suites de 1 à 4 mots collés (« X100 Pro 4U » → « x100pro4u »), coupées aux espaces, crochets, parenthèses,
+// virgules, points-virgules, « / » et « > ».
+function suitesDeMots(texte) {
+  const jetons = String(texte ?? '').split(/[\s[\](),;/>]+/).map(compact).filter(Boolean);
+  const suites = new Set();
+  for (let i = 0; i < jetons.length; i += 1) {
+    for (let n = 1; n <= 4 && i + n <= jetons.length; n += 1) suites.add(jetons.slice(i, i + n).join(''));
   }
-  return trouve?.id ?? null;
+  return suites;
+}
+
+// Ligne de devis → processeur de la base (lot 26c2, spec 26c § 5). Fiches comparées : processeurs et fiches
+// d'information (`informations`). Marque lue : filtre par famille de calcul (« Novastar » garde les COEX). Nom accepté :
+// « HELIOS » seulement avec « Megapixel » ; avec la marque, tout nom ; sans elle, un nom porté par une seule fiche de
+// la base, la référence seule si le nom a 3 caractères ou plus, sinon avec un mot comme « Processeur » (`INDICES_PROCESSEUR`).
+// La référence d'abord (égale à un nom), puis la désignation (suites de mots) : le nom le plus long gagne ; une fiche
+// d'information ou à compléter qui gagne ne donne rien (« Z6 Pro » bloque « Z6 »). Aucun, ou plusieurs : null.
+export function reconnaitreProcesseur(ligne, processeurs, { informations = [] } = {}) {
+  const fiches = [...(processeurs ?? []), ...(informations ?? [])];
+  const designation = ` ${mots(ligne.designation)} `;
+  const familles = new Set(fiches.filter((p) => p.marque && designation.includes(` ${mots(p.marque)} `)).map((p) => p.famille));
+  const indice = INDICES_PROCESSEUR.test(designation);
+  const porteurs = new Map();
+  for (const p of fiches) for (const n of new Set(nomsFiche(p))) porteurs.set(n, (porteurs.get(n) ?? 0) + 1);
+  const accepte = (n, parReference) => {
+    if (n === 'helios') return familles.has('megapixel');
+    if (familles.size) return true;
+    if (porteurs.get(n) !== 1) return false;
+    return indice || (parReference && n.length >= 3);
+  };
+  const candidates = familles.size ? fiches.filter((p) => familles.has(p.famille)) : fiches;
+  const gagnant = (suites, parReference) => {
+    let meilleur = 0;
+    let gagnants = [];
+    for (const p of candidates) {
+      const long = Math.max(0, ...nomsFiche(p).filter((n) => suites.has(n) && accepte(n, parReference)).map((n) => n.length));
+      if (!long) continue;
+      if (long > meilleur) [meilleur, gagnants] = [long, [p]];
+      else if (long === meilleur && !gagnants.includes(p)) gagnants.push(p);
+    }
+    return gagnants;
+  };
+  const cle = compact(ligne.ref);
+  const parReference = cle ? gagnant(new Set([cle]), true) : [];
+  const trouves = parReference.length ? parReference : gagnant(suitesDeMots(ligne.designation), false);
+  return trouves.length === 1 && processeurUtilisable(trouves[0]) ? trouves[0].id : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -611,7 +650,7 @@ export function mursDuDevis(presta, base, { parc = null, quantites = null, bitsP
   if (!presta || presta.devisNonAutorise || !presta.sections?.length) return null;
   const dalles = base?.dalles ?? [];
   const tous = base?.processeurs ?? [];
-  const classe = classerDevis(presta.sections, { dalles, processeurs: tous, ...optionsParc(parc, sansMembre) });
+  const classe = classerDevis(presta.sections, { dalles, processeurs: tous, informations: base?.informationsProcesseurs ?? [], ...optionsParc(parc, sansMembre) });
   const murs = [];
   const resume = [];
   const alertes = [];
@@ -676,7 +715,7 @@ export function ajoutsParc(presta, base, parc, { sansMembre = [] } = {}) {
   if (!presta || presta.devisNonAutorise || !parc) return null;
   const dalles = base?.dalles ?? [];
   const processeurs = base?.processeurs ?? [];
-  const classe = classerDevis(presta.sections ?? [], { dalles, processeurs, ...optionsParc(parc, sansMembre) });
+  const classe = classerDevis(presta.sections ?? [], { dalles, processeurs, informations: base?.informationsProcesseurs ?? [], ...optionsParc(parc, sansMembre) });
   const dansParc = { dalle: membresDe(parc, 'dalle'), processeur: membresDe(parc, 'processeur') };
   const ajout = { dalles: [], processeurs: [], aChoisir: [] };
   const vus = new Set();
