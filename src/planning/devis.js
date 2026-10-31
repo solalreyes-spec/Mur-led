@@ -129,13 +129,14 @@ function domaineDesLignes(lignes) {
 
 // Sections du devis classées : domaine de la section par son titre, puis ses lignes ; chaque ligne avec sa
 // quantité lue, sa dalle ou son processeur reconnus dans la base, et son domaine (MUR LED si reconnue, où qu'elle
-// soit ; celui de la section sinon). `references` : choix de dalle retenus par la boîte (`parc.references`).
-export function classerDevis(sections, { dalles = [], processeurs = [], references = {} } = {}) {
+// soit ; celui de la section sinon). `references` : choix de dalle retenus par la boîte (`parc.references`) ; `membres`
+// et `sansMembre` : dalles du parc de la boîte et références à rechoisir (lot 26c1).
+export function classerDevis(sections, { dalles = [], processeurs = [], references = {}, membres = null, sansMembre = null } = {}) {
   return (sections ?? []).map((s) => {
     const lignes = (s.lignes ?? []).map((l) => {
       // Composant « * » (châssis, tile d'une dalle, devis réel du lot 25e3) : jamais une dalle ni un processeur.
       const composant = Boolean(l.composant);
-      const dalle = composant ? { statut: 'aucune' } : reconnaitreDalle(l, dalles, { references });
+      const dalle = composant ? { statut: 'aucune' } : reconnaitreDalle(l, dalles, { references, membres, sansMembre });
       return {
         ref: l.ref ?? '', designation: l.designation ?? '', composant, quantite: lireQuantite(l.quantite),
         dalle: dalle.statut === 'aucune' ? null : dalle,
@@ -172,61 +173,192 @@ export function vueDevis(sections, postes) {
 // ---------------------------------------------------------------------------
 
 const nombreLu = (texte) => Number(texte.replace(',', '.'));
+const decimales = (texte) => (String(texte).split(/[.,]/)[1] ?? '').length;
+const lu = (texte) => ({ valeur: nombreLu(texte), decimales: decimales(texte) });
 
-// Désignation de dalle : pitch (« Pitch 2.6mm », « P3,9 »), dimensions en mm, pixels. Rien de lu : null.
+// Indices d'une désignation de dalle (lot 26c1, spec 26c § 4.2) : dimensions avec leur unité (mm, ou m : « [0.5mx0.5m] »,
+// « 0,5 x 0,5 m »), pixels (« px » ou « pixels »), pitch écrit (« P2.6 », « Pitch 2,84 », « 2.6mm », de 0,5 à 16 mm,
+// sans lettre après sauf « mm »), sinon pitch sans unité (« 2.8- », indice faible). Chaque valeur avec ses décimales
+// écrites (tolérance selon la précision). Lus dans cet ordre, chaque morceau lu effacé avant le suivant.
+const DIMS_MM = /(\d{2,4}(?:[.,]\d+)?)\s*(?:mm)?\s*[x×*]\s*(\d{2,4}(?:[.,]\d+)?)\s*mm(?![a-z])/i;
+const DIMS_M = /(\d+(?:[.,]\d+)?)\s*(?:m(?![a-wyz]))?\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*m(?![a-z])/i;
+const PIXELS = /(\d{2,4})\s*[x×*]\s*(\d{2,4})\s*(?:px|pixels?)\b/i;
+const PITCH_ECRIT = /(?:pitch\s*:?\s*|(?:^|[^a-z0-9])p\s?|(?:^|[^a-z0-9.,]))(\d+(?:[.,]\d+)?)(\s*mm)?(?![a-z0-9])/gi;
+const PITCH_SANS_UNITE = /(?:^|[^a-z0-9.,])(\d{1,2}[.,]\d+)(?![a-z0-9.,])/gi;
+const PITCH_MIN_MM = 0.5;
+const PITCH_MAX_MM = 16;
+const pitchPlausible = (x) => x.valeur >= PITCH_MIN_MM && x.valeur <= PITCH_MAX_MM;
+function lireIndices(designation) {
+  let texte = ` ${sansAccents(designation)} `;
+  const effacer = (m) => { texte = texte.replace(m[0], ' '); };
+  const indices = { dims: null, px: null, pitch: null, pitchFaible: null };
+  const mm = texte.match(DIMS_MM);
+  const m = mm ? null : texte.match(DIMS_M);
+  if (mm || m) {
+    const [, a, b] = mm ?? m;
+    indices.dims = { largeur: lu(a), hauteur: lu(b), facteur: mm ? 1 : 1000 };
+    effacer(mm ?? m);
+  }
+  const px = texte.match(PIXELS);
+  if (px) {
+    indices.px = { pxH: Number(px[1]), pxV: Number(px[2]) };
+    effacer(px);
+  }
+  // Pitch écrit : « P » ou « pitch » devant, ou « mm » derrière ; un nombre nu n'en est pas un.
+  for (const p of texte.matchAll(PITCH_ECRIT)) {
+    const avecP = /pitch|p\s?\d/i.test(p[0]);
+    const x = lu(p[1]);
+    if ((avecP || p[2]) && pitchPlausible(x)) {
+      indices.pitch = x;
+      effacer(p);
+      break;
+    }
+  }
+  if (!indices.pitch) {
+    for (const p of texte.matchAll(PITCH_SANS_UNITE)) {
+      const x = lu(p[1]);
+      if (pitchPlausible(x)) {
+        indices.pitchFaible = x;
+        break;
+      }
+    }
+  }
+  return indices;
+}
+
+// Désignation de dalle : pitch (« Pitch 2.6mm », « P3,9 »), dimensions en mm (ou en m, lot 26c1), pixels. Rien de lu : null.
 export function lireDesignation(designation) {
-  const texte = String(designation ?? '');
-  const pitch = texte.match(/(?:pitch\s*:?\s*|\bp\s?)(\d+(?:[.,]\d+)?)\s*(?:mm)?/i);
-  const dims = texte.match(/(\d{2,4}(?:[.,]\d+)?)\s*[x×*]\s*(\d{2,4}(?:[.,]\d+)?)\s*mm/i);
-  const px = texte.match(/(\d{2,4})\s*[x×*]\s*(\d{2,4})\s*(?:px|pixels?)\b/i);
+  const { dims, px, pitch } = lireIndices(designation);
   if (!pitch && !dims && !px) return null;
   return {
-    pitchMm: pitch ? nombreLu(pitch[1]) : null,
-    largeurMm: dims ? nombreLu(dims[1]) : null,
-    hauteurMm: dims ? nombreLu(dims[2]) : null,
-    pxH: px ? Number(px[1]) : null,
-    pxV: px ? Number(px[2]) : null,
+    pitchMm: pitch ? pitch.valeur : null,
+    largeurMm: dims ? dims.largeur.valeur * dims.facteur : null,
+    hauteurMm: dims ? dims.hauteur.valeur * dims.facteur : null,
+    pxH: px ? px.pxH : null,
+    pxV: px ? px.pxV : null,
   };
 }
 
-const PITCH_TOLERANCE_MM = 0.05;
-const pitchDe = (d) => d.pitchMm ?? (d.largeurMm && d.pxH ? d.largeurMm / d.pxH : null);
+const EPSILON = 1e-9;
+// Pitch selon la précision écrite (lot 26c1) : u = 10^−décimales, fiche dans [lu − max(½u ; 0,05) ; lu + max(u ; 0,05)[,
+// par son pitch (nominal compris) ou son pitch réel (largeur / pxH).
+const dansPitch = (valeur, x) => {
+  const u = 10 ** -x.decimales;
+  return valeur >= x.valeur - Math.max(u / 2, 0.05) - EPSILON && valeur < x.valeur + Math.max(u, 0.05) - EPSILON;
+};
+const pitchsDe = (d) => [d.pitchMm, d.largeurMm && d.pxH ? d.largeurMm / d.pxH : null].filter((p) => p > 0);
+const pitchPasse = (d, x) => pitchsDe(d).some((p) => dansPitch(p, x));
+// Dimensions à ± la moitié du dernier chiffre écrit (« 0,61 » m : ± 5 mm, la fiche à 609,6 mm passe).
+const dimPasse = (valeur, x, facteur) => Math.abs(valeur - x.valeur * facteur) <= (10 ** -x.decimales / 2) * facteur + EPSILON;
+const dimsPassent = (d, dims) => dimPasse(d.largeurMm, dims.largeur, dims.facteur) && dimPasse(d.hauteurMm, dims.hauteur, dims.facteur);
+const pxPassent = (d, px) => d.pxH === px.pxH && d.pxV === px.pxV;
 // Fiches utilisables : ni fiche d'information, ni fiche à compléter (dimensions et pixels).
 const dalleUtilisable = (d) => d.statut !== 'information' && ['pxH', 'pxV', 'largeurMm', 'hauteurMm'].every((k) => d[k] > 0);
 // Noms d'une fiche : modèle, alias, et modèle suivi de la version (« UPADIV2.6 » = Upad IV 2.6, lot 25e4).
 const nomsFiche = (f) => [f.modele, ...[].concat(f.alias ?? []), f.modele && f.version ? `${f.modele} ${f.version}` : null].filter(Boolean).map(compact);
+// Dalles : « MKII » s'écrit aussi « MK2 » (lot 26c1, choix de conception du projet).
+const nomsDalle = (f) => nomsFiche(f).flatMap((n) => (n.includes('mkii') ? [n, n.replace('mkii', 'mk2')] : [n]));
 
-// Ligne de devis → dalle de la base. Ordre : référence retenue par la boîte (`references[ref]`), puis référence
-// égale au modèle ou à un alias, puis marque, pitch (à 0,05 mm), dimensions et pixels de la désignation. Une ligne de
-// dalle entière écarte les demi-dalles ; une ligne qui ne trouve que des demi-dalles est une ligne de demi-dalle.
-// Plusieurs fiches : « choix » (l'utilisateur tranche, retenu ensuite par la référence de la boîte).
-export function reconnaitreDalle(ligne, dalles, { references = {} } = {}) {
+// Lignes exclues d'office (lot 26c1, liste de l'utilisateur du 31/10/2026) : mots entiers, au singulier ou au pluriel.
+const EXCLUSIONS_DALLE = ['flight', 'flightcase', 'case', 'bac', 'chassis', 'frame', 'tile', 'vierge', 'blank', 'bumper', 'cable', 'lest', 'echelle',
+  'support', 'clamp', 'stacker', 'moniteur', 'lcd', 'telecommande'];
+const exclue = (designation) => mots(designation).split(' ').some((m) => EXCLUSIONS_DALLE.some((e) => m === e || m === `${e}s` || m === `${e}x`));
+// Gammes d'un seul mot courant : lues seulement avec leur marque.
+const GAMMES_COURANTES = new Set(['compact', 'smart', 'armour', 'jet', 'diamond']);
+
+// Gamme lue (mots entiers), la plus longue ; une gamme courante seulement avec la marque de ses fiches.
+function gammeLue(designation, valides, marqueLue) {
+  const lues = [...new Set(valides.map((d) => mots(d.gamme)).filter(Boolean))]
+    .filter((g) => designation.includes(` ${g} `))
+    .filter((g) => !GAMMES_COURANTES.has(g) || valides.some((d) => mots(d.gamme) === g && mots(d.marque) === marqueLue));
+  return lues.sort((a, b) => b.length - a.length)[0] ?? null;
+}
+
+// Modèle lu : suites de 1 à 4 mots collés comparées aux noms des fiches, le plus long gagne ; un nom de moins de
+// 3 caractères ou égal à la gamme (« Upad IV ») ne compte pas.
+function modeleLu(designation, valides) {
+  const jetons = String(designation ?? '').split(/[\s[\](),;/>]+/).map(compact).filter(Boolean);
+  const suites = new Set();
+  for (let i = 0; i < jetons.length; i += 1) {
+    for (let n = 1; n <= 4 && i + n <= jetons.length; n += 1) suites.add(jetons.slice(i, i + n).join(''));
+  }
+  let meilleur = 0;
+  let fiches = [];
+  for (const d of valides) {
+    const gamme = compact(d.gamme);
+    const long = Math.max(0, ...nomsDalle(d).filter((n) => n.length >= 3 && n !== gamme && suites.has(n)).map((n) => n.length));
+    if (!long) continue;
+    if (long > meilleur) [meilleur, fiches] = [long, [d]];
+    else if (long === meilleur) fiches.push(d);
+  }
+  return fiches;
+}
+
+const pitchFiche = (d) => d.pitchMm ?? Math.round((d.largeurMm / d.pxH) * 1000) / 1000;
+
+// Ligne de devis → dalle de la base (lot 26c1, spec 26c § 4). Ordre : lignes exclues d'office (flight, châssis, tile,
+// câble…), référence retenue par la boîte (`references[ref]`), puis candidates par la référence (modèle ou alias), sinon
+// par le modèle lu dans la désignation, sinon toutes ; filtres : marque, pitch selon la précision écrite (alerte
+// seulement avec une référence ou un modèle), dimensions, pixels, pitch sans unité (s'il laisse une fiche), gamme
+// (ignorée si elle n'en laisse aucune). Une ligne de dalle entière écarte les demi-dalles ; une ligne qui ne trouve que
+// des demi-dalles est une ligne de demi-dalle. Indices faibles seuls (pitch, dimensions ou gamme seuls) : rien.
+// Plusieurs fiches et un indice fort : celles du parc de la boîte (`membres`), sauf pour une référence à rechoisir
+// (`sansMembre`) ; une seule : reconnue (`par: 'membre'`), plusieurs : le choix réduit. Plusieurs fiches restantes :
+// « choix » (l'utilisateur tranche, retenu ensuite par la référence de la boîte).
+export function reconnaitreDalle(ligne, dalles, { references = {}, membres = null, sansMembre = null } = {}) {
   const valides = (dalles ?? []).filter(dalleUtilisable);
   const ref = String(ligne.ref ?? '').trim();
   const lue = lireDesignation(ligne.designation);
-  const resultat = (statut, fiches, par) => ({
+  const aucune = { statut: 'aucune', fiche: null, candidats: [], demi: false, par: null, lue };
+  const resultat = (statut, fiches, par, alerte = null) => ({
     statut, fiche: statut === 'reconnue' ? fiches[0].id : null, candidats: fiches.map((f) => f.id).sort(), demi: Boolean(fiches[0]?.demiDe), par, lue,
+    ...(alerte ? { alerte } : {}),
   });
+  if (exclue(ligne.designation)) return aucune;
   const retenue = ref && references?.[ref] ? valides.find((d) => d.id === references[ref]) : null;
   if (retenue) return resultat('reconnue', [retenue], 'parc');
 
   const designation = ` ${mots(ligne.designation)} `;
+  const indices = lireIndices(ligne.designation);
   const marqueLue = [...new Set(valides.map((d) => mots(d.marque)).filter(Boolean))].find((m) => designation.includes(` ${m} `)) ?? null;
-  const correspond = (d) => (!marqueLue || mots(d.marque) === marqueLue) && (!lue || (
-    (lue.pitchMm === null || Math.abs((pitchDe(d) ?? Infinity) - lue.pitchMm) < PITCH_TOLERANCE_MM)
-    && (lue.largeurMm === null || (d.largeurMm === lue.largeurMm && d.hauteurMm === lue.hauteurMm))
-    && (lue.pxH === null || (d.pxH === lue.pxH && d.pxV === lue.pxV))));
   const cle = compact(ref);
-  const parReference = cle ? valides.filter((d) => nomsFiche(d).includes(cle)) : [];
-  let trouvees;
-  let par;
-  if (parReference.length) [trouvees, par] = [parReference.filter(correspond), 'reference'];
-  else if (lue) [trouvees, par] = [valides.filter(correspond), 'caracteristiques'];
-  else trouvees = [];
+  const parReference = cle ? valides.filter((d) => nomsDalle(d).includes(cle)) : [];
+  const parModele = parReference.length ? [] : modeleLu(ligne.designation, valides);
+  let par = 'caracteristiques';
+  let trouvees = valides;
+  if (parReference.length) [trouvees, par] = [parReference, 'reference'];
+  else if (parModele.length) [trouvees, par] = [parModele, 'modele'];
+  const nommee = par !== 'caracteristiques';
+  if (marqueLue) trouvees = trouvees.filter((d) => mots(d.marque) === marqueLue);
+  if (indices.pitch && !nommee) trouvees = trouvees.filter((d) => pitchPasse(d, indices.pitch));
+  if (indices.dims) trouvees = trouvees.filter((d) => dimsPassent(d, indices.dims));
+  if (indices.px) trouvees = trouvees.filter((d) => pxPassent(d, indices.px));
+  if (indices.pitchFaible && !nommee) {
+    const avecPitch = trouvees.filter((d) => pitchPasse(d, indices.pitchFaible));
+    if (avecPitch.length) trouvees = avecPitch;
+  }
+  const gamme = gammeLue(designation, valides, marqueLue);
+  const deLaGamme = gamme ? trouvees.filter((d) => `${mots(d.gamme)} `.startsWith(`${gamme} `)) : [];
+  if (deLaGamme.length) trouvees = deLaGamme;
   const entieres = trouvees.filter((d) => !d.demiDe);
-  const fiches = entieres.length ? entieres : trouvees;
-  if (!fiches.length) return { statut: 'aucune', fiche: null, candidats: [], demi: false, par: null, lue };
-  return resultat(fiches.length === 1 ? 'reconnue' : 'choix', fiches, par);
+  let fiches = entieres.length ? entieres : trouvees;
+  if (!fiches.length) return aucune;
+
+  // Force des indices : référence ou modèle ; gamme et une caractéristique ; deux caractéristiques. Pixels seuls :
+  // comme avant le lot 26c1, sans la fiche du parc ; le reste seul ne reconnaît rien.
+  const caracteristiques = [indices.pitch, indices.dims, indices.px].filter(Boolean).length;
+  const fort = nommee || (deLaGamme.length > 0 && caracteristiques >= 1) || caracteristiques >= 2;
+  if (!fort && !(indices.px && caracteristiques === 1)) return aucune;
+  if (fort && fiches.length > 1 && membres && !(sansMembre && new Set(sansMembre).has(ref))) {
+    const duParc = new Set(membres);
+    const membresDuParc = fiches.filter((d) => duParc.has(d.id) || (d.demiDe && duParc.has(d.demiDe)));
+    if (membresDuParc.length === 1) return resultat('reconnue', membresDuParc, 'membre');
+    if (membresDuParc.length > 1) fiches = membresDuParc;
+  }
+  // Pitch écrit hors tolérance d'une fiche nommée par sa référence ou son modèle : alerte, plus un filtre.
+  const alerte = fiches.length === 1 && nommee && indices.pitch && !pitchPasse(fiches[0], indices.pitch)
+    ? `Pitch lu ${virgule(indices.pitch.valeur)} mm, fiche à ${virgule(pitchFiche(fiches[0]))} mm : vérifie la dalle.` : null;
+  return resultat(fiches.length === 1 ? 'reconnue' : 'choix', fiches, par, alerte);
 }
 
 // Ligne de devis → processeur de la base (complet, hors fiche d'information) : référence égale au modèle ou à un
@@ -306,7 +438,8 @@ export function configurationProposee(section, { dalles = [] } = {}) {
   const lignesDalle = (section?.lignes ?? []).filter((l) => l.dalle);
   const entieres = lignesDalle.filter((l) => !l.dalle.demi);
   if (!entieres.length) return null;
-  const premiere = entieres[0].dalle;
+  // Première ligne reconnue de la section, la première à choisir seulement s'il n'y en a aucune (lot 26c1).
+  const premiere = (entieres.find((l) => l.dalle.statut === 'reconnue') ?? entieres[0]).dalle;
   const dalle = premiere.statut === 'reconnue' ? premiere.fiche : null;
   const choixDalle = dalle ? [] : premiere.candidats;
   const cleDalle = (d) => d.fiche ?? d.candidats.join(' ');
@@ -458,6 +591,8 @@ export function processeursPresta(sections, murs, { dalles = [], processeurs = [
 // ---------------------------------------------------------------------------
 
 const membresDe = (parc, type) => new Set((parc?.membres ?? []).filter((m) => m.type === type).map((m) => m.id));
+// Reconnaissance dans le parc de la boîte : ses références retenues, ses dalles (lot 26c1), les références à rechoisir.
+const optionsParc = (parc, sansMembre) => ({ references: parc?.references ?? {}, membres: parc ? membresDe(parc, 'dalle') : null, sansMembre });
 const nomFiche = (f) => [f.marque, f.modele, f.version, f.variante].filter(Boolean).join(' ') || f.id;
 // Fiche proposée (dalle à choisir, « Ajouter au parc ») : nom avec la version, poids et puissance max retenus pour
 // départager des fiches voisines (lot 25e4) ; sans l'un ni l'autre, pas de détail.
@@ -469,13 +604,14 @@ const ficheProposee = (id, fiches) => {
 
 // Murs proposés pour toute une presta du devis (`configurationProposee` de chaque section, murs sans forme compris),
 // résumé et alertes de chaque mur, montage de chaque section (`montages`, étape 26), processeurs comparés au niveau de la presta (`processeursPresta`) dans le parc de la
-// boîte : ses processeurs (tous s'il n'en a aucun), ses références de dalles. Devis refusé au compte, sans mur LED ni
-// processeur : null. `quantites` et `bitsParFamille` : ceux du parc.
-export function mursDuDevis(presta, base, { parc = null, quantites = null, bitsParFamille = {} } = {}) {
+// boîte : ses processeurs (tous s'il n'en a aucun), ses références de dalles, ses dalles (fiche du parc, lot 26c1,
+// sauf pour les références de `sansMembre`). Devis refusé au compte, sans mur LED ni processeur : null. `quantites` et
+// `bitsParFamille` : ceux du parc.
+export function mursDuDevis(presta, base, { parc = null, quantites = null, bitsParFamille = {}, sansMembre = [] } = {}) {
   if (!presta || presta.devisNonAutorise || !presta.sections?.length) return null;
   const dalles = base?.dalles ?? [];
   const tous = base?.processeurs ?? [];
-  const classe = classerDevis(presta.sections, { dalles, processeurs: tous, references: parc?.references ?? {} });
+  const classe = classerDevis(presta.sections, { dalles, processeurs: tous, ...optionsParc(parc, sansMembre) });
   const murs = [];
   const resume = [];
   const alertes = [];
@@ -513,29 +649,34 @@ export function mursDuDevis(presta, base, { parc = null, quantites = null, bitsP
       }
     }
     alertes.push(...c.alertes.map((a) => `${titre} : ${a}`));
+    // Pitch du devis différent de la fiche nommée par sa référence ou son modèle (lot 26c1).
+    for (const l of s.lignes) if (l.dalle?.alerte) alertes.push(`${titre} : ${l.ref || 'sans référence'} : ${l.dalle.alerte}`);
   }
   const avecProcesseur = classe.some((s) => s.lignes.some((l) => l.processeur));
   if (!murs.length && !avecProcesseur) return null;
   // Dalles retenues par le parc de la boîte (`parc.references`), une fois par référence : « Changer » sur la carte (lot 25e4).
   const retenues = [];
+  // Dalles prises par le parc, seule fiche candidate qui en est membre (lot 26c1) : « Changer » la remet à choisir.
+  const parMembre = [];
   for (const l of classe.flatMap((s) => s.lignes)) {
-    if (l.dalle?.par === 'parc' && !retenues.some((r) => r.ref === l.ref)) retenues.push({ ref: l.ref, designation: l.designation, ...ficheProposee(l.dalle.fiche, dalles) });
+    const liste = { parc: retenues, membre: parMembre }[l.dalle?.par];
+    if (liste && !liste.some((r) => r.ref === l.ref)) liste.push({ ref: l.ref, designation: l.designation, ...ficheProposee(l.dalle.fiche, dalles) });
   }
   const duParc = membresDe(parc, 'processeur');
   const processeurs = duParc.size ? tous.filter((p) => duParc.has(p.id)) : tous;
   // Prêts : chaque mur a sa dalle (une dalle à choisir se choisit d'abord sur la carte, retenue par le parc).
   const pret = murs.length > 0 && murs.every((m) => m.formulaires['form-mur'].dalle);
-  return { murs, resume, alertes, aChoisir, retenues, pret, montages, processeurs: processeursPresta(classe, murs, { dalles, processeurs, reglages: { frequenceHz: 60, bits: 8 }, quantites, bitsParFamille }) };
+  return { murs, resume, alertes, aChoisir, retenues, parMembre, pret, montages, processeurs: processeursPresta(classe, murs, { dalles, processeurs, reglages: { frequenceHz: 60, bits: 8 }, quantites, bitsParFamille }) };
 }
 
 // « Ajouter au parc » : dalles (demi-dalles comprises) et processeurs reconnus dans le devis qui manquent au parc de la
 // boîte, et dalles à choisir parmi plusieurs fiches (référence retenue ensuite par le parc). Jamais de quantité : le
 // « Nombre dans le parc » ne vient pas d'un devis. Rien à ajouter : null.
-export function ajoutsParc(presta, base, parc) {
+export function ajoutsParc(presta, base, parc, { sansMembre = [] } = {}) {
   if (!presta || presta.devisNonAutorise || !parc) return null;
   const dalles = base?.dalles ?? [];
   const processeurs = base?.processeurs ?? [];
-  const classe = classerDevis(presta.sections ?? [], { dalles, processeurs, references: parc.references ?? {} });
+  const classe = classerDevis(presta.sections ?? [], { dalles, processeurs, ...optionsParc(parc, sansMembre) });
   const dansParc = { dalle: membresDe(parc, 'dalle'), processeur: membresDe(parc, 'processeur') };
   const ajout = { dalles: [], processeurs: [], aChoisir: [] };
   const vus = new Set();

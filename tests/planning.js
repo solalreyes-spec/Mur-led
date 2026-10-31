@@ -1794,4 +1794,94 @@ export const PLANNING = [
       v.egal('« Préparer les murs » : stack gardé dans Poids, rien pour le mur à confirmer', [config('Totem fictif 1'), config('ECRAN SANS INDICE')], [{ mode: 'stack' }, undefined]);
     },
   },
+  {
+    id: 'PL40',
+    titre: 'Devis Eventsoft (lot 26c, essai réel en v54) : gamme de la fiche lue dans la désignation comme la marque (« BLACK PEARL » écarte la Black Onyx ; la gamme la plus précise gagne ; gamme sans fiche ignorée) ; une seule fiche candidate membre du parc de la boîte : prise sans demander (`par: \'membre\'`, listée dans `parMembre`), sauf pour une référence à rechoisir (`sansMembre`) ; référence retenue par le parc toujours en premier',
+    etape: '26c',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const base = baseDevis(contexte);
+      const bp = 'Dalle Led BLACK PEARL> 2.8-1500nt [0.5mx0.5m] [176 x 176 pixels]';
+      const reco = (designation, opts = {}, dalles = base.dalles) => { const r = dv.reconnaitreDalle({ ref: 'BP-FICT', designation }, dalles, opts); return [r.statut, r.statut === 'reconnue' ? r.fiche : r.candidats, r.par]; };
+      v.egal('« BLACK PEARL » : la Black Onyx écartée, BP2 et BP2 V2 à choisir', reco(bp), ['choix', ['roe-bp2', 'roe-bp2-v2'], 'caracteristiques']);
+      v.egal('sans gamme : les trois ROE en 176 × 176 (rien ne change)', reco('Dalle Led 2.8-1500nt [176 x 176 pixels]')[1].includes('roe-bo2'), true);
+      v.egal('« Black Onyx » : la BO2 seule', reco('Dalle Led BLACK ONYX [176 x 176 pixels]'), ['reconnue', 'roe-bo2', 'caracteristiques']);
+      const gammes = [{ id: 'fict-a', marque: 'Fictive', gamme: 'Ruby', pxH: 96, pxV: 96, largeurMm: 500, hauteurMm: 500 },
+        { id: 'fict-b', marque: 'Fictive', gamme: 'Ruby-C', pxH: 96, pxV: 96, largeurMm: 500, hauteurMm: 500 },
+        { id: 'fict-c', marque: 'Fictive', gamme: 'Topaz', pxH: 128, pxV: 128, largeurMm: 500, hauteurMm: 500 }];
+      v.egal('« Ruby-C » : la gamme la plus précise gagne', reco('Dalle RUBY-C [96 x 96 pixels]', {}, gammes), ['reconnue', 'fict-b', 'caracteristiques']);
+      // Valeur attendue changée avec l'accord de l'utilisateur (31/10/2026) : la gamme lue est un début de gamme.
+      v.egal('« Ruby » seul : Ruby et Ruby-C, gammes qui commencent par Ruby', reco('Dalle RUBY 1.5 [96 x 96 pixels]', {}, gammes), ['choix', ['fict-a', 'fict-b'], 'caracteristiques']);
+      v.egal('gamme qui ne laisse aucune fiche : ignorée', reco('Dalle TOPAZ [96 x 96 pixels]', {}, gammes), ['choix', ['fict-a', 'fict-b'], 'caracteristiques']);
+      const membres = new Set(['roe-bp2-v2', 'roe-bo2']);
+      v.egal('une seule candidate dans le parc : prise sans demander', reco(bp, { membres }), ['reconnue', 'roe-bp2-v2', 'membre']);
+      v.egal('deux candidates dans le parc : à choisir', reco(bp, { membres: new Set(['roe-bp2', 'roe-bp2-v2']) })[0], 'choix');
+      v.egal('plusieurs candidates dans le parc : le choix réduit aux membres', reco('Dalle Led [0.5mx0.5m] [176 x 176 pixels]', { membres: new Set(['roe-bp2', 'roe-bo2', 'roe-bm2']) }),
+        ['choix', ['roe-bo2', 'roe-bp2'], 'caracteristiques']);
+      v.egal('demi-dalle du parc par sa dalle entière', reco('Demi dalle ROE Carbon 600 x 600mm 104 x 104 pixels', { membres: new Set(['roe-cb5-mkii']) }),
+        ['reconnue', 'roe-cb5-mkii-demi', 'membre']);
+      v.egal('aucune candidate dans le parc : à choisir', reco(bp, { membres: new Set(['roe-bo2']) })[0], 'choix');
+      v.egal('référence à rechoisir : le parc ne tranche plus', reco(bp, { membres, sansMembre: new Set(['BP-FICT']) })[0], 'choix');
+      v.egal('référence retenue par le parc : en premier', reco(bp, { membres, references: { 'BP-FICT': 'roe-bp2' } }), ['reconnue', 'roe-bp2', 'parc']);
+      const devis = { ...DEVIS_CONGRES, sections: [{ titre: 'Mur fictif L=4m H=2m', lignes: [{ ref: 'BP-FICT', designation: bp, quantite: '32.0', composant: false }] }] };
+      const parc = { id: 'parc-test', nom: 'Parc test', membres: [{ type: 'dalle', id: 'roe-bp2-v2' }] };
+      const m = dv.mursDuDevis(devis, base, { parc });
+      v.egal('murs du devis : dalle du parc, prêts, rien à choisir, listée pour « Changer »', [m.pret, m.aChoisir, m.murs[0].formulaires['form-mur'].dalle, m.retenues, m.parMembre.map((x) => [x.ref, x.id])],
+        [true, [], 'roe-bp2-v2', [], [['BP-FICT', 'roe-bp2-v2']]]);
+      const r = dv.mursDuDevis(devis, base, { parc, sansMembre: ['BP-FICT'] });
+      v.egal('« Changer » : la référence revient à choisir entre BP2 et BP2 V2', [r.pret, r.aChoisir.map((a) => [a.ref, a.candidats.map((c) => c.id)]), r.parMembre], [false, [['BP-FICT', ['roe-bp2', 'roe-bp2-v2']]], []]);
+      v.egal('« Ajouter au parc » : rien à choisir, la fiche est déjà au parc', dv.ajoutsParc(devis, base, parc), null);
+    },
+  },
+  {
+    id: 'PL41',
+    titre: 'Devis Eventsoft (lot 26c1) : lignes exclues d\'office (flight, châssis, tile, vierge, câble…), modèle lu dans la désignation (« BP2 V2 », « Upad IV-S », « MK2 » pour MKII), gamme seule ou caractéristique seule sans effet, pitch selon la précision écrite (pitch réel aussi comparé, « P17 » écarté), dimensions en mètres, alerte de pitch avec une référence ; première ligne reconnue d\'une section',
+    etape: '26c1',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const base = baseDevis(contexte);
+      const reco = (designation, ref = 'REF-FICT', opts = {}) => {
+        const r = dv.reconnaitreDalle({ ref, designation }, base.dalles, opts);
+        return [r.statut, r.statut === 'reconnue' ? r.fiche : r.candidats, r.par];
+      };
+      const upad = 'Panneau led UNILUMIN Pitch 2.6mm 500 x 500mm - 192 x 192 pixels';
+      v.egal('flight de panneaux : jamais une dalle', reco(`Flight de 8 ${upad.replace('Panneau', 'Panneaux')}`, 'UPADIV2.6/8')[0], 'aucune');
+      const ligne = (ref, designation, quantite, composant = false) => ({ ref, designation, quantite, composant });
+      const section = dv.classerDevis([{ titre: 'Mur fictif L=4m H=2m', lignes: [ligne('UPADIV2.6/8', `Flight de 8 ${upad}`, '17.0'), ligne('UPADIV2.6', upad, '136.0'),
+        ligne('*UPADIV2.6FRAME', 'Châssis UNILUMIN 500 x 500mm', '136.0', true)] }], base)[0];
+      const c = dv.configurationProposee(section, base);
+      v.egal('section : le flight ignoré, 136 dalles Upad IV 2.6', [section.lignes[0].dalle, c.dalle, c.quantite], [null, 'unilumin-upad-iv-2-6', 136]);
+      const membres = new Set(['unilumin-upad-iv-2-6']);
+      v.egal('châssis sans « * », parc avec la Upad IV 2.6 : aucune', reco('Châssis UNILUMIN 500 x 500mm', 'UPADFRAME', { membres })[0], 'aucune');
+      v.egal('dalle vierge : aucune', reco('Dalle vierge BLACK PEARL > [0.5 x 0.5]')[0], 'aucune');
+      v.egal('« CB5 MK2 » : la CB5 MKII par son modèle', reco('ROE Carbon CB5 MK2 600 x 1200mm 104 x 208 pixels'), ['reconnue', 'roe-cb5-mkii', 'modele']);
+      v.egal('« Carbon » : Carbon et Carbon MKII à choisir', reco('ROE Carbon 600 x 1200mm 104 x 208 pixels'), ['choix', ['roe-cb5', 'roe-cb5-mkii'], 'caracteristiques']);
+      const compact = reco('Mur LED compact P3.9 500x1000mm 128 x 256 pixels');
+      v.egal('« compact » sans la marque : toutes les fiches 3,9 en 500 × 1000, LEDECA Compact comprises', [compact[0], compact[1].length > 2, compact[1].includes('ledeca-ldcosp03-9st'), compact[1].includes('roe-bq3-9')],
+        ['choix', true, true, true]);
+      v.egal('« LEDECA compact » : les deux Compact', reco('LEDECA compact P3.9 500x1000mm 128 x 256 pixels'), ['choix', ['ledeca-ldcisp03-9st', 'ledeca-ldcosp03-9st'], 'caracteristiques']);
+      const m29 = dv.reconnaitreDalle({ ref: 'M2.9', designation: 'Dalle LED Absen Pitch 2.9mm' }, base.dalles);
+      v.egal('réf. M2.9 et « Pitch 2.9mm » : Absen M2.9, sans alerte', [m29.statut, m29.fiche, m29.par, m29.alerte ?? null], ['reconnue', 'absen-m2-9', 'reference', null]);
+      const m39 = dv.reconnaitreDalle({ ref: 'M2.9', designation: 'Dalle LED Absen Pitch 3.9mm' }, base.dalles);
+      v.egal('réf. M2.9 et « Pitch 3.9mm » : Absen M2.9 avec l\'alerte', [m39.statut, m39.fiche, m39.alerte], ['reconnue', 'absen-m2-9', 'Pitch lu 3,9 mm, fiche à 2,97 mm : vérifie la dalle.']);
+      v.egal('« Ruby Pitch 1.5mm » : RB1.5 et RB1.5F', reco('Dalle ROE Ruby Pitch 1.5mm'), ['choix', ['roe-rb1-5', 'roe-rb1-5f'], 'caracteristiques']);
+      const deux = reco('Pitch 2mm ROE 500 x 500mm 256 x 256 pixels');
+      v.egal('« Pitch 2mm » : jamais la JT1.9 seule', [deux[0], deux[1].length, deux[1].includes('roe-jt1-9')], ['choix', 7, true]);
+      const reel = reco('Dalle LED Pitch 2.98mm 500 x 1000mm');
+      v.vrai('pitch réel comparé : URMIII2 (nominal 2,9, réel 2,976)', [].concat(reel[1]).includes('unilumin-urmiii2-500x1000'), JSON.stringify(reel));
+      v.egal('dimensions en mètres : 0,61 m pour 609,6 mm', reco('Dalle LED [0,61 x 0,61 m] [216 x 216 pixels]'), ['reconnue', 'roe-bm2', 'caracteristiques']);
+      v.egal('mètres entre crochets : Black Pearl', reco('Dalle Led BLACK PEARL> 2.8-1500nt [0.5mx0.5m] [176 x 176 pixels]')[1], ['roe-bp2', 'roe-bp2-v2']);
+      v.egal('lignes qui ne sont pas des dalles', ['Câble mini-jack 3.5mm', 'Praticable 1000 x 1000mm', 'Tile 96 x 96 pixels', 'Câble P17 32A', 'Adapt. P17 32A Tetra Male vers 63TF',
+        'Flying bar Black Pearl', 'Pitch 2.6mm', 'Lest 36 Kg pour mur leds'].map((d) => reco(d)[0]), Array(8).fill('aucune'));
+      v.egal('modèle lu : BP2 V2, Upad IV-S', [reco('Dalle LED ROE BP2 V2'), reco('Dalle Unilumin Upad IV-S P2.6')],
+        [['reconnue', 'roe-bp2-v2', 'modele'], ['reconnue', 'unilumin-upad-iv-s', 'modele']]);
+      v.egal('pixels seuls : pas de fiche du parc', reco('Dalle LED 192 x 192 pixels', 'REF-FICT', { membres })[0], 'choix');
+      const premiere = dv.classerDevis([{ titre: 'Mur fictif L=2m H=1m', lignes: [ligne('UPAD-FICT', upad, '4.0'), ligne('UPADIV2.6', upad, '8.0')] }], base)[0];
+      v.egal('section : la première ligne reconnue avant une ligne à choisir', dv.configurationProposee(premiere, base).dalle, 'unilumin-upad-iv-2-6');
+      const devis = { ...DEVIS_CONGRES, sections: [{ titre: 'Mur fictif L=2m H=1m', lignes: [ligne('M2.9', 'Dalle LED Absen Pitch 3.9mm', '8.0')] }] };
+      v.vrai('alerte de pitch dans les murs du devis', dv.mursDuDevis(devis, base).alertes.includes('Mur fictif L=2m H=1m : M2.9 : Pitch lu 3,9 mm, fiche à 2,97 mm : vérifie la dalle.'));
+    },
+  },
 ];

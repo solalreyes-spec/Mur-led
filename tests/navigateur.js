@@ -6707,6 +6707,94 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N134',
+    titre: 'Écran Planning, devis (lot 26c1) : dalle prise par le parc de la boîte (« seule fiche du parc ») avec « Changer », qui la remet à choisir sans rien écrire ; plusieurs fiches du parc : sélecteur réduit aux membres ; « Changer » d\'une dalle retenue : le sélecteur revient, même quand la fiche choisie est devenue membre du parc',
+    etape: '26c1',
+    async verifier(v, contexte) {
+      const module = await importerSiPresent('../src/ecran-planning.js');
+      const fi = await importerSiPresent('../src/fiches.js');
+      v.vrai('src/ecran-planning.js et src/fiches.js chargés', Boolean(module?.monterPlanning && fi?.ajouterAuParc));
+      if (!module?.monterPlanning || !fi?.ajouterAuParc) return;
+      const vec = await (await fetch(new URL('./vecteur-chiffrement.json', import.meta.url), { cache: 'no-store' })).json();
+      const ligne = (ref, designation) => ({ ref, designation, quantite: '8.0', composant: false });
+      const devis = { ...DEVIS_CONGRES, sections: [
+        { titre: 'Mur fictif A L=2m H=1m', lignes: [ligne('LED-A', 'Dalle Led [0.5mx0.5m] [176 x 176 pixels]')] },
+        { titre: 'Mur fictif B L=2m H=1m', lignes: [ligne('LED-B', 'Dalle Led BLACK PEARL [0.5mx0.5m] [176 x 176 pixels]')] },
+      ] };
+      const enveloppe = await scellerDevis({ ...LECTURE_DEVIS, boites: [{ id: 'boite-a', prestas: [DEVIS_SALON, devis] }] }, vec);
+      const d = contexte.dalles;
+      const p = contexte.processeurs;
+      let maBase;
+      const base = () => ({
+        dalles: d.dalles.map((f) => calculs.resoudreFiche(f, d.sources)), processeurs: p.processeurs.map((f) => calculs.resoudreFiche(f, p.sources)), parcs: maBase.parcs,
+        contexteParc: () => ({ quantites: {}, bitsParFamille: {} }),
+      });
+      const ecritures = [];
+      const actions = {
+        lien: () => null, preparer: async () => {}, ouvrir: async () => {}, vu: async () => {},
+        ajouterAuParc: async (parcId, ajout) => { ecritures.push('ajout'); maBase = fi.ajouterAuParc(maBase, parcId, ajout); },
+        changerDalle: async (parcId, ref) => { ecritures.push('changer'); maBase = fi.oublierReference(maBase, parcId, ref); },
+      };
+      const sansDetail = (s) => [...(s?.options ?? [])].map((o) => o.textContent.replace(/ \(.*\)$/, ''));
+      const monter = async (membres) => {
+        maBase = { parcs: [{ id: 'parc-test', nom: 'Parc test', membres: membres.map((id) => ({ type: 'dalle', id })) }] };
+        ecritures.length = 0;
+        const memoire = new Map([['planning-reglages', { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: null, cleDevis: vec.cle, boites: [{ id: 'boite-a', parc: 'parc-test' }] }]]);
+        const stockage = { lire: async (cle) => structuredClone(memoire.get(cle) ?? null), ecrire: async (cle, val) => { memoire.set(cle, structuredClone(val)); return true; } };
+        const relais = relaisFictif({ devis: () => enveloppe });
+        const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+        document.body.append(racine);
+        const ecran = module.monterPlanning(racine, {
+          stockage, fetch: (url, o) => relais.fetch(url, o), maintenant: () => MAINTENANT_FICTIF, enLigne: () => true, surNouvelles: () => {}, base, actions,
+        });
+        await ecran.pret;
+        await ecran.calme();
+        const carte = () => [...racine.querySelectorAll('.pl-carte')].find((c) => c.dataset.cle?.startsWith('boite-a|') && c.dataset.cle.endsWith('|2026-11-16'));
+        const choix = (ref) => [...(carte()?.querySelectorAll('.pl-champ-dalle') ?? [])].find((x) => texteDe(x.querySelector('label')).startsWith(`${ref} :`))?.querySelector('select') ?? null;
+        const retenue = (ref) => [...(carte()?.querySelectorAll('.pl-dalle-retenue-ligne') ?? [])].find((x) => texteDe(x.querySelector('.pl-dalle-retenue')).startsWith(`${ref} :`)) ?? null;
+        const choisir = async (ref, id) => {
+          const s = choix(ref);
+          s.value = id;
+          s.dispatchEvent(new Event('input'));
+          s.dispatchEvent(new Event('change'));
+          await ecran.calme();
+        };
+        const changer = async (ref) => {
+          retenue(ref)?.querySelector('button.pl-changer-dalle')?.click();
+          await ecran.calme();
+        };
+        return { racine, carte, choix, retenue, choisir, changer };
+      };
+      let e = await monter(['roe-bp2-v2', 'roe-bo2']);
+      try {
+        const b = e.retenue('LED-B');
+        v.egal('une seule fiche du parc : prise, « seule fiche du parc » et « Changer », pas de sélecteur',
+          [texteDe(b?.querySelector('.pl-dalle-retenue')).replace(/ \(.*\)/, ''), texteDe(b?.querySelector('button.pl-changer-dalle')), e.choix('LED-B')],
+          ['LED-B : ROE BP2 V2, seule fiche du parc', 'Changer', null]);
+        v.egal('plusieurs fiches du parc : sélecteur réduit aux membres', sansDetail(e.choix('LED-A')), ['Choisis la fiche', 'ROE BO2', 'ROE BP2 V2']);
+        await e.changer('LED-B');
+        v.egal('« Changer » : de nouveau à choisir entre toutes les fiches, rien d\'écrit', [sansDetail(e.choix('LED-B')), e.retenue('LED-B'), ecritures],
+          [['Choisis la fiche', 'ROE BP2', 'ROE BP2 V2'], null, []]);
+        await e.choisir('LED-B', 'roe-bp2');
+        v.egal('choix retenu par le parc', [maBase.parcs[0].references, texteDe(e.retenue('LED-B')?.querySelector('.pl-dalle-retenue')).replace(/ \(.*\)/, '')],
+          [{ 'LED-B': 'roe-bp2' }, 'LED-B : ROE BP2']);
+      } finally {
+        e.racine.remove();
+      }
+      e = await monter([]);
+      try {
+        v.egal('parc sans ces fiches : sélecteur complet', sansDetail(e.choix('LED-A')), ['Choisis la fiche', 'ROE BO2', 'ROE BP2', 'ROE BP2 V2']);
+        await e.choisir('LED-A', 'roe-bo2');
+        v.egal('fiche choisie : membre du parc et retenue', [maBase.parcs[0].membres.map((m) => m.id), Boolean(e.retenue('LED-A')), e.choix('LED-A')], [['roe-bo2'], true, null]);
+        await e.changer('LED-A');
+        v.egal('« Changer » d\'une dalle retenue : le sélecteur revient, la fiche du parc ne la reprend pas', [maBase.parcs[0].references ?? null, e.retenue('LED-A'), sansDetail(e.choix('LED-A'))],
+          [null, null, ['Choisis la fiche', 'ROE BO2', 'ROE BP2', 'ROE BP2 V2']]);
+      } finally {
+        e.racine.remove();
+      }
+    },
+  },
 ];
 
 // Pas à pas NovaLCT d'essai (22c) : Upad IV 2.6 sur MCTRL4K, 8 × 6 (un principal) ou 32 × 8 (deux), départ en bas à gauche.

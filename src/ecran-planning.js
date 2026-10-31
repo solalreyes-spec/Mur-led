@@ -55,7 +55,11 @@ export function monterPlanning(racine, {
     reglages: reglagesVides(), donnees: null, masquees: new Set(), passees: false, demandes: [], message: null, enCours: false,
     vue: 'liste', mois: null, jour: null, aSaisir: false, statutCarte: null,
     devis: null, messageDevis: null, devisOuverts: new Set(), erreurMurs: null,
+    // Références de dalles à rechoisir par boîte (lot 26c1) : le parc ne tranche plus pour elles ; jamais écrites.
+    sansMembre: new Map(),
   };
+  const sansMembreDe = (boite) => [...(etat.sansMembre.get(boite) ?? [])];
+  const rechoisir = (boite, ref) => etat.sansMembre.set(boite, new Set([...sansMembreDe(boite), ref]));
   racine.classList.add('pl');
   const contenu = el('div', { class: 'pl-contenu' });
 
@@ -440,8 +444,9 @@ export function monterPlanning(racine, {
     const parcId = parcBoite(etat.reglages, d.boite, (b.parcs ?? []).map((x) => x.id));
     const parc = parcId ? b.parcs.find((x) => x.id === parcId) : null;
     const contexte = parcId ? b.contexteParc?.(parcId) ?? {} : {};
-    const m = mursDuDevis(presta, b, { parc, quantites: contexte.quantites ?? null, bitsParFamille: contexte.bitsParFamille ?? {} });
-    const ajoutBrut = parc ? ajoutsParc(presta, b, parc) : null;
+    const sansMembre = sansMembreDe(d.boite);
+    const m = mursDuDevis(presta, b, { parc, quantites: contexte.quantites ?? null, bitsParFamille: contexte.bitsParFamille ?? {}, sansMembre });
+    const ajoutBrut = parc ? ajoutsParc(presta, b, parc, { sansMembre }) : null;
     // Dalle à choisir (lot 25e3) : sous « Murs du devis », plus dans « Ajouter au parc ».
     const ajout = ajoutBrut && (ajoutBrut.dalles.length || ajoutBrut.processeurs.length) ? ajoutBrut : null;
     if (!m && !ajout) return null;
@@ -480,7 +485,7 @@ export function monterPlanning(racine, {
       ...(m?.alertes ?? []).map((t) => el('p', { class: 'pl-devis-alerte' }, t)),
       parc ? null : choixParc(c, d, b.parcs ?? []),
       ...choixDalles(c, parc, m?.aChoisir ?? []),
-      ...dallesRetenues(parc, m?.retenues ?? []),
+      ...dallesRetenues(d, parc, m?.retenues ?? [], m?.parMembre ?? []),
       m?.processeurs ? el('p', { class: `pl-devis-processeurs${m.processeurs.alerte ? ' pl-devis-processeurs-ecart' : ''}` }, m.processeurs.texte) : null,
       ajout && actions?.ajouterAuParc ? blocAjoutParc(c, parc, ajout) : null,
       lie ? el('p', { class: 'pl-aide pl-presta-liee' }, `Presta de l'appli : ${lie.nom}`) : null,
@@ -536,17 +541,22 @@ export function monterPlanning(racine, {
   }
 
   // Dalle retenue par le parc pour une référence du devis, avec « Changer » qui l'oublie (lot 25e4) : la dalle redevient
-  // à choisir sur la carte.
-  function dallesRetenues(parc, retenues) {
+  // à choisir sur la carte. Dalle prise par le parc, seule fiche candidate qui en est membre (lot 26c1) : « seule fiche du
+  // parc », « Changer » la remet à choisir sans rien écrire. Les deux « Changer » rangent la référence parmi celles à
+  // rechoisir : la fiche choisie, devenue membre du parc, ne la reprend pas aussitôt.
+  function dallesRetenues(d, parc, retenues, parMembre) {
     if (!parc || !actions?.changerDalle) return [];
-    return retenues.map((r) => {
+    const ligne = (r, texte, operation) => {
       const changer = el('button', { class: 'bouton pl-changer-dalle', type: 'button', 'aria-label': `Changer la dalle de ${r.ref}` }, 'Changer');
       changer.addEventListener('click', () => enFile(async () => {
-        await actions.changerDalle(parc.id, r.ref);
+        rechoisir(d.boite, r.ref);
+        await operation();
         afficher();
       }));
-      return el('div', { class: 'pl-dalle-retenue-ligne' }, el('p', { class: 'pl-dalle-retenue' }, `${r.ref} : ${libelleFiche(r)}`), changer);
-    });
+      return el('div', { class: 'pl-dalle-retenue-ligne' }, el('p', { class: 'pl-dalle-retenue' }, texte), changer);
+    };
+    return [...retenues.map((r) => ligne(r, `${r.ref} : ${libelleFiche(r)}`, () => actions.changerDalle(parc.id, r.ref))),
+      ...parMembre.map((r) => ligne(r, `${r.ref} : ${libelleFiche(r)}, seule fiche du parc`, async () => {}))];
   }
 
   // « Ajouter au parc » replié : fiches du devis absentes du parc de la boîte ; jamais de « Nombre dans le parc ».
