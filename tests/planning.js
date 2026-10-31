@@ -1926,4 +1926,36 @@ export const PLANNING = [
       v.egal('« Ajouter au parc » : le Z6', dv.ajoutsParc(devis, base, parc).processeurs.map((p) => p.id), ['colorlight-z6']);
     },
   },
+  {
+    id: 'PL43',
+    titre: 'Devis Eventsoft (lot 26c3) : titres à deux dimensions (« 8.00 x 4.00m », « 8 x 4 m », « 8,00x4,00m », cm, « 4m50 », « mètres ») lus en largeur puis hauteur, sans multiplicateur pris dans la paire ; pas de paire sans unité au second nombre, en mm, avec un nombre nul ou à plusieurs paires ; « L= » et « H= » d\'abord ; paire retirée du nom des murs ; formats déjà lus inchangés',
+    etape: '26c3',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const base = baseDevis(contexte);
+      const t = (largeurM, hauteurM, multiplicateur = 1, extra = {}) => ({ largeurM, hauteurM, multiplicateur, ...extra });
+      const confirmer = { hauteurAConfirmer: true };
+      v.egal('paires lues en largeur puis hauteur', ['Mur leds 8.00 x 4.00m posé au sol', 'Mur 8 x 4 m', 'Mur 8 m x 4 m', 'Mur 8,00x4,00m', 'Mur 800 x 400cm', 'Mur 800x400 cm',
+        'Mur 8m x 400cm', 'Mur 800 x 4m', 'Mur 8 X 4m', 'Mur 8 × 4m', 'Mur 8m x 4m50', 'Mur 5 x 3 mètres'].map(dv.lireTitre),
+      [...Array(10).fill(t(8, 4)), t(8, 4.5), t(5, 3)]);
+      v.egal('paire avec multiplicateur, nombre devant « x », dimension seule en plus', ['2x Ecran 3 x 2m', '[6 x 4m]', 'Mur 8x4m + retour 2m'].map(dv.lireTitre),
+        [t(3, 2, 2), t(6, 4), t(8, 4)]);
+      v.egal('pas de paire : titre lu comme avant', ['3x3m + marche 4x4m', '2 x Retour scène 50\'', 'Ecran 500 x 500mm', 'Mur 2 x 3 moteurs', 'Mur 0 x 4m', 'Mur 500mm x 4m'].map(dv.lireTitre),
+        [t(null, null), t(null, null, 2), t(null, null), t(null, null, 3), t(null, 4, 1, confirmer), t(null, 4, 1, confirmer)]);
+      v.egal('« L= » et « H= » d\'abord, paire ignorée', ['L=8m x 4m', 'Mur L=4m H=3m 8 x 4m'].map(dv.lireTitre), [t(8, null), t(4, 3)]);
+      v.egal('formats déjà lus inchangés', ['Mur de led central L=4m x Ht=4m', '4x Totem Led L=2m x Ht=4m', '[6 x Totems en T 4m ]'].map(dv.lireTitre),
+        [t(4, 4), t(2, 4, 4), t(null, 4, 6, confirmer)]);
+      const section = (titre, quantite) => dv.classerDevis([{ titre, lignes: [{ ref: 'UPADIV2.6', designation: DESIGNATIONS_FICTIVES.upad26, quantite, composant: false }] }], base)[0];
+      const dalle = 'unilumin-upad-iv-2-6';
+      const sol = dv.configurationProposee(section('Mur LED 8.00 x 4.00m posé au sol', '136.0'), base);
+      v.egal('« Mur LED 8.00 x 4.00m posé au sol » : un mur de 8 × 4 m, 136 dalles pour 128', [sol.murs, sol.formeAChoisir, sol.alertes], [
+        [{ nom: 'Mur LED posé au sol', demi: null, formulaires: { 'form-mur': { mode: 'taille', largeurM: '8', hauteurM: '4', dalle, demi: false } } }],
+        false, ['Le devis prévoit 136 dalles ; 8 × 4 m en demande 128 (spares possibles).'],
+      ]);
+      const noms = (titre, quantite) => dv.configurationProposee(section(titre, quantite), base).murs.map((m) => m.nom);
+      v.egal('paire retirée du nom des murs', [noms('Mur 8,00x4,00m', '128.0'), noms('Mur 8 × 4m', '128.0'), noms('2x Ecran 3 x 2m', '48.0')],
+        [['Mur'], ['Mur'], ['Ecran 1', 'Ecran 2']]);
+    },
+  },
 ];

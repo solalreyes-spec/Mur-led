@@ -433,25 +433,46 @@ function metres(m) {
   return { cm: valeur / 100, mm: valeur / 1000, m: valeur }[unite];
 }
 
+// Paire de dimensions (lot 26c3) : « 8.00 x 4.00m », « 8 x 4 m », « 8,00x4,00m », « 800 x 400cm », « 8m x 4m50 »,
+// « 5 x 3 mètres » ; unité du second nombre obligatoire et finissant le mot (ni « 500 x 500mm », ni « 2 x 3 moteurs ») ;
+// premier nombre jamais collé à une lettre, un chiffre, un point, une virgule ou un « = » (« L=8m x 4m »).
+const PAIRE = new RegExp(String.raw`(?<![\p{L}\d.,=])(\d+m\d{1,2}|\d+(?:[.,]\d+)?)\s*(?:(cm|m|m[eè]tres?)(?![\p{L}\d]))?\s*[x×]\s*(?:(\d+m\d{1,2})|(\d+(?:[.,]\d+)?)\s*(cm|m|m[eè]tres?))(?![\p{L}\d])`, 'giu');
+// « 4m50 » : 4,50 m ; sans unité, la règle de `metres()` (100 ou plus : cm).
+function metresPaire(nombre, unite) {
+  if (/m/i.test(nombre)) return nombreLu(nombre.toLowerCase().replace('m', '.'));
+  return metres([nombre, nombre, unite && unite.toLowerCase() !== 'cm' ? 'm' : unite?.toLowerCase()]);
+}
+// Paires d'un titre, largeur puis hauteur ; un nombre nul : pas une paire.
+function paires(texte) {
+  return [...String(texte ?? '').matchAll(PAIRE)]
+    .map((m) => ({ largeurM: metresPaire(m[1], m[2]), hauteurM: m[3] ? metresPaire(m[3]) : metresPaire(m[4], m[5]) }))
+    .filter((p) => p.largeurM > 0 && p.hauteurM > 0);
+}
+
 // Dimensions d'un titre de section : « L=4m », « L=4,5m », « H= » ou « Ht= », en m ou en cm ; multiplicateur
 // « 4x », « x4 » ou « 4 x ». Titre sans dimensions : largeur et hauteur null. Titres sans « L= » (F12, lot 25e2) :
 // crochets ignorés, « 6 totem » ou « 2 ECRANS » donnent le multiplicateur ; sans « L= » ni « H= », une dimension seule
-// (« 4m ») est lue comme la hauteur, à confirmer (`hauteurAConfirmer`).
+// (« 4m ») est lue comme la hauteur, à confirmer (`hauteurAConfirmer`). Paire « 8.00 x 4.00m » (lot 26c3) : après
+// « L= » et « H= », avant la dimension seule, retirée du titre avant le multiplicateur ; plusieurs paires : aucune lue.
 export function lireTitre(titre) {
   const t = sansAccents(titre).replace(/[[\]]/g, ' ');
-  const multiple = t.match(MULTIPLE_AVANT) ?? t.match(MULTIPLE_APRES) ?? t.match(MULTIPLE_NOM);
+  const trouvees = paires(t);
+  const reste = trouvees.length ? t.replace(PAIRE, ' ') : t;
+  const multiple = reste.match(MULTIPLE_AVANT) ?? reste.match(MULTIPLE_APRES) ?? reste.match(MULTIPLE_NOM);
   const lu = { largeurM: metres(t.match(LARGEUR)), hauteurM: metres(t.match(HAUTEUR)), multiplicateur: multiple ? Math.max(1, Number(multiple[1])) : 1 };
   if (lu.largeurM !== null || lu.hauteurM !== null) return lu;
+  if (trouvees.length === 1) return { ...lu, largeurM: trouvees[0].largeurM, hauteurM: trouvees[0].hauteurM };
+  if (trouvees.length > 1) return lu;
   const seules = [...t.matchAll(DIMENSION_SEULE)];
   return seules.length === 1 ? { ...lu, hauteurM: metres(seules[0]), hauteurAConfirmer: true } : lu;
 }
 
-// Nom de mur : le titre sans ses dimensions, son multiplicateur, ses crochets ni « Installation de », première lettre
-// en majuscule, coupé à 40 caractères numéro compris.
+// Nom de mur : le titre sans ses dimensions (paire comprise quand il n'en a qu'une, lot 26c3), son multiplicateur, ses
+// crochets ni « Installation de », première lettre en majuscule, coupé à 40 caractères numéro compris.
 const NOM_MUR_MAX = 40;
 function nomsMurs(titre, n) {
-  const nettoye = String(titre ?? '')
-    .replace(/[[\]]/g, ' ')
+  const brut = String(titre ?? '').replace(/[[\]]/g, ' ');
+  const nettoye = (paires(brut).length === 1 ? brut.replace(PAIRE, ' ') : brut)
     .replace(/(?:^|\b)(?:L|Ht|H)\s*=\s*\d+(?:[.,]\d+)?\s*(?:cm|mm|m)?\b/gi, ' ')
     .replace(/(^|\s)\d+(?:[.,]\d+)?\s*(?:cm|m)(?=\s|$)/gi, ' ')
     .replace(/(^|\s)\d+\s?x(?=\s|$)/gi, ' ')
