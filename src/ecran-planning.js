@@ -23,7 +23,7 @@ import {
   reglerParcBoite, parcBoite, nettoyerParcsBoites,
 } from './planning/reglages.js';
 import { lirePlanning, testerConnexion, lectureDue, lireDevis } from './planning/relais.js';
-import { dechiffrerDevis, garderDevis, fraicheurDevis, choisirPresta, devisVu, mursDuDevis, ajoutsParc } from './planning/devis.js';
+import { dechiffrerDevis, garderDevis, fraicheurDevis, choisirPresta, devisVu, mursDuDevis, ajoutsParc, lignesMontage } from './planning/devis.js';
 import { vueListe, vueMois, vueTotaux, etatBoites } from './planning/affichage.js';
 import { marquerVu, nombreNouvelles, saisirJournee, confirmerAlerteSaisie } from './planning/journees.js';
 import { exporterPlanning, lireExportPlanning, importerPlanning, nomFichierPlanning } from './planning/sauvegarde.js';
@@ -476,6 +476,7 @@ export function monterPlanning(racine, {
     return el('div', { class: 'pl-devis-murs' },
       m?.murs.length ? el('p', { class: 'pl-murs-titre' }, m.murs.length > 1 ? `Murs du devis (${m.murs.length})` : 'Mur du devis') : null,
       m?.murs.length ? el('ul', { class: 'pl-murs-liste' }, ...m.resume.map((t) => el('li', {}, t))) : null,
+      montage(m, lie, noms),
       ...(m?.alertes ?? []).map((t) => el('p', { class: 'pl-devis-alerte' }, t)),
       parc ? null : choixParc(c, d, b.parcs ?? []),
       ...choixDalles(c, parc, m?.aChoisir ?? []),
@@ -486,6 +487,15 @@ export function monterPlanning(racine, {
       lie?.ecart ? el('p', { class: 'pl-devis-ecart' }, 'Devis modifié depuis la préparation des murs : vérifie tes murs, rien n\'a été changé.') : null,
       etat.erreurMurs?.cle === c.cle ? el('p', { class: 'pl-devis-erreur-murs', role: 'alert' }, etat.erreurMurs.texte) : null,
       boutons.length ? el('div', { class: 'actions' }, ...boutons) : null);
+  }
+
+  // Montage lu dans le devis (étape 26) : une ligne par section de mur, les deux sortes d'indices en alerte ; murs
+  // déjà préparés d'une presta liée : « vérifie Poids » (leur réglage n'est pas relu ni touché).
+  function montage(m, lie, noms) {
+    if (!m?.montages?.length) return null;
+    const prepares = lie ? noms.filter((n) => !lie.manquants.includes(n)) : [];
+    return el('div', { class: 'pl-montage' }, el('p', { class: 'pl-murs-titre' }, 'Montage lu dans le devis'),
+      ...lignesMontage(m.montages, { prepares }).map((l) => el('p', { class: `pl-montage-ligne${l.alerte ? ' pl-devis-alerte' : ''}` }, l.texte)));
   }
 
   // Parc de la boîte choisi sur la carte quand elle n'en a pas (lot 25e4), gardé dans les réglages du planning comme le

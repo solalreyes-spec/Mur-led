@@ -1695,4 +1695,103 @@ export const PLANNING = [
       v.egal('référence inconnue : rien ne change', fi.oublierReference(depart, 'parc-test', 'AUTRE'), depart);
     },
   },
+  {
+    id: 'PL38',
+    titre: 'Devis Eventsoft (étape 26, lot 26a) : montage du mur (stack, accroche ou à confirmer) lu dans les seules sections qui proposent un mur, par mots entiers de la désignation et de la référence, pluriels compris ; « Accroche » seul, « Échelle verticale » seule, référence collée et ligne de quantité 0 ne comptent pas ; même montage pour les murs d\'un multiplicateur ; `form-poids` des murs stack et accroche, rien à confirmer ; résumé inchangé',
+    etape: '26a',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      const base = baseDevis(contexte);
+      const ligne = (ref, designation, quantite = '1.0', composant = false) => ({ ref, designation, quantite, composant });
+      const dalle = (n) => ligne('UPAD-FICT', DESIGNATIONS_FICTIVES.upad26, n);
+      const parc = { id: 'parc-test', nom: 'Parc test', membres: [], references: { 'UPAD-FICT': 'unilumin-upad-iv-2-6' } };
+      const montage = (lignes, titre = 'ECRAN L=1m H=1m') => {
+        const [s] = dv.classerDevis([{ titre, lignes: [dalle('4.0'), ...lignes] }], { ...base, references: parc.references });
+        const m = dv.montageDevis(s);
+        return [m.montage, m.indices.stack, m.indices.accroche];
+      };
+      v.egal('mots du devis réel : stack, indices accentués dans l\'ordre du devis', montage([
+        ligne('UPADSTACKERFICT100', 'Support de sol 1m pour UNILUMIN'), ligne('*BASETRUSS-FICT', '*Base truss 1m pour stacker UNILUMIN', '4.0', true),
+        ligne('ECH-FICT', 'Flight de 12 x échelles de montage 1m pour stacker'), ligne('LEST36KGFICT', 'Lest 36 Kg pour mur leds'),
+        ligne('BRIDGE-FICT', 'Accroche module / échelle Rear Bridge fictif (1 module sur 2)'),
+      ]), ['stack', ['support de sol', 'base truss', 'stacker', 'échelle de montage', 'lest'], []]);
+      v.egal('autre écriture : base de sol, échelle de sol, « lest pour » une marque, titre « posé au sol »', montage([
+        ligne('BASE-FICT', 'Base de sol double > 1m'), ligne('ECHV-FICT', 'Echelle verticale > 1m'), ligne('ECHS-FICT', 'Echelle de sol Horizontale > 0.91m'),
+        ligne('LESTM-FICT', 'Lest pour MARQUE> 25 kg'),
+      ], 'Mur fictif 8.00 x 4.00m posé au sol'), ['stack', ['base de sol', 'échelle de sol', 'lest', 'titre : au sol'], []]);
+      v.egal('bumpers et moteur : accroche', montage([ligne('BUMP-FICT', '* Bumpers fictifs 1 m', '4.0', true), ligne('MOT-FICT', 'Moteur fictif 500 kg')]),
+        ['accroche', [], ['bumper', 'moteur']]);
+      v.egal('aucun indice : à confirmer', montage([ligne('CAB-FICT', 'Câble data fictif')]), ['a-confirmer', [], []]);
+      const deux = dv.montageDevis(dv.classerDevis([{ titre: 'ECRAN L=1m H=1m', lignes: [dalle('4.0'), ligne('SUP-FICT', 'Support de sol fictif'), ligne('PAL-FICT', 'Palan fictif 1 t')] }], base)[0]);
+      v.egal('les deux sortes : à confirmer, avec les lignes trouvées', [deux.montage, deux.indices, deux.lignes],
+        ['a-confirmer', { stack: ['support de sol'], accroche: ['palan'] }, [{ ref: 'SUP-FICT', designation: 'Support de sol fictif' }, { ref: 'PAL-FICT', designation: 'Palan fictif 1 t' }]]);
+      v.egal('« Accroche » seul et « Échelle verticale » seule : pas des indices', montage([ligne('BRIDGE-FICT', 'Accroche module / échelle Rear Bridge fictif'), ligne('ECHV-FICT', 'Echelle verticale > 1m')]),
+        ['a-confirmer', [], []]);
+      v.egal('référence collée avec une désignation neutre : pas un indice', montage([ligne('UPADSTACKERFICT100', 'Pièce fictive 1m'), ligne('LEST36KGFICT', 'Poids fictif')]),
+        ['a-confirmer', [], []]);
+      v.egal('ligne de quantité 0 ignorée, quantité illisible comptée', [montage([ligne('MOT-FICT', 'Moteur fictif', '0.0')]), montage([ligne('MOT-FICT', 'Moteur fictif', '')])],
+        [['a-confirmer', [], []], ['accroche', [], ['moteur']]]);
+      const devis = { ...DEVIS_CONGRES, sections: [
+        { titre: '4x Totem fictif L=1m x Ht=2m', lignes: [dalle('32.0'), ligne('SUP-FICT', 'Supports de sol fictifs'), ligne('LEST-FICT', 'Lests fictifs')] },
+        { titre: 'ECRAN FICTIF L=2m H=1m', lignes: [dalle('8.0'), ligne('BUMP-FICT', 'Bumper fictif 1 m')] },
+        { titre: 'ECRAN SANS INDICE L=1m H=1m', lignes: [dalle('4.0')] },
+        { titre: 'ECLAIRAGE', lignes: [ligne('ELI-FICT', 'Elingue de sécurité fictive', '12.0'), ligne('MOT-FICT', 'Moteur fictif', '2.0'), ligne('PAR-FICT', 'Projecteur PAR LED fictif', '6.0')] },
+      ] };
+      const m = dv.mursDuDevis(devis, base, { parc });
+      v.egal('murs préparés : même montage pour les 4 totems, accroche, rien à confirmer', m.murs.map((x) => [x.nom, x.formulaires['form-poids']]), [
+        ['Totem fictif 1', { mode: 'stack' }], ['Totem fictif 2', { mode: 'stack' }], ['Totem fictif 3', { mode: 'stack' }], ['Totem fictif 4', { mode: 'stack' }],
+        ['ECRAN FICTIF', { mode: 'accroche' }], ['ECRAN SANS INDICE', undefined],
+      ]);
+      v.egal('montages par section de mur, section de lumière ignorée', m.montages, [
+        { titre: '4x Totem fictif L=1m x Ht=2m', murs: ['Totem fictif 1', 'Totem fictif 2', 'Totem fictif 3', 'Totem fictif 4'], montage: 'stack', indices: { stack: ['support de sol', 'lest'], accroche: [] } },
+        { titre: 'ECRAN FICTIF L=2m H=1m', murs: ['ECRAN FICTIF'], montage: 'accroche', indices: { stack: [], accroche: ['bumper'] } },
+        { titre: 'ECRAN SANS INDICE L=1m H=1m', murs: ['ECRAN SANS INDICE'], montage: 'a-confirmer', indices: { stack: [], accroche: [] } },
+      ]);
+      v.egal('résumé des murs inchangé', m.resume, ['Totem fictif 1 : 1 × 2 m', 'Totem fictif 2 : 1 × 2 m', 'Totem fictif 3 : 1 × 2 m', 'Totem fictif 4 : 1 × 2 m', 'ECRAN FICTIF : 2 × 1 m', 'ECRAN SANS INDICE : 1 × 1 m']);
+    },
+  },
+  {
+    id: 'PL39',
+    titre: 'Devis Eventsoft (étape 26, lot 26b) : lignes « Montage lu dans le devis » de la carte, une par section de mur (stack ou accroche et ses indices ; à confirmer dans Poids ; les deux sortes en alerte) ; murs déjà préparés : « vérifie Poids » ; « Préparer les murs » garde le montage dans Poids',
+    etape: '26b',
+    async verifier(v) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      const pr = await importerPlanning(v, '../src/prestas.js');
+      if (!dv || !pr) return;
+      const vide = { stack: [], accroche: [] };
+      const montages = [
+        { titre: '4x Totem fictif L=1m x Ht=2m', murs: ['Totem fictif 1', 'Totem fictif 2'], montage: 'stack', indices: { stack: ['support de sol', 'lest'], accroche: [] } },
+        { titre: 'ECRAN FICTIF L=2m H=1m', murs: ['ECRAN FICTIF'], montage: 'accroche', indices: { stack: [], accroche: ['bumper'] } },
+        { titre: 'ECRAN SANS INDICE L=1m H=1m', murs: ['ECRAN SANS INDICE'], montage: 'a-confirmer', indices: vide },
+        { titre: 'ECRAN MIXTE L=1m H=1m', murs: ['ECRAN MIXTE'], montage: 'a-confirmer', indices: { stack: ['support de sol'], accroche: ['moteur'] } },
+        { titre: '', murs: ['Mur 1'], montage: 'stack', indices: { stack: ['titre : au sol'], accroche: [] } },
+      ];
+      v.egal('une ligne par section, alerte pour les deux sortes', dv.lignesMontage(montages), [
+        { texte: '4x Totem fictif L=1m x Ht=2m : stack (support de sol, lest).', alerte: false },
+        { texte: 'ECRAN FICTIF L=2m H=1m : accroche (bumper).', alerte: false },
+        { texte: 'ECRAN SANS INDICE L=1m H=1m : montage à confirmer dans Poids.', alerte: false },
+        { texte: 'ECRAN MIXTE L=1m H=1m : montage à confirmer dans Poids (stack : support de sol ; accroche : moteur).', alerte: true },
+        { texte: 'Sans titre : stack (titre : au sol).', alerte: false },
+      ]);
+      v.egal('murs déjà préparés : « vérifie Poids », seulement quand tous les murs de la section le sont',
+        dv.lignesMontage(montages.slice(0, 3), { prepares: ['Totem fictif 1', 'ECRAN FICTIF'] }).map((l) => l.texte), [
+          '4x Totem fictif L=1m x Ht=2m : stack (support de sol, lest).',
+          'ECRAN FICTIF L=2m H=1m : accroche (bumper) ; mur déjà préparé, vérifie Poids.',
+          'ECRAN SANS INDICE L=1m H=1m : montage à confirmer dans Poids.',
+        ]);
+      v.egal('plusieurs murs déjà préparés : au pluriel', dv.lignesMontage(montages.slice(0, 1), { prepares: ['Totem fictif 1', 'Totem fictif 2'] })[0].texte,
+        '4x Totem fictif L=1m x Ht=2m : stack (support de sol, lest) ; murs déjà préparés, vérifie Poids.');
+      v.egal('aucun montage : aucune ligne', dv.lignesMontage([]), []);
+      const forme = (h) => ({ 'form-mur': { mode: 'taille', largeurM: '1', hauteurM: h, dalle: 'unilumin-upad-iv-2-6', demi: false } });
+      const opts = { maintenant: new Date(Date.UTC(2026, 9, 31, 9)) };
+      const etat = pr.preparerMurs(pr.migrer({}, opts), { nom: 'Presta fictive', lien: { boite: 'boite-a', idEventsoft: '1', empreinte: 'e' }, murs: [
+        { nom: 'Totem fictif 1', demi: null, formulaires: { ...forme('2'), 'form-poids': { mode: 'stack' } } },
+        { nom: 'ECRAN SANS INDICE', demi: null, formulaires: forme('1') },
+      ] }, opts);
+      const presta = pr.prestaOuverte(etat);
+      const config = (nom) => etat.murs[presta.murs.find((x) => x.nom === nom)?.id]?.configuration.formulaires['form-poids'];
+      v.egal('« Préparer les murs » : stack gardé dans Poids, rien pour le mur à confirmer', [config('Totem fictif 1'), config('ECRAN SANS INDICE')], [{ mode: 'stack' }, undefined]);
+    },
+  },
 ];

@@ -1856,6 +1856,10 @@ main section h3.pl-mois-titre { justify-content: center; margin: 0; font-size: 1
 .pl-murs-titre { font-weight: 600; }
 .pl-murs-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .pl-murs-liste li { font-size: 0.9rem; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+/* Montage lu dans le devis (étape 26) : une ligne par section de mur, en alerte avec les deux sortes d'indices. */
+.pl-montage { display: grid; gap: 4px; }
+.pl-montage p { margin: 0; }
+.pl-montage-ligne { font-size: 0.9rem; overflow-wrap: anywhere; }
 .pl-devis-alerte, .pl-devis-processeurs-ecart { color: var(--alerte); font-size: 0.9rem; }
 .pl-devis-processeurs { font-size: 0.9rem; }
 .pl-devis-ecart, .pl-devis-erreur-murs { color: var(--echec); font-weight: 600; }

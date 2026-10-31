@@ -347,6 +347,64 @@ export function configurationProposee(section, { dalles = [] } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Montage du mur lu dans le devis (étape 26)
+// ---------------------------------------------------------------------------
+
+// Indices par mots entiers (libellé affiché, écritures sans accents, pluriels compris). « Accroche » seul et
+// « échelle verticale » ne sont pas des indices ; « lest » seul l'est, une section de mur seule étant lue.
+const INDICES_MONTAGE = {
+  stack: [['support de sol', ['support de sol', 'supports de sol']], ['stacker', ['stacker', 'stackers']], ['base truss', ['base truss', 'bases truss']],
+    ['base de sol', ['base de sol', 'bases de sol']], ['échelle de montage', ['echelle de montage', 'echelles de montage']],
+    ['échelle de sol', ['echelle de sol', 'echelles de sol']], ['lest', ['lest', 'lests']]],
+  accroche: [['bumper', ['bumper', 'bumpers']], ['barre d\'accroche', ['barre d accroche', 'barres d accroche']], ['flying bar', ['flying bar', 'flying bars']],
+    ['hanging bar', ['hanging bar', 'hanging bars']], ['moteur', ['moteur', 'moteurs']], ['palan', ['palan', 'palans']],
+    ['chain hoist', ['chain hoist', 'chain hoists']], ['élingue', ['elingue', 'elingues']], ['manille', ['manille', 'manilles']]],
+};
+// Indices d'un texte dans l'ordre où il les écrit (« Base truss 1m pour stacker » : base truss, puis stacker).
+const indicesDe = (texte, sorte) => {
+  const m = ` ${mots(texte)} `;
+  return INDICES_MONTAGE[sorte]
+    .map(([libelle, ecritures]) => [libelle, Math.min(...ecritures.map((e) => m.indexOf(` ${e} `)).filter((i) => i >= 0))])
+    .filter(([, i]) => Number.isFinite(i)).sort((a, b) => a[1] - b[1]).map(([libelle]) => libelle);
+};
+
+// Montage d'une section classée (`classerDevis`) d'un mur : stack si elle n'a que des indices de stack, accroche
+// si elle n'a que des indices d'accroche, « a-confirmer » sinon. Désignation et référence lues séparément (une
+// référence collée ne compte pas), lignes « * » comprises, ligne de quantité 0 ignorée ; « au sol » dans le titre.
+export function montageDevis(section) {
+  const indices = { stack: [], accroche: [] };
+  const lignes = [];
+  const noter = (sorte, libelles) => libelles.forEach((l) => indices[sorte].includes(l) || indices[sorte].push(l));
+  for (const l of section?.lignes ?? []) {
+    if (l.quantite === 0) continue;
+    let trouve = false;
+    for (const sorte of ['stack', 'accroche']) {
+      const libelles = [...indicesDe(l.designation, sorte), ...indicesDe(l.ref, sorte)];
+      noter(sorte, libelles);
+      trouve ||= libelles.length > 0;
+    }
+    if (trouve) lignes.push({ ref: l.ref, designation: l.designation });
+  }
+  if (` ${mots(section?.titre)} `.includes(' au sol ')) noter('stack', ['titre : au sol']);
+  const montage = indices.stack.length && !indices.accroche.length ? 'stack' : (indices.accroche.length && !indices.stack.length ? 'accroche' : 'a-confirmer');
+  return { montage, indices, lignes };
+}
+
+// Lignes « Montage lu dans le devis » de la carte (lot 26b), une par section de mur (`mursDuDevis.montages`) ; les deux
+// sortes d'indices : en alerte. `prepares` : murs déjà préparés (presta liée), dont Poids n'est pas relu.
+export function lignesMontage(montages, { prepares = [] } = {}) {
+  const deja = new Set(prepares);
+  return montages.map(({ titre, murs, montage, indices }) => {
+    const mixte = indices.stack.length > 0 && indices.accroche.length > 0;
+    let texte = `${titre || 'Sans titre'} : `;
+    if (montage === 'a-confirmer') texte += `montage à confirmer dans Poids${mixte ? ` (stack : ${indices.stack.join(', ')} ; accroche : ${indices.accroche.join(', ')})` : ''}`;
+    else texte += `${montage} (${indices[montage].join(', ')})`;
+    if (montage !== 'a-confirmer' && murs.length && murs.every((n) => deja.has(n))) texte += murs.length > 1 ? ' ; murs déjà préparés, vérifie Poids' : ' ; mur déjà préparé, vérifie Poids';
+    return { texte: `${texte}.`, alerte: mixte };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Processeurs au niveau de la presta
 // ---------------------------------------------------------------------------
 
@@ -410,7 +468,7 @@ const ficheProposee = (id, fiches) => {
 };
 
 // Murs proposés pour toute une presta du devis (`configurationProposee` de chaque section, murs sans forme compris),
-// résumé et alertes de chaque mur, processeurs comparés au niveau de la presta (`processeursPresta`) dans le parc de la
+// résumé et alertes de chaque mur, montage de chaque section (`montages`, étape 26), processeurs comparés au niveau de la presta (`processeursPresta`) dans le parc de la
 // boîte : ses processeurs (tous s'il n'en a aucun), ses références de dalles. Devis refusé au compte, sans mur LED ni
 // processeur : null. `quantites` et `bitsParFamille` : ceux du parc.
 export function mursDuDevis(presta, base, { parc = null, quantites = null, bitsParFamille = {} } = {}) {
@@ -422,6 +480,7 @@ export function mursDuDevis(presta, base, { parc = null, quantites = null, bitsP
   const resume = [];
   const alertes = [];
   const aChoisir = [];
+  const montages = [];
   // Processeur du devis repris dans Data (lot 25e3) : celui de la section du mur (un seul modèle), sinon le seul modèle
   // du devis ; aucun ou plusieurs : le conseil de l'appli.
   const modeles = (lignes) => [...new Set(lignes.filter((l) => l.processeur).map((l) => l.processeur))];
@@ -436,10 +495,15 @@ export function mursDuDevis(presta, base, { parc = null, quantites = null, bitsP
     const section = modeles(s.lignes);
     const processeur = section.length === 1 ? section[0] : (section.length === 0 && duDevis.length === 1 ? duDevis[0] : null);
     const forme = c.formeAChoisir ? 'forme à choisir' : `${virgule(c.largeurM)} × ${virgule(c.hauteurM)} m${c.dalle ? '' : ', dalle à choisir'}`;
-    for (const m of [...c.murs, ...c.mursSansForme]) {
-      murs.push({ ...m, formulaires: { ...m.formulaires, ...formData(processeur) } });
+    // Montage lu dans la section (étape 26) : réglé dans Poids pour stack ou accroche, rien à confirmer.
+    const { montage, indices } = montageDevis(s);
+    const formPoids = montage === 'a-confirmer' ? {} : { 'form-poids': { mode: montage } };
+    const deLaSection = [...c.murs, ...c.mursSansForme];
+    for (const m of deLaSection) {
+      murs.push({ ...m, formulaires: { ...m.formulaires, ...formData(processeur), ...formPoids } });
       resume.push(`${m.nom} : ${forme}`);
     }
+    montages.push({ titre: s.titre, murs: deLaSection.map((m) => m.nom), montage, indices });
     const titre = s.titre || 'Sans titre';
     if (!c.dalle && c.choixDalle.length) {
       alertes.push(`${titre} : Dalle à choisir parmi ${c.choixDalle.length} fiches : choisis-la ci-dessous.`);
@@ -461,7 +525,7 @@ export function mursDuDevis(presta, base, { parc = null, quantites = null, bitsP
   const processeurs = duParc.size ? tous.filter((p) => duParc.has(p.id)) : tous;
   // Prêts : chaque mur a sa dalle (une dalle à choisir se choisit d'abord sur la carte, retenue par le parc).
   const pret = murs.length > 0 && murs.every((m) => m.formulaires['form-mur'].dalle);
-  return { murs, resume, alertes, aChoisir, retenues, pret, processeurs: processeursPresta(classe, murs, { dalles, processeurs, reglages: { frequenceHz: 60, bits: 8 }, quantites, bitsParFamille }) };
+  return { murs, resume, alertes, aChoisir, retenues, pret, montages, processeurs: processeursPresta(classe, murs, { dalles, processeurs, reglages: { frequenceHz: 60, bits: 8 }, quantites, bitsParFamille }) };
 }
 
 // « Ajouter au parc » : dalles (demi-dalles comprises) et processeurs reconnus dans le devis qui manquent au parc de la

@@ -6643,6 +6643,70 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N133',
+    titre: 'Écran Planning, devis (étape 26, lot 26b) : « Montage lu dans le devis » sous les murs, une ligne par section (stack ou accroche et ses indices, à confirmer dans Poids, les deux sortes en alerte), liste des murs inchangée ; « Préparer les murs » envoie le montage à Poids ; presta déjà préparée : rien de touché, « vérifie Poids »',
+    etape: '26b',
+    async verifier(v, contexte) {
+      const module = await importerSiPresent('../src/ecran-planning.js');
+      v.vrai('src/ecran-planning.js chargé', Boolean(module?.monterPlanning));
+      if (!module?.monterPlanning) return;
+      const vec = await (await fetch(new URL('./vecteur-chiffrement.json', import.meta.url), { cache: 'no-store' })).json();
+      const memoire = new Map([['planning-reglages', { relais: ADRESSE_FICTIVE, jeton: JETON_FICTIF, jetonApple: null, cleDevis: vec.cle, boites: [{ id: 'boite-a', parc: 'parc-test' }] }]]);
+      const stockage = { lire: async (cle) => structuredClone(memoire.get(cle) ?? null), ecrire: async (cle, val) => { memoire.set(cle, structuredClone(val)); return true; } };
+      const ligne = (ref, designation, quantite = '1.0') => ({ ref, designation, quantite, composant: false });
+      const dalle = (n) => ligne('UPAD-FICT', DESIGNATIONS_FICTIVES.upad26, n);
+      const devis = { ...DEVIS_CONGRES, sections: [
+        { titre: '2x Totem fictif L=1m x Ht=2m', lignes: [dalle('16.0'), ligne('SUP-FICT', 'Support de sol fictif 1m'), ligne('LEST-FICT', 'Lest fictif 36 kg pour mur leds')] },
+        { titre: 'ECRAN FICTIF L=2m H=1m', lignes: [dalle('8.0'), ligne('BUMP-FICT', 'Bumper fictif 1 m')] },
+        { titre: 'ECRAN MIXTE L=1m H=1m', lignes: [dalle('4.0'), ligne('SUP-FICT', 'Support de sol fictif 1m'), ligne('MOT-FICT', 'Moteur fictif 500 kg')] },
+      ] };
+      const enveloppe = await scellerDevis({ ...LECTURE_DEVIS, boites: [{ id: 'boite-a', prestas: [DEVIS_SALON, devis] }] }, vec);
+      const relais = relaisFictif({ devis: () => enveloppe });
+      const d = contexte.dalles;
+      const p = contexte.processeurs;
+      const base = () => ({
+        dalles: d.dalles.map((f) => calculs.resoudreFiche(f, d.sources)), processeurs: p.processeurs.map((f) => calculs.resoudreFiche(f, p.sources)),
+        parcs: [{ id: 'parc-test', nom: 'Parc test', membres: [], references: { 'UPAD-FICT': 'unilumin-upad-iv-2-6' } }], contexteParc: () => ({ quantites: {}, bitsParFamille: {} }),
+      });
+      const prepares = [];
+      let lie = null;
+      const actions = { lien: () => lie, preparer: async (x) => { prepares.push(x.murs); }, ouvrir: async () => {}, vu: async () => {} };
+      const racine = el('div', { style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const carte = () => [...racine.querySelectorAll('.pl-carte')].find((c) => c.dataset.cle?.startsWith('boite-a|') && c.dataset.cle.endsWith('|2026-11-16'));
+      const montage = (c) => [texteDe(c?.querySelector('.pl-montage .pl-murs-titre')), ...[...(c?.querySelectorAll('.pl-montage-ligne') ?? [])].map((x) => [texteDe(x), x.classList.contains('pl-devis-alerte')])];
+      try {
+        const ecran = module.monterPlanning(racine, {
+          stockage, fetch: (url, o) => relais.fetch(url, o), maintenant: () => MAINTENANT_FICTIF, enLigne: () => true, surNouvelles: () => {}, base, actions,
+        });
+        await ecran.pret;
+        await ecran.calme();
+        let c = carte();
+        v.egal('liste des murs inchangée', [...(c?.querySelectorAll('.pl-murs-liste li') ?? [])].map(texteDe),
+          ['Totem fictif 1 : 1 × 2 m', 'Totem fictif 2 : 1 × 2 m', 'ECRAN FICTIF : 2 × 1 m', 'ECRAN MIXTE : 1 × 1 m']);
+        v.egal('montage par section, les deux sortes en alerte', montage(c), ['Montage lu dans le devis',
+          ['2x Totem fictif L=1m x Ht=2m : stack (support de sol, lest).', false], ['ECRAN FICTIF L=2m H=1m : accroche (bumper).', false],
+          ['ECRAN MIXTE L=1m H=1m : montage à confirmer dans Poids (stack : support de sol ; accroche : moteur).', true]]);
+        v.vrai('montage juste après la liste des murs', c?.querySelector('.pl-murs-liste')?.nextElementSibling?.classList.contains('pl-montage'));
+        c?.querySelector('button.pl-preparer-murs')?.click();
+        await ecran.calme();
+        v.egal('« Préparer les murs » : montage envoyé à Poids, rien pour le mur à confirmer', prepares[0]?.map((m) => [m.nom, m.formulaires['form-poids']]),
+          [['Totem fictif 1', { mode: 'stack' }], ['Totem fictif 2', { mode: 'stack' }], ['ECRAN FICTIF', { mode: 'accroche' }], ['ECRAN MIXTE', undefined]]);
+        lie = { prestaId: 'p-fictive', nom: 'Presta fictive', ecart: false, manquants: ['ECRAN MIXTE'], murOuvrir: null };
+        await ecran.ouvrir();
+        await ecran.calme();
+        c = carte();
+        v.egal('presta déjà préparée : « vérifie Poids » sur les sections préparées seulement', montage(c).slice(1, 4).map((x) => x[0]), [
+          '2x Totem fictif L=1m x Ht=2m : stack (support de sol, lest) ; murs déjà préparés, vérifie Poids.',
+          'ECRAN FICTIF L=2m H=1m : accroche (bumper) ; mur déjà préparé, vérifie Poids.',
+          'ECRAN MIXTE L=1m H=1m : montage à confirmer dans Poids (stack : support de sol ; accroche : moteur).']);
+        v.egal('presta liée : aucun mur préparé de nouveau sans appui', prepares.length, 1);
+      } finally {
+        racine.remove();
+      }
+    },
+  },
 ];
 
 // Pas à pas NovaLCT d'essai (22c) : Upad IV 2.6 sur MCTRL4K, 8 × 6 (un principal) ou 32 × 8 (deux), départ en bas à gauche.
