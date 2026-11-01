@@ -2017,4 +2017,80 @@ export const PLANNING = [
         noms('Ecran (3x) L=2m H=1m', '6.0'), noms('6 Totems (x2)', '24.0')], [ecrans, ecrans, ecrans, ecrans, [1, 2, 3, 4, 5, 6].map((i) => `Totems ${i}`)]);
     },
   },
+  {
+    id: 'PL45',
+    titre: 'Devis Eventsoft (lot 26e) : noms des murs proposés : nom déjà pris dans la presta (sans casse ni accents) numéroté « Mur LED 2 », le plus petit numéro libre à partir de 2 hors des noms proposés des autres murs, base sans numéro pour un multiplicateur seulement, 40 caractères ; « Compléter les murs » ne propose que le mur nouveau ; mot de liaison final retiré du nom (« Arche de 6,50m x 3,21m (x3) » : « Arche 1 » à « 3 »), point final isolé et parenthèses vides compris',
+    etape: '26e',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      const pr = await importerPlanning(v, '../src/prestas.js');
+      if (!dv || !pr) return;
+      const base = baseDevis(contexte);
+      const ligne = (ref, designation, quantite) => ({ ref, designation, quantite, composant: false });
+      const dalles = (quantite = '8.0') => ligne('URMIII04', DESIGNATIONS_FICTIVES.urm48, quantite);
+      const sec = (titre, quantite) => ({ titre, lignes: [dalles(quantite)] });
+      const noms = (titre, quantite = '8.0') => {
+        const c = dv.configurationProposee(dv.classerDevis([sec(titre, quantite)], base)[0], base);
+        return [...c.murs, ...c.mursSansForme].map((x) => x.nom);
+      };
+      const titres = ['Arche de 6,50m x 3,21m (x3)', 'Mur LED en 6 x 3m', 'Ecran pour 4 x 2m', 'Ecran LED de L=4m H=2m', 'ECRAN DE 3 x 2m', 'Ecran d\' 4m', 'Ecran d’ 4m',
+        'Ecran à 3 x 2m', 'ECRAN À 3 x 2m', 'Ecran, de 4 x 2m', 'Ecran pour de 4 x 2m', 'Ecran de x3', 'Ecran de 4 x 2m.', 'Ecran (4 x 2m)', 'Ecran (de 4 x 2m)'];
+      const trois = (nom) => [1, 2, 3].map((i) => `${nom} ${i}`);
+      v.egal('mot de liaison final retiré', titres.map((t) => noms(t, '18.0')), [trois('Arche'), ['Mur LED'], ['Ecran'], ['Ecran LED'], ['ECRAN'], ['Ecran'], ['Ecran'],
+        ['Ecran'], ['ECRAN'], ['Ecran'], ['Ecran'], trois('Ecran'), ['Ecran'], ['Ecran'], ['Ecran']]);
+      v.egal('mots gardés : « EN » en capitales, lettre sans accent, « de » au milieu, nom vide', ['Ecran EN 4 x 2m', 'Ecran A 4 x 2m', 'Mur de led central L=4m x Ht=4m', 'De 4 x 2m', 'Ecran prov. 4 x 2m'].map((t) => noms(t)),
+        [['Ecran EN'], ['Ecran A'], ['Mur de led central'], ['Mur'], ['Ecran prov.']]);
+      v.egal('coupe à 40 caractères puis mot de liaison retiré', noms(`${'X'.repeat(37)} de Y`), ['X'.repeat(37)]);
+
+      const presta = (sections) => ({ ...DEVIS_CONGRES, sections });
+      const mdd = (sections) => dv.mursDuDevis(presta(sections), base, {});
+      const nomsPresta = (titresSections) => mdd(titresSections.map((t) => sec(t))).murs.map((x) => x.nom);
+      const neutres = mdd([sec('[Consommation : 18kw]', '106.0'), sec('[Accessoires]', '24.0'), sec('***VIDEO***', '4.0')]);
+      v.egal('trois sections neutres : « Mur LED », « Mur LED 2 », « Mur LED 3 » partout, préfixes des alertes inchangés', [
+        neutres.murs.map((x) => x.nom), neutres.resume, neutres.montages.map((x) => [x.titre, x.murs]), neutres.alertes,
+      ], [['Mur LED', 'Mur LED 2', 'Mur LED 3'], ['Mur LED : forme à choisir', 'Mur LED 2 : forme à choisir', 'Mur LED 3 : forme à choisir'],
+        [['[Consommation : 18kw]', ['Mur LED']], ['[Accessoires]', ['Mur LED 2']], ['***VIDEO***', ['Mur LED 3']]],
+        ['[Consommation : 18kw] : Titre de section qui ne nomme pas un mur : 106 dalles, forme à choisir.', '[Accessoires] : Titre de section qui ne nomme pas un mur : 24 dalles, forme à choisir.',
+          '***VIDEO*** : Titre de section qui ne nomme pas un mur : 4 dalles, forme à choisir.']]);
+      const ecrans = (debut, fin) => Array.from({ length: fin - debut + 1 }, (_, i) => `Ecran ${debut + i}`);
+      v.egal('doublons : casse, accents, multiplicateurs, nombre final, noms réservés, cascade, mélange', [
+        nomsPresta(['MUR LED L=2m H=1m', '[Accessoires]']),
+        nomsPresta(['4x Ecran L=2m H=1m', '2x Ecran L=2m H=1m']),
+        nomsPresta(['Écran L=2m H=1m', 'ECRAN L=2m H=1m']),
+        nomsPresta(['Ecran L=2m H=1m', '2x Ecran L=2m H=1m']),
+        nomsPresta(['Plateau 1 L=2m H=1m', 'Plateau 1 L=2m H=1m', 'Plateau 2 L=2m H=1m']),
+        nomsPresta(['Mur LED L=2m H=1m', '[Accessoires]', 'Mur LED 2 L=2m H=1m']),
+        nomsPresta(['Ecran 2 L=2m H=1m', '4x Ecran L=2m H=1m']),
+        nomsPresta(['Ecran L=2m H=1m', 'Ecran L=2m H=1m', '2x Ecran L=2m H=1m']),
+        nomsPresta([`${'X'.repeat(40)}AAAAA`, `${'X'.repeat(40)}BBBBB`]),
+      ], [['MUR LED', 'Mur LED 2'], ecrans(1, 6), ['Écran', 'ECRAN 2'], ['Ecran', 'Ecran 1', 'Ecran 2'], ['Plateau 1', 'Plateau 1 2', 'Plateau 2'], ['Mur LED', 'Mur LED 3', 'Mur LED 2'],
+        ['Ecran 2', 'Ecran 1', 'Ecran 5', 'Ecran 3', 'Ecran 4'], ['Ecran', 'Ecran 3', 'Ecran 1', 'Ecran 2'], ['X'.repeat(40), `${'X'.repeat(38)} 2`]]);
+      v.egal('dix sections au même nom long : numéro 10 avec la base coupée à 37 caractères', nomsPresta(Array(10).fill('Z'.repeat(45))).slice(-2), [`${'Z'.repeat(38)} 9`, `${'Z'.repeat(37)} 10`]);
+      v.egal('mur sans forme hors du conseil sous son nom unique', mdd([sec('Mur LED L=2m H=1m'), sec('[Accessoires]')]).processeurs.sansConseil, ['Mur LED 2']);
+
+      const opts = { maintenant: new Date(Date.UTC(2026, 10, 1, 9)) };
+      const depart = pr.migrer({}, opts);
+      const sol = (titre, quantite) => ({ titre, lignes: [dalles(quantite), ligne('BAS-FICT', 'Base de sol fictive 1m', '4.0')] });
+      const un = mdd([sol('[Consommation : 18kw]', '106.0')]);
+      const deux = mdd([sol('[Consommation : 18kw]', '106.0'), sol('[Accessoires]', '24.0')]);
+      const lien1 = { boite: 'boite-a', idEventsoft: DEVIS_CONGRES.idEventsoft, empreinte: 'empreinte-26e-1' };
+      const lien2 = { ...lien1, empreinte: 'empreinte-26e-2' };
+      const e1 = pr.preparerMurs(depart, { nom: 'Presta fictive', murs: un.murs, lien: lien1 }, opts);
+      const p1 = pr.prestaOuverte(e1);
+      const e2 = pr.lienDevisVu(e1, p1.id, lien2.empreinte, opts);
+      const nomsDeux = deux.murs.map((x) => x.nom);
+      const etat2 = pr.etatLienDevis(e2, lien2, nomsDeux);
+      v.egal('devis qui ajoute une section neutre après : seul « Mur LED 2 » à compléter', etat2.manquants, ['Mur LED 2']);
+      const prepares = nomsDeux.filter((n) => !etat2.manquants.includes(n));
+      v.egal('montage : « déjà préparé » seulement pour « Mur LED »', dv.lignesMontage(deux.montages, { prepares }).map((l) => l.texte), [
+        '[Consommation : 18kw] : stack (base de sol) ; mur déjà préparé, vérifie Poids.', '[Accessoires] : stack (base de sol).']);
+      const e3 = pr.preparerMurs(e2, { nom: 'X', murs: deux.murs, lien: lien2 }, opts);
+      const p3 = pr.prestaOuverte(e3);
+      v.egal('« Compléter les murs » : le seul mur nouveau, lien à jour', [p3.murs.map((m) => m.nom), p3.lienDevis.murs, pr.etatLienDevis(e3, lien2, nomsDeux).manquants],
+        [['Mur LED', 'Mur LED 2'], ['Mur LED', 'Mur LED 2'], []]);
+      v.vrai('second appui : rien de changé', pr.preparerMurs(e3, { nom: 'X', murs: deux.murs, lien: lien2 }, opts) === e3);
+      const direct = pr.prestaOuverte(pr.preparerMurs(depart, { nom: 'Presta fictive', murs: deux.murs, lien: lien2 }, opts));
+      v.egal('préparation directe des deux sections : noms et lien uniques', [direct.murs.map((m) => m.nom), direct.lienDevis.murs], [['Mur LED', 'Mur LED 2'], ['Mur LED', 'Mur LED 2']]);
+    },
+  },
 ];

@@ -475,6 +475,19 @@ export function lireTitre(titre) {
 // Nom de mur : le titre sans ses dimensions (paire comprise quand il n'en a qu'une, lot 26c3), son multiplicateur, ses
 // crochets ni « Installation de », première lettre en majuscule, coupé à 40 caractères numéro compris.
 const NOM_MUR_MAX = 40;
+// Fin d'un nom (lot 26e, choix de l'utilisateur) : mots de liaison finaux, aussi devant une parenthèse fermante, sans casse
+// et accents gardés (« Ecran A » reste) ; « en » seulement en minuscules (« EN » : langue d'un écran bilingue) ; ponctuation
+// finale, « . » final isolé, parenthèses vides ; en boucle (« Ecran pour de »).
+const FIN_LIAISON = /(^|[\s(])(?:de|du|des|d['’]|à|au|aux|pour|sur|avec|et)\s*(?=\)|$)/gi;
+const FIN_EN = /(^|[\s(])en\s*(?=\)|$)/g;
+function finNom(texte) {
+  let t = String(texte);
+  for (let avant = null; t !== avant;) {
+    avant = t;
+    t = t.replace(/\(\s*\)/g, ' ').replace(FIN_LIAISON, '$1').replace(FIN_EN, '$1').replace(/\s+\.$/, '').replace(/[\s/\-–,;:]+$/, '');
+  }
+  return t.replace(/\s+/g, ' ').trim();
+}
 function nomsMurs(titre, n) {
   const brut = String(titre ?? '').replace(/[[\]]/g, ' ');
   const nettoye = (paires(brut).length === 1 ? brut.replace(PAIRE, ' ') : brut)
@@ -485,13 +498,32 @@ function nomsMurs(titre, n) {
     .replace(/(^|\s)x\s?\d+(?=\s|$)/gi, ' ')
     .replace(/(^|\s)x(?=\s|$)/gi, ' ')
     .replace(/^\s*installation\s+d(?:e|es|u)\s+/i, ' ')
-    .replace(/(^|\s)\d+\s+(?=(?:totems?|[ée]crans?|murs?)\b)/i, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/[\s/\-–,;:]+$/, '')
-    .trim();
-  const base = nettoye ? nettoye[0].toUpperCase() + nettoye.slice(1) : 'Mur';
-  if (n === 1) return [base.slice(0, NOM_MUR_MAX).trim()];
-  return Array.from({ length: n }, (_, i) => `${base.slice(0, NOM_MUR_MAX - ` ${i + 1}`.length).trim()} ${i + 1}`);
+    .replace(/(^|\s)\d+\s+(?=(?:totems?|[ée]crans?|murs?)\b)/i, ' ');
+  const fin = finNom(nettoye);
+  const base = fin ? fin[0].toUpperCase() + fin.slice(1) : 'Mur';
+  if (n === 1) return [finNom(base.slice(0, NOM_MUR_MAX)) || 'Mur'];
+  return Array.from({ length: n }, (_, i) => `${finNom(base.slice(0, NOM_MUR_MAX - ` ${i + 1}`.length)) || 'Mur'} ${i + 1}`);
+}
+
+// Noms uniques dans une presta (lot 26e, choix de l'utilisateur) : comparés sans casse ni accents, dans l'ordre du devis ;
+// un nom déjà pris devient « base k », k le plus petit entier à partir de 2 dont le nom n'est ni pris ni le nom proposé
+// d'un autre mur de la presta. Base : le nom sans son numéro pour un mur d'une section à multiplicateur, le nom entier
+// sinon (« Plateau 1 » en double : « Plateau 1 2 »). `groupes` : [{ noms, multiple }] par section.
+const cleNom = (nom) => sansAccents(nom).replace(/\s+/g, ' ').trim();
+function nomsUniques(groupes) {
+  const reserves = new Set(groupes.flatMap((g) => g.noms.map(cleNom)));
+  const pris = new Set();
+  return groupes.map(({ noms, multiple }) => noms.map((nom) => {
+    let choisi = nom;
+    if (pris.has(cleNom(nom))) {
+      const base = multiple ? nom.replace(/\s\d+$/, '') : nom;
+      for (let k = 2; pris.has(cleNom(choisi)) || reserves.has(cleNom(choisi)); k += 1) {
+        choisi = `${finNom(base.slice(0, NOM_MUR_MAX - ` ${k}`.length)) || 'Mur'} ${k}`;
+      }
+    }
+    pris.add(cleNom(choisi));
+    return choisi;
+  }));
 }
 
 // Titre qui ne nomme pas un mur (lot 26d, choix de l'utilisateur) : titre de domaine entre astérisques (« ***VIDEO*** »,
@@ -691,7 +723,8 @@ const ficheProposee = (id, fiches) => {
   return { id, nom: nomFiche(f), detail: detail || null };
 };
 
-// Murs proposés pour toute une presta du devis (`configurationProposee` de chaque section, murs sans forme compris),
+// Murs proposés pour toute une presta du devis (`configurationProposee` de chaque section, murs sans forme compris, noms
+// uniques dans la presta, lot 26e),
 // résumé et alertes de chaque mur, montage de chaque section (`montages`, étape 26), processeurs comparés au niveau de la presta (`processeursPresta`) dans le parc de la
 // boîte : ses processeurs (tous s'il n'en a aucun), ses références de dalles, ses dalles (fiche du parc, lot 26c1,
 // sauf pour les références de `sansMembre`). Devis refusé au compte, sans mur LED ni processeur : null. `quantites` et
@@ -714,16 +747,17 @@ export function mursDuDevis(presta, base, { parc = null, quantites = null, bitsP
     const fiche = id ? tous.find((p) => p.id === id) : null;
     return fiche ? { 'form-data': { famille: fiche.famille, processeur: fiche.id } } : {};
   };
-  for (const s of classe) {
-    const c = configurationProposee(s, { dalles });
-    if (!c) continue;
+  // Noms rendus uniques dans toute la presta avant la lecture des sections (lot 26e).
+  const proposees = classe.map((s) => [s, configurationProposee(s, { dalles })]).filter(([, c]) => c);
+  const uniques = nomsUniques(proposees.map(([, c]) => ({ noms: [...c.murs, ...c.mursSansForme].map((m) => m.nom), multiple: c.multiplicateur > 1 })));
+  for (const [i, [s, c]] of proposees.entries()) {
     const section = modeles(s.lignes);
     const processeur = section.length === 1 ? section[0] : (section.length === 0 && duDevis.length === 1 ? duDevis[0] : null);
     const forme = c.formeAChoisir ? 'forme à choisir' : `${virgule(c.largeurM)} × ${virgule(c.hauteurM)} m${c.dalle ? '' : ', dalle à choisir'}`;
     // Montage lu dans la section (étape 26) : réglé dans Poids pour stack ou accroche, rien à confirmer.
     const { montage, indices } = montageDevis(s);
     const formPoids = montage === 'a-confirmer' ? {} : { 'form-poids': { mode: montage } };
-    const deLaSection = [...c.murs, ...c.mursSansForme];
+    const deLaSection = [...c.murs, ...c.mursSansForme].map((m, j) => ({ ...m, nom: uniques[i][j] }));
     for (const m of deLaSection) {
       murs.push({ ...m, formulaires: { ...m.formulaires, ...formData(processeur), ...formPoids } });
       resume.push(`${m.nom} : ${forme}`);
