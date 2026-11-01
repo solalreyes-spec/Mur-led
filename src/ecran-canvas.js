@@ -256,6 +256,11 @@ export function resumeOngletCanvas() {
   return dernier ? resumeCanvas(dernier.r, dernier) : null;
 }
 
+// Source et contrôle de Canvas pour la check-list de mise en service (étape 27, lot 27b) ; null sans contrôle.
+export function controleAffiche() {
+  return dernier ? { source: dernier.source, controle: dernier.r } : null;
+}
+
 // Configuration gardée : la source suit-elle le conseil, ou a-t-elle été modifiée à la main ?
 export function sourceEstModifiee() {
   return sourceModifiee;

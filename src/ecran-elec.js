@@ -320,6 +320,12 @@ function afficherMaConfig(resume, impose, r) {
 }
 const maConfigRemplie = () => formulaire.elements.lignesImposees.value.trim() !== '';
 
+// Résultat d'Élec pour la check-list de mise en service (étape 27, lot 27b) : le calcul et les arrivées (plusieurs
+// arrivées, sinon null) ; null sans calcul valide.
+export function resultatElec() {
+  return dernier ? { resultat: dernier.r, arrivees: dernier.arrivees ?? null } : null;
+}
+
 // Résumé texte du dernier calcul valide, pour « Copier les résultats ».
 export function resumeOngletElec() {
   return dernier ? resumeElec(dernier.r, dernier) : null;
@@ -418,7 +424,7 @@ function mettreAJour() {
 
   const impose = cablage?.imposee?.possible ? { variante: cablage.variantes.find((x) => x.mode === 'imposee'), resume: cablage.imposee } : null;
   afficherMaConfig(cablage?.imposee ?? null, impose, r);
-  dernier = { r, dalle, mur, distribution: distribution?.d ?? null, imposee: cablage?.imposee ?? null, repartition };
+  dernier = { r, dalle, mur, distribution: distribution?.d ?? null, imposee: cablage?.imposee ?? null, repartition, arrivees };
   publier({ r, dalle, mur, distribution: reglagesDistribution, imposee: e.imposee, arrivees, manuel: arrivees ? choixLignes() : null });
   const alertesElec = arrivees ? sansAlertesArrivee(r.alertes) : r.alertes;
   const surChoix = (dalle1, id) => {

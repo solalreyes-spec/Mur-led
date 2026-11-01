@@ -16,7 +16,8 @@ import * as fichesMetier from '../src/fiches-metier.js';
 import * as pdf from '../src/pdf.js';
 import * as novalct from '../src/novalct.js';
 import * as connexion from '../src/connexion.js';
-import { nombre } from '../src/format.js';
+import * as terrain from '../src/terrain.js';
+import { nombre, sourceCourte } from '../src/format.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
   CABINET_CAS_4, CABINET_CAS_5, DALLE_CAS_7, DALLE_64, DALLE_64X32, DALLE_16, DALLE_256,
@@ -8118,7 +8119,7 @@ export const REGLES = [
       v.egal('codes de source connus', etapes.flatMap((e) => e.sources).filter((s) => !novalct.SOURCES_NOVALCT[s.id]).map((s) => s.id), []);
       const libelles = Object.values(novalct.SOURCES_NOVALCT).flatMap((s) => [s.titre, s.court]);
       v.egal('libellés publiables : ni chemin ni nom de fichier', libelles.filter((l) => /\/|\.(md|pdf|txt)\b/i.test(l)), []);
-      v.egal('formation : « Formation (transcription n) »', Object.values(novalct.SOURCES_NOVALCT).filter((s) => s.confiance === 'formation').map((s) => s.court).filter((c) => !/^Formation \(transcription \d+\)$/.test(c)), []);
+      v.egal('formation : « Formation (transcription n) » ou « Formation »', Object.values(novalct.SOURCES_NOVALCT).filter((s) => s.confiance === 'formation').map((s) => s.court).filter((c) => !/^Formation( \(transcription \d+\))?$/.test(c)), []);
       v.egal('signatures uniques dans chaque pas à pas', essais.map((p) => {
         const s = p.parties.flatMap((x) => x.etapes.map((e) => e.signature));
         return s.length - new Set(s).size;
@@ -10511,7 +10512,485 @@ export const REGLES = [
       v.egal('lien vers le pas à pas', blocs.map((b) => b.lienPasAPas), [true, true, true]);
     },
   },
+  {
+    id: 'R448',
+    titre: 'Check-list de mise en service (lot 27a, spec § 4.1) : douze étapes toujours présentes et dans l\'ordre, pour toutes les marques ; renvois de chaque étape selon la marque du processeur (Novastar avec NovaLCT, avec un processeur de secours, COEX, Brompton avec et sans redondance, Colorlight) ; note de l\'appli quand la marque n\'a pas de procédure ; lignes de marque d\'un renvoi au Dépannage filtrées par marque',
+    etape: '27a',
+    verifier(v, contexte) {
+      const donnees = donneesTerrain(contexte);
+      const ids = ['depot', 'arrivee', 'cablage-data', 'cablage-elec', 'tension', 'processeur', 'config', 'ports', 'mire', 'mapping', 'calibration', 'sauvegarde'];
+      const titres = ['Au dépôt', 'Arrivée électrique', 'Câblage data', 'Câblage élec', 'Mise sous tension', 'Processeur et logiciel', 'Config des dalles',
+        'Test des ports', 'Mire', 'Mapping et source', 'Calibration et couleurs', 'Sauvegarde'];
+      const essais = {
+        novastar: entreesTerrain('novastar'),
+        secours: entreesTerrain('novastar', { processeur: { id: 'novastar-mctrl4k', nom: 'MCTRL4K', nombre: 2, secours: 2 }, redondance: true }),
+        coex: entreesTerrain('coex'),
+        brompton: entreesTerrain('brompton'),
+        bromptonRedondance: entreesTerrain('brompton', { redondance: true }),
+        colorlight: entreesTerrain('colorlight'),
+      };
+      const resultats = Object.fromEntries(Object.entries(essais).map(([k, e]) => [k, terrain.etapesTerrain(e, donnees)]));
+      v.egal('douze étapes dans l\'ordre, toutes marques', Object.values(resultats).map((r) => r.etapes.map((e) => e.id)), Object.values(resultats).map(() => ids));
+      v.egal('titres', resultats.novastar.etapes.map((e) => e.titre), titres);
+      v.egal('total : 12', Object.values(resultats).map((r) => r.total), [12, 12, 12, 12, 12, 12]);
+      const renvois = (r) => Object.fromEntries(r.etapes.map((e) => [e.id, e.lignes.filter((l) => l.type === 'renvoi').map((l) => l.renvoi)]));
+      const commun = { depot: [], arrivee: ['dep:T9:avertissement'], 'cablage-data': [], 'cablage-elec': [], tension: ['dep:T9.2:1', 'dep:T9.2:2'] };
+      v.egal('Novastar avec NovaLCT', renvois(resultats.novastar), {
+        ...commun, processeur: ['ms:ns:1', 'ms:ns:2', 'ms:ns:3'], config: ['ms:ns:4', 'ms:ns:5', 'ms:ns:6', 'ms:ns:c1', 'ms:ns:c2'], ports: ['dep:T2.2:2'],
+        mire: ['dep:T5.3:1'], mapping: [], calibration: [], sauvegarde: ['ms:ns:7'],
+      });
+      v.egal('Novastar, secours par un second processeur : NS c3', renvois(resultats.secours).processeur, ['ms:ns:1', 'ms:ns:2', 'ms:ns:3', 'ms:ns:c3']);
+      v.egal('COEX', renvois(resultats.coex), {
+        ...commun, processeur: [], config: ['rappel:C1', 'rappel:C2', 'rappel:C3', 'rappel:C4'], ports: ['dep:T2.2:2'], mire: ['dep:T5.3:1'], mapping: [], calibration: [], sauvegarde: [],
+      });
+      v.egal('Brompton sans redondance', renvois(resultats.brompton), {
+        ...commun, processeur: ['ms:br:1', 'ms:br:2'], config: ['ms:br:3'], ports: ['dep:T8.2:1'], mire: ['dep:T5.3:1', 'ms:br:6'], mapping: ['ms:br:4'],
+        calibration: ['ms:br:7'], sauvegarde: [],
+      });
+      v.egal('Brompton en redondance : BR 5', renvois(resultats.bromptonRedondance).ports, ['dep:T8.2:1', 'ms:br:5']);
+      v.egal('Colorlight', renvois(resultats.colorlight), {
+        ...commun, processeur: [], config: [], ports: [], mire: ['dep:T5.3:1'], mapping: [], calibration: [], sauvegarde: [],
+      });
+      const notes = (r) => r.etapes.filter((e) => e.lignes.some((l) => l.type === 'note')).map((e) => e.id);
+      v.egal('notes : COEX', notes(resultats.coex), ['processeur', 'sauvegarde']);
+      v.egal('notes : Brompton', notes(resultats.brompton), ['sauvegarde']);
+      v.egal('notes : Novastar', notes(resultats.novastar), []);
+      v.egal('notes : Colorlight', notes(resultats.colorlight), ['processeur', 'config', 'ports', 'calibration', 'sauvegarde']);
+      const note = (r, id) => r.etapes.find((e) => e.id === id).lignes.find((l) => l.type === 'note');
+      v.egal('note COEX (VMP)', note(resultats.coex, 'processeur')?.texte, 'Pas de procédure COEX pour cette étape dans l\'appli : suis la doc du constructeur (VMP).');
+      v.egal('note Brompton (Tessera)', note(resultats.brompton, 'sauvegarde')?.texte, 'Pas de procédure Brompton pour cette étape dans l\'appli : suis la doc du constructeur (Tessera).');
+      v.egal('note Colorlight (LEDVISION)', note(resultats.colorlight, 'ports')?.texte, 'Pas de procédure Colorlight pour cette étape dans l\'appli : suis la doc du constructeur (LEDVISION).');
+      const sansLogiciel = terrain.etapesTerrain(entreesTerrain('colorlight', { nomMarque: 'Kystar', logiciel: null }), donnees);
+      v.egal('logiciel inconnu', note(sansLogiciel, 'ports')?.texte, 'Pas de procédure Kystar pour cette étape dans l\'appli : suis la doc du constructeur (le logiciel du processeur).');
+      v.egal('source des notes', note(resultats.coex, 'processeur')?.source, 'Choix de conception du projet');
+      // Lignes d'un renvoi au Dépannage : celles du numéro, ligne générale toujours, lignes de marque pour la marque du mur.
+      const t22 = (r) => r.etapes.find((e) => e.id === 'ports').lignes.find((l) => l.renvoi === 'dep:T2.2:2')?.lignes.map((l) => l.marque);
+      v.egal('T2.2 ligne 2 en Novastar : générale et Novastar', t22(resultats.novastar), [null, 'novastar']);
+      v.egal('T2.2 ligne 2 en COEX : générale et COEX', t22(resultats.coex), [null, 'coex']);
+      const avert = resultats.novastar.etapes[1].lignes.find((l) => l.renvoi === 'dep:T9:avertissement');
+      v.egal('avertissement de T9 : ses deux textes', avert?.lignes.map((l) => l.texte), donnees.depannage.arbres.find((a) => a.id === 'T9').avertissement.map((l) => l.texte));
+      const ns4 = resultats.novastar.etapes[6].lignes.find((l) => l.renvoi === 'ms:ns:4');
+      v.vrai('procédure lue dans les données, mot pour mot', ns4?.lignes[0]?.texte === 'Charger le bon fichier rcfgx ; en cas de doute, le tester d\'abord sur une ou deux dalles.', ns4);
+      v.egal('procédure : source « Formation »', ns4?.lignes[0]?.sources.map((s) => [s.court, s.confiance]), [['Formation', 'formation']]);
+      const br7 = resultats.brompton.etapes[10].lignes.find((l) => l.renvoi === 'ms:br:7');
+      v.egal('BR 7 en deux lignes, la calibration sur la transcription 17', br7?.lignes.map((l) => l.sources.map((s) => s.court)), [['Formation'], ['Formation (transcription 17)']]);
+      const c1 = resultats.coex.etapes[6].lignes.find((l) => l.renvoi === 'rappel:C1');
+      v.egal('rappel C1 : titre et textes de rappels.js', [c1?.titre, c1?.lignes.length], [rappels.RAPPELS.find((r) => r.id === 'C1').titre, rappels.RAPPELS.find((r) => r.id === 'C1').textes.length]);
+      // Valeurs du mur.
+      const textes = (r, id) => r.etapes.find((e) => e.id === id).lignes.filter((l) => l.type === 'texte' || l.type === 'alerte').map((l) => l.texte);
+      v.egal('processeurs du mur', textes(resultats.secours, 'processeur'), ['Processeurs : 2 × MCTRL4K + 2 de secours', 'Pas à pas NovaLCT : 9 sur 14']);
+      v.egal('bouton du pas à pas NovaLCT (logiciel NovaLCT seulement)', [resultats.novastar, resultats.coex].map((r) => r.etapes[5].boutons), [['novalct'], []]);
+      v.egal('Brompton : fréquence et profondeur réseau avec leur origine', textes(resultats.brompton, 'processeur'),
+        ['Processeurs : 2 × S8', 'Fréquence et profondeur réseau : 60 Hz, 12 bits (défaut, livraison Tessera)']);
+      v.egal('arrivée tri', textes(resultats.novastar, 'arrivee'), ['Arrivée : tri 32 A']);
+      v.egal('arrivée mono', textes(terrain.etapesTerrain(entreesTerrain('novastar', { elec: { arrivees: [{ type: 'mono', intensiteA: 16 }], lignes: [{ numero: 1, phase: null }], alerteAppel: null } }), donnees), 'arrivee'), ['Arrivée : mono 16 A']);
+      const deuxArrivees = terrain.etapesTerrain(entreesTerrain('novastar', { elec: { arrivees: [{ type: 'tri', intensiteA: 32 }, { type: 'tri', intensiteA: 63 }], lignes: [], alerteAppel: null } }), donnees);
+      v.egal('deux arrivées', textes(deuxArrivees, 'arrivee'), ['Arrivée 1 : tri 32 A', 'Arrivée 2 : tri 63 A']);
+      v.egal('mise sous tension : lignes dans l\'ordre, avec leur phase', textes(resultats.novastar, 'tension'), ['Ligne 1 · L1', 'Ligne 2 · L2']);
+      const appel = terrain.etapesTerrain(entreesTerrain('novastar', { elec: { ...entreesTerrain('novastar').elec, alerteAppel: 'Courant d\'appel : 120 A au démarrage.' } }), donnees);
+      v.egal('alerte de courant d\'appel', appel.etapes[4].lignes.filter((l) => l.type === 'alerte').map((l) => l.texte), ['Courant d\'appel : 120 A au démarrage.']);
+      v.egal('config : pixels de la fiche et config du lot', textes(resultats.novastar, 'config'), ['Dalle : 176 × 176 px', 'Config NovaLCT : BP2V2_A.rcfgx, lot A']);
+      const sansConfig = terrain.etapesTerrain(entreesTerrain('novastar', { fiches: [{ ...entreesTerrain('novastar').fiches[0], config: { lignes: [], ids: [] } }] }), donnees);
+      v.egal('config absente', textes(sansConfig, 'config')[1], 'Aucun fichier de config pour Black Pearl BP2 V2 dans le parc Parc A : ajoute-le dans l\'onglet Base.');
+      v.egal('ports', [textes(resultats.novastar, 'ports'), textes(resultats.secours, 'ports')], [['8 ports'], ['8 ports, 8 de secours']]);
+      v.egal('mire : bouton', resultats.novastar.etapes[8].boutons, ['mire']);
+      v.egal('mapping : source et blocs', textes(resultats.novastar, 'mapping'), ['Source : 1920 × 1080 px à 60 Hz', 'Processeur n° 1, dans sa source : x 0 à 1407, y 0 à 1055']);
+      v.egal('au dépôt : lignes d\'« Avant de partir » et en-tête', [resultats.novastar.etapes[0].lignes.map((l) => [l.texte, l.fait]), resultats.novastar.etapes[0].resume],
+        [entreesTerrain('novastar').avantDePartir.lignes.map((l) => [l.texte, l.fait]), '1 à faire']);
+      v.egal('au dépôt : source', resultats.novastar.etapes[0].lignes[0].source, 'Calcul de l\'appli d\'après le parc');
+      v.egal('au dépôt sans parc', textes(terrain.etapesTerrain(entreesTerrain('novastar', { parc: null, avantDePartir: null }), donnees), 'depot'),
+        ['Pas de parc pour ce mur : rien de propre au parc à vérifier.']);
+    },
+  },
+  {
+    id: 'R449',
+    titre: 'Check-list, étapes calculées (lot 27a, spec § 4.3) : « Câblage data » et « Câblage élec » reprennent l\'état du guide de montage, sans case à la main, faites quand tout est branché ; mur au calcul non valide : valeurs de l\'onglet remplacées par « calcul non valide, corrige ce mur »',
+    etape: '27a',
+    verifier(v, contexte) {
+      const donnees = donneesTerrain(contexte);
+      const r = terrain.etapesTerrain(entreesTerrain('novastar'), donnees);
+      const data = r.etapes.find((e) => e.id === 'cablage-data');
+      v.egal('câblage data : état du guide, bouton, non faite', [data.calculee, data.faite, data.lignes.map((l) => l.texte), data.boutons], [true, false, ['Montage data : 1 port sur 2 branché (port 1)'], ['montage-data']]);
+      const fini = terrain.etapesTerrain(entreesTerrain('novastar', { montage: { data: { faites: 2, total: 2, texte: '2 ports sur 2 branchés' }, elec: { faites: 2, total: 2, texte: '2 lignes sur 2 branchées' } } }), donnees);
+      v.egal('tout branché : faites', fini.etapes.filter((e) => e.calculee).map((e) => [e.id, e.faite]), [['cablage-data', true], ['cablage-elec', true]]);
+      v.egal('étapes à la main : toutes les autres', r.etapes.filter((e) => !e.calculee).length, 10);
+      v.egal('pas de signature pour une étape calculée', data.signature, null);
+      const coches = Object.fromEntries(r.etapes.filter((e) => !e.calculee).map((e) => [e.id, e.signature]));
+      v.egal('état : 1 sur 12 avec la mire', terrain.etatTerrain(r, { mire: r.etapes[8].signature }), { faites: 1, total: 12 });
+      v.egal('état : tout coché, câblage pas fini', terrain.etatTerrain(r, coches), { faites: 10, total: 12 });
+      v.egal('état : tout coché et branché', terrain.etatTerrain(fini, coches), { faites: 12, total: 12 });
+      v.egal('une case sur une étape calculée ne compte pas', terrain.etatTerrain(r, { 'cablage-data': 'x' }), { faites: 0, total: 12 });
+      const invalide = terrain.etapesTerrain(entreesTerrain('novastar', { nonValides: ['elec'], elec: null }), donnees);
+      const nv = (id) => invalide.etapes.find((e) => e.id === id);
+      v.egal('Élec non valide : étapes en cause', invalide.etapes.filter((e) => !e.valide).map((e) => e.id), ['arrivee', 'cablage-elec', 'tension']);
+      v.vrai('… valeurs remplacées, renvois gardés', nv('tension').lignes.some((l) => l.texte === 'calcul non valide, corrige ce mur')
+        && nv('tension').lignes.some((l) => l.renvoi === 'dep:T9.2:1') && !nv('tension').lignes.some((l) => /^Ligne /.test(l.texte ?? '')), nv('tension').lignes);
+      v.egal('… câblage élec non fait', nv('cablage-elec').faite, false);
+      const sansData = terrain.etapesTerrain(entreesTerrain('novastar', { nonValides: ['data'], processeur: null, ports: null }), donnees);
+      v.egal('Data non valide', sansData.etapes.filter((e) => !e.valide).map((e) => e.id), ['depot', 'cablage-data', 'processeur', 'config', 'ports']);
+      const sansCanvas = terrain.etapesTerrain(entreesTerrain('novastar', { nonValides: ['canvas'], canvas: null }), donnees);
+      v.egal('Canvas non valide', [sansCanvas.etapes.filter((e) => !e.valide).map((e) => e.id), sansCanvas.etapes[9].lignes.map((l) => l.texte)], [['mapping'], ['calcul non valide, corrige ce mur']]);
+    },
+  },
+  {
+    id: 'R450',
+    titre: 'Check-list, signatures et rapprochement (lot 27a, spec § 4.3) : état du pas à pas NovaLCT, présence d\'un fichier ou version relevée changés : rien n\'est décoché ; processeur, config du lot ou lignes élec changés : case décochée avec sa raison et le bandeau ; étape disparue : décochée ; calcul non valide : pas de décoche',
+    etape: '27a',
+    verifier(v, contexte) {
+      const donnees = donneesTerrain(contexte);
+      const e0 = entreesTerrain('novastar');
+      const r0 = terrain.etapesTerrain(e0, donnees);
+      const coches = Object.fromEntries(r0.etapes.filter((e) => !e.calculee).map((e) => [e.id, e.signature]));
+      const signatures = r0.etapes.filter((e) => !e.calculee).map((e) => e.signature);
+      v.egal('signatures uniques', new Set(signatures).size, signatures.length);
+      const rien = (libelle, entrees) => {
+        const r = terrain.rapprocherTerrain(terrain.etapesTerrain(entrees, donnees), coches);
+        v.egal(`${libelle} : rien de décoché`, [Object.keys(r.coches).length, r.retirees, r.avis], [10, [], null]);
+      };
+      rien('état du pas à pas NovaLCT', { ...e0, novalct: { faites: 13, total: 14 } });
+      rien('fichier absent de l\'appareil, ligne à faire', { ...e0, avantDePartir: { ...e0.avantDePartir, lignes: e0.avantDePartir.lignes.map((l, i) => (i === 0 ? { texte: 'Fichier de config BP2V2_A.rcfgx (lot A) : absent de cet appareil, joins-le de nouveau dans l\'onglet Base', fait: false } : l)) } });
+      rien('version relevée', { ...e0, avantDePartir: { ...e0.avantDePartir, lignes: e0.avantDePartir.lignes.map((l, i) => (i === 1 ? { texte: 'NovaLCT 5.8.1 relevé le 01/11/2026 : même version sur le PC de régie', fait: null } : l)) } });
+      rien('montage', { ...e0, montage: { data: { faites: 2, total: 2, texte: '2 ports sur 2 branchés' }, elec: e0.montage.elec } });
+      rien('alertes de Canvas et courant d\'appel', { ...e0, canvas: { ...e0.canvas, alertes: ['Alerte EDID'] }, elec: { ...e0.elec, alerteAppel: 'Courant d\'appel' } });
+      const decoche = (libelle, entrees, ids, avis) => {
+        const r = terrain.rapprocherTerrain(terrain.etapesTerrain(entrees, donnees), coches);
+        v.egal(`${libelle} : décochées`, r.retirees.map((x) => [x.id, x.raison]), ids.map((id) => [id, 'change']));
+        v.egal(`${libelle} : gardées`, Object.keys(r.coches).length, 10 - ids.length);
+        v.egal(`${libelle} : bandeau`, r.avis, avis);
+      };
+      decoche('processeur changé', { ...e0, processeur: { id: 'novastar-mctrl660', nom: 'MCTRL660', nombre: 1, secours: 0 } }, ['depot', 'processeur'],
+        'Le mur a changé : « Au dépôt » et « Processeur et logiciel » décochées (leur contenu n\'est plus le même).');
+      decoche('config du lot changée', { ...e0, fiches: [{ ...e0.fiches[0], config: { lignes: ['Config NovaLCT : BP2V2_B.rcfgx, lot A'], ids: ['A:cfg-2'] } }] }, ['config'],
+        'Le mur a changé : « Config des dalles » décochée (son contenu n\'est plus le même).');
+      decoche('lignes élec changées', { ...e0, elec: { ...e0.elec, lignes: [{ numero: 1, phase: 1 }, { numero: 2, phase: 3 }] } }, ['tension'],
+        'Le mur a changé : « Mise sous tension » décochée (son contenu n\'est plus le même).');
+      decoche('lot changé', { ...e0, fiches: [{ ...e0.fiches[0], lots: { nombre: 2, retenus: ['B'], aPreciser: false } }] }, ['depot', 'calibration'],
+        'Le mur a changé : « Au dépôt » et « Calibration et couleurs » décochées (leur contenu n\'est plus le même).');
+      const marque = terrain.rapprocherTerrain(terrain.etapesTerrain({ ...e0, ...entreesTerrain('coex') }, donnees), coches);
+      v.egal('marque changée : toutes les cases décochées (la marque est dans chaque signature)', [marque.retirees.length, Object.keys(marque.coches).length], [10, 0]);
+      const invalide = terrain.rapprocherTerrain(terrain.etapesTerrain({ ...e0, nonValides: ['elec'], elec: null }, donnees), coches);
+      v.egal('calcul non valide : rien de décoché', [Object.keys(invalide.coches).length, invalide.retirees], [10, []]);
+      v.egal('… et la case compte', terrain.etatTerrain(terrain.etapesTerrain({ ...e0, nonValides: ['elec'], elec: null }, donnees), coches).faites, 10);
+      const avecAjout = { ...e0, ajouts: [{ id: 'a1', texte: 'Scotcher les câbles' }] };
+      const ra = terrain.etapesTerrain(avecAjout, donnees);
+      const cochesAjout = { ...coches, 'ajout-a1': ra.etapes[12].signature };
+      const disparue = terrain.rapprocherTerrain(r0, cochesAjout);
+      v.egal('étape disparue : décochée avec sa raison', [disparue.retirees, disparue.avis],
+        [[{ id: 'ajout-a1', titre: 'Scotcher les câbles', raison: 'disparue' }], 'Le mur a changé : « Scotcher les câbles » décochée (cette étape n\'existe plus).']);
+      const deux = terrain.texteChangementTerrain([{ id: 'config', titre: 'Config des dalles', raison: 'change' }, { id: 'ajout-a1', titre: 'Scotcher les câbles', raison: 'disparue' }]);
+      v.egal('deux raisons', deux, 'Le mur a changé : « Config des dalles » décochée (son contenu n\'est plus le même) ; « Scotcher les câbles » décochée (cette étape n\'existe plus).');
+      v.egal('rien de changé : pas de bandeau', terrain.texteChangementTerrain([]), null);
+      v.egal('case d\'une étape calculée ignorée', terrain.rapprocherTerrain(r0, { 'cablage-data': 'x' }).coches, {});
+    },
+  },
+  {
+    id: 'R451',
+    titre: 'Check-list, calibration et état des lots (lot 27a, spec § 4.2) : textes par fiche du mur (dalle et demi-dalle) : un seul lot, lots mélangés (texte de R140 selon le logiciel), lots à préciser, aucun lot coché, pas de lot noté ; rappel N7 (Novastar) ou B4 (Brompton) une fois quand une fiche a des lots mélangés, rien de plus en COEX',
+    etape: '27a',
+    verifier(v, contexte) {
+      const donnees = donneesTerrain(contexte);
+      const e0 = entreesTerrain('novastar');
+      const demi = { id: 'roe-bp2-v2-demi', nom: 'Black Pearl BP2 V2 demi', pixelsLargeur: 176, pixelsHauteur: 88, source: 'Fiche ROE', config: { lignes: [], ids: [] } };
+      const calibration = (entrees) => terrain.etapesTerrain(entrees, donnees).etapes.find((e) => e.id === 'calibration');
+      const textes = (et) => et.lignes.filter((l) => l.type === 'texte' || l.type === 'alerte').map((l) => l.texte);
+      v.egal('un seul lot', textes(calibration(e0)), ['Un seul lot de Black Pearl BP2 V2 : lot A.']);
+      const melanges = { ...e0, fiches: [{ ...e0.fiches[0], lots: { nombre: 2, retenus: ['A', 'B'], aPreciser: false } }, { ...demi, lots: { nombre: 1, retenus: ['C'], aPreciser: false } }] };
+      const cm = calibration(melanges);
+      v.egal('lots mélangés (NovaLCT) et demi-dalle', textes(cm), ['Black Pearl BP2 V2 : Lots mélangés (A, B), écarts de couleur possibles : multi-batch adjustment (NovaLCT).', 'Un seul lot de Black Pearl BP2 V2 demi : lot C.']);
+      v.egal('… lots mélangés en alerte', cm.lignes.find((l) => /Lots mélangés/.test(l.texte ?? ''))?.type, 'alerte');
+      v.egal('… rappel N7 une fois', cm.lignes.filter((l) => l.type === 'renvoi').map((l) => l.renvoi), ['rappel:N7']);
+      const deuxMelanges = calibration({ ...melanges, fiches: [melanges.fiches[0], { ...demi, lots: { nombre: 2, retenus: ['C', 'D'], aPreciser: false } }] });
+      v.egal('deux fiches mélangées : N7 une seule fois', deuxMelanges.lignes.filter((l) => l.type === 'renvoi').map((l) => l.renvoi), ['rappel:N7']);
+      const br = calibration({ ...entreesTerrain('brompton'), fiches: melanges.fiches });
+      v.egal('Brompton : BR 7 puis B4', br.lignes.filter((l) => l.type === 'renvoi').map((l) => l.renvoi), ['ms:br:7', 'rappel:B4']);
+      v.vrai('… texte de calibration Brompton', textes(br)[0] === 'Black Pearl BP2 V2 : Lots mélangés (A, B), écarts de couleur possibles : même mémoire de calibration sur toutes les dalles (Brompton).', textes(br));
+      const coex = calibration({ ...entreesTerrain('coex'), fiches: melanges.fiches });
+      v.egal('COEX : la ligne « Lots mélangés » seule', [textes(coex)[0], coex.lignes.filter((l) => l.type === 'renvoi' || l.type === 'note').length],
+        ['Black Pearl BP2 V2 : Lots mélangés (A, B), écarts de couleur possibles.', 0]);
+      v.egal('lots à préciser', textes(calibration({ ...e0, fiches: [{ ...e0.fiches[0], lots: { nombre: 3, retenus: [], aPreciser: true } }] })),
+        ['Black Pearl BP2 V2 : Lots utilisés : à préciser (plusieurs lots sans quantité) : coche ceux de ce mur dans l\'onglet Mur.']);
+      v.egal('aucun lot coché', textes(calibration({ ...e0, fiches: [{ ...e0.fiches[0], lots: { nombre: 2, retenus: [], aPreciser: false } }] })),
+        ['Black Pearl BP2 V2 : Aucun lot coché : coche ceux de ce mur dans l\'onglet Mur.']);
+      v.egal('pas de lot dans le parc', textes(calibration({ ...e0, fiches: [{ ...e0.fiches[0], lots: { nombre: 0, retenus: [], aPreciser: false } }] })),
+        ['Pas de lot noté pour Black Pearl BP2 V2 dans le parc.']);
+      v.egal('sans parc', textes(calibration({ ...e0, parc: null, avantDePartir: null, fiches: [{ ...e0.fiches[0], lots: null }] })),
+        ['Pas de lot noté pour Black Pearl BP2 V2 dans le parc.']);
+      // Avec les vrais lots d'un parc : lotsDuMur donne les retenus que la check-list reçoit.
+      const lots = [{ id: 'l1', identifiant: 'A', quantite: 50 }, { id: 'l2', identifiant: 'B', quantite: 50 }];
+      const choix = fiches.lotsDuMur(lots, 72, null, { logiciel: 'NovaLCT' });
+      const reel = calibration({ ...e0, fiches: [{ ...e0.fiches[0], lots: { nombre: lots.length, retenus: choix.retenus.map((l) => l.identifiant), aPreciser: choix.aPreciser } }] });
+      v.vrai('lotsDuMur : deux lots retenus, même texte que l\'alerte R140', textes(reel)[0] === `Black Pearl BP2 V2 : ${fiches.texteLotsMelanges(['A', 'B'], 'NovaLCT')}`
+        && choix.alertes.includes(fiches.texteLotsMelanges(['A', 'B'], 'NovaLCT')), textes(reel));
+    },
+  },
+  {
+    id: 'R452',
+    titre: 'Check-list, mes étapes (lot 27a, spec § 4.6) : une étape par ajout après les douze, total 12 + ajouts ; texte de 1 à 80 caractères, espaces de bord retirés, 20 au plus par mur, refus avec la raison ; retirer une étape retire aussi sa case ; cocher, décocher, « Tout décocher » sans toucher aux étapes ajoutées',
+    etape: '27a',
+    verifier(v, contexte) {
+      const donnees = donneesTerrain(contexte);
+      let n = 0;
+      const alea = () => `e${(n += 1)}`;
+      let t = terrain.terrainVide();
+      v.egal('terrain vide', t, { etat: null, coches: {}, ajouts: [] });
+      t = terrain.ajouterEtape(t, '  Scotcher les câbles au sol  ', { alea });
+      t = terrain.ajouterEtape(t, 'Photo du mur pour le chef de projet', { alea });
+      v.egal('étapes ajoutées, texte nettoyé', t.ajouts, [{ id: 'e1', texte: 'Scotcher les câbles au sol' }, { id: 'e2', texte: 'Photo du mur pour le chef de projet' }]);
+      const r = terrain.etapesTerrain({ ...entreesTerrain('novastar'), ajouts: t.ajouts }, donnees);
+      v.egal('total 12 + 2', [r.total, r.etapes.length], [14, 14]);
+      v.egal('étapes ajoutées à la fin', r.etapes.slice(12).map((e) => [e.id, e.titre, e.ajout, e.calculee]), [['ajout-e1', 'Scotcher les câbles au sol', true, false], ['ajout-e2', 'Photo du mur pour le chef de projet', true, false]]);
+      v.vrai('refus : vide', /1 à 80 caractères/.test(messageErreur(() => terrain.ajouterEtape(t, '   ', { alea }))));
+      v.vrai('refus : 81 caractères', /1 à 80 caractères/.test(messageErreur(() => terrain.ajouterEtape(t, 'x'.repeat(81), { alea }))));
+      v.egal('80 caractères acceptés', terrain.ajouterEtape(t, 'y'.repeat(80), { alea }).ajouts.length, 3);
+      let plein = terrain.terrainVide();
+      for (let i = 0; i < 20; i += 1) plein = terrain.ajouterEtape(plein, `Étape ${i + 1}`, { alea });
+      v.vrai('refus : 21e étape', /20 étapes ajoutées au plus/.test(messageErreur(() => terrain.ajouterEtape(plein, 'Encore une', { alea }))));
+      const sig = r.etapes[12].signature;
+      t = terrain.cocherEtape(t, 'ajout-e1', sig);
+      t = terrain.cocherEtape(t, 'mire', r.etapes[8].signature);
+      v.egal('cocher', Object.keys(t.coches), ['ajout-e1', 'mire']);
+      v.egal('décocher', Object.keys(terrain.cocherEtape(t, 'mire', null).coches), ['ajout-e1']);
+      v.egal('tout décocher : les étapes ajoutées gardent leur case', terrain.toutDecocher(t).coches, { 'ajout-e1': sig });
+      const sans = terrain.retirerEtape(t, 'e1');
+      v.egal('retirer : l\'étape et sa case', [sans.ajouts.map((a) => a.id), Object.keys(sans.coches)], [['e2'], ['mire']]);
+      v.egal('état avec une étape ajoutée cochée', terrain.etatTerrain(r, { 'ajout-e1': sig }), { faites: 1, total: 14 });
+      v.egal('signature d\'une étape ajoutée : son texte', terrain.etapesTerrain({ ...entreesTerrain('coex'), ajouts: [t.ajouts[0]] }, donnees).etapes[12].signature, sig);
+    },
+  },
+  {
+    id: 'R453',
+    titre: 'Check-list gardée avec le mur (lot 27a, spec § 4.4, § 7) : `terrain` { etat, coches, ajouts } dans les données du mur ; cases et état sans marquer la presta modifiée, étapes ajoutées en la marquant ; terrain vide retiré ; murVide inchangé ; dupliquer un mur ou une presta garde les étapes ajoutées, sans les cases ni l\'état ; rien dans le fichier exporté à ce lot',
+    etape: '27a',
+    verifier(v) {
+      const o = optionsPresta();
+      const { etat, presta } = prestaEssai(o);
+      const murId = presta.murs[0].id;
+      const avant = etat.index.prestas.find((p) => p.id === presta.id).modifieeLe;
+      const plus = horloge(o, '2026-11-01T14:00:00Z');
+      v.egal('terrain d\'un mur jamais ouvert', prestas.terrainMur(etat, murId), { etat: null, coches: {}, ajouts: [] });
+      const e1 = prestas.enregistrerMur(etat, murId, { terrain: { etat: { faites: 1, total: 12, calculeLe: '2026-11-01T14:00:00.000Z' }, coches: { mire: 'sig-mire' }, ajouts: [] } }, plus);
+      v.egal('cases et état gardés', e1.murs[murId].terrain, { etat: { faites: 1, total: 12, calculeLe: '2026-11-01T14:00:00.000Z' }, coches: { mire: 'sig-mire' } });
+      v.egal('… sans marquer la presta modifiée', e1.index.prestas.find((p) => p.id === presta.id).modifieeLe, avant);
+      const e2 = prestas.enregistrerMur(e1, murId, { terrain: { ...prestas.terrainMur(e1, murId), ajouts: [{ id: 'e1', texte: 'Scotcher les câbles' }] } }, plus);
+      v.egal('étape ajoutée : presta modifiée', e2.index.prestas.find((p) => p.id === presta.id).modifieeLe, '2026-11-01T14:00:00.000Z');
+      v.egal('terrain lu entier', prestas.terrainMur(e2, murId), { etat: { faites: 1, total: 12, calculeLe: '2026-11-01T14:00:00.000Z' }, coches: { mire: 'sig-mire' }, ajouts: [{ id: 'e1', texte: 'Scotcher les câbles' }] });
+      const e3 = prestas.enregistrerMur(e2, murId, { terrain: terrain.toutDecocher(prestas.terrainMur(e2, murId)) }, horloge(o, '2026-11-01T15:00:00Z'));
+      v.egal('tout décocher : presta pas modifiée de nouveau', e3.index.prestas.find((p) => p.id === presta.id).modifieeLe, '2026-11-01T14:00:00.000Z');
+      const vide = prestas.enregistrerMur(e1, murId, { terrain: terrain.terrainVide() }, plus);
+      v.egal('terrain vide : retiré', 'terrain' in vide.murs[murId], false);
+      const ajout = prestas.ajouterMur(e2, presta.id, {}, o);
+      v.egal('murVide inchangé', Object.keys(ajout.murs[ajout.index.ouverte.mur]), ['version', 'parc', 'configuration', 'montage']);
+      const d = prestas.dupliquerMur(e2, presta.id, murId, o);
+      v.egal('dupliquer un mur : étapes ajoutées seules', d.murs[d.index.ouverte.mur].terrain, { ajouts: [{ id: 'e1', texte: 'Scotcher les câbles' }] });
+      const sansAjout = prestas.dupliquerMur(e1, presta.id, murId, o);
+      v.egal('dupliquer un mur sans étape ajoutée : pas de terrain', 'terrain' in sansAjout.murs[sansAjout.index.ouverte.mur], false);
+      const dp = prestas.dupliquerPresta(e2, presta.id, o);
+      const copie = dp.index.prestas.find((p) => p.id === dp.index.ouverte.presta);
+      v.egal('dupliquer une presta : étapes ajoutées seules', dp.murs[copie.murs[0].id].terrain, { ajouts: [{ id: 'e1', texte: 'Scotcher les câbles' }] });
+      v.egal('l\'original garde tout', d.murs[murId].terrain, e2.murs[murId].terrain);
+      const { donnees } = prestas.exporterPresta(e2, presta.id, fiches.baseVide(), o);
+      v.egal('pas de terrain dans le fichier exporté', donnees.murs.filter((m) => 'terrain' in m).length, 0);
+      v.egal('montage et NovaLCT toujours sans marquer la presta', prestas.enregistrerMur(e2, murId, { montage: { data: { branches: ['2'] } }, novalct: { cases: { a: 1 } } }, horloge(o, '2026-11-02T10:00:00Z'))
+        .index.prestas.find((p) => p.id === presta.id).modifieeLe, '2026-11-01T14:00:00.000Z');
+    },
+  },
+  {
+    id: 'R454',
+    titre: 'Source « cdc » du pas à pas NovaLCT (lot 27a, choix 9 de l\'utilisateur du 01/11/2026) : libellé « Formation », titre « Formation, mise en service Novastar », confiance « formation » ; les étapes qui la citent la gardent',
+    etape: '27a',
+    verifier(v, contexte) {
+      v.egal('source cdc', novalct.SOURCES_NOVALCT.cdc, { titre: 'Formation, mise en service Novastar', court: 'Formation', confiance: 'formation' });
+      const p = pasAPasNovaLCT(contexte);
+      const cites = p.parties.flatMap((x) => x.etapes).filter((e) => e.sources.some((s) => s.id === 'cdc'));
+      v.vrai('étapes qui la citent', cites.length > 0, cites.length);
+      v.egal('… avec le libellé « Formation »', [...new Set(cites.flatMap((e) => e.sources.filter((s) => s.id === 'cdc').map((s) => s.court)))], ['Formation']);
+    },
+  },
+  {
+    id: 'R455',
+    titre: 'Entrées de la check-list rassemblées depuis les vrais résultats des onglets (lot 27b, spec § 3 et § 8) : mur Novastar dans un parc (MCTRL4K, BP2 V2 en lot A avec sa config NovaLCT) : marque, logiciel, processeur, ports de la variante data retenue, arrivée et lignes de la variante élec retenue avec leur phase, source et blocs de Canvas, pixels lus dans la fiche avec leur source, lots et config du lot, « Avant de partir », suivis du montage et de NovaLCT repris tels quels',
+    etape: '27b',
+    verifier(v, contexte) {
+      const o = ongletsTerrain(contexte);
+      const e = terrain.entreesDuMur(o);
+      v.egal('marque, logiciel, parc', [e.marque, e.nomMarque, e.logiciel, e.parc], ['novastar', 'Novastar', 'NovaLCT', { id: o.parc.id, nom: 'Parc A' }]);
+      v.egal('processeur', e.processeur, { id: 'novastar-mctrl4k', nom: 'MCTRL4K', nombre: 1, secours: 0 });
+      v.egal('redondance et réseau (Novastar : pas de ligne réseau)', [e.redondance, e.reseau], [false, null]);
+      v.egal('ports de la variante data retenue', e.ports, { principaux: o.cablageData.ports, secours: 0 });
+      v.vrai('… au moins un port', e.ports.principaux > 0, e.ports);
+      v.egal('arrivée de l\'onglet Élec', e.elec.arrivees, [{ type: 'tri', intensiteA: 32 }]);
+      v.egal('lignes de la variante élec retenue, avec leur phase', e.elec.lignes, o.elec.variante.lignesDetail.map((l) => ({ numero: l.numero, phase: l.phase })));
+      v.vrai('… phases L1 à L3', e.elec.lignes.every((l) => [1, 2, 3].includes(l.phase)), e.elec.lignes);
+      v.egal('pas d\'alerte de courant d\'appel', e.elec.alerteAppel, null);
+      v.egal('source et blocs de Canvas', [e.canvas.source, e.canvas.blocs], [{ largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60 }, [{ numero: 1, xSource: [0, 1407], ySource: [0, 703] }]]);
+      v.egal('aucune alerte de source', e.canvas.alertes, []);
+      const f = e.fiches[0];
+      v.egal('une fiche, pixels lus dans la fiche', [e.fiches.length, f.id, f.nom, f.pixelsLargeur, f.pixelsHauteur], [1, 'roe-bp2-v2', o.data.dalle.nom, o.data.dalle.pxH, o.data.dalle.pxV]);
+      v.egal('source des pixels : celle de la fiche', f.source, o.data.dalle.sources.pxH.sources.map(sourceCourte).join(', '));
+      v.egal('lots retenus', f.lots, { nombre: 1, retenus: ['A'], aPreciser: false });
+      v.egal('config du lot (sans la ligne des lots, reprise par la calibration)', f.config.lignes, o.data.groupes[0].configs.lignes.filter((l) => !l.startsWith('Lots utilisés')));
+      v.vrai('… le fichier du lot', f.config.lignes.length === 1 && f.config.lignes[0].startsWith('Config NovaLCT : BP2V2_A.rcfgx'), f.config.lignes);
+      v.egal('identifiant de la config retenue', f.config.ids, [fiches.idConfig(o.lot.configs[0], o.lot.id)]);
+      v.egal('« Avant de partir » repris tel quel', e.avantDePartir, o.data.avantDePartir);
+      v.egal('suivis repris tels quels', [e.montage, e.novalct], [o.montage, o.novalct]);
+      v.egal('étapes ajoutées et calculs valides', [e.ajouts, e.nonValides], [[], []]);
+      // Les entrées servent telles quelles à la check-list.
+      const r = terrain.etapesTerrain(e, donneesTerrain(contexte));
+      const textes = (id) => r.etapes.find((x) => x.id === id).lignes.filter((l) => l.type === 'texte' || l.type === 'alerte').map((l) => l.texte);
+      v.egal('check-list : processeur', textes('processeur'), ['Processeur : 1 × MCTRL4K', 'Pas à pas NovaLCT : 9 sur 14']);
+      v.egal('check-list : dalle et config', textes('config'), ['Dalle : 176 × 176 px', f.config.lignes[0]]);
+      v.egal('check-list : arrivée', textes('arrivee'), ['Arrivée : tri 32 A']);
+      v.egal('check-list : lignes', textes('tension'), e.elec.lignes.map((l) => `Ligne ${l.numero} · L${l.phase}`));
+      v.egal('check-list : calibration', textes('calibration'), ['Un seul lot de ROE BP2 V2 : lot A.']);
+      v.egal('check-list : câblage data', textes('cablage-data'), ['Montage data : 1 port sur 2 branché (port 1)']);
+    },
+  },
+  {
+    id: 'R456',
+    titre: 'Entrées de la check-list, mur Brompton sans parc (lot 27b) : marque Brompton, logiciel Tessera, fréquence et profondeur réseau avec leur origine (celle de Data) ; sans parc, ni lots, ni config, ni « Avant de partir » ; en redondance, ports de secours de la variante retenue, aucun boîtier de secours',
+    etape: '27b',
+    verifier(v, contexte) {
+      const o = ongletsTerrain(contexte, { procId: 'brompton-s8', colonnes: 12, rangees: 6, reglages: { bits: 12 }, parc: false, origineBits: 'défaut (livraison Tessera)' });
+      const e = terrain.entreesDuMur(o);
+      v.egal('marque et logiciel', [e.marque, e.nomMarque, e.logiciel], ['brompton', 'Brompton', 'Tessera']);
+      v.egal('réseau Brompton', e.reseau, { frequenceHz: 60, bits: 12, origine: 'défaut (livraison Tessera)' });
+      v.egal('processeur', e.processeur, { id: 'brompton-s8', nom: 'S8', nombre: o.data.evaluation.nombre, secours: 0 });
+      v.egal('sans parc', [e.parc, e.avantDePartir, e.fiches[0].lots, e.fiches[0].config], [null, null, null, { lignes: [], ids: [] }]);
+      const r = terrain.etapesTerrain(e, donneesTerrain(contexte));
+      const textes = (id) => r.etapes.find((x) => x.id === id).lignes.filter((l) => l.type === 'texte' || l.type === 'alerte').map((l) => l.texte);
+      v.egal('check-list : réseau', textes('processeur')[1], 'Fréquence et profondeur réseau : 60 Hz, 12 bits (défaut (livraison Tessera))');
+      v.egal('check-list : au dépôt sans parc', textes('depot'), ['Pas de parc pour ce mur : rien de propre au parc à vérifier.']);
+      v.egal('check-list : config sans parc', textes('config'), ['Dalle : 176 × 176 px', 'Choisis un parc pour voir ses lots et ses configs.']);
+      v.egal('check-list : calibration sans lot', textes('calibration'), ['Pas de lot noté pour ROE BP2 V2 dans le parc.']);
+      const red = terrain.entreesDuMur(ongletsTerrain(contexte, { procId: 'brompton-s8', colonnes: 12, rangees: 6, reglages: { bits: 12, redondance: true }, parc: false }));
+      v.egal('redondance : ports de secours, aucun boîtier de secours', [red.redondance, red.ports.secours === red.ports.principaux, red.processeur.secours], [true, true, 0]);
+    },
+  },
+  {
+    id: 'R457',
+    titre: 'Entrées de la check-list selon la marque (lot 27b) : Novastar avec un processeur de secours (« 1 × MCTRL4K + 1 de secours », ports de secours), COEX (gamme de Novastar, logiciel VMP), Colorlight (autre marque, son nom et LEDVISION)',
+    etape: '27b',
+    verifier(v, contexte) {
+      const s = terrain.entreesDuMur(ongletsTerrain(contexte, { reglages: { redondance: true, secours: 'processeur' } }));
+      v.egal('secours par un second processeur', [s.marque, s.processeur.nombre, s.processeur.secours, s.redondance], ['novastar', 1, 1, true]);
+      v.vrai('… ports de secours', s.ports.secours > 0, s.ports);
+      const r = terrain.etapesTerrain(s, donneesTerrain(contexte));
+      v.egal('check-list : processeurs et secours', r.etapes[5].lignes[0].texte, 'Processeurs : 1 × MCTRL4K + 1 de secours');
+      v.vrai('check-list : NS c3', r.etapes[5].lignes.some((l) => l.renvoi === 'ms:ns:c3'), r.etapes[5].lignes.map((l) => l.renvoi ?? l.texte));
+      const c = terrain.entreesDuMur(ongletsTerrain(contexte, { procId: 'coex-mx40-pro' }));
+      v.egal('COEX', [c.marque, c.nomMarque, c.logiciel, c.processeur.nom], ['coex', 'COEX', 'VMP', 'MX40 Pro']);
+      const z = terrain.entreesDuMur(ongletsTerrain(contexte, { procId: 'colorlight-z6' }));
+      v.egal('Colorlight', [z.marque, z.nomMarque, z.logiciel], ['autre', 'Colorlight', 'LEDVISION']);
+    },
+  },
+  {
+    id: 'R458',
+    titre: 'Entrées de la check-list, calcul non valide (lot 27b, spec § 4.3) : Data sans processeur ou processeur qui ne convient pas, Élec sans résultat, Canvas refusé : onglets en cause dans `nonValides` ; tant qu\'un onglet n\'est pas valide, aucune case n\'est décochée (marque inconnue comprise) et les cases comptent',
+    etape: '27b',
+    verifier(v, contexte) {
+      const o = ongletsTerrain(contexte);
+      v.egal('tout valide', terrain.entreesDuMur(o).nonValides, []);
+      const sansData = terrain.entreesDuMur({ ...o, data: null, cablageData: null });
+      v.egal('Data sans résultat', [sansData.nonValides, sansData.marque, sansData.processeur, sansData.ports], [['data'], null, null, null]);
+      const impossible = terrain.entreesDuMur({ ...o, data: { ...o.data, evaluation: { ...o.data.evaluation, groupes: [], impossible: 'Trop grand.' } } });
+      v.egal('processeur qui ne convient pas : non valide, sa marque reste', [impossible.nonValides, impossible.marque], [['data'], 'novastar']);
+      v.egal('Élec sans résultat', terrain.entreesDuMur({ ...o, elec: null }).nonValides, ['elec']);
+      v.egal('Canvas sans contrôle', terrain.entreesDuMur({ ...o, canvas: null }).nonValides, ['canvas']);
+      v.egal('Canvas refusé', terrain.entreesDuMur({ ...o, canvas: { ...o.canvas, controle: { ...o.canvas.controle, ok: false } } }).nonValides, ['canvas']);
+      // Toutes les cases cochées sur le mur valide, puis Data perdu (marque inconnue : chaque signature change).
+      const donnees = donneesTerrain(contexte);
+      const r0 = terrain.etapesTerrain(terrain.entreesDuMur(o), donnees);
+      const coches = Object.fromEntries(r0.etapes.filter((x) => x.signature).map((x) => [x.id, x.signature]));
+      const r1 = terrain.etapesTerrain(sansData, donnees);
+      const rapproche = terrain.rapprocherTerrain(r1, coches);
+      v.egal('Data non valide : rien de décoché', [Object.keys(rapproche.coches).length, rapproche.retirees, rapproche.avis], [10, [], null]);
+      v.egal('… les cases comptent', terrain.etatTerrain(r1, coches).faites, 10);
+      const valide = terrain.rapprocherTerrain(terrain.etapesTerrain({ ...terrain.entreesDuMur(o), marque: 'coex', logiciel: 'VMP' }, donnees), coches);
+      v.egal('calcul valide de nouveau, autre marque : décochées avec leur raison', valide.retirees.length, 10);
+    },
+  },
+  {
+    id: 'R459',
+    titre: 'Entrées de la check-list, cas particuliers (lot 27b) : rangée de demi-dalles (sa fiche, ses pixels, ses lignes de config avec son nom), mur mixte (fiche de chaque zone), plusieurs arrivées, arrivée mono (lignes sans phase), alerte de courant d\'appel d\'Élec, alertes EDID et plage de Canvas seulement, étapes ajoutées reprises',
+    etape: '27b',
+    verifier(v, contexte) {
+      const cb5 = dalleDeBase(contexte, 'roe-cb5-mkii');
+      const demi = dalleDeBase(contexte, 'roe-cb5-mkii-demi');
+      const o = ongletsTerrain(contexte, { dalle: cb5, demi, colonnes: 6, rangees: 3 });
+      const e = terrain.entreesDuMur(o);
+      v.egal('deux fiches : dalle et demi-dalle, pixels de chacune', e.fiches.map((f) => [f.id, f.pixelsLargeur, f.pixelsHauteur]),
+        [[cb5.id, cb5.pxH, cb5.pxV], [demi.id, demi.pxH, demi.pxV]]);
+      v.vrai('lignes de config de la demi-dalle préfixées de son nom', e.fiches[1].config.lignes.length > 0 && e.fiches[1].config.lignes.every((l) => l.startsWith(`Demi-dalles (${demi.nom}) : `)), e.fiches[1].config.lignes);
+      v.egal('lots de la demi-dalle', e.fiches[1].lots, { nombre: 1, retenus: ['D'], aPreciser: false });
+      const mixte = terrain.entreesDuMur({ ...o, data: { ...o.data, groupes: [o.data.groupes[0]], mur: { ...o.data.mur, demi: null, mixte: true, zones: [{ dalle: cb5, demi: null }, { dalle: dalleDeBase(contexte, 'roe-bp2-v2'), demi: null }] } } });
+      v.egal('mur mixte : la fiche de chaque zone, une fois', mixte.fiches.map((f) => [f.id, f.lots ? 'lots' : null]), [[cb5.id, 'lots'], ['roe-bp2-v2', null]]);
+      const deux = terrain.entreesDuMur({ ...o, elec: { ...o.elec, arrivees: [{ id: 'arr-1', type: 'tri', intensiteA: 32 }, { id: 'arr-2', type: 'mono', intensiteA: 16 }] } });
+      v.egal('plusieurs arrivées', deux.elec.arrivees, [{ type: 'tri', intensiteA: 32 }, { type: 'mono', intensiteA: 16 }]);
+      const mono = ongletsTerrain(contexte, { arrivee: { type: 'mono', intensiteA: 32 }, colonnes: 4, rangees: 2 });
+      v.egal('arrivée mono : lignes sans phase', terrain.entreesDuMur(mono).elec.lignes.map((l) => l.phase), mono.elec.variante.lignesDetail.map(() => null));
+      const appel = ongletsTerrain(contexte, { dalle: { ...dalleDeBase(contexte, 'roe-bp2-v2'), courantAppelA: 40 } });
+      const texteAppel = appel.elec.resultat.alertes.find((a) => a.startsWith('Courant d\'appel'));
+      v.vrai('essai : Élec a une alerte de courant d\'appel', Boolean(texteAppel), appel.elec.resultat.alertes);
+      v.egal('alerte de courant d\'appel reprise', terrain.entreesDuMur(appel).elec.alerteAppel, texteAppel);
+      const liaisons = liaisonsDeBase(contexte);
+      const ev = o.data.evaluation;
+      const source = { largeurPx: 1920, hauteurPx: 1200, frequenceHz: 60, bits: 8, espace: 'YUV', plage: 'Limited', liaison: 'hdmi-2.0' };
+      const controle = calculs.controleSource(source, ev, liaisons, { famille: 'novastar', bitsReseau: 8, frequenceHz: 60 });
+      const alertes = terrain.entreesDuMur({ ...o, canvas: { source, controle } }).canvas.alertes;
+      v.egal('alertes de Canvas : EDID et plage seulement', alertes, controle.alertes.filter((a) => /^Résolution de source|^Plage Limited/.test(a)));
+      v.egal('… les deux', alertes.length, 2);
+      v.egal('étapes ajoutées reprises', terrain.entreesDuMur({ ...o, ajouts: [{ id: 'a1', texte: 'Scotcher' }] }).ajouts, [{ id: 'a1', texte: 'Scotcher' }]);
+    },
+  },
 ];
+
+// Résultats des onglets d'un mur d'essai pour `entreesDuMur` (lot 27b), calculés comme l'appli : Mur (dalle, demi-dalle),
+// Data (évaluation, origine de la profondeur, « Avant de partir », configs de chaque groupe de lots), câblage data et élec
+// retenus du Schéma, Élec (arrivée), Canvas (source conseillée et son contrôle). Parc A : lot A de la dalle (fichier
+// NovaLCT à 60 Hz), lot D de la demi-dalle.
+function ongletsTerrain(contexte, {
+  procId = 'novastar-mctrl4k', dalle = null, demi = null, colonnes = 8, rangees = 4, reglages = {}, parc = true, origineBits = 'défaut Novastar',
+  arrivee = { type: 'tri', intensiteA: 32 },
+} = {}) {
+  const d = dalle ?? dalleDeBase(contexte, 'roe-bp2-v2');
+  const m = calculs.mur(d, colonnes, rangees, demi ? { demi, rangeeDemi: true } : {});
+  const proc = processeurDeBase(contexte, procId);
+  const evaluation = calculs.evaluerProcesseur(m, d, proc, { frequenceHz: 60, bits: proc.famille === 'brompton' ? 10 : 8, ...reglages });
+  let base = fiches.creerParc(fiches.baseVide(), 'Parc A');
+  const parcId = base.parcs[0].id;
+  base = fiches.ajouterLot(base, parcId, d.id, { identifiant: 'A', quantite: 500 });
+  const lotId = fiches.lotsDalleParc(base, parcId, d.id)[0].id;
+  base = fiches.ajouterConfigNovaLCT(base, parcId, d.id, lotId, { nomFichier: 'BP2V2_A.rcfgx', frequenceHz: '60' }).base;
+  if (demi) {
+    base = fiches.ajouterLot(base, parcId, demi.id, { identifiant: 'D', quantite: 50 });
+    base = fiches.ajouterConfigNovaLCT(base, parcId, demi.id, fiches.lotsDalleParc(base, parcId, demi.id)[0].id, { nomFichier: 'DEMI_D.rcfgx', frequenceHz: '60' }).base;
+  }
+  const logiciel = fiches.logicielDuProcesseur(proc);
+  const groupes = [{ dalleId: d.id, n: m.dalles.entieres, libelle: null, coches: null },
+    ...(demi ? [{ dalleId: demi.id, n: m.dalles.demi, libelle: `Demi-dalles (${demi.nom})`, coches: null }] : [])]
+    .map((g) => ({ ...g, configs: parc ? fiches.configsDuMur(base, parcId, g.dalleId, g.n, { coches: g.coches, logiciel, frequenceHz: 60 }) : null }));
+  const vd = calculs.cablageData(m, d, evaluation, { depart: 'bas-gauche' });
+  const r = calculs.electricite(m, d, { arrivee });
+  const ve = calculs.cablageElec(m, d, r, { depart: 'bas-gauche' });
+  const liaisons = liaisonsDeBase(contexte);
+  const conseil = calculs.sourceConseillee(evaluation, liaisons, 60);
+  const source = { ...conseil, bits: 8, espace: 'RGB', plage: 'Full' };
+  const controle = calculs.controleSource(source, evaluation, liaisons, { famille: proc.famille, bitsReseau: evaluation.reglages.bits, frequenceHz: 60 });
+  return {
+    data: {
+      evaluation, origineBits, mur: m, dalle: d, groupes,
+      avantDePartir: parc ? fiches.avantDePartir(base, parcId, groupes, proc, { frequenceHz: 60 }) : null,
+    },
+    parc: parc ? { id: parcId, nom: 'Parc A' } : null,
+    lot: fiches.lotsDalleParc(base, parcId, d.id)[0],
+    cablageData: vd.variantes.find((x) => x.mode === (vd.retenue ?? vd.conseil)),
+    elec: { resultat: r, arrivees: null, variante: ve.variantes.find((x) => x.mode === (ve.retenue ?? ve.conseil)) },
+    canvas: { source, controle },
+    montage: { data: { faites: 1, total: 2, texte: '1 port sur 2 branché (port 1)' }, elec: { faites: 0, total: 2, texte: '0 ligne sur 2 branchée' } },
+    novalct: { faites: 9, total: 14 },
+    ajouts: [],
+  };
+}
 
 // Pas à pas NovaLCT avec un processeur de secours (22c) : mur de Upad IV 2.6, 60 Hz, 8 bits, redondance par un second
 // processeur, liaison sans cascade par défaut.
@@ -10787,4 +11266,52 @@ function autreAppareil(contexte) {
   const autre = fiches.enregistrerFiche(fiches.baseVide(), 'dalle', { ...bp2, poidsKg: { valeur: 9.8, source: 'perso2' } },
     { perso2: { titre: 'pesée', court: 'Pesée', date: '2026-09-21', confiance: 'mesuré' } });
   return fiches.basculerMembre(fiches.creerParc(autre, 'Prestataire A'), 'prestataire-a', 'dalle', 'roe-bp2-v2');
+}
+
+// Check-list de mise en service (étape 27) : procédures et Dépannage lus par la page de tests.
+function donneesTerrain(contexte) {
+  if (!contexte?.miseEnService) throw new Error(`data/mise-en-service.json non lu${contexte?.erreurMiseEnService ? ` : ${contexte.erreurMiseEnService}` : ''}`);
+  if (!contexte?.depannage) throw new Error('data/depannage.json non lu');
+  return { miseEnService: contexte.miseEnService, depannage: contexte.depannage };
+}
+
+// Entrées d'un mur d'essai pour la check-list : BP2 V2 en lot A dans le parc A, arrivée tri 32 A et deux lignes, 8 ports,
+// source 1920 × 1080 ; processeur selon la marque. `change` remplace des entrées.
+function entreesTerrain(marque, change = {}) {
+  const parMarque = {
+    novastar: { marque: 'novastar', logiciel: 'NovaLCT', processeur: { id: 'novastar-mctrl4k', nom: 'MCTRL4K', nombre: 1, secours: 0 } },
+    coex: { marque: 'coex', logiciel: 'VMP', processeur: { id: 'novastar-mx40-pro', nom: 'MX40 Pro', nombre: 1, secours: 0 } },
+    brompton: {
+      marque: 'brompton', logiciel: 'Tessera', processeur: { id: 'brompton-s8', nom: 'S8', nombre: 2, secours: 0 },
+      reseau: { frequenceHz: 60, bits: 12, origine: 'défaut, livraison Tessera' },
+    },
+    colorlight: { marque: 'autre', nomMarque: 'Colorlight', logiciel: 'LEDVISION', processeur: { id: 'colorlight-z6', nom: 'Z6', nombre: 1, secours: 0 } },
+  }[marque];
+  return {
+    nomMarque: null,
+    reseau: null,
+    ...parMarque,
+    redondance: false,
+    parc: { id: 'parc-a', nom: 'Parc A' },
+    avantDePartir: {
+      nomParc: 'Parc A',
+      lignes: [
+        { texte: 'Fichier de config BP2V2_A.rcfgx (lot A) : sur cet appareil', fait: true },
+        { texte: 'Version de NovaLCT non relevée pour ce processeur : relève-la dans l\'onglet Base', fait: false },
+        { texte: 'Exporte ta base avec les fichiers joints avant de partir (onglet Base)', fait: null },
+      ],
+    },
+    montage: { data: { faites: 1, total: 2, texte: '1 port sur 2 branché (port 1)' }, elec: { faites: 0, total: 2, texte: '0 ligne sur 2 branchée' } },
+    novalct: { faites: 9, total: 14 },
+    elec: { arrivees: [{ type: 'tri', intensiteA: 32 }], lignes: [{ numero: 2, phase: 2 }, { numero: 1, phase: 1 }], alerteAppel: null },
+    ports: { principaux: 8, secours: change.processeur?.secours ? 8 : 0 },
+    canvas: { source: { largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60 }, blocs: [{ numero: 1, xSource: [0, 1407], ySource: [0, 1055] }], alertes: [] },
+    fiches: [{
+      id: 'roe-bp2-v2', nom: 'Black Pearl BP2 V2', pixelsLargeur: 176, pixelsHauteur: 176, source: 'Fiche ROE',
+      lots: { nombre: 1, retenus: ['A'], aPreciser: false }, config: { lignes: ['Config NovaLCT : BP2V2_A.rcfgx, lot A'], ids: ['A:NovaLCT'] },
+    }],
+    ajouts: [],
+    nonValides: [],
+    ...change,
+  };
 }

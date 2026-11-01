@@ -6,6 +6,7 @@ import { baseDalles as lireBase, baseProcesseurs, baseConnectique, baseRegies, b
 import { listeCache, fichiersCharges } from './fichiers.js';
 import * as connexion from '../src/connexion.js';
 import { SOURCES_NOVALCT } from '../src/novalct.js';
+import * as terrain from '../src/terrain.js';
 
 function fichiersAppli(contexte) {
   if (!contexte?.fichiers) throw new Error(`fichiers de l'appli non lus${contexte?.erreurFichiers ? ` : ${contexte.erreurFichiers}` : ''}`);
@@ -103,6 +104,12 @@ function suitesHexadecimales(chemin, texte) {
   if (chemin === 'sw.js') reste = reste.replace(/const EMPREINTE = '[0-9a-f]{64}';/, '');
   if (chemin === 'tests/versions-cache.js') reste = reste.replace(/empreinte: '[0-9a-f]{64}'/g, '');
   return reste.match(/[0-9a-f]{32,}/gi) ?? [];
+}
+
+// Procédures de mise en service (data/mise-en-service.json, étape 27), transcrites du cahier des charges.
+function miseEnService(contexte) {
+  if (!contexte?.miseEnService) throw new Error(`data/mise-en-service.json non lu${contexte?.erreurMiseEnService ? ` : ${contexte.erreurMiseEnService}` : ''}`);
+  return contexte.miseEnService;
 }
 
 // Mire et fiche contenu (data/fiche-contenu.json).
@@ -2303,6 +2310,49 @@ export const DONNEES = [
       v.egal('suites hexadécimales de 32 caractères ou plus (fichier : longueur)', lus.flatMap(([chemin, texte]) => suitesHexadecimales(chemin, texte).map((s) => `${chemin} : ${s.length}`)), []);
       v.vrai('le contrôle trouve une adresse de Worker fictive', exactsDans(`https://relais.compte.work${'ers.dev'}/apple/`, EMPREINTES_RELAIS).length === 1);
       v.egal('le contrôle trouve un jeton fictif, pas l\'empreinte de sw.js', [suitesHexadecimales('src/x.js', `j = '${'ab12'.repeat(8)}'`).length, suitesHexadecimales('sw.js', publies['sw.js'] ?? '').length], [1, 0]);
+    },
+  },
+  {
+    id: 'D70',
+    titre: 'Procédures de mise en service (27a, spec § 4.5) : data/mise-en-service.json transcrit par script, 7 étapes et 3 consignes Novastar, 7 étapes Brompton dont la 7 coupée en deux lignes ; identifiants uniques (« ns:4 », « ns:c1 », « br:7.2 »), marque de sa procédure, texte non vide, sources connues de confiance « formation » (« Formation », la calibration Brompton « Formation (transcription 17) ») ; aucun chemin ni nom de fichier (D54 cherche les noms internes) ; fichier et src/terrain.js dans le cache du service worker',
+    etape: '27a',
+    verifier(v, contexte) {
+      const ms = miseEnService(contexte);
+      v.egal('procédures', (ms.procedures ?? []).map((p) => [p.id, p.marque, p.titre]), [['ns', 'novastar', 'Mise en service Novastar'], ['br', 'brompton', 'Mise en service Brompton']]);
+      const lignes = ms.lignes ?? [];
+      v.egal('identifiants dans l\'ordre', lignes.map((l) => l.id), ['ns:1', 'ns:2', 'ns:3', 'ns:4', 'ns:5', 'ns:6', 'ns:7', 'ns:c1', 'ns:c2', 'ns:c3',
+        'br:1', 'br:2', 'br:3', 'br:4', 'br:5', 'br:6', 'br:7.1', 'br:7.2']);
+      v.egal('identifiants uniques', new Set(lignes.map((l) => l.id)).size, lignes.length);
+      const procedures = Object.fromEntries((ms.procedures ?? []).map((p) => [p.id, p]));
+      v.egal('identifiant = procédure et numéro', lignes.filter((l) => !l.id.startsWith(`${l.procedure}:${l.numero}`)).map((l) => l.id), []);
+      v.egal('marque de la procédure', lignes.filter((l) => procedures[l.procedure]?.marque !== l.marque).map((l) => l.id), []);
+      v.egal('texte non vide, une phrase finie', lignes.filter((l) => typeof l.texte !== 'string' || !/^\S.*[.]$/.test(l.texte)).map((l) => l.id), []);
+      const sources = ms.sources ?? {};
+      v.egal('sources de chaque ligne connues', lignes.filter((l) => !l.sources?.length || l.sources.some((s) => !sources[s])).map((l) => l.id), []);
+      v.egal('sources de formation, libellé publié', Object.entries(sources).filter(([, s]) => s.confiance !== 'formation' || !/^Formation( \(transcription \d+\))?$/.test(s.court) || !s.titre).map(([id]) => id), []);
+      v.egal('BR 7 : OSD (Formation), puis calibration (transcription 17)', lignes.filter((l) => l.numero === '7' && l.procedure === 'br').map((l) => [l.texte.split(' ')[0], l.sources.map((s) => sources[s]?.court)]),
+        [['Contrôler', ['Formation']], ['La', ['Formation (transcription 17)']]]);
+      const textes = [...lignes.map((l) => l.texte), ...Object.values(sources).flatMap((s) => [s.titre, s.court]), ...(ms.procedures ?? []).map((p) => p.titre)];
+      v.egal('aucun chemin ni nom de fichier', textes.filter((t) => /\/|\.(md|pdf|txt|json)\b/i.test(t)), []);
+      const cache = listeCache(fichiersAppli(contexte)['sw.js']);
+      v.egal('dans le cache du service worker', ['data/mise-en-service.json', 'src/terrain.js'].filter((x) => !cache.includes(x)), []);
+    },
+  },
+  {
+    id: 'D71',
+    titre: 'Renvois de la check-list (27a, spec § 4.5) : chaque renvoi de src/terrain.js existe dans les données (« dep:T9.2:1 » : les lignes du numéro 1 du nœud T9.2 ; « dep:T9:avertissement » ; « ms:ns:4 » ; « rappel:N7 ») et donne au moins une ligne avec son texte ; un renvoi inconnu ne donne rien',
+    etape: '27a',
+    verifier(v, contexte) {
+      const donnees = { miseEnService: miseEnService(contexte), depannage: depannage(contexte) };
+      const renvois = terrain.RENVOIS ?? [];
+      v.vrai(`renvois listés (${renvois.length})`, renvois.length >= 29);
+      v.egal('renvois uniques', new Set(renvois).size, renvois.length);
+      v.egal('renvois qui existent', renvois.filter((id) => !(terrain.resoudreRenvoi(id, donnees)?.lignes.length > 0)), []);
+      v.egal('chaque ligne a un texte', renvois.filter((id) => terrain.resoudreRenvoi(id, donnees)?.lignes.some((l) => !l.texte)), []);
+      v.egal('renvois inconnus : rien', ['dep:T9.2:9', 'dep:T99.1:1', 'dep:T2:avertissement', 'ms:ns:8', 'ms:xx:1', 'rappel:N99', 'autre:1'].map((id) => terrain.resoudreRenvoi(id, donnees)), [null, null, null, null, null, null, null]);
+      v.egal('dep:T9.2:1 : la ligne 1 du nœud', terrain.resoudreRenvoi('dep:T9.2:1', donnees)?.lignes.map((l) => l.numero), [1]);
+      v.egal('dep:T2.2:2 : toutes les lignes du numéro 2', terrain.resoudreRenvoi('dep:T2.2:2', donnees)?.lignes.map((l) => l.marque), [null, 'novastar', 'coex', 'brompton']);
+      v.egal('ms:br:7 : ses deux lignes', terrain.resoudreRenvoi('ms:br:7', donnees)?.lignes.length, 2);
     },
   },
 ];

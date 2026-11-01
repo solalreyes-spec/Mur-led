@@ -70,6 +70,12 @@ async function chargerContexte() {
   } catch (erreur) {
     contexte.erreurDepannage = erreur.message;
   }
+  // Check-list de mise en service : procédures transcrites du cahier des charges.
+  try {
+    contexte.miseEnService = await lireJson('data/mise-en-service.json');
+  } catch (erreur) {
+    contexte.erreurMiseEnService = erreur.message;
+  }
   // Fiches « pourquoi », table de correspondance et questions du mode entraînement.
   for (const [cle, chemin] of [['pourquoi', 'data/pourquoi.json'], ['pourquoiLiens', 'data/pourquoi-liens.json'], ['entrainement', 'data/entrainement.json']]) {
     try {

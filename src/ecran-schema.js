@@ -27,6 +27,8 @@ let etatMur = null;
 let etatData = null;
 let etatElec = null;
 let publierDeparts = () => {};
+// Écran Terrain (lot 27b) : ouvert par le bouton « Terrain » de la barre du dessin ; null tant que l'appli ne le donne pas.
+let ouvrirTerrain = null;
 let departsPublies = { data: 'haut-gauche', elec: 'haut-gauche' };
 // Mode du mur (onglet Poids) : en stack, les entrées data et les arrivées élec partent du bas.
 let modeMur = 'accroche';
@@ -777,6 +779,10 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
   }, el('span', { class: 'montage-libelle' }, 'Montage pas à pas'),
   etapesGuide.length ? el('span', { class: 'montage-etat' }, texteEtatMontage(montage[typeGuide], etapesGuide, typeGuide)) : null);
   boutonMontage.addEventListener('click', () => ouvrirGuide(typeGuide));
+  // « Terrain » (lot 27b, spec § 12) : la check-list de mise en service du mur, juste sous le dessin. Dans la barre, il
+  // sortait le dessin du premier écran ou retirait à « Montage pas à pas » sa pleine largeur (étape 11d).
+  const boutonTerrain = ouvrirTerrain ? el('button', { type: 'button', id: 'bouton-terrain', class: 'bouton bouton-terrain', 'data-icone': 'liste' }, 'Terrain') : null;
+  boutonTerrain?.addEventListener('click', () => ouvrirTerrain());
   // « Montage pas à pas » sur sa ligne ; zoom en trois icônes dans le coin du dessin (étape 11d, choix de l'utilisateur :
   // le dessin reste dans le premier écran).
   const outils = el('div', { class: 'schema-outils' }, boutonMontage);
@@ -799,6 +805,7 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
     entete,
     alertes,
     el('div', { class: 'schema-cadre' }, outils, el('div', { class: 'schema-dessin' }, racine, zoom)),
+    boutonTerrain ? el('div', { class: 'schema-terrain' }, boutonTerrain) : null,
     // Bande « Chaîne » sous le dessin (19b3, choix de l'utilisateur : au-dessus, elle sortait le dessin du premier écran).
     amont ? bandeChaine(amont) : null,
     el('p', { class: 'source' }, `${geo.unite === 'mm' ? 'Vue physique à l\'échelle, en millimètres' : 'Vue en pixels, pixel (0,0) en haut à gauche'}. `
@@ -1072,6 +1079,33 @@ function initialiserGuide() {
   rechargerMontage();
 }
 
+// État du guide de montage pour l'écran Terrain (lot 27b) : ports (ou lignes) branchés du câblage affiché, en data et en
+// élec, { faites, total, texte } ; null quand ce câblage n'a pas d'étape (pas de processeur, Élec non valide).
+export function etatMontage() {
+  assurerCalcul();
+  const etat = (type) => {
+    const etapes = etapesCourantes[type];
+    if (!etapes.length) return null;
+    const fait = new Set(montage[type].coches.map((c) => c.signature));
+    return { faites: etapes.filter((e) => fait.has(e.signature)).length, total: etapes.length, texte: texteEtatMontage(montage[type], etapes, type) };
+  };
+  return { data: etat('data'), elec: etat('elec') };
+}
+
+// Guide de montage ouvert depuis l'écran Terrain (lot 27b) : le Schéma passe au câblage demandé, puis le guide s'ouvre ;
+// renvoie false quand ce câblage n'a pas d'étape.
+export function ouvrirGuideMontage(type) {
+  assurerCalcul();
+  if (!etapesCourantes[type]?.length) return false;
+  const choix = formulaire.querySelector(`input[name=cablage][value=${type}]`);
+  if (choix && !choix.checked) {
+    choix.checked = true;
+    formulaire.dispatchEvent(new Event('change'));
+  }
+  ouvrirGuide(type);
+  return true;
+}
+
 // Suivi du montage relu (au lancement, et à l'ouverture d'un autre mur) : le guide ouvert se ferme.
 export function rechargerMontage() {
   if (guide) fermerGuide();
@@ -1096,8 +1130,9 @@ export function effacerMontage() {
   else mettreAJour();
 }
 
-export function initialiserSchema({ surDepart = () => {} } = {}) {
+export function initialiserSchema({ surDepart = () => {}, surTerrain = null } = {}) {
   publierDeparts = surDepart;
+  ouvrirTerrain = surTerrain;
   formulaire.addEventListener('input', mettreAJour);
   formulaire.addEventListener('change', mettreAJour);
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());

@@ -57,7 +57,7 @@ export function remplirBoutonPresta(bouton, { presta, mur }) {
 
 // `actions` : ouvrir(prestaId, murId?), creerPresta(), modifierPresta(id, infos), ajouterMur(id), renommerMur(id, murId,
 // nom), dupliquerMur(id, murId), supprimerMur(id, murId), dupliquerPresta(id), archiverPresta(id, archivee),
-// supprimerPresta(id), materielMur(id, murId), materielPresta(id), fichesPresta(id) ; exporter(id) (renvoie 'partage', 'annule' ou 'telechargement'), verifierImport(texte) et
+// supprimerPresta(id), materielMur(id, murId), materielPresta(id), fichesPresta(id), terrain(id, murId) ; exporter(id) (renvoie 'partage', 'annule' ou 'telechargement'), verifierImport(texte) et
 // importer(texte, choix) (renvoie le rapport) ; chacune peut lever une erreur, affichée dans l'écran.
 // `resumeMur(mur)` : ligne sous le nom.
 export function monterPrestas(racine, { actions, resumeMur = () => '', proportionsMur = () => null, confirmer = (texte) => window.confirm(texte) }) {
@@ -213,18 +213,23 @@ export function monterPrestas(racine, { actions, resumeMur = () => '', proportio
     const ouvert = etat.index.ouverte?.mur === mur.id;
     // Mini-aperçu (11d) : vignette aux proportions du mur lues dans ses saisies, sans calcul.
     const p = proportionsMur({ id: mur.id, nom: mur.nom, ...etat.murs[mur.id] });
+    // Mise en service (étape 27) : l'état gardé à la dernière ouverture de l'écran Terrain ; rien avant.
+    const miseEnService = etat.murs[mur.id]?.terrain?.etat ?? null;
     const contenu = [
       p ? el('span', { class: 'pr-vignette', 'aria-hidden': 'true', style: `--rapport: ${p.largeur / p.hauteur}` }) : null,
       el('span', { class: 'pr-mur-textes' },
         el('span', { class: 'pr-mur-nom' }, mur.nom),
-        el('span', { class: 'pr-mur-resume' }, resumeMur({ id: mur.id, nom: mur.nom, ...etat.murs[mur.id] }))),
+        el('span', { class: 'pr-mur-resume' }, resumeMur({ id: mur.id, nom: mur.nom, ...etat.murs[mur.id] })),
+        miseEnService ? el('span', { class: 'pr-terrain-etat' }, `Mise en service ${miseEnService.faites} sur ${miseEnService.total}`) : null),
       ouvert ? el('span', { class: 'pr-puce-ouvert' }, 'Ouvert') : fleche(),
     ];
     const tete = ouvert ? el('div', { class: 'pr-mur-tete' }, ...contenu)
       : bouton(contenu, () => executer(() => actions.ouvrir(presta.id, mur.id)), { class: 'pr-mur-tete pr-mur-ouvrir' });
     const plus = el('button', { type: 'button', class: 'bouton bouton-icone pr-menu-bouton', 'aria-label': `Actions de ${mur.nom}` },
       el('span', { 'aria-hidden': 'true' }, '⋯'));
-    const ligne = el('li', { class: 'pr-mur', 'aria-current': ouvert ? 'true' : null }, el('div', { class: 'pr-mur-carte' }, tete, plus));
+    // « Terrain » (étape 27) : ouvre ce mur, puis sa check-list de mise en service.
+    const terrain = bouton('Terrain', () => executer(() => actions.terrain(presta.id, mur.id)), { class: 'bouton pr-terrain', 'aria-label': `Terrain : ${mur.nom}` });
+    const ligne = el('li', { class: 'pr-mur', 'aria-current': ouvert ? 'true' : null }, el('div', { class: 'pr-mur-carte' }, tete, terrain, plus));
     ligne.append(menu(plus,
       el('div', { class: 'pr-boutons' },
         bouton('Matériel', () => executer(() => actions.materielMur(presta.id, mur.id)), { 'data-icone': 'liste' }),

@@ -10,7 +10,9 @@
 //   murs : { [id du mur]: { version, parc, configuration, montage, materiel } }, une clé de stockage par mur ;
 //   `materiel` (étape 13b) : { liste, calculeeLe }, la liste de matériel du mur, jamais exportée ; `fiche` (étape 14b) :
 //   { textes, calculeeLe }, les textes des onglets pour les fiches par métier, jamais exportés. `novalct` (étape 17b) :
-//   { version, cases, avis }, le suivi du pas à pas NovaLCT, jamais exporté. Presta : `materiel`
+//   { version, cases, avis }, le suivi du pas à pas NovaLCT, jamais exporté. `terrain` (étape 27) : { etat, coches,
+//   ajouts }, la check-list de mise en service (src/terrain.js), présente seulement quand l'un d'eux est rempli ;
+//   jamais exportée avant le lot 27d. Presta : `materiel`
 //   { sparesPourcent, coches { [clé]: quantité cochée }, ajouts [{ id, libelle, quantite }] } facultatif (13c), jamais
 //   exporté.
 // `configuration` a la forme des saisies gardées (configuration.js) ; null : réglages par défaut.
@@ -291,8 +293,8 @@ export function renommerMur(etat, prestaId, murId, nom, opts) {
   return avecPresta(etat, prestaId, (x) => ({ ...x, modifieeLe: o.iso, murs: x.murs.map((m) => (m.id === murId ? { ...m, nom: n } : m)) }));
 }
 
-// Saisies, parc, suivi du montage ou du pas à pas NovaLCT d'un mur ({ configuration, parc, montage, novalct }, chacun
-// facultatif).
+// Saisies, parc, suivi du montage, du pas à pas NovaLCT ou de la check-list de mise en service d'un mur
+// ({ configuration, parc, montage, novalct, terrain }, chacun facultatif).
 export function enregistrerMur(etat, murId, champs, opts) {
   const actuel = etat.murs[murId];
   if (!actuel) throw new ErreurSaisie('Mur introuvable.');
@@ -302,12 +304,19 @@ export function enregistrerMur(etat, murId, champs, opts) {
   if ('montage' in champs) maj.montage = copie(champs.montage);
   // Suivi du pas à pas NovaLCT (étape 17b), comme celui du montage.
   if ('novalct' in champs) maj.novalct = copie(champs.novalct);
+  // Check-list de mise en service (étape 27) : retirée quand elle est vide.
+  if ('terrain' in champs) {
+    const t = terrainRempli(champs.terrain);
+    if (t) maj.terrain = t;
+    else delete maj.terrain;
+  }
   // Rien de changé : la presta n'est pas marquée modifiée (ouvrir le guide de montage, relire les saisies).
   if (JSON.stringify(maj) === JSON.stringify(actuel)) return etat;
   const e = { ...etat, murs: { ...etat.murs, [murId]: maj } };
-  // Le suivi du montage ou du pas à pas NovaLCT seul (ouvrir le guide, cocher une case) ne marque pas la presta modifiée :
-  // rien n'a été saisi.
-  const saisi = JSON.stringify({ ...maj, montage: null, novalct: null }) !== JSON.stringify({ ...actuel, montage: null, novalct: null });
+  // Le suivi du montage, du pas à pas NovaLCT ou les cases et l'état de la check-list seuls (ouvrir le guide, cocher une
+  // case) ne marquent pas la presta modifiée : rien n'a été saisi. Les étapes ajoutées à la check-list sont une saisie.
+  const sansSuivi = ({ montage, novalct, terrain, ...saisies }) => JSON.stringify([saisies, terrain?.ajouts ?? null]);
+  const saisi = sansSuivi(maj) !== sansSuivi(actuel);
   const presta = etat.index.prestas.find((p) => p.murs.some((m) => m.id === murId));
   return presta && saisi ? toucher(e, presta.id, opts) : e;
 }
@@ -323,6 +332,20 @@ export function enregistrerListeMur(etat, murId, liste, opts) {
 }
 
 export const listeGardee = (etat, murId) => etat.murs[murId]?.materiel ?? null;
+
+// Check-list de mise en service d'un mur (étape 27), toujours entière : { etat, coches, ajouts }.
+export function terrainMur(etat, murId) {
+  const t = etat.murs[murId]?.terrain;
+  return { etat: copie(t?.etat ?? null), coches: copie(t?.coches ?? {}), ajouts: copie(t?.ajouts ?? []) };
+}
+// Ce qui est rempli de la check-list, null si rien ne l'est (le mur reste comme `murVide`).
+function terrainRempli(t) {
+  const r = {};
+  if (t?.etat) r.etat = copie(t.etat);
+  if (t?.coches && Object.keys(t.coches).length) r.coches = copie(t.coches);
+  if (t?.ajouts?.length) r.ajouts = copie(t.ajouts);
+  return Object.keys(r).length ? r : null;
+}
 
 // Textes des onglets d'un mur pour les fiches par métier (étape 14b) : { mur, data, canvas, elec, poids }, chacun le
 // texte copié de l'onglet ou null (calcul non valide), gardés avec le mur et leur date comme la liste de matériel :
@@ -433,7 +456,17 @@ export function retirerAjout(etat, prestaId, ajoutId, opts) {
   return toucher(e, prestaId, opts);
 }
 
-// Copie d'un mur, ouverte : mêmes saisies et même parc, suivis du montage et de NovaLCT vides.
+// Données d'un mur recopié : suivis du montage et de NovaLCT vides ; check-list sans ses cases ni son état, avec les
+// étapes ajoutées (spec de l'étape 27 § 4.6, § 7).
+function murRecopie(mur) {
+  const m = { ...copie(mur), montage: null, novalct: null };
+  const t = terrainRempli({ ajouts: m.terrain?.ajouts ?? [] });
+  if (t) m.terrain = t;
+  else delete m.terrain;
+  return m;
+}
+
+// Copie d'un mur, ouverte : mêmes saisies et même parc, suivis du montage et de NovaLCT vides, check-list sans cases.
 export function dupliquerMur(etat, prestaId, murId, opts) {
   const o = options(opts);
   const p = trouverPresta(etat, prestaId);
@@ -443,7 +476,7 @@ export function dupliquerMur(etat, prestaId, murId, opts) {
   for (let k = 2; p.murs.some((m) => m.nom === nom); k += 1) nom = avecSuffixe(source.nom, ` (copie ${k})`, LIMITES.nomMur);
   const mid = nouvelId('m', o.alea, idsPris(etat));
   const e = avecPresta(etat, prestaId, (x) => ({ ...x, modifieeLe: o.iso, murs: [...x.murs, { id: mid, nom }] }));
-  return { index: { ...e.index, ouverte: { presta: prestaId, mur: mid } }, murs: { ...etat.murs, [mid]: { ...copie(etat.murs[murId]), montage: null, novalct: null } } };
+  return { index: { ...e.index, ouverte: { presta: prestaId, mur: mid } }, murs: { ...etat.murs, [mid]: murRecopie(etat.murs[murId]) } };
 }
 
 // Copie d'une presta, ouverte : infos et murs (saisies et parcs), non archivée, jamais exportée, suivis vides.
@@ -460,7 +493,7 @@ export function dupliquerPresta(etat, prestaId, opts) {
   // Lien avec le devis (étape 25) : la copie n'est pas la presta du devis.
   delete presta.lienDevis;
   const donnees = { ...etat.murs };
-  for (const m of murs) donnees[m.id] = { ...copie(etat.murs[m.source] ?? murVide()), montage: null, novalct: null };
+  for (const m of murs) donnees[m.id] = murRecopie(etat.murs[m.source] ?? murVide());
   return { index: { ...etat.index, ouverte: { presta: pid, mur: murs[0].id }, prestas: [...etat.index.prestas, presta] }, murs: donnees };
 }
 

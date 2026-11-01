@@ -6795,7 +6795,286 @@ export const NAVIGATEUR = [
       }
     },
   },
+  {
+    id: 'N135',
+    titre: 'Écran Terrain, mise en service (lot 27b, spec § 6) à 375 px, en sombre et en mode rouge, en normal et en grand affichage : presta, mur et « Mise en service : n sur 12 » ; cases de 64 px sur toute la ligne de titre, boutons de 48 px (60 en grand affichage), texte de 19 px en grand affichage, texte à 4,5:1 sur son fond, rien ne dépasse ; la première étape non cochée ouverte, les autres repliées ; étapes calculées sans case ; lignes du Dépannage rendues comme dans le Dépannage (numéro, exposants, badge « à confirmer »)',
+    etape: '27b',
+    async verifier(v, contexte) {
+      const et = await moduleAppli(v, '../src/ecran-terrain.js');
+      const tr = await moduleAppli(v, '../src/terrain.js');
+      if (!et || !tr) return;
+      const resultat = tr.etapesTerrain(entreesEssaiTerrain('brompton'), { depannage: contexte.depannage, miseEnService: contexte.miseEnService });
+      const coches = { depot: resultat.etapes[0].signature, arrivee: resultat.etapes[1].signature };
+      const html = document.documentElement;
+      const retirer = await chargerStylesLook();
+      const t = monterEcranTerrain(et, contexte);
+      try {
+        t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches, avis: null });
+        const etapes = [...t.racine.querySelectorAll('.tr-etape')];
+        v.egal('presta, mur et état', [texteDe(t.racine.querySelector('.tr-presta')), texteDe(t.racine.querySelector('.tr-mur')), texteDe(t.racine.querySelector('.tr-etat'))],
+          ['Presta A', 'Mur 1', `Mise en service : ${tr.etatTerrain(resultat, coches).faites} sur 12`]);
+        v.egal('douze étapes dans l\'ordre', etapes.map((e) => e.dataset.etape), resultat.etapes.map((e) => e.id));
+        v.egal('étapes ouvertes : la première non cochée seulement', etapes.filter((e) => !e.querySelector('.tr-corps').hidden).map((e) => e.dataset.etape), ['cablage-data']);
+        v.egal('cases cochées', etapes.filter((e) => e.querySelector('input.tr-coche')?.checked).map((e) => e.dataset.etape), ['depot', 'arrivee']);
+        v.egal('étapes calculées sans case', ['cablage-data', 'cablage-elec'].map((id) => t.racine.querySelector(`[data-etape="${id}"] input.tr-coche`)), [null, null]);
+        // Ligne du Dépannage en Brompton : T2.2 n'est pas affichée (Novastar et COEX), T8.2 ligne 1 avec sa source.
+        const ports = t.racine.querySelector('[data-etape="ports"]');
+        v.vrai('renvoi au Dépannage : numéro et source sous la ligne', Boolean(ports.querySelector('.dep-numero, .numero-liste')) && Boolean(ports.querySelector('.dep-sources')), ports.innerHTML.slice(0, 200));
+        const avecBadge = tr.etapesTerrain(entreesEssaiTerrain('brompton'), { depannage: contexte.depannage, miseEnService: contexte.miseEnService });
+        t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat: avecBadge, coches: {}, avis: null });
+        t.racine.querySelectorAll('.tr-corps').forEach((x) => { x.hidden = false; });
+        const lignesDep = resultat.etapes.flatMap((e) => e.lignes).filter((l) => l.origine === 'depannage').flatMap((l) => l.lignes);
+        v.egal('badges « à confirmer » : un par ligne [?] affichée', t.racine.querySelectorAll('.dep-badge').length, lignesDep.filter((l) => l.texte.includes('[?]')).length);
+        v.egal('exposants des renvois de source', t.racine.querySelectorAll('.dep-renvoi').length, lignesDep.reduce((n, l) => n + (l.texte.match(/\{\d+\}/g) ?? []).length, 0));
+        for (const rouge of [false, true]) {
+          for (const grand of [false, true]) {
+            if (rouge) html.dataset.mode = 'rouge';
+            else delete html.dataset.mode;
+            if (grand) html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            const nom = `${rouge ? 'rouge' : 'sombre'}, ${grand ? 'grand' : 'normal'}`;
+            t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches, avis: 'Le mur a changé : « Config des dalles » décochée (son contenu n\'est plus le même).' });
+            t.racine.querySelectorAll('.tr-corps').forEach((x) => { x.hidden = false; });
+            const fautes = [];
+            for (const c of t.racine.querySelectorAll('.tr-case')) if (c.getBoundingClientRect().height < 63.5) fautes.push(`case « ${texteDe(c).slice(0, 25)} » de ${c.getBoundingClientRect().height.toFixed(0)} px`);
+            for (const b of t.racine.querySelectorAll('button')) {
+              if (b.getClientRects().length && b.getBoundingClientRect().height < (grand ? 59.5 : 47.5)) fautes.push(`bouton « ${texteDe(b).slice(0, 25)} » de ${b.getBoundingClientRect().height.toFixed(0)} px`);
+            }
+            const textes = [...t.racine.querySelectorAll('*')].filter((e) => [...e.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim()) && e.getClientRects().length);
+            for (const e of textes) {
+              const style = getComputedStyle(e);
+              if (grand && !e.closest('.dep-renvoi') && parseFloat(style.fontSize) < 18.95) fautes.push(`« ${texteDe(e).slice(0, 25)} » en ${style.fontSize}`);
+              const k = contraste(rgbVersHex(style.color), fondDe(e));
+              if (k < 4.5) fautes.push(`« ${texteDe(e).slice(0, 25)} » à ${k.toFixed(2)}:1`);
+            }
+            const bord = t.ecranPlein.getBoundingClientRect().right;
+            fautes.push(...[...t.ecranPlein.querySelectorAll('*')].filter((x) => { const b = x.getBoundingClientRect(); return b.width > 0 && b.right > bord + 0.5; })
+              .map((x) => `dépasse : ${x.tagName.toLowerCase()}.${x.className}`));
+            v.egal(`${nom} : cases, boutons, texte, contrastes, largeur`, fautes, []);
+          }
+        }
+      } finally {
+        delete html.dataset.mode;
+        delete html.dataset.taille;
+        t.retirer();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N136',
+    titre: 'Écran Terrain, actions (lot 27b, spec § 4.3 et § 6) : cocher et décocher (signature de l\'étape, état mis à jour sur place), bandeau « Le mur a changé » et « Compris », boutons des étapes (Montage pas à pas en data et en élec, Pas à pas NovaLCT, Mire), « Tout décocher » avec confirmation (refusée : rien), « Fermer », refus d\'écriture affiché',
+    etape: '27b',
+    async verifier(v, contexte) {
+      const et = await moduleAppli(v, '../src/ecran-terrain.js');
+      const tr = await moduleAppli(v, '../src/terrain.js');
+      if (!et || !tr) return;
+      const resultat = tr.etapesTerrain(entreesEssaiTerrain('novastar'), { depannage: contexte.depannage, miseEnService: contexte.miseEnService });
+      const retirer = await chargerStylesLook();
+      const t = monterEcranTerrain(et, contexte);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      try {
+        t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches: {}, avis: 'Le mur a changé : « Mire » décochée (son contenu n\'est plus le même).' });
+        const caseDe = (id) => t.racine.querySelector(`[data-etape="${id}"] input.tr-coche`);
+        caseDe('mire').click();
+        await attendre();
+        v.egal('cocher : signature de l\'étape', t.appels.at(-1), ['cocher', 'mire', resultat.etapes[8].signature]);
+        v.egal('… état mis à jour sur place', texteDe(t.racine.querySelector('.tr-etat')), 'Mise en service : 1 sur 12');
+        caseDe('mire').click();
+        await attendre();
+        v.egal('décocher : signature nulle', t.appels.at(-1), ['cocher', 'mire', null]);
+        const bandeau = t.racine.querySelector('.tr-avis');
+        v.egal('bandeau du changement', texteDe(bandeau?.querySelector('.tr-avis-texte')), 'Le mur a changé : « Mire » décochée (son contenu n\'est plus le même).');
+        boutonTexte(bandeau, 'Compris')?.click();
+        await attendre();
+        v.egal('« Compris »', t.appels.at(-1), ['compris']);
+        const bouton = (id, debut) => boutonTexte(t.racine.querySelector(`[data-etape="${id}"]`), debut);
+        for (const [id, texte, action] of [['cablage-data', 'Montage pas à pas', 'montage-data'], ['cablage-elec', 'Montage pas à pas', 'montage-elec'],
+          ['processeur', 'Pas à pas NovaLCT', 'novalct'], ['mire', 'Mire', 'mire']]) {
+          bouton(id, texte)?.click();
+          await attendre();
+          v.egal(`${id} : « ${texte} »`, t.appels.at(-1), ['ouvrir', action]);
+        }
+        t.confirmation = false;
+        boutonTexte(t.racine, 'Tout décocher')?.click();
+        await attendre();
+        v.egal('« Tout décocher » refusé : rien', [t.confirmations.length, t.appels.at(-1)[0]], [1, 'ouvrir']);
+        t.confirmation = true;
+        boutonTexte(t.racine, 'Tout décocher')?.click();
+        await attendre();
+        v.egal('« Tout décocher » confirmé', t.appels.at(-1), ['toutDecocher']);
+        v.vrai('… la confirmation dit ce qui reste', /étapes ajoutées/.test(t.confirmations.at(-1)), t.confirmations.at(-1));
+        t.ecran.signalerEcriture('Rien n\'est enregistré sur cet appareil : l\'appli est ouverte dans un autre onglet.');
+        v.egal('écriture refusée affichée', texteDe(t.racine.querySelector('.tr-ecriture')), 'Rien n\'est enregistré sur cet appareil : l\'appli est ouverte dans un autre onglet.');
+        t.ecran.signalerEcriture(null);
+        v.egal('… puis retirée', t.racine.querySelector('.tr-ecriture')?.textContent ?? '', '');
+      } finally {
+        t.retirer();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N137',
+    titre: 'Écran Terrain, mes étapes (lot 27b, spec § 4.6) : « Ajouter une étape » (texte de 80 caractères au plus) appelle son action et vide le champ ; refus affiché avec la raison, champ gardé ; étape ajoutée avec sa case et « Retirer »',
+    etape: '27b',
+    async verifier(v, contexte) {
+      const et = await moduleAppli(v, '../src/ecran-terrain.js');
+      const tr = await moduleAppli(v, '../src/terrain.js');
+      if (!et || !tr) return;
+      const resultat = tr.etapesTerrain({ ...entreesEssaiTerrain('novastar'), ajouts: [{ id: 'a1', texte: 'Scotcher les câbles' }] },
+        { depannage: contexte.depannage, miseEnService: contexte.miseEnService });
+      const retirer = await chargerStylesLook();
+      const t = monterEcranTerrain(et, contexte);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      try {
+        t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches: {}, avis: null });
+        v.egal('état avec l\'étape ajoutée', texteDe(t.racine.querySelector('.tr-etat')), 'Mise en service : 0 sur 13');
+        const ajoutee = t.racine.querySelector('[data-etape="ajout-a1"]');
+        v.egal('étape ajoutée : son texte et sa case', [texteDe(ajoutee?.querySelector('.tr-titre')), Boolean(ajoutee?.querySelector('input.tr-coche'))], ['Scotcher les câbles', true]);
+        boutonTexte(ajoutee, 'Retirer')?.click();
+        await attendre();
+        v.egal('« Retirer »', t.appels.at(-1), ['retirer', 'a1']);
+        const champ = t.racine.querySelector('.tr-ajout input');
+        v.egal('champ : 80 caractères au plus', champ?.maxLength, 80);
+        champ.value = 'Vérifier les élingues';
+        boutonTexte(t.racine.querySelector('.tr-ajout'), 'Ajouter')?.click();
+        await attendre();
+        v.egal('« Ajouter »', [t.appels.at(-1), champ.value], [['ajouter', 'Vérifier les élingues'], '']);
+        t.refusAjout = '20 étapes ajoutées au plus par mur : retire-en une avant d\'en ajouter.';
+        champ.value = 'Une de trop';
+        t.racine.querySelector('.tr-ajout').dispatchEvent(new Event('submit', { cancelable: true }));
+        await attendre();
+        await attendre();
+        v.egal('refus avec la raison, champ gardé', [texteDe(t.racine.querySelector('.tr-ajout .alerte-erreur')), champ.value],
+          ['20 étapes ajoutées au plus par mur : retire-en une avant d\'en ajouter.', 'Une de trop']);
+      } finally {
+        t.retirer();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N138',
+    titre: 'Carte du mur dans Prestas (lot 27b, spec § 4.4 et § 6) : bouton « Terrain » à côté de « ⋯ » sur chaque mur de la presta ouverte, qui appelle son action ; « Mise en service 5 sur 12 » d\'après l\'état gardé, rien pour un mur jamais ouvert dans Terrain ; à 375 px, en normal et en grand affichage, en sombre et en rouge : cibles de 48 px (60), rien ne dépasse',
+    etape: '27b',
+    async verifier(v) {
+      const ep = await moduleAppli(v, '../src/ecran-prestas.js');
+      const pr = await moduleAppli(v, '../src/prestas.js');
+      if (!ep || !pr) return;
+      let n = 0;
+      const o = (iso) => ({ maintenant: new Date(iso), alea: () => `n${(n += 1)}` });
+      let etat = pr.migrer({}, o('2026-11-01T08:00:00Z'));
+      etat = pr.creerPresta(etat, { nom: 'Presta A' }, o('2026-11-01T09:00:00Z'));
+      const a = etat.index.ouverte.presta;
+      etat = pr.ajouterMur(etat, a, { nom: 'Mur avec un nom assez long pour la carte' }, o('2026-11-01T09:30:00Z'));
+      const [mur1, mur2] = etat.index.prestas.find((p) => p.id === a).murs.map((m) => m.id);
+      etat = pr.enregistrerMur(etat, mur1, { terrain: { etat: { faites: 5, total: 12, calculeLe: '2026-11-01T10:00:00.000Z' }, coches: {}, ajouts: [] } }, o('2026-11-01T10:00:00Z'));
+      const appels = [];
+      const actions = { ouvrir: async () => {}, terrain: async (...x) => { appels.push(['terrain', ...x]); } };
+      const html = document.documentElement;
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { class: 'pr', 'data-famille': 'presta', style: 'position:absolute;left:-10000px;top:0;width:375px;background:var(--fond)' });
+      document.body.append(racine);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      try {
+        const ecran = ep.monterPrestas(racine, { actions, resumeMur: () => 'résumé', confirmer: () => true });
+        ecran.afficher(etat, { persistant: false });
+        const cartes = [...racine.querySelectorAll('.pr-mur')];
+        v.egal('« Terrain » sur chaque carte, juste avant « ⋯ »', cartes.map((c) => texteDe(c.querySelector('.pr-terrain')) + (c.querySelector('.pr-terrain')?.nextElementSibling?.classList.contains('pr-menu-bouton') ? ' ⋯' : '')),
+          ['Terrain ⋯', 'Terrain ⋯']);
+        v.egal('état de la mise en service', cartes.map((c) => texteDe(c.querySelector('.pr-terrain-etat')) || null), ['Mise en service 5 sur 12', null]);
+        cartes[1].querySelector('.pr-terrain').click();
+        await attendre();
+        v.egal('le bouton appelle son action', appels, [['terrain', a, mur2]]);
+        for (const rouge of [false, true]) {
+          for (const grand of [false, true]) {
+            if (rouge) html.dataset.mode = 'rouge';
+            else delete html.dataset.mode;
+            if (grand) html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            ecran.afficher(etat, { persistant: false });
+            const fautes = [];
+            for (const b of racine.querySelectorAll('.pr-mur button')) {
+              if (b.getClientRects().length && b.getBoundingClientRect().height < (grand ? 59.5 : 47.5)) fautes.push(`« ${texteDe(b).slice(0, 25)} » de ${b.getBoundingClientRect().height.toFixed(0)} px`);
+            }
+            for (const e of racine.querySelectorAll('.pr-terrain, .pr-terrain-etat')) {
+              const k = contraste(rgbVersHex(getComputedStyle(e).color), fondDe(e));
+              if (k < 4.5) fautes.push(`« ${texteDe(e)} » à ${k.toFixed(2)}:1`);
+            }
+            const bord = racine.getBoundingClientRect().right;
+            fautes.push(...[...racine.querySelectorAll('.pr-mur *')].filter((x) => { const b = x.getBoundingClientRect(); return b.width > 0 && b.right > bord + 0.5; })
+              .map((x) => `dépasse : ${x.tagName.toLowerCase()}.${x.className}`));
+            v.egal(`${rouge ? 'rouge' : 'sombre'}, ${grand ? 'grand' : 'normal'} : cibles, contrastes, largeur`, fautes, []);
+          }
+        }
+      } finally {
+        delete html.dataset.mode;
+        delete html.dataset.taille;
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N139',
+    titre: 'Écran plein « Terrain » dans la page (lot 27b, spec § 6) : #terrain (dialogue, famille Schéma, caché au départ) avec son titre, « Fermer » et #ecran-terrain ; src/ecran-terrain.js, src/terrain.js et data/mise-en-service.json dans les fichiers de l\'appli gardés hors ligne',
+    etape: '27b',
+    async verifier(v) {
+      const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+      const t = page.getElementById('terrain');
+      v.egal('#terrain : dialogue caché, famille', [t?.getAttribute('role'), t?.hasAttribute('hidden'), t?.dataset.famille, t?.getAttribute('aria-labelledby')], ['dialog', true, 'schema', 'terrain-titre']);
+      v.egal('titre et « Fermer »', [texteDe(page.getElementById('terrain-titre')), texteDe(page.getElementById('terrain-fermer'))], ['Terrain', 'Fermer']);
+      v.vrai('zone de l\'écran', Boolean(t?.querySelector('#ecran-terrain')));
+      const sw = await (await fetch('sw.js', { cache: 'no-store' })).text();
+      v.egal('fichiers gardés hors ligne', ['src/ecran-terrain.js', 'src/terrain.js', 'data/mise-en-service.json'].filter((f) => !sw.includes(`'${f}'`)), []);
+    },
+  },
 ];
+
+// Entrées d'essai de la check-list (27b) : BP2 V2 en lot A dans le parc A, arrivée tri 32 A et deux lignes, 8 ports, source
+// 1920 × 1080 ; processeur selon la marque (MCTRL4K réglé dans NovaLCT, ou deux S8).
+function entreesEssaiTerrain(marque) {
+  const proc = marque === 'brompton'
+    ? { marque: 'brompton', logiciel: 'Tessera', processeur: { id: 'brompton-s8', nom: 'S8', nombre: 2, secours: 0 }, reseau: { frequenceHz: 60, bits: 12, origine: 'défaut (livraison Tessera)' } }
+    : { marque: 'novastar', logiciel: 'NovaLCT', processeur: { id: 'novastar-mctrl4k', nom: 'MCTRL4K', nombre: 1, secours: 0 }, reseau: null };
+  return {
+    nomMarque: null, ...proc, redondance: false, parc: { id: 'parc-a', nom: 'Parc A' },
+    avantDePartir: { nomParc: 'Parc A', lignes: [{ texte: 'Fichier de config BP2V2_A.rcfgx (lot A) : sur cet appareil', fait: true }, { texte: 'Version non relevée : relève-la dans l\'onglet Base', fait: false }] },
+    montage: { data: { faites: 1, total: 2, texte: '1 port sur 2 branché (port 1)' }, elec: { faites: 0, total: 2, texte: '0 ligne sur 2 branchée' } },
+    novalct: { faites: 9, total: 14 },
+    elec: { arrivees: [{ type: 'tri', intensiteA: 32 }], lignes: [{ numero: 1, phase: 1 }, { numero: 2, phase: 2 }], alerteAppel: null },
+    ports: { principaux: 8, secours: 0 },
+    canvas: { source: { largeurPx: 1920, hauteurPx: 1080, frequenceHz: 60 }, blocs: [{ numero: 1, xSource: [0, 1407], ySource: [0, 1055] }], alertes: [] },
+    fiches: [{ id: 'roe-bp2-v2', nom: 'ROE BP2 V2', pixelsLargeur: 176, pixelsHauteur: 176, source: 'Fiche ROE', lots: { nombre: 1, retenus: ['A'], aPreciser: false },
+      config: { lignes: ['Config NovaLCT : BP2V2_A.rcfgx, lot A'], ids: ['A:NovaLCT'] } }],
+    ajouts: [], nonValides: [],
+  };
+}
+// Écran Terrain monté hors de la page des tests, dans un écran plein de 375 px ; actions notées dans `appels`, refus
+// d'ajout réglable (`refusAjout`), confirmation réglable (`confirmation`).
+function monterEcranTerrain(module, contexte) {
+  const ecranPlein = el('div', { class: 'montage prestas terrain', 'data-famille': 'schema', style: 'position:absolute;left:-10000px;top:0;width:375px;height:900px' });
+  const racine = el('div', { class: 'mf-defilant pr tr' });
+  ecranPlein.append(racine);
+  document.body.append(ecranPlein);
+  const t = { ecranPlein, racine, appels: [], confirmations: [], confirmation: true, refusAjout: null };
+  const noter = (nom) => async (...x) => { t.appels.push([nom, ...x]); };
+  t.ecran = module.monterTerrain(racine, {
+    depannage: contexte.depannage,
+    enLigne: () => false,
+    confirmer: (texte) => { t.confirmations.push(texte); return t.confirmation; },
+    actions: {
+      cocher: noter('cocher'), compris: noter('compris'), retirer: noter('retirer'), toutDecocher: noter('toutDecocher'), ouvrir: noter('ouvrir'), fermer: noter('fermer'),
+      ajouter: async (texte) => {
+        if (t.refusAjout) throw new calculs.ErreurSaisie(t.refusAjout);
+        t.appels.push(['ajouter', texte]);
+      },
+    },
+  });
+  t.retirer = () => ecranPlein.remove();
+  return t;
+}
 
 // Pas à pas NovaLCT d'essai (22c) : Upad IV 2.6 sur MCTRL4K, 8 × 6 (un principal) ou 32 × 8 (deux), départ en bas à gauche.
 function pasAPasSecours(contexte, nl, { colonnes = 8, rangees = 6, ...reglages } = {}) {

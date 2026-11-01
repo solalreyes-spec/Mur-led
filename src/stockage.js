@@ -131,6 +131,7 @@ export const lireFichier = appli.lireFichier;
 export const supprimerFichier = appli.supprimerFichier;
 export const listerFichiers = appli.listerFichiers;
 export const suspendreEcritures = appli.suspendre;
+export const ecrituresSuspendues = appli.suspendu;
 
 export function stockageDisponible() {
   return appli.disponible();

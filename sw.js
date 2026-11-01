@@ -6,8 +6,8 @@
 // donc aussi, le navigateur installe la nouvelle version d'un bloc (tous les fichiers dans un cache neuf),
 // supprime l'ancien cache et la page propose de recharger.
 
-const VERSION = 59;
-const EMPREINTE = 'cf36e8749ea128ffa9537f144e988d094e3d55f60d7ed49360dee7f6f415ec7d';
+const VERSION = 61;
+const EMPREINTE = 'fbbe235070767d0d0fbf45fcdf34ffd08b87c96cd0b45617b49a7a18e5bac14b';
 const CACHE = `mur-led-v${VERSION}`;
 const FICHIERS = [
   './',
@@ -55,6 +55,7 @@ const FICHIERS = [
   'src/pourquoi.js',
   'src/prestas.js',
   'src/prestas-appareil.js',
+  'src/terrain.js',
   'src/ecran-prestas.js',
   'src/entrainement.js',
   'src/ecran-entrainement.js',
@@ -76,6 +77,7 @@ const FICHIERS = [
   'src/montage.js',
   'src/novalct.js',
   'src/ecran-novalct.js',
+  'src/ecran-terrain.js',
   'src/connexion.js',
   'src/ecran-connexion.js',
   'src/onglets.js',
@@ -100,6 +102,7 @@ const FICHIERS = [
   'data/serveurs.json',
   'data/switches.json',
   'data/depannage.json',
+  'data/mise-en-service.json',
   'data/fiche-contenu.json',
   'data/pourquoi.json',
   'data/pourquoi-liens.json',

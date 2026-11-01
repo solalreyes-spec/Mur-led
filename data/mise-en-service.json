@@ -1,0 +1,208 @@
+{
+  "procedures": [
+    {
+      "id": "ns",
+      "marque": "novastar",
+      "titre": "Mise en service Novastar"
+    },
+    {
+      "id": "br",
+      "marque": "brompton",
+      "titre": "Mise en service Brompton"
+    }
+  ],
+  "sources": {
+    "formation": {
+      "titre": "Formation",
+      "court": "Formation",
+      "confiance": "formation"
+    },
+    "formation-17": {
+      "titre": "Formation (transcription 17)",
+      "court": "Formation (transcription 17)",
+      "confiance": "formation"
+    }
+  },
+  "lignes": [
+    {
+      "id": "ns:1",
+      "procedure": "ns",
+      "numero": "1",
+      "marque": "novastar",
+      "texte": "Vérifier que tout est en ligne et noter les firmwares (exemple du guide : VX4S en 1.7.4, carte A8s en 4.6.1).",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "ns:2",
+      "procedure": "ns",
+      "numero": "2",
+      "marque": "novastar",
+      "texte": "Régler la carte graphique à la résolution du mur, mise à l'échelle Windows à 100 %.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "ns:3",
+      "procedure": "ns",
+      "numero": "3",
+      "marque": "novastar",
+      "texte": "Carte d'envoi : source, résolution et fréquence identiques à l'entrée vidéo.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "ns:4",
+      "procedure": "ns",
+      "numero": "4",
+      "marque": "novastar",
+      "texte": "Charger le bon fichier rcfgx ; en cas de doute, le tester d'abord sur une ou deux dalles.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "ns:5",
+      "procedure": "ns",
+      "numero": "5",
+      "marque": "novastar",
+      "texte": "Vérifier la taille des cartes de réception : NovaLCT propose 128 × 128 par défaut, alors que la dalle de l'exemple en formation fait 192 × 192.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "ns:6",
+      "procedure": "ns",
+      "numero": "6",
+      "marque": "novastar",
+      "texte": "Connexion écran : colonnes, lignes, carte d'envoi, port et ordre des cabinets.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "ns:7",
+      "procedure": "ns",
+      "numero": "7",
+      "marque": "novastar",
+      "texte": "Envoyer au matériel, sauvegarder en flash, puis enregistrer le fichier de configuration.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "ns:c1",
+      "procedure": "ns",
+      "numero": "c1",
+      "marque": "novastar",
+      "texte": "Ne jamais toucher aux réglages de performance des cartes de réception : risque de brûler les modules.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "ns:c2",
+      "procedure": "ns",
+      "numero": "c2",
+      "marque": "novastar",
+      "texte": "Après l'envoi d'un rcfgx, vérifier la luminosité : elle peut revenir à 100 % ou à 60 %.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "ns:c3",
+      "procedure": "ns",
+      "numero": "c3",
+      "marque": "novastar",
+      "texte": "Redondance sur deux processeurs : configurer le premier seul avant de brancher le second.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "br:1",
+      "procedure": "br",
+      "numero": "1",
+      "marque": "brompton",
+      "texte": "Préparer le projet hors ligne dans Tessera Remote.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "br:2",
+      "procedure": "br",
+      "numero": "2",
+      "marque": "brompton",
+      "texte": "Choisir le canvas, la fréquence et le bit depth réseau.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "br:3",
+      "procedure": "br",
+      "numero": "3",
+      "marque": "brompton",
+      "texte": "Associer les dalles grâce au code affiché sur la première dalle de chaque chaîne.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "br:4",
+      "procedure": "br",
+      "numero": "4",
+      "marque": "brompton",
+      "texte": "Régler le genlock et, en captation, ShutterSync.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "br:5",
+      "procedure": "br",
+      "numero": "5",
+      "marque": "brompton",
+      "texte": "Activer la redondance si les boucles sont câblées.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "br:6",
+      "procedure": "br",
+      "numero": "6",
+      "marque": "brompton",
+      "texte": "Utiliser le stacking pour régler plusieurs processeurs ensemble, sauf pour les mires.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "br:7.1",
+      "procedure": "br",
+      "numero": "7",
+      "marque": "brompton",
+      "texte": "Contrôler l'OSD de chaque dalle : température, statut, module en cause.",
+      "sources": [
+        "formation"
+      ]
+    },
+    {
+      "id": "br:7.2",
+      "procedure": "br",
+      "numero": "7",
+      "marque": "brompton",
+      "texte": "La calibration est stockée dans le module et le suit en cas d'échange.",
+      "sources": [
+        "formation-17"
+      ]
+    }
+  ]
+}

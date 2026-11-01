@@ -28,6 +28,13 @@ const contexte = {
       return null;
     }
   })(),
+  miseEnService: (() => {
+    try {
+      return lireJson('../data/mise-en-service.json');
+    } catch (erreur) {
+      return null;
+    }
+  })(),
   pourquoi: (() => {
     try {
       return lireJson('../data/pourquoi.json');

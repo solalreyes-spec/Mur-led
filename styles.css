@@ -1884,3 +1884,63 @@ main section h3.pl-mois-titre { justify-content: center; margin: 0; font-size: 1
   #icone-appli { display: block; }
 }
 :root[data-mode="rouge"] .segments-icone img, :root[data-mode="rouge"] .apercu-icone { display: none; }
+
+/* Écran Terrain (étape 27, lot 27b, src/ecran-terrain.js) : check-list de mise en service du mur, une carte par étape,
+   case de 64 px sur toute la ligne de titre (72 en grand affichage), corps repliable, renvois au Dépannage avec ses
+   styles de lignes ; marge de la zone de l'heure sur iPhone comme le pas à pas NovaLCT. */
+.terrain { padding-top: max(10px, env(safe-area-inset-top)); }
+.tr { gap: 12px; }
+.tr-tete-ecran { display: grid; gap: 2px; }
+.tr-tete-ecran p, .tr-tete-ecran h3 { margin: 0; }
+.tr-mur { font-size: 1.25rem; overflow-wrap: anywhere; }
+.tr-etat { font-weight: 700; }
+.tr-ecriture { margin: 0; }
+.tr-ecriture:empty { display: none; }
+.tr .alerte { margin: 0; }
+.tr-avis { display: grid; gap: 8px; }
+.tr-avis-texte { margin: 0; }
+.tr-avis .bouton { justify-self: start; }
+.tr-etapes { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.tr-etape { border: 1px solid var(--bordure); border-top-color: var(--lisere); border-radius: 14px; background: var(--surface); min-width: 0; }
+.tr-etape.tr-faite { border-color: var(--famille-bord); }
+.tr-tete { display: flex; align-items: center; min-width: 0; }
+.tr-case { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 6px 4px 6px 12px; font-size: 1.05rem; font-weight: 700; cursor: pointer; }
+.tr-case-calculee { cursor: default; }
+.tr-case input { width: 32px; height: 32px; flex: none; margin: 0; accent-color: var(--famille); }
+.tr-signe { width: 32px; flex: none; text-align: center; font-size: 1.4rem; line-height: 1; color: var(--texte-doux); }
+.tr-signe-fait { color: var(--ok); }
+:root[data-taille="grand"] .tr-case { min-height: 72px; }
+:root[data-taille="grand"] .tr-case input { width: 40px; height: 40px; }
+:root[data-taille="grand"] .tr-signe { width: 40px; }
+.tr-numero { flex: none; font-family: var(--police-chiffres); color: var(--famille); }
+.tr-titres { display: grid; gap: 2px; min-width: 0; }
+.tr-titre { line-height: 1.25; overflow-wrap: anywhere; }
+.tr-resume { font-size: 0.85rem; font-weight: 400; color: var(--texte-doux); }
+.tr-replier { flex: none; margin-right: 6px; }
+.tr-replier svg { transition: none; }
+.tr-replier[aria-expanded="true"] svg { transform: rotate(180deg); }
+.tr-corps { display: grid; gap: 10px; padding: 0 12px 12px; min-width: 0; }
+.tr-corps[hidden] { display: none; }
+.tr-ligne { min-width: 0; }
+.tr-texte { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.tr-note .tr-texte { color: var(--texte-doux); }
+.tr-source { margin: 2px 0 0; color: var(--texte-doux); font-size: 0.8rem; overflow-wrap: anywhere; }
+.tr-source-alerte { font-size: 0.8rem; }
+.tr-renvoi { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--bordure); border-radius: 12px; background: var(--surface-2); min-width: 0; }
+.tr-renvoi p { margin: 0; }
+.tr-renvoi-titre { font-size: 0.85rem; font-weight: 700; color: var(--texte-doux); overflow-wrap: anywhere; }
+.tr-renvoi-ligne { min-width: 0; }
+.tr-boutons .bouton { flex: 1 1 auto; }
+.tr-mes-etapes, .tr-ajout { display: grid; gap: 8px; }
+.tr-ajout input { min-height: var(--cible); min-width: 0; }
+.tr-tout-decocher { margin-top: 4px; }
+:root[data-mode="rouge"] :is(.tr-resume, .tr-source, .tr-renvoi-titre, .tr-note .tr-texte, .tr-signe) { color: var(--texte); }
+:root[data-taille="grand"] :is(.tr-resume, .tr-source, .tr-source-alerte, .tr-renvoi-titre, .tr .pr-sur-titre, .tr .alerte, .tr .alerte .bouton) { font-size: 1rem; }
+
+/* Carte du mur dans Prestas (étape 27) : bouton « Terrain » à côté de « ⋯ », état de la mise en service sous le résumé. */
+.pr-terrain { flex: none; min-height: var(--cible); padding: 0 12px; }
+.pr-terrain-etat { font-size: 0.9rem; font-weight: 700; color: var(--texte); }
+/* Bouton « Terrain » du Schéma (étape 27, spec § 12, décidé sur mesure à 375 px) : juste sous le dessin, en pleine largeur ;
+   dans la barre, il sortait le dessin du premier écran ou retirait à « Montage pas à pas » sa pleine largeur. */
+.schema-terrain { margin-top: 8px; }
+.schema-terrain .bouton-terrain { width: 100%; min-height: var(--cible); }

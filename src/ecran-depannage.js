@@ -20,6 +20,93 @@ export function marqueDuProcesseur(processeur) {
   return null;
 }
 
+// Rendu des lignes du Dépannage : « {n} » en exposant, « [?] » en badge « à confirmer », annexes et mire en liens, source
+// de chaque ligne en petit dessous, lignes de marque repliables (`ouverte(marque)` : dépliée), étapes numérotées par
+// l'appli ; `ajout(numero)` : aide de l'appli sous une étape. Sans `ouvrirMire`, `lierMots` ni `annexes`, ces liens restent
+// du texte.
+function fabriqueRendu({
+  sources, enLigne = () => navigator.onLine, ouvrirMire = null, lierMots = null, ouverte = () => true, ajout = () => null, annexes = true,
+}) {
+  // --- Texte : renvois, badges, liens d'annexe, renvoi d'un réflexe vers un arbre ------------------------------------
+  function texte(chaine, { vers = null, mots = false } = {}) {
+    const morceaux = [];
+    const motif = /\{(\d+)\}|\[\?\]|\bannexe ([A-D])\b|→ (T\d+)\b|mire de l'appli/g;
+    let pos = 0;
+    for (const m of chaine.matchAll(motif)) {
+      if (m.index > pos) morceaux.push(chaine.slice(pos, m.index));
+      if (m[1]) morceaux.push(el('sup', { class: 'dep-renvoi' }, m[1]));
+      else if (m[0] === '[?]') morceaux.push(el('span', { class: 'dep-badge' }, 'à confirmer'));
+      else if (m[2] && annexes) morceaux.push(el('button', { type: 'button', class: 'dep-lien-annexe', 'data-annexe': m[2] }, `annexe ${m[2]}`));
+      else if (m[3] && vers) morceaux.push('→ ', el('a', { href: '#depannage', class: 'dep-lien-noeud', 'data-vers': vers }, m[3]));
+      else if (m[0] === 'mire de l\'appli' && ouvrirMire) morceaux.push(el('a', { href: '#mire', class: 'dep-lien-mire' }, m[0]));
+      else morceaux.push(m[0]);
+      pos = m.index + m[0].length;
+    }
+    if (pos < chaine.length) morceaux.push(chaine.slice(pos));
+    return mots && lierMots ? morceaux.flatMap((m) => (typeof m === 'string' ? lierMots(m) : [m])) : morceaux;
+  }
+
+  function source(s) {
+    const fiche = sources.get(s.code);
+    const libelle = fiche?.libelle ?? s.code;
+    const nom = fiche?.url && enLigne() ? el('a', { href: fiche.url, target: '_blank', rel: 'noopener' }, libelle) : libelle;
+    const niveau = NIVEAUX_AFFICHES[fiche?.niveau];
+    return el('span', { class: 'dep-source' },
+      s.note ? `${s.note} ` : null, nom, s.ref ? `, ${s.ref}` : null, niveau ? ` (${niveau})` : null);
+  }
+
+  // Sources sous une ligne, en petit ; `balise` « span » dans un bouton (un paragraphe n'y a pas sa place).
+  function blocSources(liste, balise = 'p') {
+    if (!liste?.length) return null;
+    const morceaux = [];
+    liste.forEach((s, i) => {
+      if (i > 0) morceaux.push(' ; ');
+      if (s.renvoi !== undefined && liste.findIndex((x) => x.renvoi === s.renvoi) === i) morceaux.push(el('span', { class: 'dep-source-numero' }, `${s.renvoi} `));
+      morceaux.push(source(s));
+    });
+    return el(balise, { class: 'dep-sources' }, ...morceaux);
+  }
+
+  // --- Lignes --------------------------------------------------------------------------------------------------------
+  const nomMarque = (l) => l.etiquette ?? [].concat(l.marque).map((m) => NOMS_MARQUES[m]).join(' et ');
+
+  function ligne(l) {
+    const corps = [el('p', { class: 'dep-texte' }, ...texte(l.texte, { mots: true })), blocSources(l.sources)];
+    if (l.marque === null || l.marque === undefined) {
+      return el('div', { class: 'dep-ligne', 'data-sources': l.sources.length }, ...corps);
+    }
+    return el('details', { class: 'dep-ligne dep-ligne-marque', 'data-marque': [].concat(l.marque).join(' '), 'data-sources': l.sources.length, open: ouverte(l.marque) ? '' : null },
+      el('summary', {}, el('span', { class: 'dep-marque' }, nomMarque(l))),
+      el('div', { class: 'dep-corps' }, ...corps));
+  }
+
+  function lignes(liste) {
+    if (!liste.length) return null;
+    if (liste.every((l) => l.numero === undefined)) return el('div', { class: 'dep-lignes' }, ...liste.map(ligne));
+    const etapes = [];
+    for (const l of liste) {
+      const derniere = etapes[etapes.length - 1];
+      if (derniere && derniere.numero === l.numero) derniere.lignes.push(l);
+      else etapes.push({ numero: l.numero, lignes: [l] });
+    }
+    // Numéros écrits par l'appli : une étape qui commence par un encadré de marque garde son numéro (N37).
+    return listeNumerotee({ class: 'dep-etapes' }, etapes.map((e) => ({
+      numero: e.numero,
+      contenu: el('div', { class: 'dep-lignes' }, ...e.lignes.map(ligne), ajout(e.numero)),
+      attributs: { class: `dep-etape${e.lignes[0].marque === null || e.lignes[0].marque === undefined ? '' : ' commence-par-encadre'}` },
+    })));
+  }
+
+  return { texte, source, blocSources, ligne, lignes };
+}
+
+// Lignes d'un renvoi au Dépannage affichées hors de l'écran Dépannage (écran Terrain, lot 27b), comme dans le Dépannage :
+// numéro de l'étape, exposants, badge « à confirmer », source en petit, lignes de marque dépliées. `donnees` : le
+// Dépannage (data/depannage.json), pour le libellé publié des sources.
+export function lignesDepannage(liste, donnees, { enLigne = () => navigator.onLine } = {}) {
+  return fabriqueRendu({ sources: new Map((donnees?.sources ?? []).map((s) => [s.code, s])), enLigne, annexes: false }).lignes(liste);
+}
+
 // Monte l'écran dans `racine`. `projet` : { marque, nom, logiciel } du processeur retenu dans Data quand des saisies sont gardées,
 // sinon null (choix de marque demandé). `enLigne` : les liens web des sources ne servent qu'en ligne.
 // `ajouts` : aide ajoutée par l'appli sous une ligne, hors des données transcrites (étape 19a, T10.3) :
@@ -61,76 +148,12 @@ export function monterDepannage(racine, donnees, {
     return morceaux;
   }
 
-  // --- Texte : renvois, badges, liens d'annexe, renvoi d'un réflexe vers un arbre ------------------------------------
-  function texte(chaine, { vers = null, mots = false } = {}) {
-    const morceaux = [];
-    const motif = /\{(\d+)\}|\[\?\]|\bannexe ([A-D])\b|→ (T\d+)\b|mire de l'appli/g;
-    let pos = 0;
-    for (const m of chaine.matchAll(motif)) {
-      if (m.index > pos) morceaux.push(chaine.slice(pos, m.index));
-      if (m[1]) morceaux.push(el('sup', { class: 'dep-renvoi' }, m[1]));
-      else if (m[0] === '[?]') morceaux.push(el('span', { class: 'dep-badge' }, 'à confirmer'));
-      else if (m[2]) morceaux.push(el('button', { type: 'button', class: 'dep-lien-annexe', 'data-annexe': m[2] }, `annexe ${m[2]}`));
-      else if (m[3] && vers) morceaux.push('→ ', el('a', { href: '#depannage', class: 'dep-lien-noeud', 'data-vers': vers }, m[3]));
-      else if (m[0] === 'mire de l\'appli' && ouvrirMire) morceaux.push(el('a', { href: '#mire', class: 'dep-lien-mire' }, m[0]));
-      else morceaux.push(m[0]);
-      pos = m.index + m[0].length;
-    }
-    if (pos < chaine.length) morceaux.push(chaine.slice(pos));
-    return mots ? morceaux.flatMap((m) => (typeof m === 'string' ? lierMots(m) : [m])) : morceaux;
-  }
-
-  function source(s) {
-    const fiche = sources.get(s.code);
-    const libelle = fiche?.libelle ?? s.code;
-    const nom = fiche?.url && enLigne() ? el('a', { href: fiche.url, target: '_blank', rel: 'noopener' }, libelle) : libelle;
-    const niveau = NIVEAUX_AFFICHES[fiche?.niveau];
-    return el('span', { class: 'dep-source' },
-      s.note ? `${s.note} ` : null, nom, s.ref ? `, ${s.ref}` : null, niveau ? ` (${niveau})` : null);
-  }
-
-  // Sources sous une ligne, en petit ; `balise` « span » dans un bouton (un paragraphe n'y a pas sa place).
-  function blocSources(liste, balise = 'p') {
-    if (!liste?.length) return null;
-    const morceaux = [];
-    liste.forEach((s, i) => {
-      if (i > 0) morceaux.push(' ; ');
-      if (s.renvoi !== undefined && liste.findIndex((x) => x.renvoi === s.renvoi) === i) morceaux.push(el('span', { class: 'dep-source-numero' }, `${s.renvoi} `));
-      morceaux.push(source(s));
-    });
-    return el(balise, { class: 'dep-sources' }, ...morceaux);
-  }
-
-  // --- Lignes --------------------------------------------------------------------------------------------------------
+  // Rendu des lignes (texte, sources, lignes de marque, étapes numérotées), partagé avec l'écran Terrain (lot 27b).
   const ouverte = (marque) => etat.marque === 'toutes' || [].concat(marque).includes(etat.marque);
-  const nomMarque = (l) => l.etiquette ?? [].concat(l.marque).map((m) => NOMS_MARQUES[m]).join(' et ');
-
-  function ligne(l) {
-    const corps = [el('p', { class: 'dep-texte' }, ...texte(l.texte, { mots: true })), blocSources(l.sources)];
-    if (l.marque === null || l.marque === undefined) {
-      return el('div', { class: 'dep-ligne', 'data-sources': l.sources.length }, ...corps);
-    }
-    return el('details', { class: 'dep-ligne dep-ligne-marque', 'data-marque': [].concat(l.marque).join(' '), 'data-sources': l.sources.length, open: ouverte(l.marque) ? '' : null },
-      el('summary', {}, el('span', { class: 'dep-marque' }, nomMarque(l))),
-      el('div', { class: 'dep-corps' }, ...corps));
-  }
-
-  function lignes(liste) {
-    if (!liste.length) return null;
-    if (liste.every((l) => l.numero === undefined)) return el('div', { class: 'dep-lignes' }, ...liste.map(ligne));
-    const etapes = [];
-    for (const l of liste) {
-      const derniere = etapes[etapes.length - 1];
-      if (derniere && derniere.numero === l.numero) derniere.lignes.push(l);
-      else etapes.push({ numero: l.numero, lignes: [l] });
-    }
-    // Numéros écrits par l'appli : une étape qui commence par un encadré de marque garde son numéro (N37).
-    return listeNumerotee({ class: 'dep-etapes' }, etapes.map((e) => ({
-      numero: e.numero,
-      contenu: el('div', { class: 'dep-lignes' }, ...e.lignes.map(ligne), ajouts[`${noeudAffiche}:${e.numero}`]?.(etat.marque, etat.projet) ?? null),
-      attributs: { class: `dep-etape${e.lignes[0].marque === null || e.lignes[0].marque === undefined ? '' : ' commence-par-encadre'}` },
-    })));
-  }
+  const { texte, blocSources, ligne, lignes } = fabriqueRendu({
+    sources, enLigne, ouvrirMire, lierMots, ouverte,
+    ajout: (numero) => ajouts[`${noeudAffiche}:${numero}`]?.(etat.marque, etat.projet) ?? null,
+  });
 
   // --- Choix de marque -----------------------------------------------------------------------------------------------
   function choixMarque() {

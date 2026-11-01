@@ -763,6 +763,17 @@ export function processeurRetenu() {
   return dernier?.choisie?.processeur ?? null;
 }
 
+// Résultats de Data pour la check-list de mise en service (étape 27, lot 27b) : processeur retenu (son évaluation), origine
+// de la profondeur réseau, « Avant de partir », configs des lots (`configsData`), mur, dalle et groupes de lots du Mur ;
+// null sans calcul.
+export function entreesTerrainData() {
+  if (!dernier) return null;
+  return {
+    evaluation: dernier.choisie, origineBits: dernier.origineBits, avantDePartir: derniereListe, configs: dernier.configs,
+    mur: etatMur?.mur ?? null, dalle: etatMur?.dalle ?? null, groupes: etatMur?.lots ?? [],
+  };
+}
+
 // Résumé texte du dernier calcul, pour « Copier les résultats ».
 export function resumeOngletData() {
   return dernier ? resumeData(dernier.choisie, dernier) : null;

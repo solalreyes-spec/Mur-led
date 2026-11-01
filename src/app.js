@@ -4,19 +4,20 @@ import { resoudreFiche, listeMateriel, totalMateriel, stockPresta, ErreurSaisie,
 import { el, remplacer } from './dom.js';
 import {
   baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc, quantitesParc, logicielParc, codeNovaLCT,
-  ajouterAuParc, oublierReference,
+  ajouterAuParc, oublierReference, configsDuMur,
 } from './fiches.js';
-import { lire, ecrire, stockageDisponible, suspendreEcritures } from './stockage.js';
+import { lire, ecrire, stockageDisponible, suspendreEcritures, ecrituresSuspendues } from './stockage.js';
 import { surveillerOnglets } from './onglets.js';
 import { initialiserMur, actualiserMur, signalerErreurMur, resumeOngletMur } from './ecran-mur.js';
 import {
-  initialiserData, actualiserData, murModifie, definirDepartData, processeurRetenu, resumeOngletData, definirNovaLCT, configsNovaLCT,
+  initialiserData, actualiserData, murModifie, definirDepartData, processeurRetenu, resumeOngletData, definirNovaLCT, configsNovaLCT, entreesTerrainData,
 } from './ecran-data.js';
-import { initialiserCanvas, actualiserRegies, donneesModifiees, resumeOngletCanvas, sourceAffichee } from './ecran-canvas.js';
-import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec, resumeOngletElec } from './ecran-elec.js';
+import { initialiserCanvas, actualiserRegies, donneesModifiees, resumeOngletCanvas, sourceAffichee, controleAffiche } from './ecran-canvas.js';
+import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec, resumeOngletElec, resultatElec } from './ecran-elec.js';
 import {
   initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema, revenirAMaConfig,
   cablageRetenu, sortieModifieePourSchema, chaineModifieePourSchema, definirStockageMontage, rechargerMontage, entreesMateriel, dessinPortNovaLCT,
+  etatMontage, ouvrirGuideMontage,
 } from './ecran-schema.js';
 import { initialiserPoids, actualiserBumpers, murModifiePourPoids, poidsRetenu, resumeOngletPoids } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
@@ -31,7 +32,10 @@ import { monterFiches } from './ecran-fiches.js';
 import { monterNovaLCT, carteNovaLCT, blocDepannageSecours } from './ecran-novalct.js';
 import {
   etapesNovaLCT, rapprocherNovaLCT, groupeVideo, versionReference, ficheNovaLCT, texteNovaLCT, resumeNovaLCT, murABlanc, processeursABlanc, MUR_A_BLANC,
+  faitesSur,
 } from './novalct.js';
+import * as terrain from './terrain.js';
+import { monterTerrain } from './ecran-terrain.js';
 import { texteProcesseurs } from './secours.js';
 import { METIERS, ficheMetier, texteFiche, nomFichierFiche } from './fiches-metier.js';
 import { pdfFiche } from './pdf.js';
@@ -266,6 +270,15 @@ try {
 } catch (erreur) {
   remplacer(document.getElementById('ecran-depannage'),
     erreurAlerte(`Impossible de charger le dépannage : ${erreur.message}. Lance l'appli avec lancer.command.`));
+}
+
+// Procédures de mise en service du cahier des charges (étape 27), pour l'écran Terrain : facultatives (sans elles, les
+// étapes gardent leurs valeurs et leurs renvois au Dépannage).
+let miseEnService = null;
+try {
+  miseEnService = await lireJson('data/mise-en-service.json');
+} catch (erreur) {
+  miseEnService = null;
 }
 
 // Mire et fiche contenu : consignes, mode d'emploi et sources (facultatifs : sans eux, pas de bouton).
@@ -645,6 +658,8 @@ initialiserSchema({
     definirDepartData(data);
     definirDepartElec(elec, { margeMou });
   },
+  // Bouton « Terrain » de la barre du dessin (étape 27) : le mur ouvert, calculs déjà prêts.
+  surTerrain: () => ouvrirTerrain(),
 });
 if (connectique) {
   initialiserCanvas({ ...connectique, regies: courant.regies, sourcesRegies: courant.sourcesRegies, erreurRegies, appareils },
@@ -972,6 +987,12 @@ ecranPrestas = monterPrestas(document.getElementById('ecran-prestas'), {
     archiverPresta: (id, archivee) => operationPrestas((e) => prestas.archiverPresta(e, id, archivee)),
     supprimerPresta: (id) => operationPrestas((e) => prestas.supprimerPresta(e, id)),
     materielMur: async (id, murId) => ouvrirMateriel(id, murId),
+    // « Terrain » de la carte du mur (étape 27) : ce mur ouvert (Prestas se ferme), puis sa check-list, ses calculs prêts.
+    terrain: async (id, murId) => {
+      await operationPrestas((e) => prestas.ouvrir(e, id, murId));
+      fermerPrestas();
+      await ouvrirTerrain();
+    },
     materielPresta: async (id) => ouvrirMateriel(id, null),
     fichesPresta: async (id) => ouvrirFiches(id),
     // Export : feuille de partage ou téléchargement, sans attente avant (Safari n'ouvre la feuille qu'en réponse
@@ -1183,6 +1204,139 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && fermerFiches()) e.stopPropagation();
 }, true);
 window.addEventListener('hashchange', fermerFiches);
+// Écran Terrain (étape 27, lot 27b) : check-list de mise en service du mur ouvert, écran plein au-dessus de l'appli ;
+// « Fermer » ou Échap ramène à l'onglet affiché. Les entrées sont rassemblées une fois les calculs du mur prêts, jamais
+// pendant un changement de mur ; à l'ouverture, une case dont l'étape a changé est décochée et le bandeau le dit
+// (« Compris » l'oublie). Les cases et l'état sont gardés avec le mur sans marquer la presta modifiée ; les étapes
+// ajoutées la marquent (prestas.js).
+const panneauTerrain = document.getElementById('terrain');
+let vueTerrain = null;
+let verrouTerrain = null;
+// Bandeau du changement, par mur, jusqu'à « Compris » (le temps de l'ouverture de l'appli).
+const avisTerrain = new Map();
+const terrainOuvert = () => prestas.terrainMur(etatPrestas, prestas.murOuvert(etatPrestas)?.id);
+// Entrées de la check-list du mur ouvert, depuis les résultats affichés des onglets (Data, Élec, Canvas, câblage retenu du
+// Schéma, guide de montage, pas à pas NovaLCT).
+function entreesTerrainMur() {
+  const d = entreesTerrainData();
+  const schema = entreesMateriel();
+  const elec = resultatElec();
+  const pasAPas = pasAPasNovaLCT();
+  const parc = base.parcs.find((p) => p.id === parcActif) ?? null;
+  return terrain.entreesDuMur({
+    // Configs de chaque groupe de lots : celles de Data (logiciel du processeur), sinon toutes celles du lot.
+    data: d ? {
+      ...d,
+      groupes: d.groupes.map((g, i) => ({
+        ...g, configs: d.configs?.parFiche?.[i]?.resultat ?? (parc ? configsDuMur(base, parc.id, g.dalleId, g.n, { coches: g.coches }) : null),
+      })),
+    } : null,
+    parc,
+    cablageData: schema?.data?.variante ?? null,
+    elec: elec ? { ...elec, variante: schema?.elec?.variante ?? null } : null,
+    canvas: controleAffiche(),
+    montage: etatMontage(),
+    novalct: pasAPas ? faitesSur(pasAPas, suiviNovaLCT().cases) : null,
+    ajouts: terrainOuvert().ajouts,
+  });
+}
+// Check-list gardée avec le mur ouvert ; une écriture refusée (autre onglet, stockage indisponible) est affichée.
+async function garderTerrain(t) {
+  const mur = prestas.murOuvert(etatPrestas);
+  if (!mur) return;
+  etatPrestas = prestas.enregistrerMur(etatPrestas, mur.id, { terrain: t });
+  const ok = await enregistrerPrestas(etatPrestas);
+  ecranTerrain?.signalerEcriture(ok ? null : ecrituresSuspendues()
+    ? 'Rien n\'est enregistré sur cet appareil : l\'appli est ouverte dans un autre onglet. Recharge l\'onglet que tu utilises.'
+    : 'Pas enregistré sur cet appareil : le stockage du navigateur est indisponible.');
+}
+const etatAvecDate = (resultat, coches) => ({ ...terrain.etatTerrain(resultat, coches), calculeLe: new Date().toISOString() });
+function afficherTerrain() {
+  const mur = prestas.murOuvert(etatPrestas);
+  ecranTerrain.afficher({
+    presta: prestas.prestaOuverte(etatPrestas)?.nom ?? '', mur: mur?.nom ?? '', resultat: vueTerrain.resultat, coches: vueTerrain.coches,
+    avis: avisTerrain.get(mur?.id) ?? null,
+  });
+}
+// Recalcule les étapes (après une étape ajoutée ou retirée) sans rapprocher : seules les cases changent par l'utilisateur.
+async function majTerrain(calcul) {
+  const t = calcul(terrainOuvert());
+  const resultat = terrain.etapesTerrain({ ...vueTerrain.entrees, ajouts: t.ajouts }, { depannage, miseEnService });
+  vueTerrain = { ...vueTerrain, resultat, coches: t.coches };
+  await garderTerrain({ ...t, etat: etatAvecDate(resultat, t.coches) });
+  afficherTerrain();
+}
+async function garderEcranTerrain() {
+  try {
+    verrouTerrain = (await navigator.wakeLock?.request?.('screen')) ?? null;
+  } catch (erreur) {
+    verrouTerrain = null;
+  }
+}
+async function ouvrirTerrain() {
+  const mur = prestas.murOuvert(etatPrestas);
+  if (!ecranTerrain || !mur) return;
+  // Saisies en attente, puis les calculs repoussés du mur (grand mur, changement de mur) avant de lire les onglets.
+  sauverMaintenant();
+  await new Promise((fin) => setTimeout(fin, 0));
+  if (prestas.murOuvert(etatPrestas)?.id !== mur.id) return;
+  const entrees = entreesTerrainMur();
+  const resultat = terrain.etapesTerrain(entrees, { depannage, miseEnService });
+  const t = terrainOuvert();
+  const r = terrain.rapprocherTerrain(resultat, t.coches);
+  if (r.avis) avisTerrain.set(mur.id, r.avis);
+  vueTerrain = { murId: mur.id, entrees, resultat, coches: r.coches };
+  panneauTerrain.hidden = false;
+  document.body.classList.add('montage-ouvert');
+  afficherTerrain();
+  document.getElementById('ecran-terrain').scrollTop = 0;
+  garderEcranTerrain();
+  await garderTerrain({ ...t, coches: r.coches, etat: etatAvecDate(resultat, r.coches) });
+}
+function fermerTerrain() {
+  if (panneauTerrain.hidden) return false;
+  panneauTerrain.hidden = true;
+  vueTerrain = null;
+  document.body.classList.remove('montage-ouvert');
+  try {
+    verrouTerrain?.release?.();
+  } catch (erreur) {
+    // Rien à faire : le navigateur a déjà relâché l'écran.
+  }
+  verrouTerrain = null;
+  return true;
+}
+const ecranTerrain = monterTerrain(document.getElementById('ecran-terrain'), {
+  depannage,
+  actions: {
+    cocher: async (id, signature) => {
+      const t = terrain.cocherEtape(terrainOuvert(), id, signature);
+      vueTerrain = { ...vueTerrain, coches: t.coches };
+      await garderTerrain({ ...t, etat: etatAvecDate(vueTerrain.resultat, t.coches) });
+    },
+    compris: async () => {
+      avisTerrain.delete(vueTerrain.murId);
+      afficherTerrain();
+    },
+    ajouter: async (texte) => majTerrain((t) => terrain.ajouterEtape(t, texte)),
+    retirer: async (id) => majTerrain((t) => terrain.retirerEtape(t, id)),
+    toutDecocher: async () => majTerrain((t) => terrain.toutDecocher(t)),
+    // Boutons des étapes : Terrain se ferme, leur écran s'ouvre (leur retour ne rouvre pas Terrain, spec § 6).
+    ouvrir: async (quoi) => {
+      fermerTerrain();
+      if (quoi === 'mire') ouvrirMire('mire');
+      else if (quoi === 'novalct') {
+        if (!ouvrirNovaLCT()) location.hash = 'data';
+      } else if (!ouvrirGuideMontage(quoi === 'montage-elec' ? 'elec' : 'data')) location.hash = 'schema';
+    },
+  },
+});
+document.getElementById('terrain-fermer').addEventListener('click', fermerTerrain);
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && fermerTerrain()) e.stopPropagation();
+}, true);
+window.addEventListener('hashchange', fermerTerrain);
+document.addEventListener('visibilitychange', () => { if (!panneauTerrain.hidden && document.visibilityState === 'visible') garderEcranTerrain(); });
 boutonPresta.addEventListener('click', ouvrirPrestas);
 document.getElementById('prestas-fermer').addEventListener('click', fermerPrestas);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerPrestas(); });

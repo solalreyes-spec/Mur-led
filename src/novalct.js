@@ -100,7 +100,9 @@ export const SOURCES_NOVALCT = {
     confiance: 'intégrateur',
     url: 'https://daktronics.com/en-us/support/kb/DD3397344',
   },
-  cdc: { titre: 'Cahier des charges du projet, mise en service Novastar', court: 'Cahier des charges du projet', confiance: 'choix de conception' },
+  // Procédure de mise en service Novastar du cahier des charges, vue en formation (choix de l'utilisateur du 01/11/2026,
+  // comme la check-list de mise en service).
+  cdc: { titre: 'Formation, mise en service Novastar', court: 'Formation', confiance: 'formation' },
   // Ton ordinateur (étape 19a) : sources des étapes 0.1 et 0.3, reprises de connexion.js.
   ...Object.fromEntries(['vmp-1-5-0', 'apple-boot-camp', 'ms-mac-arm', 'ms-emulation-arm', 'ms-faq-arm'].map((id) => [id, SOURCES_CONNEXION[id]])),
 };
@@ -1042,7 +1044,7 @@ export function rapprocherNovaLCT(cases, resultat) {
 const deux = (n) => String(n).padStart(2, '0');
 const jour = (d) => `${deux(d.getDate())}/${deux(d.getMonth() + 1)}/${d.getFullYear()}`;
 const numeroEtape = (id) => id.replace(/^P\d+\./, '');
-const faitesSur = (resultat, cases) => {
+export const faitesSur = (resultat, cases) => {
   const etapes = resultat.parties.flatMap((p) => p.etapes);
   return { faites: etapes.filter((e) => cases?.[e.id] === e.signature).length, total: etapes.length };
 };
