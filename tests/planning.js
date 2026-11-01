@@ -1958,4 +1958,63 @@ export const PLANNING = [
         [['Mur'], ['Mur'], ['Ecran 1', 'Ecran 2']]);
     },
   },
+  {
+    id: 'PL44',
+    titre: 'Devis Eventsoft (lot 26d) : titres qui ne nomment pas un mur (titre de domaine « ***VIDEO*** », note d\'énergie « [Consommation : 18kw] », rubrique « [Accessoires] ») : un mur « Mur LED » sans forme, jamais le titre d\'une autre section, pas de montage lu dans ce titre ; « (x3) » entre parenthèses lu comme le nombre de murs quand le titre n\'en a pas d\'autre, retiré du nom',
+    etape: '26d',
+    async verifier(v, contexte) {
+      const dv = await importerPlanning(v, '../src/planning/devis.js');
+      if (!dv) return;
+      if (typeof dv.titreNeutre !== 'function') {
+        v.vrai('titreNeutre exportée par src/planning/devis.js', false);
+        return;
+      }
+      const base = baseDevis(contexte);
+      const neutres = ['***VIDEO***', '*** VIDEO ***', '**SON**', '****', '***ECRAN LED 6 x 3m***', '[Consommation : 18kw]', 'Conso. 9 kVA', 'Conso 18,5 kW',
+        'Consommation électrique : 18kW', 'Puissance max 32A', 'Conso à 32A', 'Consommation 1800 W', '>Câblage :', 'CABLAGES', '[Accessoires].', 'Câblage et accessoires',
+        'Energie et cablages', '>Consommables', 'DIVERS', 'Options'];
+      const murs = ['Divers mur de leds', 'Mur LED 6 x 3 m conso 4 kW', 'Câblage du mur', 'Puissance 32A tétra', '[6 x Totems en T 4m ]', 'ECRAN LED',
+        'Contre-marche L=8m x Ht=0.5m', '*VIDEO*', 'Mur ***LED***', 'Accessoires mur', '[Contre scène]', '', null, undefined];
+      v.egal('titres neutres', neutres.filter((t) => !dv.titreNeutre(t)), []);
+      v.egal('titres qui restent des titres de mur', murs.filter((t) => dv.titreNeutre(t)), []);
+
+      const dalle = 'unilumin-urmiii04-500x1000';
+      const ligne = (ref, designation, quantite) => ({ ref, designation, quantite, composant: false });
+      const section = (titre, quantite = '106.0') => dv.classerDevis([{ titre, lignes: [ligne('URMIII04', DESIGNATIONS_FICTIVES.urm48, quantite)] }], base)[0];
+      const vue = (c) => [c.murs, c.mursSansForme, c.formeAChoisir, c.multiplicateur, c.largeurM, c.hauteurM, c.alertes];
+      const attendu = [[], [{ nom: 'Mur LED', demi: null, formulaires: { 'form-mur': { dalle, demi: false } } }], true, 1, null, null,
+        ['Titre de section qui ne nomme pas un mur : 106 dalles, forme à choisir.']];
+      v.egal('section de dalles au titre neutre : un mur « Mur LED » sans forme', ['[Consommation : 18kw]', '***VIDEO***', '[Accessoires]', '***ECRAN LED 6 x 3m***']
+        .map((t) => vue(dv.configurationProposee(section(t), base))), Array(4).fill(attendu));
+
+      v.egal('montage : pas d\'indice « au sol » dans un titre neutre', [dv.montageDevis({ titre: '***MUR LED AU SOL***', lignes: [] }).montage, dv.montageDevis({ titre: 'Mur LED au sol', lignes: [] }).montage],
+        ['a-confirmer', 'stack']);
+
+      const conso = { titre: '[Consommation : 18kw]', lignes: [ligne('URMIII04', DESIGNATIONS_FICTIVES.urm48, '106.0'), ligne('MCTRL660', 'Processeur fictif MCTRL660', '1.0'),
+        ligne('BAS-FICT', 'Base de sol fictive 1m', '7.0'), ligne('LEST-FICT', 'Lest fictif 25 kg', '40.0')] };
+      const totems = { titre: '[6 x Totems en T 4m ]', lignes: [ligne('STR-FICT', 'Linéaire fictif 3m', '6.0')] };
+      const presta = (sections) => ({ ...DEVIS_CONGRES, sections: [
+        { titre: 'Installation de 6 totems lumière', lignes: [ligne('PROJ-FICT', 'Projecteur fictif', '6.0')] },
+        { titre: '***VIDEO***', lignes: [ligne('MON-FICT', 'Moniteur fictif', '1.0')] }, ...sections] });
+      const m = dv.mursDuDevis(presta([conso, totems]), base, {});
+      v.egal('presta : un seul mur « Mur LED », processeur de sa section, montage stack lu dans les lignes, aucun totem', [
+        m.murs.map((x) => x.nom), m.resume, m.alertes, m.montages.map((x) => [x.titre, x.murs, x.montage]), m.murs[0].formulaires['form-data'], m.processeurs.texte,
+      ], [['Mur LED'], ['Mur LED : forme à choisir'], ['[Consommation : 18kw] : Titre de section qui ne nomme pas un mur : 106 dalles, forme à choisir.'],
+        [['[Consommation : 18kw]', ['Mur LED'], 'stack']], { famille: 'novastar', processeur: 'novastar-mctrl660' },
+        'Le devis prévoit 1 × MCTRL660 ; l\'appli ne conseille rien tant qu\'une dalle ou une forme reste à choisir.']);
+      const avecDalles = dv.mursDuDevis(presta([conso, { ...totems, lignes: [...totems.lignes, ligne('URMIII04', DESIGNATIONS_FICTIVES.urm48, '24.0')] }]), base, {});
+      v.egal('totems avec leurs propres dalles : leurs murs viennent de leur section, « Mur LED » reste seul et sans forme', avecDalles.resume,
+        ['Mur LED : forme à choisir', ...[1, 2, 3, 4, 5, 6].map((i) => `Totems en T ${i} : forme à choisir`)]);
+
+      const t = (largeurM, hauteurM, multiplicateur = 1) => ({ largeurM, hauteurM, multiplicateur });
+      v.egal('« (x3) » entre parenthèses', ['Ecran (x3) L=2m H=1m', 'Ecran (3x) L=2m H=1m', 'Ecran ( x 3 ) L=2m H=1m', 'Ecran (3 X) L=2m H=1m', 'Ecran (×3) L=2m H=1m',
+        'Ecran 3 x 2m (x3)', 'Arche de 6,50m x 3,21m (x3)'].map(dv.lireTitre), [...Array(5).fill(t(2, 1, 3)), t(3, 2, 3), t(6.5, 3.21, 3)]);
+      v.egal('autre multiplicateur d\'abord, parenthèse qui contient autre chose : rien de nouveau', ['6 Totems (x2)', 'Ecran (x3 avec spare) L=2m H=1m', 'Ecran (3 murs) L=2m H=1m'].map(dv.lireTitre),
+        [t(null, null, 6), t(2, 1), t(2, 1)]);
+      const noms = (titre, quantite) => { const c = dv.configurationProposee(section(titre, quantite), base); return [...c.murs, ...c.mursSansForme].map((x) => x.nom); };
+      const ecrans = ['Ecran 1', 'Ecran 2', 'Ecran 3'];
+      v.egal('parenthèse retirée du nom des murs', [noms('Ecran 3 x 2m (x3)', '18.0'), noms('Ecran ( x 3 ) L=2m H=1m', '6.0'), noms('Ecran (×3) L=2m H=1m', '6.0'),
+        noms('Ecran (3x) L=2m H=1m', '6.0'), noms('6 Totems (x2)', '24.0')], [ecrans, ecrans, ecrans, ecrans, [1, 2, 3, 4, 5, 6].map((i) => `Totems ${i}`)]);
+    },
+  },
 ];

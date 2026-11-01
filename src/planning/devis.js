@@ -424,6 +424,9 @@ const MULTIPLE_AVANT = /(?:^|\s)(\d+)\s?x(?=\s|$)(?!\s*\d)/;
 const MULTIPLE_APRES = /(?:^|\s)x\s?(\d+)(?=\s|$)/;
 // Titres sans « L= » (F12, lot 25e2) : « Installation de 6 totem », « 2 ECRANS » ; une dimension seule (« 4m »).
 const MULTIPLE_NOM = /(?:^|\s)(\d+)\s+(?:totems?|ecrans?|murs?)\b/;
+// « (x3) », « ( x 3 ) », « (3x) », « (×3) » (lot 26d) : lu seulement sans autre multiplicateur, toujours retiré du nom.
+const PARENTHESE = String.raw`\(\s*(?:[x×]\s*(\d+)|(\d+)\s*[x×])\s*\)`;
+const MULTIPLE_PARENTHESE = new RegExp(PARENTHESE);
 const DIMENSION_SEULE = new RegExp(`(?:^|\\s)${NOMBRE.replace('(cm|mm|m)?', '(cm|m)')}`, 'g');
 
 function metres(m) {
@@ -450,7 +453,7 @@ function paires(texte) {
 }
 
 // Dimensions d'un titre de section : « L=4m », « L=4,5m », « H= » ou « Ht= », en m ou en cm ; multiplicateur
-// « 4x », « x4 » ou « 4 x ». Titre sans dimensions : largeur et hauteur null. Titres sans « L= » (F12, lot 25e2) :
+// « 4x », « x4 », « 4 x » ou « (x4) » (lot 26d). Titre sans dimensions : largeur et hauteur null. Titres sans « L= » (F12, lot 25e2) :
 // crochets ignorés, « 6 totem » ou « 2 ECRANS » donnent le multiplicateur ; sans « L= » ni « H= », une dimension seule
 // (« 4m ») est lue comme la hauteur, à confirmer (`hauteurAConfirmer`). Paire « 8.00 x 4.00m » (lot 26c3) : après
 // « L= » et « H= », avant la dimension seule, retirée du titre avant le multiplicateur ; plusieurs paires : aucune lue.
@@ -459,7 +462,9 @@ export function lireTitre(titre) {
   const trouvees = paires(t);
   const reste = trouvees.length ? t.replace(PAIRE, ' ') : t;
   const multiple = reste.match(MULTIPLE_AVANT) ?? reste.match(MULTIPLE_APRES) ?? reste.match(MULTIPLE_NOM);
-  const lu = { largeurM: metres(t.match(LARGEUR)), hauteurM: metres(t.match(HAUTEUR)), multiplicateur: multiple ? Math.max(1, Number(multiple[1])) : 1 };
+  const parenthese = multiple ? null : reste.match(MULTIPLE_PARENTHESE);
+  const nombre = multiple ? multiple[1] : (parenthese?.[1] ?? parenthese?.[2]);
+  const lu = { largeurM: metres(t.match(LARGEUR)), hauteurM: metres(t.match(HAUTEUR)), multiplicateur: nombre ? Math.max(1, Number(nombre)) : 1 };
   if (lu.largeurM !== null || lu.hauteurM !== null) return lu;
   if (trouvees.length === 1) return { ...lu, largeurM: trouvees[0].largeurM, hauteurM: trouvees[0].hauteurM };
   if (trouvees.length > 1) return lu;
@@ -473,6 +478,7 @@ const NOM_MUR_MAX = 40;
 function nomsMurs(titre, n) {
   const brut = String(titre ?? '').replace(/[[\]]/g, ' ');
   const nettoye = (paires(brut).length === 1 ? brut.replace(PAIRE, ' ') : brut)
+    .replace(new RegExp(PARENTHESE, 'gi'), ' ')
     .replace(/(?:^|\b)(?:L|Ht|H)\s*=\s*\d+(?:[.,]\d+)?\s*(?:cm|mm|m)?\b/gi, ' ')
     .replace(/(^|\s)\d+(?:[.,]\d+)?\s*(?:cm|m)(?=\s|$)/gi, ' ')
     .replace(/(^|\s)\d+\s?x(?=\s|$)/gi, ' ')
@@ -487,6 +493,25 @@ function nomsMurs(titre, n) {
   if (n === 1) return [base.slice(0, NOM_MUR_MAX).trim()];
   return Array.from({ length: n }, (_, i) => `${base.slice(0, NOM_MUR_MAX - ` ${i + 1}`.length).trim()} ${i + 1}`);
 }
+
+// Titre qui ne nomme pas un mur (lot 26d, choix de l'utilisateur) : titre de domaine entre astérisques (« ***VIDEO*** »,
+// quel que soit son contenu), ou titre fait seulement d'une note d'énergie (« [Consommation : 18kw] ») ou d'une rubrique
+// de matériel (« [Accessoires] », « >Câblage : »), mots de liaison compris. Sa section de dalles donne un mur « Mur LED »
+// sans forme ; le titre d'une autre section n'est jamais repris.
+const TITRE_DOMAINE = /^\s*\*{2,}[\s\S]*\*{2,}\s*$/;
+const VALEUR_ENERGIE = /(?<![a-z0-9.,])\d+(?:[.,]\d+)?\s*(?:kva|kw|watts?|w|amperes?|a)(?![a-z0-9])/g;
+const MOTS_NEUTRES = new Set(['consommation', 'consommations', 'conso', 'consos', 'puissance', 'puissances', 'energie', 'energies', 'electrique', 'electriques',
+  'total', 'totale', 'totals', 'totales', 'max', 'maxi', 'accessoire', 'accessoires', 'cablage', 'cablages', 'consommable', 'consommables', 'divers',
+  'option', 'options']);
+const MOTS_LIAISON = new Set(['et', 'a', 'de', 'du', 'des', 'd']);
+export function titreNeutre(titre) {
+  if (TITRE_DOMAINE.test(String(titre ?? ''))) return true;
+  const sansValeur = sansAccents(titre).replace(VALEUR_ENERGIE, ' ');
+  const restants = sansValeur.replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+  const retire = sansValeur !== sansAccents(titre) || restants.some((m) => MOTS_NEUTRES.has(m));
+  return retire && restants.every((m) => MOTS_NEUTRES.has(m) || MOTS_LIAISON.has(m));
+}
+const NOM_NEUTRE = 'Mur LED';
 
 const somme = (lignes) => lignes.reduce((s, l) => s + (l.quantite ?? 0), 0);
 
@@ -508,14 +533,17 @@ export function configurationProposee(section, { dalles = [] } = {}) {
   const demiLigne = lignesDalle.find((l) => l.dalle.demi && l.dalle.statut === 'reconnue');
   const demi = demiLigne?.dalle.fiche ?? null;
   const quantiteDemi = somme(lignesDalle.filter((l) => l.dalle.demi && l.dalle.fiche === demi));
-  const { largeurM, hauteurM, multiplicateur: n, hauteurAConfirmer = false } = lireTitre(section.titre);
+  const neutre = titreNeutre(section.titre);
+  const { largeurM, hauteurM, multiplicateur: n, hauteurAConfirmer = false } = neutre ? { largeurM: null, hauteurM: null, multiplicateur: 1 } : lireTitre(section.titre);
+  const noms = neutre ? [NOM_NEUTRE] : nomsMurs(section.titre, n);
   const alertes = memes.length < entieres.length ? ['Plusieurs dalles dans la section : la première est proposée.'] : [];
   const proposition = { dalle, choixDalle, demi, quantite, multiplicateur: n, largeurM, hauteurM };
   if (n > 1 && quantite % n !== 0) alertes.push(`${virgule(quantite)} dalles ne se partagent pas en ${n} murs égaux.`);
   if (largeurM === null || hauteurM === null) {
     // Murs sans forme (lot 25e2) : leur dalle seule, la forme se choisit dans l'onglet Mur.
-    const mursSansForme = nomsMurs(section.titre, n).map((nom) => ({ nom, demi, formulaires: { 'form-mur': { dalle: dalle ?? '', demi: Boolean(demi) } } }));
-    const titre = hauteurAConfirmer ? `Hauteur lue dans le titre : ${virgule(hauteurM)} m, à confirmer ; largeur absente` : 'Titre sans dimensions';
+    const mursSansForme = noms.map((nom) => ({ nom, demi, formulaires: { 'form-mur': { dalle: dalle ?? '', demi: Boolean(demi) } } }));
+    const titre = neutre ? 'Titre de section qui ne nomme pas un mur'
+      : (hauteurAConfirmer ? `Hauteur lue dans le titre : ${virgule(hauteurM)} m, à confirmer ; largeur absente` : 'Titre sans dimensions');
     return { ...proposition, murs: [], mursSansForme, formeAChoisir: true, choixPositionDemi: false, alertes: [...alertes, `${titre} : ${virgule(quantite)} dalles, forme à choisir.`] };
   }
   const fiche = dalle ? dalles.find((d) => d.id === dalle) : null;
@@ -531,7 +559,7 @@ export function configurationProposee(section, { dalles = [] } = {}) {
       if (demi && quantiteDemi !== attenduesDemi) alertes.push(`Le devis prévoit ${virgule(quantiteDemi)} demi-dalles ; ${demande} ${attenduesDemi}.`);
     } else alertes.push(...calcul.erreurs);
   }
-  const murs = nomsMurs(section.titre, n).map((nom) => ({
+  const murs = noms.map((nom) => ({
     nom,
     demi,
     formulaires: { 'form-mur': { mode: 'taille', largeurM: String(largeurM), hauteurM: String(hauteurM), dalle: dalle ?? '', demi: Boolean(demi) } },
@@ -578,7 +606,8 @@ export function montageDevis(section) {
     }
     if (trouve) lignes.push({ ref: l.ref, designation: l.designation });
   }
-  if (` ${mots(section?.titre)} `.includes(' au sol ')) noter('stack', ['titre : au sol']);
+  // Titre qui ne nomme pas un mur (lot 26d) : pas d'indice « au sol ».
+  if (!titreNeutre(section?.titre) && ` ${mots(section?.titre)} `.includes(' au sol ')) noter('stack', ['titre : au sol']);
   const montage = indices.stack.length && !indices.accroche.length ? 'stack' : (indices.accroche.length && !indices.stack.length ? 'accroche' : 'a-confirmer');
   return { montage, indices, lignes };
 }
