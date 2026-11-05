@@ -7030,7 +7030,338 @@ export const NAVIGATEUR = [
       v.egal('fichiers gardés hors ligne', ['src/ecran-terrain.js', 'src/terrain.js', 'data/mise-en-service.json'].filter((f) => !sw.includes(`'${f}'`)), []);
     },
   },
+  {
+    id: 'N140',
+    titre: 'Écran Terrain, carnet de pannes (lot 27c, spec § 5.3 et § 6) : choix « Mise en service » / « Pannes (2) » qui appelle son action ; spares utilisés du mur et de la presta (alerte en couleur) ; pannes de la plus récente à la plus ancienne, « Panne 2 : date », libellé et valeur, « Voir l\'arbre » (pas pour « Autre »), « Modifier », « Supprimer » avec confirmation (refusée : rien) ; « Pour signaler une panne, touche la dalle dans le Schéma » et « Ouvrir le Schéma » ; note des 2 000 dalles ; à 375 px, en sombre et en rouge, en normal et en grand affichage : cibles de 48 px (60), texte de 19 px en grand affichage, contrastes de 4,5:1, rien ne dépasse',
+    etape: '27c',
+    async verifier(v, contexte) {
+      const et = await moduleAppli(v, '../src/ecran-terrain.js');
+      const tr = await moduleAppli(v, '../src/terrain.js');
+      if (!et || !tr) return;
+      const resultat = tr.etapesTerrain(entreesEssaiTerrain('novastar'), { depannage: contexte.depannage, miseEnService: contexte.miseEnService });
+      const carnet = carnetEssai(tr);
+      const html = document.documentElement;
+      const retirer = await chargerStylesLook();
+      const t = monterEcranTerrain(et, contexte);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      try {
+        t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches: {}, avis: null, vue: 'service', carnet });
+        const choix = [...t.racine.querySelectorAll('.tr-vues label')];
+        v.egal('choix segmenté', [choix.map((c) => texteDe(c)), choix.map((c) => c.querySelector('input').checked)], [['Mise en service', 'Pannes (2)'], [true, false]]);
+        v.vrai('mise en service affichée', Boolean(t.racine.querySelector('.tr-etapes')) && !t.racine.querySelector('.tr-carnet'));
+        choix[1].querySelector('input').click();
+        await attendre();
+        v.egal('« Pannes » appelle son action', t.appels.at(-1), ['vue', 'pannes']);
+        t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches: {}, avis: null, vue: 'pannes', carnet });
+        v.vrai('carnet affiché, sans les étapes', Boolean(t.racine.querySelector('.tr-carnet')) && !t.racine.querySelector('.tr-etapes'));
+        v.egal('état de la mise en service toujours en tête', texteDe(t.racine.querySelector('.tr-etat')), 'Mise en service : 0 sur 12');
+        v.egal('spares du mur et de la presta', [...t.racine.querySelectorAll('.tr-spares')].map((x) => [...x.children].map(texteDe)),
+          [['Spares utilisés sur ce mur', 'Spares de ROE BP2 V2 : 1 utilisé sur 8'],
+            ['Spares utilisés sur la presta', 'Spares de ROE BP2 V2 : 1 utilisé sur 8', 'Mur 2 : ouvre ce mur une fois pour compter ses spares.']]);
+        const cartes = [...t.racine.querySelectorAll('.tr-panne')];
+        v.egal('plus récente d\'abord', cartes.map((c) => texteDe(c.querySelector('.tr-panne-titre'))), [`Panne 2 : ${tr.texteQuand(carnet.pannes[1].quand)}`, `Panne 1 : ${tr.texteQuand(carnet.pannes[0].quand)}`]);
+        v.egal('lignes de la panne 1', [...cartes[1].querySelectorAll('.tr-panne-ligne')].map((l) => [texteDe(l.querySelector('dt')), texteDe(l.querySelector('dd'))]),
+          tr.lignesPanne(carnet.pannes[0], contexte.depannage));
+        v.egal('« Voir l\'arbre » sauf pour « Autre »', cartes.map((c) => Boolean(boutonTexte(c, 'Voir l\'arbre'))), [false, true]);
+        boutonTexte(cartes[1], 'Voir l\'arbre').click();
+        await attendre();
+        v.egal('« Voir l\'arbre »', t.appels.at(-1), ['voirArbre', 'S2']);
+        boutonTexte(cartes[0], 'Modifier').click();
+        await attendre();
+        v.egal('« Modifier »', t.appels.at(-1), ['formulaire', { panneId: 'p2' }]);
+        t.confirmation = false;
+        boutonTexte(cartes[0], 'Supprimer').click();
+        await attendre();
+        v.egal('« Supprimer » refusé : rien', [t.confirmations.at(-1), t.appels.at(-1)[0]], ['Supprimer la panne 2 (C1 R1) du carnet ?', 'formulaire']);
+        t.confirmation = true;
+        boutonTexte(cartes[0], 'Supprimer').click();
+        await attendre();
+        v.egal('« Supprimer » confirmé', t.appels.at(-1), ['supprimerPanne', 'p2']);
+        v.egal('invitation à toucher la dalle', texteDe(t.racine.querySelector('.tr-signaler p')), 'Pour signaler une panne, touche la dalle dans le Schéma.');
+        boutonTexte(t.racine.querySelector('.tr-signaler'), 'Ouvrir le Schéma').click();
+        await attendre();
+        v.egal('« Ouvrir le Schéma »', t.appels.at(-1), ['ouvrirSchema']);
+        t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches: {}, avis: null, vue: 'pannes', carnet: { ...carnet, pannes: [], simplifie: true, spares: { mur: { lignes: [], notes: [] }, presta: null } } });
+        v.egal('sans panne, mur de plus de 2 000 dalles', [texteDe(t.racine.querySelector('.tr-aucune')), texteDe(t.racine.querySelector('.tr-signaler')), boutonTexte(t.racine, 'Ouvrir le Schéma'), texteDe(t.racine.querySelector('.tr-vues label:last-child'))],
+          ['Aucune panne notée.', 'Mur de plus de 2 000 dalles : l\'appui sur une dalle du Schéma est désactivé, pas de panne à signaler ici.', null, 'Pannes (0)']);
+        const alerte = { lignes: [{ texte: 'Plus de spare de ROE BP2 V2 : 9 utilisés pour 8 prévus.', alerte: true }], notes: [] };
+        for (const rouge of [false, true]) {
+          for (const grand of [false, true]) {
+            if (rouge) html.dataset.mode = 'rouge';
+            else delete html.dataset.mode;
+            if (grand) html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches: {}, avis: null, vue: 'pannes', carnet: { ...carnet, spares: { ...carnet.spares, mur: alerte } } });
+            v.egal(`${rouge ? 'rouge' : 'sombre'}, ${grand ? 'grand' : 'normal'} : cibles, texte, contrastes, largeur`, fautesTerrain(t, grand), []);
+          }
+        }
+      } finally {
+        delete html.dataset.mode;
+        delete html.dataset.taille;
+        t.retirer();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N141',
+    titre: 'Écran Terrain, formulaire d\'une panne (lot 27c, spec § 5.1 et § 5.2) : dalle, fiche, port et ligne copiés, jamais en champ ; symptôme (S1 à S11 du Dépannage, puis « Autre »), « Remplacée par » (les 7 choix), lot (lots du parc puis « Lot inconnu », le lot retenu par défaut ; sans parc, pas de choix), n° de série de 30 caractères au plus ; « Enregistrer » appelle son action avec les champs ; refus affiché avec la raison, champs gardés ; « Annuler » ; modifier : champs remplis, lot disparu du parc gardé ; à 375 px, en sombre et en rouge, en normal et en grand affichage',
+    etape: '27c',
+    async verifier(v, contexte) {
+      const et = await moduleAppli(v, '../src/ecran-terrain.js');
+      const tr = await moduleAppli(v, '../src/terrain.js');
+      if (!et || !tr) return;
+      const resultat = tr.etapesTerrain(entreesEssaiTerrain('novastar'), { depannage: contexte.depannage, miseEnService: contexte.miseEnService });
+      const carnet = carnetEssai(tr);
+      const saisie = { dalle: 'C3 R2', ficheId: 'roe-bp2-v2', fiche: 'ROE BP2 V2', port: 'MCTRL4K n° 1, port 3, dalle 4 sur 10', ligne: 'ligne 2, phase L2, dalle 3 sur 7' };
+      const html = document.documentElement;
+      const retirer = await chargerStylesLook();
+      const t = monterEcranTerrain(et, contexte);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      const afficher = (formulaire, change = {}) => t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches: {}, avis: null, vue: 'pannes', carnet: { ...carnet, ...change, formulaire } });
+      try {
+        afficher({ saisie });
+        const form = t.racine.querySelector('.tr-formulaire');
+        v.egal('titre', texteDe(form?.querySelector('.tr-formulaire-titre')), 'Signaler une panne');
+        v.egal('dalle, port et ligne copiés', [...form.querySelectorAll('.tr-panne-copie .tr-panne-ligne')].map((l) => [...l.children].map(texteDe)),
+          [['Dalle', 'C3 R2, ROE BP2 V2'], ['Data', 'MCTRL4K n° 1, port 3, dalle 4 sur 10'], ['Élec', 'ligne 2, phase L2, dalle 3 sur 7']]);
+        v.egal('champs : listes et n° de série seulement', [...form.elements].filter((x) => x.name).map((x) => `${x.tagName.toLowerCase()} ${x.name}`),
+          ['select symptome', 'select remplacePar', 'select lot', 'input serieHS', 'input serieNouvelle']);
+        const valeurs = (nom) => [...form.elements[nom].options].map((o) => o.value);
+        v.egal('symptômes du Dépannage puis « Autre »', valeurs('symptome'), ['', ...contexte.depannage.symptomes.map((x) => x.id), 'autre']);
+        v.egal('les 7 remplacements', valeurs('remplacePar'), ['', ...tr.REMPLACEMENTS]);
+        v.egal('lots : ceux du parc, « Lot inconnu », le lot retenu par défaut', [valeurs('lot'), form.elements.lot.value], [['', 'A', 'B', 'Lot inconnu'], 'A']);
+        v.egal('n° de série : 30 caractères au plus', [form.elements.serieHS.maxLength, form.elements.serieNouvelle.maxLength], [30, 30]);
+        form.elements.symptome.value = 'S2';
+        form.elements.remplacePar.value = 'Dalle de spare';
+        form.elements.serieHS.value = 'BP2-0042';
+        boutonTexte(form, 'Enregistrer').click();
+        await attendre();
+        v.egal('« Enregistrer »', t.appels.at(-1), ['enregistrerPanne', null, { symptome: 'S2', remplacePar: 'Dalle de spare', lot: 'A', serieHS: 'BP2-0042', serieNouvelle: null }]);
+        t.refusPanne = 'Remplacée par : choisis dans la liste.';
+        form.elements.remplacePar.value = '';
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+        await attendre();
+        await attendre();
+        v.egal('refus avec la raison, champs gardés', [texteDe(form.querySelector('.tr-panne-erreur .alerte-erreur')), form.elements.symptome.value, form.elements.serieHS.value],
+          ['Remplacée par : choisis dans la liste.', 'S2', 'BP2-0042']);
+        t.refusPanne = null;
+        boutonTexte(form, 'Annuler').click();
+        await attendre();
+        v.egal('« Annuler »', t.appels.at(-1), ['formulaire', null]);
+        afficher({ saisie }, { lots: {} });
+        v.egal('sans parc : pas de choix de lot', [t.racine.querySelector('select[name="lot"]'), texteDe(t.racine.querySelector('.tr-formulaire .tr-source'))], [null, 'Pas de parc pour ce mur : pas de lot à choisir.']);
+        afficher({ saisie: { ...saisie, port: null, ligne: null } });
+        v.egal('câblage non calculé', [...t.racine.querySelectorAll('.tr-panne-copie dd')].slice(1).map((x) => texteDe(x)), ['câblage data non calculé', 'câblage élec non calculé']);
+        const ancienne = { ...carnet.pannes[0], lot: 'C', serieNouvelle: 'NEW-1' };
+        afficher({ panne: ancienne });
+        const fm = t.racine.querySelector('.tr-formulaire');
+        v.egal('modifier : champs remplis, lot disparu gardé', [texteDe(fm.querySelector('.tr-formulaire-titre')), fm.elements.symptome.value, fm.elements.remplacePar.value, fm.elements.lot.value, [...fm.elements.lot.options].map((o) => o.value), fm.elements.serieNouvelle.value],
+          ['Modifier la panne', 'S2', 'Dalle de spare', 'C', ['', 'C', 'A', 'B', 'Lot inconnu'], 'NEW-1']);
+        boutonTexte(fm, 'Enregistrer').click();
+        await attendre();
+        v.egal('« Enregistrer » une panne modifiée', t.appels.at(-1).slice(0, 2), ['enregistrerPanne', 'p1']);
+        for (const rouge of [false, true]) {
+          for (const grand of [false, true]) {
+            if (rouge) html.dataset.mode = 'rouge';
+            else delete html.dataset.mode;
+            if (grand) html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            afficher({ saisie });
+            v.egal(`${rouge ? 'rouge' : 'sombre'}, ${grand ? 'grand' : 'normal'} : cibles, texte, contrastes, largeur`, fautesTerrain(t, grand, 'select, input:not([type="radio"])'), []);
+          }
+        }
+      } finally {
+        delete html.dataset.mode;
+        delete html.dataset.taille;
+        t.retirer();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N142',
+    titre: 'Carte du mur dans Prestas, pannes (lot 27c, spec § 4.4) : « 2 pannes » (« 1 panne ») sous le résumé quand le carnet en a, même pour un mur jamais ouvert dans Terrain ; rien sans panne ; contraste de 4,5:1 en sombre et en rouge',
+    etape: '27c',
+    async verifier(v) {
+      const ep = await moduleAppli(v, '../src/ecran-prestas.js');
+      const pr = await moduleAppli(v, '../src/prestas.js');
+      if (!ep || !pr) return;
+      let n = 0;
+      const o = (iso) => ({ maintenant: new Date(iso), alea: () => `n${(n += 1)}` });
+      let etat = pr.migrer({}, o('2026-11-05T08:00:00Z'));
+      etat = pr.creerPresta(etat, { nom: 'Presta A' }, o('2026-11-05T09:00:00Z'));
+      const a = etat.index.ouverte.presta;
+      etat = pr.ajouterMur(etat, a, {}, o('2026-11-05T09:10:00Z'));
+      etat = pr.ajouterMur(etat, a, {}, o('2026-11-05T09:20:00Z'));
+      const [mur1, mur2] = etat.index.prestas.find((p) => p.id === a).murs.map((m) => m.id);
+      const panne = (id) => ({ id, quand: '2026-11-05T10:00:00.000Z', dalle: 'C1 R1', ficheId: 'f', fiche: 'F', port: null, ligne: null, symptome: 'S2', remplacePar: 'Module', lot: null, serieHS: null, serieNouvelle: null });
+      etat = pr.enregistrerMur(etat, mur1, { terrain: { etat: { faites: 5, total: 12, calculeLe: '2026-11-05T10:00:00.000Z' }, coches: {}, ajouts: [], pannes: [panne('p1'), panne('p2')] } }, o('2026-11-05T10:00:00Z'));
+      etat = pr.enregistrerMur(etat, mur2, { terrain: { pannes: [panne('p3')] } }, o('2026-11-05T10:05:00Z'));
+      const html = document.documentElement;
+      const retirer = await chargerStylesLook();
+      const racine = el('div', { class: 'pr', 'data-famille': 'presta', style: 'position:absolute;left:-10000px;top:0;width:375px;background:var(--fond)' });
+      document.body.append(racine);
+      try {
+        const ecran = ep.monterPrestas(racine, { actions: { ouvrir: async () => {}, terrain: async () => {} }, resumeMur: () => 'résumé', confirmer: () => true });
+        for (const rouge of [false, true]) {
+          if (rouge) html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          ecran.afficher(etat, { persistant: false });
+          const cartes = [...racine.querySelectorAll('.pr-mur')];
+          v.egal(`${rouge ? 'rouge' : 'sombre'} : pannes sur les cartes`, cartes.map((c) => texteDe(c.querySelector('.pr-terrain-pannes')) || null), ['2 pannes', '1 panne', null]);
+          v.egal(`${rouge ? 'rouge' : 'sombre'} : état de la mise en service`, cartes.map((c) => texteDe(c.querySelector('.pr-terrain-etat:not(.pr-terrain-pannes)')) || null), ['Mise en service 5 sur 12', null, null]);
+          const fautes = [...racine.querySelectorAll('.pr-terrain-pannes')].map((e) => contraste(rgbVersHex(getComputedStyle(e).color), fondDe(e))).filter((k) => k < 4.5);
+          v.egal(`${rouge ? 'rouge' : 'sombre'} : contraste`, fautes, []);
+        }
+      } finally {
+        delete html.dataset.mode;
+        racine.remove();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N143',
+    titre: 'Écran Terrain, pied (lot 27d, spec § 6, § 7) : « Copier », « Partager » et « PDF du carnet » sous la mise en service comme sous le carnet, pas dans le formulaire d\'une panne ; chacun appelle son action et dit ce qui s\'est passé (copie impossible, fichier enregistré dans Fichiers) ; à 375 px, en sombre et en rouge, en normal et en grand affichage : cibles de 48 px (60), texte de 19 px en grand affichage, contrastes de 4,5:1, rien ne dépasse',
+    etape: '27d',
+    async verifier(v, contexte) {
+      const et = await moduleAppli(v, '../src/ecran-terrain.js');
+      const tr = await moduleAppli(v, '../src/terrain.js');
+      if (!et || !tr) return;
+      const resultat = tr.etapesTerrain(entreesEssaiTerrain('novastar'), { depannage: contexte.depannage, miseEnService: contexte.miseEnService });
+      const carnet = carnetEssai(tr);
+      const html = document.documentElement;
+      const retirer = await chargerStylesLook();
+      const t = monterEcranTerrain(et, contexte);
+      const attendre = () => new Promise((fin) => setTimeout(fin, 0));
+      const pied = () => t.racine.querySelector('.tr-pied');
+      const boutons = () => [...(pied()?.querySelectorAll('button') ?? [])].map(texteDe);
+      try {
+        for (const partie of ['service', 'pannes']) {
+          t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches: {}, avis: null, vue: partie, carnet });
+          v.egal(`${partie} : trois boutons en pied`, boutons(), ['Copier', 'Partager', 'PDF du carnet']);
+          v.vrai(`${partie} : pied en dernier`, t.racine.lastElementChild === pied());
+        }
+        t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches: {}, avis: null, vue: 'pannes', carnet: { ...carnet, formulaire: { saisie: carnet.pannes[0] } } });
+        v.egal('formulaire d\'une panne : pas de pied', pied(), null);
+        t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches: {}, avis: null, vue: 'service', carnet });
+        const note = () => texteDe(pied().querySelector('.tr-pied-note'));
+        boutonTexte(pied(), 'Copier').click();
+        await attendre();
+        v.egal('« Copier »', [t.appels.at(-1), note()], [['copier'], 'Texte copié.']);
+        t.copie = false;
+        boutonTexte(pied(), 'Copier').click();
+        await attendre();
+        v.egal('copie impossible', note(), 'Copie impossible sur cet appareil.');
+        boutonTexte(pied(), 'Partager').click();
+        await attendre();
+        v.egal('« Partager », téléchargé', [t.appels.at(-1), note()], [['partager'], 'Fichier enregistré dans Fichiers (Téléchargements).']);
+        t.mode = 'partage';
+        boutonTexte(pied(), 'PDF du carnet').click();
+        await attendre();
+        v.egal('« PDF du carnet », feuille de partage', [t.appels.at(-1), note()], [['pdf'], '']);
+        t.mode = 'telechargement';
+        boutonTexte(pied(), 'PDF du carnet').click();
+        await attendre();
+        v.egal('« PDF du carnet », téléchargé', note(), 'PDF enregistré dans Fichiers (Téléchargements).');
+        for (const rouge of [false, true]) {
+          for (const grand of [false, true]) {
+            if (rouge) html.dataset.mode = 'rouge';
+            else delete html.dataset.mode;
+            if (grand) html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            for (const partie of ['service', 'pannes']) {
+              t.ecran.afficher({ presta: 'Presta A', mur: 'Mur 1', resultat, coches: {}, avis: null, vue: partie, carnet });
+              boutonTexte(pied(), 'Partager').click();
+              await attendre();
+              v.egal(`${rouge ? 'rouge' : 'sombre'}, ${grand ? 'grand' : 'normal'}, ${partie} : cibles, texte, contrastes, largeur`, fautesTerrain(t, grand), []);
+            }
+          }
+        }
+      } finally {
+        delete html.dataset.mode;
+        delete html.dataset.taille;
+        t.retirer();
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N144',
+    titre: 'Fiche du chef de projet, aperçu avec le carnet de pannes (lot 27d, spec § 7) : mur jamais ouvert avec des pannes : le message, « Ouvrir ce mur », puis le tableau de son carnet ; mur ouvert : « Carnet de pannes » en sous-titre après la synthèse ; mur jamais ouvert sans panne : le message seul',
+    etape: '27d',
+    async verifier(v, contexte) {
+      const ef = await moduleAppli(v, '../src/ecran-fiches.js');
+      const fm = await moduleAppli(v, '../src/fiches-metier.js');
+      if (!ef || !fm) return;
+      const panne = {
+        id: 'p1', quand: '2026-11-05T13:32:00.000Z', dalle: 'C3 R2', ficheId: 'roe-bp2-v2', fiche: 'ROE BP2 V2', port: null, ligne: null,
+        symptome: 'S2', remplacePar: 'Dalle de spare', lot: 'A', serieHS: null, serieNouvelle: null,
+      };
+      const textes = { mur: 'Dalle : ROE BP2 V2', data: null, canvas: null, elec: null, poids: null };
+      const fiche = fm.ficheMetier('chefProjet', {
+        presta: { nom: 'Presta A', murs: [] }, depannage: contexte.depannage, date: new Date(2026, 10, 6, 12),
+        murs: [
+          { id: 'm-1', nom: 'Mur 1', fiche: { textes, calculeeLe: '2026-11-05T10:00:00.000Z' }, materiel: null, pannes: [panne] },
+          { id: 'm-2', nom: 'Mur 2', fiche: null, materiel: null, pannes: [panne] },
+          { id: 'm-3', nom: 'Mur 3', fiche: null, materiel: null, pannes: [] },
+        ],
+      });
+      const ouverts = [];
+      const page = ef.elementFiche(fiche, { ouvrirMur: (id) => ouverts.push(id) });
+      const murs = [...page.querySelectorAll('.fi-mur')];
+      const sousTitres = (m) => [...m.querySelectorAll('.fi-sous-titre')].map(texteDe);
+      v.vrai('mur ouvert : carnet après la synthèse', sousTitres(murs[0]).at(-1) === 'Carnet de pannes', sousTitres(murs[0]));
+      v.egal('mur jamais ouvert avec pannes : message, bouton, carnet', [...murs[1].children].map((x) => x.tagName.toLowerCase()), ['h4', 'div', 'button', 'table']);
+      v.egal('… message et carnet', [texteDe(murs[1].querySelector('.alerte')), sousTitres(murs[1])], [fm.MUR_JAMAIS_OUVERT, ['Carnet de pannes']]);
+      murs[1].querySelector('button').click();
+      v.egal('« Ouvrir ce mur »', ouverts, ['m-2']);
+      v.egal('mur jamais ouvert sans panne : message seul', [...murs[2].children].map((x) => x.tagName.toLowerCase()), ['h4', 'div', 'button']);
+    },
+  },
 ];
+
+// Carnet d'essai de l'écran Terrain (27c) : deux pannes du mur 1 (dalle de spare en lot A, puis « Autre »), spares du mur et
+// de la presta (le mur 2 sans liste), lots A et B du parc pour ROE BP2 V2, le lot A retenu.
+function carnetEssai(tr) {
+  const p1 = {
+    id: 'p1', quand: new Date(2026, 10, 5, 14, 32).toISOString(), dalle: 'C3 R2', ficheId: 'roe-bp2-v2', fiche: 'ROE BP2 V2',
+    port: 'MCTRL4K n° 1, port 3, dalle 4 sur 10', ligne: 'ligne 2, phase L2, dalle 3 sur 7', symptome: 'S2', remplacePar: 'Dalle de spare', lot: 'A', serieHS: 'BP2-0042', serieNouvelle: null,
+  };
+  const p2 = { ...p1, id: 'p2', quand: new Date(2026, 10, 5, 16, 5).toISOString(), dalle: 'C1 R1', symptome: 'autre', remplacePar: 'Module', lot: null, serieHS: null, port: null };
+  const liste = { sections: [{ id: 'dalles', lignes: [{ ficheId: 'roe-bp2-v2', designation: 'ROE BP2 V2', auMur: 160, spares: 8, quantite: 168 }] }] };
+  return {
+    pannes: [p1, p2], formulaire: null, simplifie: false,
+    lots: { 'roe-bp2-v2': tr.lotsPourPanne([{ id: 'l1', identifiant: 'A' }, { id: 'l2', identifiant: 'B' }], ['A']) },
+    spares: {
+      mur: tr.sparesUtilises([{ nom: 'Mur 1', pannes: [p1, p2], liste }]),
+      presta: tr.sparesUtilises([{ nom: 'Mur 1', pannes: [p1, p2], liste }, { nom: 'Mur 2', pannes: [], liste: null }], { presta: true }),
+    },
+  };
+}
+// Défauts de l'écran Terrain monté (27c) : cibles de 48 px (60 en grand affichage) pour les boutons et `champs` (les radios
+// du choix segmenté sont invisibles, leur étiquette est la cible), texte de
+// 19 px en grand affichage, texte à 4,5:1 sur son fond, rien ne dépasse l'écran de 375 px.
+function fautesTerrain(t, grand, champs = null) {
+  const fautes = [];
+  const cibles = [...t.racine.querySelectorAll('button'), ...(champs ? t.racine.querySelectorAll(champs) : [])];
+  for (const b of cibles) {
+    if (b.getClientRects().length && b.getBoundingClientRect().height < (grand ? 59.5 : 47.5)) fautes.push(`${b.tagName.toLowerCase()} « ${texteDe(b).slice(0, 25) || b.name} » de ${b.getBoundingClientRect().height.toFixed(0)} px`);
+  }
+  // Texte réservé aux lecteurs d'écran (légende du choix segmenté) : pas affiché, pas mesuré.
+  const textes = [...t.racine.querySelectorAll('*')].filter((e) => !['OPTION', 'SELECT'].includes(e.tagName) && !e.closest('.cache-visuel') && [...e.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim()) && e.getClientRects().length);
+  for (const e of textes) {
+    const style = getComputedStyle(e);
+    if (grand && parseFloat(style.fontSize) < 18.95) fautes.push(`« ${texteDe(e).slice(0, 25)} » en ${style.fontSize}`);
+    const k = contraste(rgbVersHex(style.color), fondDe(e));
+    if (k < 4.5) fautes.push(`« ${texteDe(e).slice(0, 25)} » à ${k.toFixed(2)}:1`);
+  }
+  const bord = t.ecranPlein.getBoundingClientRect().right;
+  fautes.push(...[...t.ecranPlein.querySelectorAll('*')].filter((x) => { const b = x.getBoundingClientRect(); return b.width > 0 && b.right > bord + 0.5; })
+    .map((x) => `dépasse : ${x.tagName.toLowerCase()}.${x.className}`));
+  return fautes;
+}
 
 // Entrées d'essai de la check-list (27b) : BP2 V2 en lot A dans le parc A, arrivée tri 32 A et deux lignes, 8 ports, source
 // 1920 × 1080 ; processeur selon la marque (MCTRL4K réglé dans NovaLCT, ou deux S8).
@@ -7058,7 +7389,7 @@ function monterEcranTerrain(module, contexte) {
   const racine = el('div', { class: 'mf-defilant pr tr' });
   ecranPlein.append(racine);
   document.body.append(ecranPlein);
-  const t = { ecranPlein, racine, appels: [], confirmations: [], confirmation: true, refusAjout: null };
+  const t = { ecranPlein, racine, appels: [], confirmations: [], confirmation: true, refusAjout: null, refusPanne: null, copie: true, mode: 'telechargement' };
   const noter = (nom) => async (...x) => { t.appels.push([nom, ...x]); };
   t.ecran = module.monterTerrain(racine, {
     depannage: contexte.depannage,
@@ -7069,6 +7400,16 @@ function monterEcranTerrain(module, contexte) {
       ajouter: async (texte) => {
         if (t.refusAjout) throw new calculs.ErreurSaisie(t.refusAjout);
         t.appels.push(['ajouter', texte]);
+      },
+      // Carnet de pannes (27c) : refus d'enregistrement réglable (`refusPanne`).
+      vue: noter('vue'), formulaire: noter('formulaire'), supprimerPanne: noter('supprimerPanne'), voirArbre: noter('voirArbre'), ouvrirSchema: noter('ouvrirSchema'),
+      // Pied (27d) : copie réussie ou non (`copie`), fichier partagé ou téléchargé (`mode`).
+      copier: async () => { t.appels.push(['copier']); return t.copie; },
+      partager: async () => { t.appels.push(['partager']); return t.mode; },
+      pdf: async () => { t.appels.push(['pdf']); return t.mode; },
+      enregistrerPanne: async (...x) => {
+        if (t.refusPanne) throw new calculs.ErreurSaisie(t.refusPanne);
+        t.appels.push(['enregistrerPanne', ...x]);
       },
     },
   });

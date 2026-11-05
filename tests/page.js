@@ -5,7 +5,8 @@ import { CAS } from './cas.js';
 import { CAS_REELS } from './cas-reels.js';
 import { CAS_FORMES } from './cas-formes.js';
 import { CAS_ANGLES } from './cas-angles.js';
-import { REGLES } from './regles.js';
+import { REGLES as REGLES_1 } from './regles.js';
+import { REGLES_2 } from './regles-2.js';
 import { DONNEES } from './donnees.js';
 import { BANC } from './banc.js';
 import { executerCas, executerCasAsync } from './verif.js';
@@ -13,6 +14,9 @@ import { NAVIGATEUR } from './navigateur.js';
 import { PLANNING } from './planning.js';
 import { chargerFichiersAppli, chargerFichiersPublies } from './fichiers.js';
 import { el } from '../src/dom.js';
+
+// Règles complémentaires, réparties sur deux fichiers (garde de publication : 1 Mo au plus par fichier).
+const REGLES = [...REGLES_1, ...REGLES_2];
 
 const LIBELLES = { reussi: 'Réussi', echec: 'Échec', erreur: 'Erreur', 'a-venir': 'À venir' };
 

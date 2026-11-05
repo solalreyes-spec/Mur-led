@@ -4,7 +4,7 @@ import { resoudreFiche, listeMateriel, totalMateriel, stockPresta, ErreurSaisie,
 import { el, remplacer } from './dom.js';
 import {
   baseVide, fusionner, filtrerParParc, appliquerReglagesParc, bitsReseauParc, migrerFichiersConfig, materielParc, quantitesParc, logicielParc, codeNovaLCT,
-  ajouterAuParc, oublierReference, configsDuMur,
+  ajouterAuParc, oublierReference, configsDuMur, lotsDalleParc,
 } from './fiches.js';
 import { lire, ecrire, stockageDisponible, suspendreEcritures, ecrituresSuspendues } from './stockage.js';
 import { surveillerOnglets } from './onglets.js';
@@ -17,7 +17,7 @@ import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec
 import {
   initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema, revenirAMaConfig,
   cablageRetenu, sortieModifieePourSchema, chaineModifieePourSchema, definirStockageMontage, rechargerMontage, entreesMateriel, dessinPortNovaLCT,
-  etatMontage, ouvrirGuideMontage,
+  etatMontage, ouvrirGuideMontage, panneDalleChoisie, appuiDalleDesactive,
 } from './ecran-schema.js';
 import { initialiserPoids, actualiserBumpers, murModifiePourPoids, poidsRetenu, resumeOngletPoids } from './ecran-poids.js';
 import { initialiserBase, actualiserEcranBase } from './ecran-base.js';
@@ -660,6 +660,11 @@ initialiserSchema({
   },
   // Bouton « Terrain » de la barre du dessin (étape 27) : le mur ouvert, calculs déjà prêts.
   surTerrain: () => ouvrirTerrain(),
+  // « Signaler une panne » sous la fiche d'une dalle (lot 27c) : Terrain sur le formulaire, dalle, port et ligne copiés.
+  surPanne: () => {
+    const saisie = panneDalleChoisie();
+    if (saisie) ouvrirTerrain({ panne: saisie });
+  },
 });
 if (connectique) {
   initialiserCanvas({ ...connectique, regies: courant.regies, sourcesRegies: courant.sourcesRegies, erreurRegies, appareils },
@@ -1007,12 +1012,12 @@ ecranPrestas = monterPrestas(document.getElementById('ecran-prestas'), {
     },
     verifierImport: async (texte) => {
       sauverMaintenant();
-      return prestas.verifierImportPresta(texte, etatPrestas, base, depart);
+      return prestas.verifierImportPresta(texte, etatPrestas, base, depart, { symptomes: depannage ? terrain.symptomesPanne(depannage) : null });
     },
     // Import : ma base d'abord (fiches et parcs du fichier), puis la presta, ouverte.
     importer: async (texte, choix) => {
       sauverMaintenant();
-      const r = prestas.importerPresta(etatPrestas, base, depart, texte, choix);
+      const r = prestas.importerPresta(etatPrestas, base, depart, texte, choix, { symptomes: depannage ? terrain.symptomesPanne(depannage) : null });
       if (r.erreurs.length) throw new Error(r.erreurs[0]);
       if (r.base !== base) await enregistrerBase(r.base);
       await operationPrestas(() => r.etat);
@@ -1139,8 +1144,11 @@ function metierGarde() {
 function contenuFiches() {
   const presta = etatPrestas.index.prestas.find((p) => p.id === vueFiches?.prestaId);
   if (!presta) return null;
-  const murs = presta.murs.map((m) => ({ id: m.id, nom: m.nom, fiche: prestas.ficheGardee(etatPrestas, m.id), materiel: prestas.listeGardee(etatPrestas, m.id) }));
-  return { presta, metier: vueFiches.metier, fiche: ficheMetier(vueFiches.metier, { presta, murs, total: totalDe(presta), stock: stockDe(presta) }) };
+  // Pannes de chaque mur (lot 27d) : le carnet de la fiche du chef de projet.
+  const murs = presta.murs.map((m) => ({
+    id: m.id, nom: m.nom, fiche: prestas.ficheGardee(etatPrestas, m.id), materiel: prestas.listeGardee(etatPrestas, m.id), pannes: terrain.pannesDe(prestas.terrainMur(etatPrestas, m.id)),
+  }));
+  return { presta, metier: vueFiches.metier, fiche: ficheMetier(vueFiches.metier, { presta, murs, total: totalDe(presta), stock: stockDe(presta), depannage }) };
 }
 function afficherFiches() {
   const c = contenuFiches();
@@ -1211,6 +1219,22 @@ window.addEventListener('hashchange', fermerFiches);
 // ajoutées la marquent (prestas.js).
 const panneauTerrain = document.getElementById('terrain');
 let vueTerrain = null;
+// Partie affichée (« Mise en service » ou « Pannes », lot 27c) : le dernier choix, gardé sur l'appareil.
+const CLE_VUE_TERRAIN = 'mur-led-terrain-vue';
+function lireVueTerrain() {
+  try {
+    return localStorage.getItem(CLE_VUE_TERRAIN) === 'pannes' ? 'pannes' : 'service';
+  } catch (erreur) {
+    return 'service';
+  }
+}
+function garderVueTerrain(partie) {
+  try {
+    localStorage.setItem(CLE_VUE_TERRAIN, partie);
+  } catch (erreur) {
+    // Stockage indisponible : le choix vaut pour cette ouverture.
+  }
+}
 let verrouTerrain = null;
 // Bandeau du changement, par mur, jusqu'à « Compris » (le temps de l'ouverture de l'appli).
 const avisTerrain = new Map();
@@ -1251,12 +1275,49 @@ async function garderTerrain(t) {
     : 'Pas enregistré sur cet appareil : le stockage du navigateur est indisponible.');
 }
 const etatAvecDate = (resultat, coches) => ({ ...terrain.etatTerrain(resultat, coches), calculeLe: new Date().toISOString() });
+// Carnet de pannes du mur ouvert (lot 27c) : pannes, spares utilisés (mur, et presta quand elle a plusieurs murs, sur les
+// listes de matériel gardées), lots de chaque fiche dans le parc du mur, formulaire ouvert.
+function carnetTerrain() {
+  const presta = prestas.prestaOuverte(etatPrestas);
+  const mur = prestas.murOuvert(etatPrestas);
+  const pannes = terrain.pannesDe(terrainOuvert());
+  const liste = (murId) => prestas.listeGardee(etatPrestas, murId)?.liste ?? null;
+  const parc = base.parcs.find((p) => p.id === parcActif) ?? null;
+  const fichesMur = vueTerrain.entrees.fiches ?? [];
+  const f = vueTerrain.formulaire;
+  const ids = new Set([...fichesMur.map((x) => x.id), ...pannes.map((p) => p.ficheId), ...(f ? [(f.panne ?? f.saisie).ficheId] : [])]);
+  const lots = Object.fromEntries([...ids].map((id) => [id, terrain.lotsPourPanne(parc ? lotsDalleParc(base, parc.id, id) : null,
+    fichesMur.find((x) => x.id === id)?.lots?.retenus ?? null)]));
+  const autres = (presta?.murs ?? []).length > 1;
+  return {
+    pannes, lots, formulaire: f, simplifie: appuiDalleDesactive(),
+    spares: {
+      mur: terrain.sparesUtilises([{ nom: mur?.nom ?? '', pannes, liste: liste(mur?.id) }]),
+      presta: autres ? terrain.sparesUtilises(presta.murs.map((m) => ({ nom: m.nom, pannes: terrain.pannesDe(prestas.terrainMur(etatPrestas, m.id)), liste: liste(m.id) })), { presta: true }) : null,
+    },
+  };
+}
+// Texte copié ou partagé de l'écran Terrain (lot 27d) : mise en service et carnet du mur ouvert, tels qu'affichés.
+function texteTerrain() {
+  const mur = prestas.murOuvert(etatPrestas);
+  return terrain.resumeTerrain({
+    presta: prestas.prestaOuverte(etatPrestas)?.nom ?? '', mur: mur?.nom ?? '', resultat: vueTerrain.resultat, coches: vueTerrain.coches,
+    pannes: terrain.pannesDe(terrainOuvert()), spares: carnetTerrain().spares.mur, depannage,
+  });
+}
 function afficherTerrain() {
   const mur = prestas.murOuvert(etatPrestas);
   ecranTerrain.afficher({
     presta: prestas.prestaOuverte(etatPrestas)?.nom ?? '', mur: mur?.nom ?? '', resultat: vueTerrain.resultat, coches: vueTerrain.coches,
-    avis: avisTerrain.get(mur?.id) ?? null,
+    avis: avisTerrain.get(mur?.id) ?? null, vue: vueTerrain.partie, carnet: carnetTerrain(),
   });
+}
+// Carnet changé (panne ajoutée, modifiée, supprimée) : gardé avec le mur, la presta marquée modifiée (prestas.js).
+async function majCarnet(t) {
+  vueTerrain = { ...vueTerrain, formulaire: null };
+  await garderTerrain(t);
+  afficherTerrain();
+  document.getElementById('ecran-terrain').scrollTop = 0;
 }
 // Recalcule les étapes (après une étape ajoutée ou retirée) sans rapprocher : seules les cases changent par l'utilisateur.
 async function majTerrain(calcul) {
@@ -1273,19 +1334,25 @@ async function garderEcranTerrain() {
     verrouTerrain = null;
   }
 }
-async function ouvrirTerrain() {
+// `panne` (lot 27c) : dalle touchée dans le Schéma, l'écran s'ouvre sur le formulaire du carnet.
+async function ouvrirTerrain({ panne = null } = {}) {
   const mur = prestas.murOuvert(etatPrestas);
   if (!ecranTerrain || !mur) return;
   // Saisies en attente, puis les calculs repoussés du mur (grand mur, changement de mur) avant de lire les onglets.
   sauverMaintenant();
   await new Promise((fin) => setTimeout(fin, 0));
   if (prestas.murOuvert(etatPrestas)?.id !== mur.id) return;
+  // Liste de matériel à jour, pour les spares prévus du carnet.
+  garderListeMurOuvert();
   const entrees = entreesTerrainMur();
   const resultat = terrain.etapesTerrain(entrees, { depannage, miseEnService });
   const t = terrainOuvert();
   const r = terrain.rapprocherTerrain(resultat, t.coches);
   if (r.avis) avisTerrain.set(mur.id, r.avis);
-  vueTerrain = { murId: mur.id, entrees, resultat, coches: r.coches };
+  vueTerrain = {
+    murId: mur.id, entrees, resultat, coches: r.coches,
+    partie: panne ? 'pannes' : lireVueTerrain(), formulaire: panne ? { saisie: panne } : null,
+  };
   panneauTerrain.hidden = false;
   document.body.classList.add('montage-ouvert');
   afficherTerrain();
@@ -1321,6 +1388,50 @@ const ecranTerrain = monterTerrain(document.getElementById('ecran-terrain'), {
     ajouter: async (texte) => majTerrain((t) => terrain.ajouterEtape(t, texte)),
     retirer: async (id) => majTerrain((t) => terrain.retirerEtape(t, id)),
     toutDecocher: async () => majTerrain((t) => terrain.toutDecocher(t)),
+    // Carnet de pannes (lot 27c).
+    vue: async (partie) => {
+      garderVueTerrain(partie);
+      vueTerrain = { ...vueTerrain, partie, formulaire: null };
+      afficherTerrain();
+    },
+    formulaire: async (choix) => {
+      const panne = choix ? terrain.pannesDe(terrainOuvert()).find((p) => p.id === choix.panneId) : null;
+      if (choix && !panne) throw new ErreurSaisie('Panne introuvable : elle a peut-être été supprimée.');
+      vueTerrain = { ...vueTerrain, formulaire: panne ? { panne } : null };
+      afficherTerrain();
+      document.getElementById('ecran-terrain').scrollTop = 0;
+    },
+    enregistrerPanne: async (panneId, champs) => {
+      const opts = { symptomes: terrain.symptomesPanne(depannage) };
+      const t = panneId ? terrain.modifierPanne(terrainOuvert(), panneId, champs, opts)
+        : terrain.ajouterPanne(terrainOuvert(), { ...vueTerrain.formulaire.saisie, ...champs }, opts);
+      await majCarnet(t);
+    },
+    supprimerPanne: async (panneId) => majCarnet(terrain.supprimerPanne(terrainOuvert(), panneId)),
+    // « Voir l'arbre » : le Dépannage ouvert au premier nœud du symptôme.
+    voirArbre: async (symptome) => {
+      const s = depannage?.symptomes?.find((x) => x.id === symptome);
+      fermerTerrain();
+      location.hash = 'depannage';
+      if (s) ecranDepannage?.afficher(s.vers);
+    },
+    ouvrirSchema: async () => {
+      fermerTerrain();
+      location.hash = 'schema';
+    },
+    // Pied (lot 27d, spec § 7) : texte du mur ouvert copié ou partagé (.txt), PDF du carnet de toute la presta ; feuille
+    // de partage ou téléchargement, sans attente avant (Safari n'ouvre la feuille qu'en réponse directe à un appui).
+    copier: async () => copier(texteTerrain()),
+    partager: async () => {
+      const nom = terrain.nomFichierTerrain(prestas.prestaOuverte(etatPrestas)?.nom ?? '', prestas.murOuvert(etatPrestas)?.nom ?? '');
+      return enregistrer(fichierTexte(texteTerrain(), nom, 'text/plain'), nom);
+    },
+    pdf: async () => {
+      const presta = prestas.prestaOuverte(etatPrestas);
+      const murs = presta.murs.map((m) => ({ id: m.id, nom: m.nom, pannes: terrain.pannesDe(prestas.terrainMur(etatPrestas, m.id)), liste: prestas.listeGardee(etatPrestas, m.id)?.liste ?? null }));
+      const nom = terrain.nomFichierCarnet(presta.nom);
+      return enregistrer(new File([pdfFiche(terrain.ficheCarnet({ presta, murs, depannage }))], nom, { type: 'application/pdf' }), nom);
+    },
     // Boutons des étapes : Terrain se ferme, leur écran s'ouvre (leur retour ne rouvre pas Terrain, spec § 6).
     ouvrir: async (quoi) => {
       fermerTerrain();

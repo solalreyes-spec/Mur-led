@@ -49,3 +49,29 @@ export function lireNombre(texte) {
 export function mentionType(valeurSourcee) {
   return valeurSourcee?.type === 'plafond constructeur' ? 'plafond constructeur' : null;
 }
+
+// Dates et noms de fichier (déplacés de prestas.js au lot 27d, pour que terrain.js s'en serve sans dépendre des prestas).
+const deux = (n) => String(n).padStart(2, '0');
+const texteJour = (iso) => iso.split('-').reverse().join('/');
+// « 05/11/2026 ».
+export const jourTexte = (d) => `${deux(d.getDate())}/${deux(d.getMonth() + 1)}/${d.getFullYear()}`;
+// « 2026-11-05 ».
+export const jourIso = (d) => `${d.getFullYear()}-${deux(d.getMonth() + 1)}-${deux(d.getDate())}`;
+
+// « 17/10/2026 », « du 17 au 19/10/2026 », « du 30/10 au 02/11/2026 », « du 30/12/2026 au 02/01/2027 ».
+export function texteDates(debut, fin) {
+  if (!debut) return '';
+  if (!fin || fin === debut) return texteJour(debut);
+  const [a, ma, ja] = debut.split('-');
+  const [b, mb, jb] = fin.split('-');
+  if (a === b && ma === mb) return `du ${ja} au ${jb}/${mb}/${b}`;
+  if (a === b) return `du ${ja}/${ma} au ${jb}/${mb}/${b}`;
+  return `du ${texteJour(debut)} au ${texteJour(fin)}`;
+}
+
+// Nom simplifié pour un nom de fichier : lettres liées remplacées avant la simplification (« Cœur » → « coeur », pas
+// « c-ur »), accents retirés, minuscules, tirets, 40 caractères au plus, « sans-nom » s'il ne reste rien.
+export function nomSimple(nom) {
+  return String(nom ?? '').replace(/[œŒ]/g, 'oe').replace(/[æÆ]/g, 'ae').replace(/ß/g, 'ss').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '') || 'sans-nom';
+}

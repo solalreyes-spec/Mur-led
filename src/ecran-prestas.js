@@ -215,12 +215,15 @@ export function monterPrestas(racine, { actions, resumeMur = () => '', proportio
     const p = proportionsMur({ id: mur.id, nom: mur.nom, ...etat.murs[mur.id] });
     // Mise en service (étape 27) : l'état gardé à la dernière ouverture de l'écran Terrain ; rien avant.
     const miseEnService = etat.murs[mur.id]?.terrain?.etat ?? null;
+    // Carnet de pannes (lot 27c) : « 2 pannes » quand il en a, même pour un mur jamais ouvert dans Terrain.
+    const pannes = etat.murs[mur.id]?.terrain?.pannes?.length ?? 0;
     const contenu = [
       p ? el('span', { class: 'pr-vignette', 'aria-hidden': 'true', style: `--rapport: ${p.largeur / p.hauteur}` }) : null,
       el('span', { class: 'pr-mur-textes' },
         el('span', { class: 'pr-mur-nom' }, mur.nom),
         el('span', { class: 'pr-mur-resume' }, resumeMur({ id: mur.id, nom: mur.nom, ...etat.murs[mur.id] })),
-        miseEnService ? el('span', { class: 'pr-terrain-etat' }, `Mise en service ${miseEnService.faites} sur ${miseEnService.total}`) : null),
+        miseEnService ? el('span', { class: 'pr-terrain-etat' }, `Mise en service ${miseEnService.faites} sur ${miseEnService.total}`) : null,
+        pannes ? el('span', { class: 'pr-terrain-etat pr-terrain-pannes' }, `${pannes} panne${pannes > 1 ? 's' : ''}`) : null),
       ouvert ? el('span', { class: 'pr-puce-ouvert' }, 'Ouvert') : fleche(),
     ];
     const tete = ouvert ? el('div', { class: 'pr-mur-tete' }, ...contenu)

@@ -11,14 +11,18 @@
 //   `materiel` (étape 13b) : { liste, calculeeLe }, la liste de matériel du mur, jamais exportée ; `fiche` (étape 14b) :
 //   { textes, calculeeLe }, les textes des onglets pour les fiches par métier, jamais exportés. `novalct` (étape 17b) :
 //   { version, cases, avis }, le suivi du pas à pas NovaLCT, jamais exporté. `terrain` (étape 27) : { etat, coches,
-//   ajouts }, la check-list de mise en service (src/terrain.js), présente seulement quand l'un d'eux est rempli ;
-//   jamais exportée avant le lot 27d. Presta : `materiel`
+//   ajouts, pannes }, la check-list de mise en service et le carnet de pannes (lot 27c, src/terrain.js), présente
+//   seulement quand l'un d'eux est rempli ; exportée et importée avec le mur (lot 27d). Presta : `materiel`
 //   { sparesPourcent, coches { [clé]: quantité cochée }, ajouts [{ id, libelle, quantite }] } facultatif (13c), jamais
 //   exporté.
 // `configuration` a la forme des saisies gardées (configuration.js) ; null : réglages par défaut.
 
 import { ErreurSaisie, libelleLigne } from './calculs.js';
 import { enregistrerFiche, fusionner, baseVide, nettoyerFiche, validerImport, fichiersJoints, tailleFichiersJoints } from './fiches.js';
+import { texteDates, jourTexte, jourIso, nomSimple } from './format.js';
+import { lireTerrain } from './terrain.js';
+
+const texteJour = (iso) => iso.split('-').reverse().join('/');
 
 export const VERSION_PRESTAS = 1;
 export const FORMAT_PRESTA = 'appli-mur-led/presta';
@@ -51,10 +55,6 @@ function nouvelId(prefixe, alea, pris) {
 }
 const idsPris = (etat) => new Set([...etat.index.prestas.map((p) => p.id), ...Object.keys(etat.murs)]);
 
-const deux = (n) => String(n).padStart(2, '0');
-const jourTexte = (d) => `${deux(d.getDate())}/${deux(d.getMonth() + 1)}/${d.getFullYear()}`;
-const jourIso = (d) => `${d.getFullYear()}-${deux(d.getMonth() + 1)}-${deux(d.getDate())}`;
-const texteJour = (iso) => iso.split('-').reverse().join('/');
 const copie = (x) => (x === undefined || x === null ? null : JSON.parse(JSON.stringify(x)));
 // JSON aux clés triées : deux fiches ou deux parcs identiques quel que soit l'ordre de leurs champs.
 const stable = (x) => JSON.stringify(x, (cle, val) => (val && typeof val === 'object' && !Array.isArray(val)
@@ -226,16 +226,8 @@ export function listePrestas(etat) {
   };
 }
 
-// « 17/10/2026 », « du 17 au 19/10/2026 », « du 30/10 au 02/11/2026 », « du 30/12/2026 au 02/01/2027 ».
-export function texteDates(debut, fin) {
-  if (!debut) return '';
-  if (!fin || fin === debut) return texteJour(debut);
-  const [a, ma, ja] = debut.split('-');
-  const [b, mb, jb] = fin.split('-');
-  if (a === b && ma === mb) return `du ${ja} au ${jb}/${mb}/${b}`;
-  if (a === b) return `du ${ja}/${ma} au ${jb}/${mb}/${b}`;
-  return `du ${texteJour(debut)} au ${texteJour(fin)}`;
-}
+// « 17/10/2026 », « du 17 au 19/10/2026 » (format.js, lot 27d).
+export { texteDates };
 
 // ---------------------------------------------------------------------------
 // Prestas et murs
@@ -293,7 +285,7 @@ export function renommerMur(etat, prestaId, murId, nom, opts) {
   return avecPresta(etat, prestaId, (x) => ({ ...x, modifieeLe: o.iso, murs: x.murs.map((m) => (m.id === murId ? { ...m, nom: n } : m)) }));
 }
 
-// Saisies, parc, suivi du montage, du pas à pas NovaLCT ou de la check-list de mise en service d'un mur
+// Saisies, parc, suivi du montage, du pas à pas NovaLCT, check-list de mise en service et carnet de pannes d'un mur
 // ({ configuration, parc, montage, novalct, terrain }, chacun facultatif).
 export function enregistrerMur(etat, murId, champs, opts) {
   const actuel = etat.murs[murId];
@@ -315,7 +307,8 @@ export function enregistrerMur(etat, murId, champs, opts) {
   const e = { ...etat, murs: { ...etat.murs, [murId]: maj } };
   // Le suivi du montage, du pas à pas NovaLCT ou les cases et l'état de la check-list seuls (ouvrir le guide, cocher une
   // case) ne marquent pas la presta modifiée : rien n'a été saisi. Les étapes ajoutées à la check-list sont une saisie.
-  const sansSuivi = ({ montage, novalct, terrain, ...saisies }) => JSON.stringify([saisies, terrain?.ajouts ?? null]);
+  // Le carnet de pannes aussi (lot 27c).
+  const sansSuivi = ({ montage, novalct, terrain, ...saisies }) => JSON.stringify([saisies, terrain?.ajouts ?? null, terrain?.pannes ?? null]);
   const saisi = sansSuivi(maj) !== sansSuivi(actuel);
   const presta = etat.index.prestas.find((p) => p.murs.some((m) => m.id === murId));
   return presta && saisi ? toucher(e, presta.id, opts) : e;
@@ -333,10 +326,14 @@ export function enregistrerListeMur(etat, murId, liste, opts) {
 
 export const listeGardee = (etat, murId) => etat.murs[murId]?.materiel ?? null;
 
-// Check-list de mise en service d'un mur (étape 27), toujours entière : { etat, coches, ajouts }.
+// Check-list de mise en service d'un mur (étape 27), toujours entière : { etat, coches, ajouts }, et `pannes` quand le
+// carnet en a (lot 27c).
 export function terrainMur(etat, murId) {
   const t = etat.murs[murId]?.terrain;
-  return { etat: copie(t?.etat ?? null), coches: copie(t?.coches ?? {}), ajouts: copie(t?.ajouts ?? []) };
+  return {
+    etat: copie(t?.etat ?? null), coches: copie(t?.coches ?? {}), ajouts: copie(t?.ajouts ?? []),
+    ...(t?.pannes?.length ? { pannes: copie(t.pannes) } : {}),
+  };
 }
 // Ce qui est rempli de la check-list, null si rien ne l'est (le mur reste comme `murVide`).
 function terrainRempli(t) {
@@ -344,6 +341,7 @@ function terrainRempli(t) {
   if (t?.etat) r.etat = copie(t.etat);
   if (t?.coches && Object.keys(t.coches).length) r.coches = copie(t.coches);
   if (t?.ajouts?.length) r.ajouts = copie(t.ajouts);
+  if (t?.pannes?.length) r.pannes = copie(t.pannes);
   return Object.keys(r).length ? r : null;
 }
 
@@ -457,7 +455,7 @@ export function retirerAjout(etat, prestaId, ajoutId, opts) {
 }
 
 // Données d'un mur recopié : suivis du montage et de NovaLCT vides ; check-list sans ses cases ni son état, avec les
-// étapes ajoutées (spec de l'étape 27 § 4.6, § 7).
+// étapes ajoutées ; carnet de pannes vide (spec de l'étape 27 § 4.6, § 7).
 function murRecopie(mur) {
   const m = { ...copie(mur), montage: null, novalct: null };
   const t = terrainRempli({ ajouts: m.terrain?.ajouts ?? [] });
@@ -692,7 +690,12 @@ export function exporterPresta(etat, prestaId, base, opts = {}) {
     exporteLe: o.iso,
     versionAppli: opts.versionAppli ?? null,
     presta: { id: p.id, nom: p.nom, debut: p.debut, fin: p.fin, lieu: p.lieu, notes: p.notes, ...(p.organisation ? { organisation: copie(p.organisation) } : {}) },
-    murs: p.murs.map((m) => ({ id: m.id, nom: m.nom, parc: etat.murs[m.id]?.parc ?? null, configuration: copie(etat.murs[m.id]?.configuration) })),
+    // Mise en service et carnet de pannes (étape 27, lot 27d) : seulement quand l'un d'eux est rempli ; jamais les suivis du
+    // montage et du pas à pas NovaLCT.
+    murs: p.murs.map((m) => {
+      const t = terrainRempli(etat.murs[m.id]?.terrain);
+      return { id: m.id, nom: m.nom, parc: etat.murs[m.id]?.parc ?? null, configuration: copie(etat.murs[m.id]?.configuration), ...(t ? { terrain: t } : {}) };
+    }),
     fiches,
     sources: Object.fromEntries(Object.entries(base.sources ?? {}).filter(([id]) => citees.has(id)).map(([id, s]) => [id, copie(s)])),
     parcs,
@@ -706,10 +709,7 @@ export const nomFichierMateriel = (nom, maintenant = new Date()) => nomFichierPr
 
 // « mur-led-presta-<nom simplifié>-<AAAA-MM-JJ>.json ».
 export function nomFichierPresta(nom, maintenant = new Date()) {
-  // Lettres liées remplacées avant la simplification (« Cœur » → « coeur », pas « c-ur »).
-  const simple = String(nom ?? '').replace(/[œŒ]/g, 'oe').replace(/[æÆ]/g, 'ae').replace(/ß/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '') || 'sans-nom';
-  return `mur-led-presta-${simple}-${jourIso(maintenant)}.json`;
+  return `mur-led-presta-${nomSimple(nom)}-${jourIso(maintenant)}.json`;
 }
 
 // ---------------------------------------------------------------------------
@@ -734,7 +734,7 @@ function configurationLue(c) {
   return { ok: true, configuration: { version: Number.isInteger(c.version) ? c.version : 1, sourceModifiee: c.sourceModifiee === true, formulaires } };
 }
 
-function lireFichierPresta(texte) {
+function lireFichierPresta(texte, { symptomes = null } = {}) {
   let objet;
   try {
     objet = typeof texte === 'string' ? JSON.parse(texte) : texte;
@@ -760,7 +760,15 @@ function lireFichierPresta(texte) {
     if (murs.some((x) => x.nom === nom)) return refus(`Deux murs s'appellent ${nom}.`);
     const lu = configurationLue(m.configuration);
     if (!lu.ok || !(m.parc === null || m.parc === undefined || typeof m.parc === 'string')) return refus(`${nom} : saisies illisibles.`);
-    murs.push({ id: idValable(m.id, 'm'), nom, parc: m.parc ?? null, configuration: lu.configuration });
+    // Mise en service et carnet (lot 27d) : vérifiés comme à la saisie ; illisibles, le fichier est refusé avec la raison.
+    let t;
+    try {
+      t = terrainRempli(lireTerrain(m.terrain, { symptomes }));
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaisie)) throw erreur;
+      return refus(`${nom} : ${erreur.message}`);
+    }
+    murs.push({ id: idValable(m.id, 'm'), nom, parc: m.parc ?? null, configuration: lu.configuration, ...(t ? { terrain: t } : {}) });
   }
   const parcs = objet.parcs ?? [];
   if (!Array.isArray(parcs) || !parcs.every((p) => p && typeof p.id === 'string' && typeof p.nom === 'string')) return refus('Parcs du fichier illisibles.');
@@ -817,8 +825,9 @@ function comparerParcs(donnees, base) {
 const trie = (liste) => [...liste].sort((a, b) => a.localeCompare(b, 'fr'));
 
 // Vérification avant l'import : erreurs, presta déjà sur l'appareil, fiches et parcs différents des miens.
-export function verifierImportPresta(texte, etat, base, depart) {
-  const lu = lireFichierPresta(texte);
+// `symptomes` (lot 27d) : identifiants du Dépannage, pour lire le carnet de pannes ; null : « S » et un nombre acceptés.
+export function verifierImportPresta(texte, etat, base, depart, { symptomes = null } = {}) {
+  const lu = lireFichierPresta(texte, { symptomes });
   if (lu.erreurs.length) return { ...lu, prestaExiste: false, conflits: { fiches: [], parcs: [] } };
   const { donnees } = lu;
   return {
@@ -838,7 +847,7 @@ export function verifierImportPresta(texte, etat, base, depart) {
 // ne sont jamais dans le fichier : `rapport.fichiersDecrits` les nomme.
 export function importerPresta(etat, base, depart, texte, choix = {}, opts) {
   const o = options(opts);
-  const lu = verifierImportPresta(texte, etat, base, depart);
+  const lu = verifierImportPresta(texte, etat, base, depart, { symptomes: opts?.symptomes ?? null });
   if (lu.erreurs.length) return { etat, base, rapport: null, mursSupprimes: [], erreurs: lu.erreurs };
   const { donnees } = lu;
   const prendre = choix.conflits === 'prendre';
@@ -896,7 +905,7 @@ export function importerPresta(etat, base, depart, texte, choix = {}, opts) {
       id = m.id;
       pris.add(id);
     } else id = nouvelId('m', o.alea, pris);
-    return { id, nom: m.nom, parc: m.parc, configuration: m.configuration };
+    return { id, nom: m.nom, parc: m.parc, configuration: m.configuration, terrain: m.terrain ?? null };
   });
   const presta = {
     id: pid, ...avecInfos({}, infos), nom, creeeLe: mode === 'remplacee' ? existante.creeeLe : o.iso, modifieeLe: o.iso, exporteeLe: null, archivee: false,
@@ -905,7 +914,11 @@ export function importerPresta(etat, base, depart, texte, choix = {}, opts) {
   const donneesMurs = { ...etat.murs };
   const mursSupprimes = mode === 'remplacee' ? existante.murs.map((m) => m.id) : [];
   for (const id of mursSupprimes) delete donneesMurs[id];
-  for (const m of murs) donneesMurs[m.id] = { version: VERSION_PRESTAS, parc: m.parc, configuration: m.configuration, montage: null };
+  // Suivi du montage et du pas à pas NovaLCT jamais dans le fichier : sur cet appareil, les étapes de câblage repartent à
+  // zéro ; les autres cases restent tant que leur signature est la même (rapprochement à l'ouverture de Terrain).
+  for (const m of murs) {
+    donneesMurs[m.id] = { version: VERSION_PRESTAS, parc: m.parc, configuration: m.configuration, montage: null, ...(m.terrain ? { terrain: m.terrain } : {}) };
+  }
   const prestas = mode === 'remplacee' ? etat.index.prestas.map((p) => (p.id === pid ? presta : p)) : [...etat.index.prestas, presta];
   return {
     etat: { index: { ...etat.index, ouverte: { presta: pid, mur: murs[0].id }, prestas }, murs: donneesMurs },

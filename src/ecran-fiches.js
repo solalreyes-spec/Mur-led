@@ -27,7 +27,9 @@ export function elementFiche(fiche, { ouvrirMur = null } = {}) {
       el('h4', {}, b.titre),
       b.date ? el('p', { class: 'fi-date' }, `Textes du ${b.date}`) : null,
       b.manque ? alerte(b.manque, 'alerte-info') : tableau(b.lignes),
-      b.manque && ouvrirMur && b.murId ? boutonSimple('Ouvrir ce mur', () => ouvrirMur(b.murId)) : null)),
+      b.manque && ouvrirMur && b.murId ? boutonSimple('Ouvrir ce mur', () => ouvrirMur(b.murId)) : null,
+      // Mur jamais ouvert avec des pannes (lot 27d) : le carnet sous le message.
+      b.manque && b.lignes?.length ? tableau(b.lignes) : null)),
     fiche.fin ? el('section', { class: 'fi-mur fi-fin', 'aria-label': fiche.fin.titre }, el('h4', {}, fiche.fin.titre), tableau(fiche.fin.lignes)) : null);
 }
 

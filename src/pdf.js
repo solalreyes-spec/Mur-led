@@ -182,7 +182,7 @@ export function mettreEnPage(fiche) {
   y -= 6;
   tableau(fiche.entete.map(([libelle, valeur]) => ({ libelle, valeur })), 'e');
   fiche.blocs.forEach((b, i) => {
-    if (b.manque) tableau([{ libelle: '', valeur: b.manque }], `b${i}-m`, titreMur(b.titre, null));
+    if (b.manque) tableau([{ libelle: '', valeur: b.manque }, ...(b.lignes ?? [])], `b${i}-m`, titreMur(b.titre, null));
     else tableau(b.lignes, `b${i}-`, titreMur(b.titre, b.date));
   });
   if (fiche.fin) tableau(fiche.fin.lignes, 'f-', titreMur(fiche.fin.titre, null));

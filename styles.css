@@ -1934,6 +1934,41 @@ main section h3.pl-mois-titre { justify-content: center; margin: 0; font-size: 1
 .tr-mes-etapes, .tr-ajout { display: grid; gap: 8px; }
 .tr-ajout input { min-height: var(--cible); min-width: 0; }
 .tr-tout-decocher { margin-top: 4px; }
+/* Carnet de pannes (lot 27c, spec § 5, § 6) : choix « Mise en service » / « Pannes (2) », spares utilisés, pannes en cartes
+   (libellé et valeur sur deux colonnes, une seule en grand affichage), formulaire. */
+.tr-vues .segments label { flex: 1 1 0; }
+.tr-carnet, .tr-formulaire { display: grid; gap: 12px; min-width: 0; }
+.tr-spares { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--bordure); border-radius: 14px; background: var(--surface); min-width: 0; }
+.tr-spares p { margin: 0; overflow-wrap: anywhere; }
+.tr-spares-titre { font-weight: 700; }
+.tr-spare-note, .tr-aucune { color: var(--texte-doux); }
+.tr-aucune { margin: 0; }
+.tr-pannes { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.tr-panne { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--bordure); border-top-color: var(--lisere); border-radius: 14px; background: var(--surface); min-width: 0; }
+.tr-panne-titre { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tr-panne-lignes { margin: 0; display: grid; gap: 4px; min-width: 0; }
+.tr-panne-ligne { display: grid; grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr); gap: 8px; }
+.tr-panne-ligne dt { color: var(--texte-doux); }
+.tr-panne-ligne dd { margin: 0; overflow-wrap: anywhere; }
+.tr-panne-copie { padding: 10px; border: 1px solid var(--bordure); border-radius: 12px; background: var(--surface-2); }
+.tr-panne-boutons .bouton { flex: 1 1 auto; }
+.tr-signaler { display: grid; gap: 8px; }
+.tr-signaler p { margin: 0; }
+.tr-formulaire-titre { margin: 0; font-size: 1.1rem; }
+.tr-formulaire select { width: 100%; }
+:root[data-mode="rouge"] :is(.tr-panne-ligne dt, .tr-spare-note, .tr-aucune) { color: var(--texte); }
+:root[data-taille="grand"] .tr-panne-ligne { grid-template-columns: minmax(0, 1fr); gap: 0; }
+/* Pied de l'écran Terrain (lot 27d, spec § 7) : « Copier », « Partager », « PDF du carnet » en boutons secondaires, sous un
+   filet ; la note dit ce qui s'est passé (copie impossible, fichier enregistré). */
+.tr-pied { flex-wrap: wrap; align-items: center; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--bordure); }
+.tr-pied .bouton { flex: 1 1 auto; }
+.tr-pied-note { margin: 0; flex: 1 1 100%; color: var(--texte-doux); font-size: 0.9rem; overflow-wrap: anywhere; }
+.tr-pied-note:empty { display: none; }
+:root[data-mode="rouge"] .tr-pied-note { color: var(--texte); }
+:root[data-taille="grand"] .tr-pied-note { font-size: 1rem; }
+/* « Signaler une panne » sous la fiche d'une dalle du Schéma (lot 27c, spec § 5.2) : 48 px, 60 en grand affichage. */
+.info-dalle-panne { margin-top: 8px; }
+.info-dalle-panne .bouton-panne { width: 100%; min-height: var(--cible); }
 :root[data-mode="rouge"] :is(.tr-resume, .tr-source, .tr-renvoi-titre, .tr-note .tr-texte, .tr-signe) { color: var(--texte); }
 :root[data-taille="grand"] :is(.tr-resume, .tr-source, .tr-source-alerte, .tr-renvoi-titre, .tr .pr-sur-titre, .tr .alerte, .tr .alerte .bouton) { font-size: 1rem; }
 

@@ -1,12 +1,14 @@
 // Écran plein « Terrain » (étape 27, lot 27b, spec de l'étape § 6) : check-list de mise en service
 // du mur ouvert. Presta, mur et état (« Mise en service : 5 sur 12 »), bandeau « Le mur a changé », étapes repliables
 // (case de 64 px sur toute la ligne de titre, la première étape non cochée ouverte), renvois au Dépannage rendus comme
-// dans le Dépannage, boutons des étapes, mes étapes, « Tout décocher ». L'écran affiche ce que l'appli lui donne
-// (src/terrain.js) et appelle ses actions ; il ne calcule rien et ne touche ni au stockage ni aux saisies.
+// dans le Dépannage, boutons des étapes, mes étapes, « Tout décocher ». Lot 27c : choix « Mise en service » / « Pannes (2) »
+// et carnet de pannes (spares utilisés, pannes de la plus récente à la plus ancienne, formulaire ouvert par « Signaler une
+// panne » du Schéma ou « Modifier »). L'écran affiche ce que l'appli lui donne (src/terrain.js) et appelle ses actions ;
+// il ne calcule rien et ne touche ni au stockage ni aux saisies.
 
 import { el, remplacer } from './dom.js';
 import { sourceCourte } from './format.js';
-import { etatTerrain, etapeCochee, LIMITES_TERRAIN } from './terrain.js';
+import { etatTerrain, etapeCochee, LIMITES_TERRAIN, REMPLACEMENTS, SYMPTOME_AUTRE, lignesPanne, texteQuand } from './terrain.js';
 import { lignesDepannage } from './ecran-depannage.js';
 
 const BOUTONS = {
@@ -34,8 +36,10 @@ function texteSources(sources) {
 }
 
 // `actions` : cocher(etapeId, signature | null), compris(), ajouter(texte), retirer(ajoutId), toutDecocher(),
-// ouvrir('montage-data' | 'montage-elec' | 'novalct' | 'mire') ; chacune peut lever une erreur, affichée dans l'écran.
-// `depannage` : data/depannage.json (libellés des sources des renvois). `confirmer(texte)` : « Tout décocher ».
+// ouvrir('montage-data' | 'montage-elec' | 'novalct' | 'mire') ; carnet de pannes (lot 27c) : vue('service' | 'pannes'),
+// formulaire({ panneId } | null), enregistrerPanne(panneId | null, champs), supprimerPanne(panneId), voirArbre(symptome),
+// ouvrirSchema() ; chacune peut lever une erreur, affichée dans l'écran. `depannage` : data/depannage.json (libellés des
+// sources des renvois, symptômes). `confirmer(texte)` : « Tout décocher », « Supprimer » une panne.
 export function monterTerrain(racine, { actions, depannage = null, enLigne = () => navigator.onLine, confirmer = (texte) => window.confirm(texte) }) {
   let vue = null;
   let numero = 0;
@@ -173,16 +177,102 @@ export function monterTerrain(racine, { actions, depannage = null, enLigne = () 
     return form;
   }
 
-  function dessiner() {
-    numero = 0;
+  // --- Carnet de pannes (lot 27c) ---------------------------------------------------------------------------------------
+  const nombrePannes = () => vue.carnet?.pannes?.length ?? 0;
+
+  function blocSpares(titre, spares) {
+    if (!spares || (!spares.lignes.length && !spares.notes.length)) return null;
+    return el('section', { class: 'tr-spares', 'aria-label': titre },
+      el('p', { class: 'tr-spares-titre' }, titre),
+      spares.lignes.map((l) => (l.alerte ? el('div', { class: 'alerte tr-alerte tr-spare' }, l.texte) : el('p', { class: 'tr-spare' }, l.texte))),
+      spares.notes.map((n) => el('p', { class: 'tr-spare tr-spare-note' }, n)));
+  }
+
+  function cartePanne(p, rang) {
+    const lignes = lignesPanne(p, depannage);
+    const boutons = el('div', { class: 'pr-boutons tr-panne-boutons' },
+      p.symptome !== SYMPTOME_AUTRE ? bouton('Voir l\'arbre', () => executer(() => actions.voirArbre(p.symptome)), { class: 'bouton bouton-discret' }) : null,
+      bouton('Modifier', () => executer(() => actions.formulaire({ panneId: p.id })), { class: 'bouton', 'data-icone': 'modifier' }));
+    const supprimer = el('div', { class: 'pr-boutons pr-boutons-danger' },
+      bouton('Supprimer', () => {
+        if (!confirmer(`Supprimer la panne ${rang} (${p.dalle}) du carnet ?`)) return;
+        executer(() => actions.supprimerPanne(p.id));
+      }, { class: 'bouton bouton-danger', 'aria-label': `Supprimer la panne ${rang} (${p.dalle})` }));
+    return el('li', { class: 'tr-panne', 'data-panne': p.id },
+      el('p', { class: 'tr-panne-titre' }, `Panne ${rang} : ${texteQuand(p.quand)}`),
+      el('dl', { class: 'tr-panne-lignes' }, lignes.map(([libelle, valeur]) => el('div', { class: 'tr-panne-ligne' }, el('dt', {}, libelle), el('dd', {}, valeur)))),
+      boutons, supprimer);
+  }
+
+  function elementCarnet() {
+    const c = vue.carnet;
+    const pannes = c.pannes ?? [];
+    return el('section', { class: 'tr-carnet', 'aria-label': 'Carnet de pannes' },
+      blocSpares('Spares utilisés sur ce mur', c.spares?.mur),
+      blocSpares('Spares utilisés sur la presta', c.spares?.presta),
+      pannes.length ? el('ol', { class: 'tr-pannes', role: 'list' }, pannes.map((p, i) => [p, i + 1]).reverse().map(([p, rang]) => cartePanne(p, rang)))
+        : el('p', { class: 'tr-aucune' }, 'Aucune panne notée.'),
+      c.simplifie
+        ? el('p', { class: 'alerte alerte-info tr-signaler' }, 'Mur de plus de 2 000 dalles : l\'appui sur une dalle du Schéma est désactivé, pas de panne à signaler ici.')
+        : el('div', { class: 'tr-signaler' },
+          el('p', { class: 'tr-texte' }, 'Pour signaler une panne, touche la dalle dans le Schéma.'),
+          el('div', { class: 'pr-boutons' }, bouton('Ouvrir le Schéma', () => executer(() => actions.ouvrirSchema()), { class: 'bouton' }))));
+  }
+
+  const choixListe = (nom, libelle, options, valeur, id) => {
+    const select = el('select', { name: nom, id },
+      options.map(([v, texte]) => el('option', { value: v, selected: v === (valeur ?? '') ? '' : null }, texte)));
+    return el('label', { class: 'pr-champ', for: id }, el('span', {}, libelle), select);
+  };
+
+  // Formulaire d'une panne : dalle, fiche, port et ligne copiés (jamais tapés) ; symptôme, remplacement, lot et n° de série.
+  function elementFormulaire() {
+    const f = vue.carnet.formulaire;
+    const p = f.panne ?? f.saisie;
+    const lots = vue.carnet.lots?.[p.ficheId] ?? { choix: [], defaut: null };
+    const lot = f.panne ? f.panne.lot : lots.defaut;
+    const choixLots = [...lots.choix];
+    if (lot && !choixLots.includes(lot)) choixLots.unshift(lot);
+    const zone = el('div', { class: 'tr-panne-erreur', 'aria-live': 'polite' });
+    const symptomes = depannage?.symptomes ?? [];
+    const serie = (nom, libelle, valeur, id) => el('label', { class: 'pr-champ', for: id }, el('span', {}, libelle),
+      el('input', { type: 'text', name: nom, id, value: valeur ?? '', maxlength: String(LIMITES_TERRAIN.serie), autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false' }));
+    const form = el('form', { class: 'tr-formulaire', novalidate: '', 'aria-labelledby': 'tr-formulaire-titre' },
+      el('h4', { id: 'tr-formulaire-titre', class: 'tr-formulaire-titre' }, f.panne ? 'Modifier la panne' : 'Signaler une panne'),
+      el('dl', { class: 'tr-panne-lignes tr-panne-copie' },
+        [['Dalle', `${p.dalle}, ${p.fiche}`], ['Data', p.port ?? 'câblage data non calculé'], ['Élec', p.ligne ?? 'câblage élec non calculé']]
+          .map(([libelle, valeur]) => el('div', { class: 'tr-panne-ligne' }, el('dt', {}, libelle), el('dd', {}, valeur)))),
+      choixListe('symptome', 'Symptôme', [['', 'Choisis le symptôme'], ...symptomes.map((x) => [x.id, x.texte]), [SYMPTOME_AUTRE, 'Autre']], f.panne?.symptome, 'tr-symptome'),
+      choixListe('remplacePar', 'Remplacée par', [['', 'Choisis'], ...REMPLACEMENTS.map((r) => [r, r])], f.panne?.remplacePar, 'tr-remplace'),
+      choixLots.length ? choixListe('lot', 'Lot de la pièce posée', [['', 'Pas de lot noté'], ...choixLots.map((l) => [l, l])], lot, 'tr-lot')
+        : el('p', { class: 'tr-source' }, 'Pas de parc pour ce mur : pas de lot à choisir.'),
+      serie('serieHS', 'N° de série de la pièce HS', f.panne?.serieHS, 'tr-serie-hs'),
+      serie('serieNouvelle', 'N° de série de la pièce posée', f.panne?.serieNouvelle, 'tr-serie-nouvelle'),
+      zone,
+      el('div', { class: 'pr-boutons' },
+        el('button', { type: 'submit', class: 'bouton bouton-principal', 'data-icone': 'enregistrer' }, 'Enregistrer'),
+        bouton('Annuler', () => executer(() => actions.formulaire(null)), { class: 'bouton bouton-discret' })));
+    form.addEventListener('submit', (evenement) => {
+      evenement.preventDefault();
+      const champs = Object.fromEntries(['symptome', 'remplacePar', 'lot', 'serieHS', 'serieNouvelle'].map((n) => [n, form.elements[n]?.value || null]));
+      executer(() => actions.enregistrerPanne(f.panne?.id ?? null, champs), zone);
+    });
+    return form;
+  }
+
+  function choixVue() {
+    return el('fieldset', { class: 'segmente tr-vues' },
+      el('legend', { class: 'cache-visuel' }, 'Partie de l\'écran Terrain'),
+      el('div', { class: 'segments' }, [['service', 'Mise en service'], ['pannes', `Pannes (${nombrePannes()})`]].map(([id, nom]) => {
+        const radio = el('input', { type: 'radio', name: 'tr-vue', value: id, checked: id === vue.vue ? '' : null });
+        radio.addEventListener('change', () => { if (radio.checked) executer(() => actions.vue(id)); });
+        return el('label', {}, radio, el('span', {}, nom));
+      })));
+  }
+
+  function elementService() {
     const premiere = vue.resultat.etapes.find((e) => !faite(e));
-    remplacer(racine,
-      zoneEcriture,
-      zoneErreur,
-      el('div', { class: 'tr-tete-ecran' },
-        el('p', { class: 'pr-sur-titre tr-presta' }, vue.presta),
-        el('h3', { class: 'tr-mur' }, vue.mur),
-        el('p', { class: 'tr-etat', 'aria-live': 'polite' }, etatTexte())),
+    return [
       vue.avis ? el('div', { class: 'alerte alerte-montage tr-avis', role: 'status' },
         el('p', { class: 'tr-avis-texte' }, vue.avis),
         bouton('Compris', () => executer(() => actions.compris()))) : null,
@@ -192,13 +282,47 @@ export function monterTerrain(racine, { actions, depannage = null, enLigne = () 
         bouton('Tout décocher', () => {
           if (!confirmer('Décocher toutes les étapes de ce mur ? Les étapes de câblage suivent le guide de montage, les étapes ajoutées gardent leur case.')) return;
           executer(() => actions.toutDecocher());
-        }, { class: 'bouton bouton-danger', 'data-icone': 'revenir' })));
+        }, { class: 'bouton bouton-danger', 'data-icone': 'revenir' })),
+    ];
+  }
+
+  // Pied (lot 27d, spec § 7) : texte du mur copié ou partagé (.txt), PDF du carnet de toute la presta. Les actions
+  // renvoient true (copié), ou 'partage', 'annule', 'telechargement' ; la note dit ce qui s'est passé.
+  function pied() {
+    const note = el('p', { class: 'tr-pied-note', 'aria-live': 'polite' });
+    const telecharge = (mode, texte) => { note.textContent = mode === 'telechargement' ? texte : ''; };
+    return el('div', { class: 'pr-boutons tr-pied' },
+      bouton('Copier', () => executer(async () => {
+        note.textContent = (await actions.copier()) ? 'Texte copié.' : 'Copie impossible sur cet appareil.';
+      }), { 'data-icone': 'copier' }),
+      bouton('Partager', () => executer(async () => telecharge(await actions.partager(), 'Fichier enregistré dans Fichiers (Téléchargements).')), { 'data-icone': 'partager' }),
+      bouton('PDF du carnet', () => executer(async () => telecharge(await actions.pdf(), 'PDF enregistré dans Fichiers (Téléchargements).')), { 'data-icone': 'fiche' }),
+      note);
+  }
+
+  function dessiner() {
+    numero = 0;
+    const pannes = vue.carnet && vue.vue === 'pannes';
+    const formulaire = pannes && vue.carnet.formulaire;
+    remplacer(racine,
+      zoneEcriture,
+      zoneErreur,
+      el('div', { class: 'tr-tete-ecran' },
+        el('p', { class: 'pr-sur-titre tr-presta' }, vue.presta),
+        el('h3', { class: 'tr-mur' }, vue.mur),
+        el('p', { class: 'tr-etat', 'aria-live': 'polite' }, etatTexte())),
+      vue.carnet ? choixVue() : null,
+      pannes ? (formulaire ? elementFormulaire() : elementCarnet()) : elementService(),
+      // Pas dans le formulaire d'une panne : la saisie en cours n'est pas encore dans le carnet.
+      formulaire ? null : pied());
   }
 
   return {
-    // `presta`, `mur` : noms ; `resultat` : etapesTerrain ; `coches` : cases gardées ; `avis` : bandeau ou null.
-    afficher({ presta, mur, resultat, coches, avis = null }) {
-      vue = { presta, mur, resultat, coches: { ...(coches ?? {}) }, avis };
+    // `presta`, `mur` : noms ; `resultat` : etapesTerrain ; `coches` : cases gardées ; `avis` : bandeau ou null ; `vue` :
+    // 'service' ou 'pannes' ; `carnet` (lot 27c) : { pannes, spares { mur, presta }, lots { [ficheId]: lotsPourPanne },
+    // simplifie (plus de 2 000 dalles), formulaire ({ saisie } d'une dalle du Schéma, { panne } à modifier, ou null) }.
+    afficher({ presta, mur, resultat, coches, avis = null, vue: partie = 'service', carnet = null }) {
+      vue = { presta, mur, resultat, coches: { ...(coches ?? {}) }, avis, vue: partie, carnet };
       dessiner();
     },
     // Écriture sur l'appareil refusée (autre onglet, stockage indisponible) : le message reste jusqu'à la prochaine

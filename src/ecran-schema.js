@@ -19,6 +19,7 @@ import {
 } from './export.js';
 import { etapesData, etapesElec, rapprocherMontage, texteEtatMontage } from './montage.js';
 import { lire, ecrire } from './stockage.js';
+import { panneDeLaDalle } from './terrain.js';
 
 const formulaire = document.getElementById('form-schema');
 const zone = document.getElementById('resultats-schema');
@@ -29,6 +30,8 @@ let etatElec = null;
 let publierDeparts = () => {};
 // Écran Terrain (lot 27b) : ouvert par le bouton « Terrain » de la barre du dessin ; null tant que l'appli ne le donne pas.
 let ouvrirTerrain = null;
+// « Signaler une panne » sous la fiche d'une dalle (lot 27c) : l'écran Terrain sur le formulaire ; null sans l'appli.
+let signalerPanne = null;
 let departsPublies = { data: 'haut-gauche', elec: 'haut-gauche' };
 // Mode du mur (onglet Poids) : en stack, les entrées data et les arrivées élec partent du bas.
 let modeMur = 'accroche';
@@ -346,9 +349,15 @@ function libellesAuto() {
   }
 }
 
-function ficheDalle(id, pm, vd, ve) {
+function ficheDalle(id, pm, vd, ve, { panne = false } = {}) {
   const d = dallesDuMur(etatMur.mur, etatMur.dalle).find((x) => x.id === id);
   if (!d) return null;
+  // « Signaler une panne » (lot 27c, spec § 5.2) : sous la fiche ; port et ligne copiés des variantes retenues.
+  let boutonPanne = null;
+  if (panne && signalerPanne) {
+    boutonPanne = el('button', { type: 'button', id: 'bouton-panne', class: 'bouton bouton-panne', 'data-icone': 'modifier' }, 'Signaler une panne');
+    boutonPanne.addEventListener('click', () => signalerPanne());
+  }
   const canvas = pm?.canvas.find((c) => c.dalles.some((z) => z.id === id));
   const dansCanvas = canvas?.dalles.find((z) => z.id === id);
   const port = vd?.processeurs.flatMap((p) => p.ports.map((x) => ({ p, x }))).find(({ x }) => x.dalles.includes(id));
@@ -360,7 +369,27 @@ function ficheDalle(id, pm, vd, ve) {
     dansCanvas ? el('div', {}, `Canvas du processeur n° ${canvas.numero} : x ${dansCanvas.x[0]} à ${dansCanvas.x[1]}, y ${dansCanvas.y[0]} à ${dansCanvas.y[1]}`) : null,
     port ? el('div', {}, `Data : ${port.p.modele} n° ${port.p.numero}, ${port.x.libelle}, dalle ${port.x.dalles.indexOf(id) + 1} sur ${port.x.dalles.length}`
       + `${port.x.secours ? ` (secours ${port.x.secours.processeur ? 'sur le ' : ''}${texteSecoursPort(port.x.secours, port.p.modele)})` : ''}`) : null,
-    ligne ? el('div', {}, `Élec : ligne ${ligne.numero}${ve.phases.length > 1 ? `, phase L${ligne.phase}` : ''}, dalle ${ligne.dalles.indexOf(id) + 1} sur ${ligne.dalles.length}`) : null);
+    ligne ? el('div', {}, `Élec : ligne ${ligne.numero}${ve.phases.length > 1 ? `, phase L${ligne.phase}` : ''}, dalle ${ligne.dalles.indexOf(id) + 1} sur ${ligne.dalles.length}`) : null,
+    boutonPanne ? el('div', { class: 'info-dalle-panne' }, boutonPanne) : null);
+}
+
+// Plus de 2 000 dalles (lot 27c, spec § 5.2) : dessin simplifié, l'appui sur une dalle est sans effet, pas de panne à
+// signaler depuis le Schéma.
+export function appuiDalleDesactive() {
+  return Boolean(etatMur?.mur) && dallesDuMur(etatMur.mur, etatMur.dalle).length > SEUIL_DESSIN_SIMPLIFIE;
+}
+
+// Dalle choisie pour le carnet de pannes (lot 27c, spec § 5.1) : nom, fiche, port de la variante data retenue et ligne
+// de la variante élec retenue, quel que soit le câblage affiché ; null sans dalle choisie ou en dessin simplifié.
+export function panneDalleChoisie() {
+  assurerCalcul();
+  if (!dalleChoisie || !etatMur?.mur || !dernier) return null;
+  const dalles = dallesDuMur(etatMur.mur, etatMur.dalle);
+  const d = dalles.find((x) => x.id === dalleChoisie);
+  if (!d || dalles.length > SEUIL_DESSIN_SIMPLIFIE) return null;
+  const vd = dernier.data?.variantes.find((x) => x.mode === dernier.modeData) ?? null;
+  const ve = dernier.elec?.variantes.find((x) => x.mode === dernier.modeElec) ?? null;
+  return panneDeLaDalle(d, { data: vd, elec: ve });
 }
 
 function tableCanvas(pm) {
@@ -810,7 +839,7 @@ function mettreAJourMaintenant({ dessiner = true } = {}) {
     amont ? bandeChaine(amont) : null,
     el('p', { class: 'source' }, `${geo.unite === 'mm' ? 'Vue physique à l\'échelle, en millimètres' : 'Vue en pixels, pixel (0,0) en haut à gauche'}. `
       + `${simplifie ? 'Appuie' : 'Appuie sur une dalle pour sa position,'} sur un trajet pour le mettre en évidence ; deux doigts pour zoomer.`),
-    dalleChoisie ? ficheDalle(dalleChoisie, pm, e.cablage === 'data' ? vd : null, e.cablage === 'elec' ? ve : null) : null,
+    dalleChoisie ? ficheDalle(dalleChoisie, pm, e.cablage === 'data' ? vd : null, e.cablage === 'elec' ? ve : null, { panne: !simplifie }) : null,
     legende(trajets),
     variantes ? el('h3', { class: 'titre-variantes' }, 'Variantes de câblage') : null,
     variantes,
@@ -1130,9 +1159,10 @@ export function effacerMontage() {
   else mettreAJour();
 }
 
-export function initialiserSchema({ surDepart = () => {}, surTerrain = null } = {}) {
+export function initialiserSchema({ surDepart = () => {}, surTerrain = null, surPanne = null } = {}) {
   publierDeparts = surDepart;
   ouvrirTerrain = surTerrain;
+  signalerPanne = surPanne;
   formulaire.addEventListener('input', mettreAJour);
   formulaire.addEventListener('change', mettreAJour);
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());

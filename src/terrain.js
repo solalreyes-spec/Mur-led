@@ -21,7 +21,8 @@
 import { ErreurSaisie } from './calculs.js';
 import { RAPPELS, SOURCES_RAPPELS } from './rappels.js';
 import { texteLotsMelanges, logicielDuProcesseur, idConfig, MARQUES_FAMILLE } from './fiches.js';
-import { nombre, nombreCourt, sourceCourte } from './format.js';
+import { nombre, nombreCourt, sourceCourte, texteDates, jourTexte, jourIso, nomSimple } from './format.js';
+import { ligneSimple } from './resumes.js';
 
 // Les douze étapes, toujours présentes et dans cet ordre pour toutes les marques (spec § 4.1) ; `onglet` : celui dont
 // les valeurs viennent (calcul non valide : valeurs remplacées, case sans rapprochement).
@@ -40,8 +41,9 @@ export const ETAPES = [
   { id: 'sauvegarde', titre: 'Sauvegarde', onglet: null },
 ];
 
-// Mes étapes (spec § 4.6) : texte de 1 à 80 caractères, 20 au plus par mur.
-export const LIMITES_TERRAIN = { texteAjout: 80, ajouts: 20 };
+// Mes étapes (spec § 4.6) : texte de 1 à 80 caractères, 20 au plus par mur. Carnet de pannes (§ 5.1) : 200 pannes au plus
+// par mur, n° de série de 30 caractères au plus ; textes copiés (dalle, fiche, port, ligne, lot) bornés pour l'import.
+export const LIMITES_TERRAIN = { texteAjout: 80, ajouts: 20, pannes: 200, serie: 30, texteCopie: 160 };
 const PREFIXE_AJOUT = 'ajout-';
 
 // Tous les renvois de la check-list (test D71 : chacun existe dans les données). « dep:T9.2:1 » : les lignes du numéro 1
@@ -456,8 +458,12 @@ export function etatTerrain(resultat, coches) {
 // Suivi gardé avec le mur : { etat, coches, ajouts }
 // ---------------------------------------------------------------------------
 
+// `pannes` (lot 27c) : présent seulement quand le carnet en a, comme dans les données du mur.
 export const terrainVide = () => ({ etat: null, coches: {}, ajouts: [] });
-const lire = (t) => ({ etat: t?.etat ?? null, coches: { ...(t?.coches ?? {}) }, ajouts: [...(t?.ajouts ?? [])] });
+const lire = (t) => ({
+  etat: t?.etat ?? null, coches: { ...(t?.coches ?? {}) }, ajouts: [...(t?.ajouts ?? [])],
+  ...(t?.pannes?.length ? { pannes: copie(t.pannes) } : {}),
+});
 const aleaParDefaut = () => Math.random().toString(36).slice(2, 10);
 
 // Ajoute une étape à moi (spec § 4.6) : texte de 1 à 80 caractères, espaces de bord retirés, 20 au plus par mur.
@@ -490,4 +496,327 @@ export function cocherEtape(t, etapeId, signature) {
 export function toutDecocher(t) {
   const x = lire(t);
   return { ...x, coches: Object.fromEntries(Object.entries(x.coches).filter(([id]) => id.startsWith(PREFIXE_AJOUT))) };
+}
+
+
+// ---------------------------------------------------------------------------
+// Carnet de pannes (lot 27c, spec § 5)
+// ---------------------------------------------------------------------------
+
+// Ce qui a remplacé la dalle ou la pièce HS : liste fermée, aucun texte libre (spec § 5.1).
+export const REMPLACEMENTS = ['Dalle de spare', 'Module', 'Carte de réception', 'Alimentation', 'Autre pièce', 'Rien (réparée sur place)', 'Pas encore remplacée'];
+export const SPARE = 'Dalle de spare';
+export const LOT_INCONNU = 'Lot inconnu';
+export const SYMPTOME_AUTRE = 'autre';
+const CHAMPS_MODIFIABLES = ['symptome', 'remplacePar', 'lot', 'serieHS', 'serieNouvelle'];
+
+// Identifiants des symptômes du Dépannage (S1 à S11), dans leur ordre.
+export const symptomesPanne = (depannage) => (depannage?.symptomes ?? []).map((s) => s.id);
+
+// Pannes d'un suivi gardé (aucune : liste vide).
+export const pannesDe = (t) => copie(t?.pannes ?? []);
+
+// Texte facultatif : espaces de bord retirés, vide → null, sinon de 1 à `max` caractères.
+function texteFacultatif(valeur, max, message) {
+  if (valeur == null) return null;
+  const propre = String(valeur).trim();
+  if (!propre) return null;
+  if (propre.length > max) throw new ErreurSaisie(message);
+  return propre;
+}
+
+// Une panne complète vérifiée (saisie, modification, et plus tard import) : renvoie la panne nettoyée ou refuse avec la
+// raison. `symptomes` : identifiants du Dépannage ; « autre » toujours accepté.
+export function verifierPanne(p, { symptomes = [] } = {}) {
+  const copieMax = LIMITES_TERRAIN.texteCopie;
+  const dalle = texteFacultatif(p?.dalle, copieMax, 'Nom de la dalle trop long.');
+  if (!dalle) throw new ErreurSaisie('Panne sans dalle : touche la dalle dans le Schéma.');
+  const ficheId = texteFacultatif(p.ficheId, copieMax, 'Fiche de la dalle illisible.');
+  const fiche = texteFacultatif(p.fiche, copieMax, 'Nom de la fiche trop long.');
+  if (!ficheId || !fiche) throw new ErreurSaisie('Panne sans fiche de dalle : touche la dalle dans le Schéma.');
+  if (typeof p.symptome !== 'string' || !(p.symptome === SYMPTOME_AUTRE || symptomes.includes(p.symptome))) {
+    throw new ErreurSaisie('Symptôme : choisis-en un dans la liste.');
+  }
+  if (!REMPLACEMENTS.includes(p.remplacePar)) throw new ErreurSaisie('Remplacée par : choisis dans la liste.');
+  const serie = `N° de série : ${LIMITES_TERRAIN.serie} caractères au plus.`;
+  const quand = typeof p.quand === 'string' && !Number.isNaN(Date.parse(p.quand)) ? p.quand : null;
+  if (!quand) throw new ErreurSaisie('Date de la panne illisible.');
+  return {
+    id: String(p.id), quand, dalle, ficheId, fiche,
+    port: texteFacultatif(p.port, copieMax, 'Port trop long.'),
+    ligne: texteFacultatif(p.ligne, copieMax, 'Ligne trop longue.'),
+    symptome: p.symptome, remplacePar: p.remplacePar,
+    lot: texteFacultatif(p.lot, copieMax, 'Lot trop long.'),
+    serieHS: texteFacultatif(p.serieHS, LIMITES_TERRAIN.serie, serie),
+    serieNouvelle: texteFacultatif(p.serieNouvelle, LIMITES_TERRAIN.serie, serie),
+  };
+}
+
+const avecPannes = (x, pannes) => {
+  const { pannes: _ancien, ...reste } = x;
+  return pannes.length ? { ...reste, pannes } : reste;
+};
+
+// Ajoute une panne (spec § 5.1) : date de saisie automatique, 200 au plus par mur.
+export function ajouterPanne(t, saisie, { symptomes = [], alea = aleaParDefaut, maintenant = () => new Date() } = {}) {
+  const x = lire(t);
+  const pannes = x.pannes ?? [];
+  if (pannes.length >= LIMITES_TERRAIN.pannes) throw new ErreurSaisie(`${LIMITES_TERRAIN.pannes} pannes au plus par mur : supprime-en une avant d'en ajouter.`);
+  let id = alea();
+  while (pannes.some((p) => p.id === id)) id = alea();
+  const panne = verifierPanne({ ...saisie, id, quand: maintenant().toISOString() }, { symptomes });
+  return avecPannes(x, [...pannes, panne]);
+}
+
+// Modifie une panne : symptôme, remplacement, lot et n° de série seulement ; la date, la dalle, sa fiche, le port et la
+// ligne copiés à la saisie ne changent jamais.
+export function modifierPanne(t, panneId, champs, { symptomes = [] } = {}) {
+  const x = lire(t);
+  const pannes = x.pannes ?? [];
+  const i = pannes.findIndex((p) => p.id === panneId);
+  if (i < 0) throw new ErreurSaisie('Panne introuvable : elle a peut-être été supprimée.');
+  const maj = { ...pannes[i] };
+  for (const c of CHAMPS_MODIFIABLES) maj[c] = champs?.[c] ?? null;
+  const panne = verifierPanne(maj, { symptomes });
+  return avecPannes(x, pannes.map((p, j) => (j === i ? panne : p)));
+}
+
+export function supprimerPanne(t, panneId) {
+  const x = lire(t);
+  return avecPannes(x, (x.pannes ?? []).filter((p) => p.id !== panneId));
+}
+
+// Dalle touchée dans le Schéma (spec § 5.1, § 5.2) : nom, fiche (demi-dalle sur la sienne), port de la variante data
+// retenue et ligne de la variante élec retenue, quel que soit le câblage affiché ; vides sans variante. `dalle` : une
+// dalle de `dallesDuMur` ({ id, fiche }).
+export function panneDeLaDalle(dalle, { data = null, elec = null } = {}) {
+  const id = dalle.id;
+  let port = null;
+  for (const p of data?.processeurs ?? []) {
+    const x = p.ports.find((pt) => pt.dalles.includes(id));
+    if (x) {
+      port = `${p.modele} n° ${p.numero}, ${x.libelle}, dalle ${x.dalles.indexOf(id) + 1} sur ${x.dalles.length}`;
+      break;
+    }
+  }
+  const l = elec?.lignesDetail?.find((x) => x.dalles.includes(id)) ?? null;
+  const ligne = l ? `ligne ${l.numero}${(elec.phases?.length ?? 0) > 1 ? `, phase L${l.phase}` : ''}, dalle ${l.dalles.indexOf(id) + 1} sur ${l.dalles.length}` : null;
+  return { dalle: id, ficheId: dalle.fiche.id, fiche: dalle.fiche.nom, port, ligne };
+}
+
+// Lots proposés pour la pièce posée (spec § 5.1) : ceux de la fiche dans le parc du mur, puis « Lot inconnu » ; par
+// défaut le lot retenu de la fiche s'il n'y en a qu'un. `lots` : lots de la fiche dans le parc, null sans parc.
+export function lotsPourPanne(lots, retenus) {
+  if (!lots) return { choix: [], defaut: null };
+  const r = retenus ?? [];
+  return { choix: [...lots.map((l) => l.identifiant), LOT_INCONNU], defaut: r.length === 1 ? r[0] : null };
+}
+
+// Spares utilisés (spec § 5.3), pour un mur ou une presta (`presta`) : par fiche, pannes « Dalle de spare » de ce
+// `ficheId` sur les spares de la liste de matériel gardée de chaque mur (`liste`, null si elle n'a jamais été calculée).
+// Rien n'est retiré du stock du parc ni de la liste. Renvoie { lignes [{ ficheId, fiche, utilises, prevus, texte,
+// alerte }], notes }.
+export function sparesUtilises(murs, { presta = false } = {}) {
+  const parFiche = new Map();
+  const notes = [];
+  for (const m of murs) {
+    if (!m.liste) {
+      notes.push(presta ? `${m.nom} : ouvre ce mur une fois pour compter ses spares.` : 'Ouvre ce mur une fois pour compter ses spares.');
+      continue;
+    }
+    for (const l of m.liste.sections?.find((s) => s.id === 'dalles')?.lignes ?? []) {
+      const f = parFiche.get(l.ficheId) ?? { ficheId: l.ficheId, fiche: l.designation, utilises: 0, prevus: 0 };
+      f.prevus += l.spares ?? 0;
+      parFiche.set(l.ficheId, f);
+    }
+    for (const p of m.pannes ?? []) {
+      if (p.remplacePar !== SPARE) continue;
+      const f = parFiche.get(p.ficheId) ?? { ficheId: p.ficheId, fiche: p.fiche, utilises: 0, prevus: 0 };
+      f.utilises += 1;
+      parFiche.set(p.ficheId, f);
+    }
+  }
+  const lignes = [...parFiche.values()].map((f) => {
+    if (f.prevus === 0 && f.utilises > 0) {
+      const un = f.utilises === 1;
+      return { ...f, alerte: true, texte: `Spares de ${f.fiche} : ${nombre(f.utilises)} dalle${un ? '' : 's'} de spare utilisée${un ? '' : 's'}, aucune prévue.` };
+    }
+    if (f.utilises > f.prevus) return { ...f, alerte: true, texte: `Plus de spare de ${f.fiche} : ${nombre(f.utilises)} utilisés pour ${nombre(f.prevus)} prévus.` };
+    return { ...f, alerte: false, texte: `Spares de ${f.fiche} : ${nombre(f.utilises)} utilisé${f.utilises > 1 ? 's' : ''} sur ${nombre(f.prevus)}` };
+  });
+  return { lignes, notes };
+}
+
+// Date et heure d'une panne : « 01/11/2026 14:32 », heure de l'appareil.
+export function texteQuand(iso) {
+  const d = new Date(iso);
+  const deux = (n) => String(n).padStart(2, '0');
+  return `${deux(d.getDate())}/${deux(d.getMonth() + 1)}/${d.getFullYear()} ${deux(d.getHours())}:${deux(d.getMinutes())}`;
+}
+
+// Texte d'un symptôme (« Des dalles entières sont noires »), « Autre » pour « autre ».
+export function texteSymptome(id, depannage) {
+  if (id === SYMPTOME_AUTRE) return 'Autre';
+  return depannage?.symptomes?.find((s) => s.id === id)?.texte ?? id;
+}
+
+// Lignes libellé / valeur d'une panne, dans l'ordre de la spec § 7, lignes vides omises.
+export function lignesPanne(p, depannage) {
+  const minuscule = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+  return [
+    ['Dalle', `${p.dalle}, ${p.fiche}`],
+    ['Symptôme', texteSymptome(p.symptome, depannage)],
+    ['Remplacée par', minuscule(p.remplacePar)],
+    ['Lot', p.lot],
+    ['N° de série HS', p.serieHS],
+    ['N° de série nouvelle', p.serieNouvelle],
+    ['Data', p.port],
+    ['Élec', p.ligne],
+  ].filter(([, valeur]) => valeur);
+}
+
+
+// ---------------------------------------------------------------------------
+// Copie, partage, PDF du carnet, fiche du chef de projet, fichier de presta (lot 27d, spec § 7)
+// ---------------------------------------------------------------------------
+
+const AUCUNE_PANNE = 'Aucune panne notée.';
+
+// Texte copié ou partagé de l'écran Terrain, pour le mur ouvert : une information par ligne. `presta`, `mur` : noms ;
+// `resultat` : etapesTerrain ; `coches` : cases gardées ; `pannes` : carnet dans l'ordre de saisie ; `spares` :
+// sparesUtilises du mur.
+export function resumeTerrain({ presta, mur, resultat, coches, pannes = [], spares = null, depannage = null }) {
+  const etat = etatTerrain(resultat, coches);
+  const lignes = ['MISE EN SERVICE', `Presta : ${presta}`, `Mur : ${mur}`, `Mise en service : ${nombre(etat.faites)} sur ${nombre(etat.total)}`];
+  for (const e of resultat.etapes) {
+    const faite = e.calculee ? e.faite : etapeCochee(resultat, e, coches);
+    // Étape de câblage : l'état du guide, lu dans sa ligne (« Montage data : 1 port sur 2 branché »).
+    const cablage = e.calculee ? e.lignes.find((l) => l.type === 'texte' && /^Montage [^:]+ : /.test(l.texte))?.texte.replace(/^Montage [^:]+ : /, '') : null;
+    const detail = !e.valide ? 'calcul non valide' : cablage ?? e.resume;
+    lignes.push(`${faite ? 'OK' : 'À faire'} : ${e.titre}${detail ? ` (${detail})` : ''}`);
+  }
+  lignes.push('CARNET DE PANNES');
+  if (!pannes.length) lignes.push(AUCUNE_PANNE);
+  pannes.forEach((p, i) => {
+    lignes.push(`Panne ${i + 1} : ${texteQuand(p.quand)}`, ...lignesPanne(p, depannage).map(([libelle, valeur]) => `${libelle} : ${valeur}`));
+  });
+  lignes.push(...(spares?.lignes ?? []).map((l) => l.texte), ...(spares?.notes ?? []));
+  return lignes.map(ligneSimple).filter(Boolean).join('\n');
+}
+
+// « mur-led-terrain-<presta>-<mur>-<AAAA-MM-JJ>.txt », noms simplifiés comme ceux des prestas.
+export const nomFichierTerrain = (presta, mur, maintenant = new Date()) => `mur-led-terrain-${nomSimple(presta)}-${nomSimple(mur)}-${jourIso(maintenant)}.txt`;
+// « mur-led-carnet-<presta>-<AAAA-MM-JJ>.pdf ».
+export const nomFichierCarnet = (presta, maintenant = new Date()) => `mur-led-carnet-${nomSimple(presta)}-${jourIso(maintenant)}.pdf`;
+
+const ligneTexte = (valeur) => ({ libelle: '', valeur });
+
+// Fiche « Carnet de pannes » de toute la presta, pour pdfFiche et mettreEnPage (pdf.js) : en-tête, un bloc par mur
+// (chaque panne en sous-titre puis ses lignes, puis les spares du mur ; « Aucune panne notée. » sans panne), spares de la
+// presta quand elle a plusieurs murs et des pannes. `murs` : [{ id, nom, pannes, liste (liste de matériel gardée ou
+// null) }] dans l'ordre de la presta.
+export function ficheCarnet({ presta, murs = [], depannage = null, date = new Date() }) {
+  const entete = [['Presta', presta.nom], ['Dates', texteDates(presta.debut, presta.fin)], ['Lieu', presta.lieu ?? '']]
+    .filter(([, valeur]) => valeur);
+  const blocs = murs.map((m) => {
+    const pannes = m.pannes ?? [];
+    if (!pannes.length) return { titre: m.nom, murId: m.id ?? null, date: null, lignes: [ligneTexte(AUCUNE_PANNE)], manque: null };
+    const s = sparesUtilises([{ nom: m.nom, pannes, liste: m.liste ?? null }]);
+    const lignes = pannes.flatMap((p, i) => [{ titre: `Panne ${i + 1} : ${texteQuand(p.quand)}` },
+      ...lignesPanne(p, depannage).map(([libelle, valeur]) => ({ libelle, valeur }))]);
+    lignes.push({ titre: 'Spares utilisés' }, ...s.lignes.map((l) => ligneTexte(l.texte)), ...s.notes.map(ligneTexte));
+    return { titre: m.nom, murId: m.id ?? null, date: null, lignes, manque: null };
+  });
+  let fin = null;
+  if (murs.length > 1 && murs.some((m) => m.pannes?.length)) {
+    const s = sparesUtilises(murs.map((m) => ({ nom: m.nom, pannes: m.pannes ?? [], liste: m.liste ?? null })), { presta: true });
+    fin = { titre: 'Spares utilisés sur la presta', lignes: [...s.lignes.map((l) => ligneTexte(l.texte)), ...s.notes.map(ligneTexte)] };
+  }
+  return {
+    metier: 'carnet', titre: 'Carnet de pannes', rappel: 'Pannes notées sur le terrain. Rien n\'est retiré du stock du parc.',
+    entete: [...entete, ['Date de la fiche', jourTexte(date)]], blocs, fin,
+  };
+}
+
+// Carnet d'un mur dans la fiche du chef de projet (spec § 7) : nombre, une ligne par panne (dalle, fiche, symptôme,
+// remplacement, lot), spares utilisés ; rien sans panne. Lignes { libelle, valeur } ou { titre }.
+export function lignesCarnet({ nom = '', pannes = [], liste = null }, depannage = null) {
+  if (!pannes.length) return [];
+  const minuscule = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+  const s = sparesUtilises([{ nom, pannes, liste }]);
+  return [
+    { titre: 'Carnet de pannes' }, { libelle: 'Pannes', valeur: nombre(pannes.length) },
+    ...pannes.map((p, i) => ({
+      libelle: `Panne ${i + 1} : ${texteQuand(p.quand)}`,
+      valeur: [`${p.dalle}, ${p.fiche}`, texteSymptome(p.symptome, depannage), `remplacée par ${minuscule(p.remplacePar)}`, p.lot ? `lot ${p.lot}` : null].filter(Boolean).join(' ; '),
+    })),
+    ...s.lignes.map((l) => {
+      const i = l.texte.indexOf(' : ');
+      return { libelle: l.texte.slice(0, i), valeur: l.texte.slice(i + 3) };
+    }),
+    ...s.notes.map((n) => ({ libelle: 'Note', valeur: n })),
+  ];
+}
+
+// Mise en service et carnet lus dans un fichier de presta (spec § 7) : forme, longueurs et symptômes vérifiés comme à la
+// saisie ; refus avec la raison (ErreurSaisie). `symptomes` : identifiants du Dépannage ; null (Dépannage non chargé) :
+// « S » et un nombre acceptés. Renvoie le suivi { etat, coches, ajouts, pannes } (comme terrainVide quand rien n'est
+// rempli), ou null sans suivi.
+const ID_AJOUT = /^[A-Za-z0-9]{1,40}$/;
+const ID_PANNE = /^[A-Za-z0-9-]{1,40}$/;
+const CASES = new Set(ETAPES.filter((e) => !e.calculee).map((e) => e.id));
+const objet = (x) => x && typeof x === 'object' && !Array.isArray(x);
+export function lireTerrain(t, { symptomes = null } = {}) {
+  if (t === null || t === undefined) return null;
+  if (!objet(t)) throw new ErreurSaisie('mise en service illisible.');
+  const etat = t.etat ?? null;
+  if (etat !== null) {
+    const entier = (n) => Number.isInteger(n) && n >= 0;
+    const total = ETAPES.length + LIMITES_TERRAIN.ajouts;
+    if (!objet(etat) || !entier(etat.faites) || !entier(etat.total) || etat.faites > etat.total || etat.total > total
+      || (etat.calculeLe != null && (typeof etat.calculeLe !== 'string' || Number.isNaN(Date.parse(etat.calculeLe))))) {
+      throw new ErreurSaisie('état de la mise en service illisible.');
+    }
+  }
+  const ajouts = t.ajouts ?? [];
+  if (!Array.isArray(ajouts)) throw new ErreurSaisie('étapes ajoutées illisibles.');
+  if (ajouts.length > LIMITES_TERRAIN.ajouts) throw new ErreurSaisie(`${LIMITES_TERRAIN.ajouts} étapes ajoutées au plus par mur.`);
+  const ajoutsLus = [];
+  ajouts.forEach((a, i) => {
+    const raison = (message) => new ErreurSaisie(`étape ajoutée ${i + 1} illisible (${message})`);
+    if (!objet(a) || typeof a.id !== 'string' || !ID_AJOUT.test(a.id)) throw raison('identifiant illisible.');
+    if (ajoutsLus.some((x) => x.id === a.id)) throw raison('identifiant en double.');
+    const texte = typeof a.texte === 'string' ? a.texte.trim() : '';
+    if (!texte || texte.length > LIMITES_TERRAIN.texteAjout) throw raison(`Étape ajoutée : écris de 1 à ${LIMITES_TERRAIN.texteAjout} caractères.`);
+    ajoutsLus.push({ id: a.id, texte });
+  });
+  const coches = t.coches ?? {};
+  const illisibles = new ErreurSaisie('cases de la mise en service illisibles.');
+  if (!objet(coches)) throw illisibles;
+  const cochesLues = {};
+  for (const [id, signature] of Object.entries(coches)) {
+    const connue = CASES.has(id) || (id.startsWith(PREFIXE_AJOUT) && ID_AJOUT.test(id.slice(PREFIXE_AJOUT.length)));
+    if (!connue || typeof signature !== 'string' || !signature || signature.length > 20000) throw illisibles;
+    cochesLues[id] = signature;
+  }
+  const pannes = t.pannes ?? [];
+  if (!Array.isArray(pannes)) throw new ErreurSaisie('carnet de pannes illisible.');
+  if (pannes.length > LIMITES_TERRAIN.pannes) throw new ErreurSaisie(`${LIMITES_TERRAIN.pannes} pannes au plus par mur.`);
+  const liste = symptomes ?? Array.from({ length: 99 }, (_, i) => `S${i + 1}`);
+  const pannesLues = [];
+  pannes.forEach((p, i) => {
+    const raison = (message) => new ErreurSaisie(`panne ${i + 1} illisible (${message})`);
+    if (!objet(p) || typeof p.id !== 'string' || !ID_PANNE.test(p.id)) throw raison('identifiant illisible.');
+    if (pannesLues.some((x) => x.id === p.id)) throw raison('identifiant en double.');
+    try {
+      pannesLues.push(verifierPanne(p, { symptomes: liste }));
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaisie)) throw erreur;
+      throw raison(erreur.message);
+    }
+  });
+  return {
+    etat: etat ? { faites: etat.faites, total: etat.total, calculeLe: etat.calculeLe ?? null } : null,
+    coches: cochesLues, ajouts: ajoutsLus, ...(pannesLues.length ? { pannes: pannesLues } : {}),
+  };
 }

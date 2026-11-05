@@ -7,6 +7,7 @@
 import { libelleLigne, ErreurSaisie } from './calculs.js';
 import { ligneSimple } from './resumes.js';
 import { texteDates, organisationPresta, nomFichierPresta, HORAIRES, ACCES, CONTACTS } from './prestas.js';
+import { lignesCarnet } from './terrain.js';
 
 export const METIERS = [
   { id: 'rigger', nom: 'Rigger', titre: 'Fiche rigger', rappel: 'Fiche indicative, à valider par le rigger.' },
@@ -135,14 +136,17 @@ function entete(metier, presta, date) {
 }
 
 // Fiche d'un métier pour toute la presta. `murs` : [{ id, nom, fiche (textes gardés) ou null, materiel (liste gardée) ou
-// null }] dans l'ordre de la presta ; `total` : total de matériel de la presta (chef de projet) ; `stock` : stockPresta
-// (étape 15b), manques en alertes graves de la presta, stock des parcs après les dalles.
-export function ficheMetier(metier, { presta, murs = [], total = null, stock = null, date = new Date() }) {
+// null, pannes (carnet de pannes du mur, lot 27d) }] dans l'ordre de la presta ; `total` : total de matériel de la presta
+// (chef de projet) ; `stock` : stockPresta (étape 15b), manques en alertes graves de la presta, stock des parcs après les
+// dalles ; `depannage` : textes des symptômes du carnet. Chef de projet : le carnet de chaque mur après sa synthèse, même
+// pour un mur jamais ouvert (après son message ; les pannes ne demandent aucun calcul).
+export function ficheMetier(metier, { presta, murs = [], total = null, stock = null, depannage = null, date = new Date() }) {
   const m = METIERS.find((x) => x.id === metier);
   if (!m) throw new ErreurSaisie(`Métier inconnu : ${metier}.`);
+  const carnet = (mur) => (metier === 'chefProjet' ? lignesCarnet({ nom: mur.nom, pannes: mur.pannes ?? [], liste: mur.materiel?.liste ?? null }, depannage) : []);
   const blocs = murs.map((mur) => (mur.fiche
-    ? { titre: mur.nom, murId: mur.id ?? null, date: jour(new Date(mur.fiche.calculeeLe)), lignes: lignesMur(metier, mur.fiche, mur.materiel), manque: null }
-    : { titre: mur.nom, murId: mur.id ?? null, date: null, lignes: [], manque: MUR_JAMAIS_OUVERT }));
+    ? { titre: mur.nom, murId: mur.id ?? null, date: jour(new Date(mur.fiche.calculeeLe)), lignes: [...lignesMur(metier, mur.fiche, mur.materiel), ...carnet(mur)], manque: null }
+    : { titre: mur.nom, murId: mur.id ?? null, date: null, lignes: carnet(mur), manque: MUR_JAMAIS_OUVERT }));
   let fin = null;
   if (metier === 'chefProjet' && total) {
     const lignes = [];
@@ -170,7 +174,8 @@ export function texteFiche(fiche) {
   const lignes = [fiche.titre.toUpperCase(), fiche.rappel, ...fiche.entete.map(([libelle, valeur]) => `${libelle} : ${valeur}`)];
   for (const b of fiche.blocs) {
     lignes.push(b.titre.toUpperCase());
-    if (b.manque) lignes.push(b.manque);
+    // Mur jamais ouvert : son message, puis ses lignes (carnet de pannes du chef de projet, lot 27d).
+    if (b.manque) lignes.push(b.manque, ...b.lignes.map(ligne));
     else lignes.push(`Textes du : ${b.date}`, ...b.lignes.map(ligne));
   }
   if (fiche.fin) lignes.push(fiche.fin.titre.toUpperCase(), ...fiche.fin.lignes.map(ligne));
