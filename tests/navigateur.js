@@ -7320,7 +7320,606 @@ export const NAVIGATEUR = [
       v.egal('mur jamais ouvert sans panne : message seul', [...murs[2].children].map((x) => x.tagName.toLowerCase()), ['h4', 'div', 'button']);
     },
   },
+  {
+    id: 'N145',
+    titre: 'Réglages repliés de Data (étape 28, lot 28b, spec § 6) : fréquence, bit depth, luminosité, redondance et secours, ULL, distributeur, réseau Brompton, Megapixel, cartes Pro, mode 40 ports et cartes de sortie dans un bloc « Réglages » à la fin du formulaire, avant « Ma config » (details.reglages sans data-famille, champs dans un conteneur .formulaire) ; mêmes champs, noms et valeurs qu\'en v64 ; replié la première fois, ouvert ou fermé gardé sur un appui seulement, ouvert de lui-même sur une saisie invalide sans changer l\'état gardé, jamais pendant la reprise des saisies ; ligne de titre « Réglages, 60 Hz, 8 bits, sans redondance » sur les champs visibles',
+    etape: '28b',
+    async verifier(v) {
+      await essaiReglages(v, {
+        onglet: 'data',
+        formulaire: 'form-data',
+        famille: 'donnees',
+        apres: 'ma-config-data',
+        champs: ['frequence', 'bits', 'luminosite', 'redondance', 'secours', 'liaisonSecours', 'ull', 'distributeur', 'reseauSwitches', 'reseauConvertisseurs', 'reseauManageable',
+          'reseau10G', 'fibreMode', 'fibreConnecteur', 'cuivreCategorie', 'cuivreLongueurM', 'switchMegapixel', 'lien25G', 'mode20G', 'cartesPro', 'modeOptique', 'carteSortie'],
+        horsBloc: ['decoupage', 'mapping', 'parc', 'famille', 'processeur', 'portsImposes', 'fibreImposee', 'paireFibre'],
+        ligne: '60 Hz · 8 bits · sans redondance',
+        lu: 'Réglages, 60 Hz, 8 bits, sans redondance',
+        invalide: { champ: 'frequence', texte: 'abc', alerte: 'fréquence illisible', correct: '50' },
+        suivre: (f, ligne) => {
+          // Champs d'une autre marque (cachés) : ignorés ; montrés pour la marque Brompton (preparerFamille), avec le nom court de l'option.
+          f.elements.reseauSwitches.value = '2';
+          f.elements.distributeur.value = 'brompton-xd-t';
+          const caches = ligne();
+          f.querySelectorAll('[data-famille="brompton"]').forEach((x) => { x.hidden = false; });
+          f.querySelector('#bloc-luminosite').hidden = false;
+          f.elements.luminosite.value = '1500';
+          f.querySelector('input[name="bits"][value="12"]').checked = true;
+          f.elements.redondance.checked = true;
+          const brompton = ligne();
+          // Secours par un second processeur (Novastar) : choix visible avec la redondance.
+          f.querySelectorAll('[data-famille="brompton"]').forEach((x) => { x.hidden = true; });
+          f.querySelector('#bloc-luminosite').hidden = true;
+          f.querySelector('#bloc-secours').hidden = false;
+          f.querySelector('input[name="secours"][value="processeur"]').checked = true;
+          return [caches, brompton, ligne()];
+        },
+        attendus: ['60 Hz · 8 bits · sans redondance', '60 Hz · 12 bits · redondance · 1500 cd/m² · XD-T · 2 switches', '60 Hz · 12 bits · secours par un second processeur'],
+      });
+    },
+  },
+  {
+    id: 'N146',
+    titre: 'Réglages repliés d\'Élec (étape 28, lot 28b, spec § 6) : départs, tension, marge, puissance utile et courbe dans un bloc « Réglages » à la fin du formulaire, avant « Ma config » ; arrivée et « Ajouter une arrivée » au-dessus ; mêmes champs, noms et valeurs qu\'en v64 ; replié la première fois, état gardé sur un appui seulement, ouvert de lui-même sur une saisie invalide, jamais pendant la reprise des saisies ; ligne de titre « Réglages, départs 16 A, 220 V, marge 80 % »',
+    etape: '28b',
+    async verifier(v) {
+      await essaiReglages(v, {
+        onglet: 'elec',
+        formulaire: 'form-elec',
+        famille: 'electricite',
+        apres: 'ma-config-elec',
+        champs: ['departA', 'tensionV', 'marge', 'puissanceUtileW', 'courbe'],
+        horsBloc: ['typeArrivee', 'arriveeA', 'arriveeLibre', 'branchement1', 'autresArrivees', 'arriveesLignes', 'lignesImposees'],
+        ligne: 'départs 16 A · 220 V · marge 80 %',
+        lu: 'Réglages, départs 16 A, 220 V, marge 80 %',
+        invalide: { champ: 'puissanceUtileW', texte: 'trois', alerte: 'puissance utile illisible', correct: '3000' },
+        suivre: (f, ligne) => {
+          f.elements.puissanceUtileW.value = '3000';
+          f.elements.departA.value = '32';
+          f.querySelector('input[name="marge"][value="0.7"]').checked = true;
+          f.querySelector('input[name="courbe"][value="C"]').checked = true;
+          return [ligne()];
+        },
+        attendus: ['départs 32 A · 220 V · marge 70 % · puissance utile 3000 W · courbe C'],
+      });
+    },
+  },
+  {
+    id: 'N147',
+    titre: 'Réglages repliés de Canvas (étape 28, lot 28b, spec § 6) : fréquence, bit depth, liaison, source de la base, longueur, latence, espace, plage, régie et ses options, convertisseurs dans un bloc « Réglages » à la fin du formulaire ; note, état de la source, sortie du serveur, largeur et hauteur au-dessus ; mêmes champs, noms et valeurs qu\'en v64 ; replié la première fois, état gardé sur un appui seulement, ouvert de lui-même sur une saisie invalide, jamais pendant la reprise des saisies ; ligne de titre « Réglages, 60 Hz, 8 bits, HDMI 2.0, RGB Full » qui suit une valeur écrite par le code (source conseillée)',
+    etape: '28b',
+    async verifier(v) {
+      await essaiReglages(v, {
+        onglet: 'canvas',
+        formulaire: 'form-source',
+        famille: 'regie',
+        apres: null,
+        champs: ['frequenceHz', 'bits', 'liaison', 'sourceAppareil', 'longueurM', 'latenceSource', 'espace', 'plage', 'regie', 'multiviewer', 'programSeul', 'couchesParSortie',
+          'nbConvertisseurs', ...[1, 2, 3].flatMap((i) => ['Fiche', 'Nom', 'Liaison', 'Longueur', 'Latence'].map((c) => `conv${i}${c}`))],
+        horsBloc: ['sortie', 'largeurPx', 'hauteurPx'],
+        listes: { liaisons: [{ id: 'hdmi-2.0', nom: 'HDMI 2.0' }, { id: '12g-sdi', nom: '12G-SDI' }], regies: [{ id: 'r1', nom: 'Régie B' }], sources: [{ id: 's1', nom: 'Serveur A' }] },
+        preparer: (f) => {
+          // Listes remplies comme initialiserCanvas (liaisons, régies) : HDMI 2.0 choisie, sans régie.
+          f.elements.liaison.append(el('option', { value: 'hdmi-2.0', selected: '' }, 'HDMI 2.0'), el('option', { value: '12g-sdi' }, '12G-SDI'));
+          f.elements.regie.append(el('option', { value: '' }, 'Aucune (source directe)'), el('option', { value: 'r1' }, 'Régie B — scaler (ma fiche)'));
+        },
+        ligne: '60 Hz · 8 bits · HDMI 2.0 · RGB Full',
+        lu: 'Réglages, 60 Hz, 8 bits, HDMI 2.0, RGB Full',
+        invalide: { champ: 'latenceSource', texte: 'trois', alerte: 'latence illisible', correct: '3-5' },
+        suivre: (f, ligne) => {
+          // Source conseillée : appliquerConseil écrit la fréquence et la liaison sans événement de saisie.
+          f.elements.frequenceHz.value = '50';
+          f.elements.liaison.value = '12g-sdi';
+          const conseil = ligne();
+          // Couches par sortie illisibles dans un bloc caché (régie sans couches) : ignorées.
+          f.elements.couchesParSortie.value = '0';
+          const cache = ligne();
+          f.elements.regie.value = 'r1';
+          f.elements.nbConvertisseurs.value = '2';
+          f.querySelectorAll('.convertisseur[data-rang="1"], .convertisseur[data-rang="2"]').forEach((x) => { x.hidden = false; });
+          f.elements.couchesParSortie.value = '1';
+          return [conseil, cache, ligne()];
+        },
+        attendus: ['50 Hz · 8 bits · 12G-SDI · RGB Full', '50 Hz · 8 bits · 12G-SDI · RGB Full', '50 Hz · 8 bits · 12G-SDI · RGB Full · Régie B · 2 convertisseurs'],
+      });
+    },
+  },
+  {
+    id: 'N148',
+    titre: 'Bloc « Réglages » à l\'écran (étape 28, lot 28b, spec § 4 et § 7) : état gardé dans localStorage « mur-led-reglages » (clé gardée et remise par le test), un état par onglet ; ligne de titre de 48 px (60 en grand affichage), longue ligne de Data et de Canvas passée à la ligne à 375 px sans rien dépasser, bloc fermé et ouvert ; textes à 4,5:1 en sombre et en mode rouge, saisie illisible en couleur d\'alerte',
+    etape: '28b',
+    async verifier(v) {
+      const rg = await importerSiPresent('../src/reglages.js');
+      if (!rg?.monterReglages) {
+        v.vrai('src/reglages.js : monterReglages', false);
+        return;
+      }
+      v.egal('clé de l\'appareil', rg.CLE_REGLAGES, 'mur-led-reglages');
+      const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const montes = [];
+      let avant = null;
+      try {
+        avant = localStorage.getItem(rg.CLE_REGLAGES);
+      } catch (erreur) {
+        avant = null;
+      }
+      try {
+        localStorage.setItem(rg.CLE_REGLAGES, JSON.stringify({ data: 'ferme', elec: 'ouvert', canvas: 'ferme' }));
+        const monter = (id, famille, onglet, listes = {}, preparer = () => {}) => {
+          const racine = el('div', { 'data-famille': famille, style: 'position:absolute;left:-10000px;top:0;width:375px;padding:0 16px;box-sizing:border-box' });
+          const f = document.importNode(page.getElementById(id), true);
+          racine.append(f);
+          document.body.append(racine);
+          preparer(f);
+          const details = f.querySelector('details.reglages');
+          const bloc = details ? rg.monterReglages(details, { onglet, listes: () => listes }) : null;
+          const m = { racine, f, details, bloc };
+          montes.push(m);
+          return m;
+        };
+        const data = monter('form-data', 'donnees', 'data', {}, (f) => {
+          f.querySelectorAll('[data-famille="brompton"]').forEach((x) => { x.hidden = false; });
+          f.querySelector('#bloc-secours').hidden = false;
+          f.elements.frequence.value = '59,94';
+          f.querySelector('input[name="bits"][value="12"]').checked = true;
+          f.elements.redondance.checked = true;
+          f.querySelector('input[name="secours"][value="processeur"]').checked = true;
+          f.querySelector('#bloc-liaison-secours').hidden = false;
+          f.querySelector('input[name="liaisonSecours"][value="cascade"]').checked = true;
+          f.elements.ull.checked = true;
+          f.elements.distributeur.value = 'brompton-xd-s';
+          f.elements.reseauSwitches.value = '2';
+          f.elements.reseauConvertisseurs.value = '1';
+          f.elements.reseauManageable.checked = true;
+          f.elements.reseau10G.checked = true;
+          f.elements.fibreMode.value = 'monomode';
+          f.elements.cuivreCategorie.value = 'Cat6A';
+          f.elements.cuivreLongueurM.value = 'x';
+        });
+        const elec = monter('form-elec', 'electricite', 'elec');
+        const canvas = monter('form-source', 'regie', 'canvas', { liaisons: [{ id: '12g-sdi', nom: '12G-SDI' }], regies: [{ id: 'r1', nom: 'Barco E2 Gen 2' }], sources: [{ id: 's1', nom: 'Serveur média de démonstration' }] }, (f) => {
+          f.elements.liaison.append(el('option', { value: '12g-sdi', selected: '' }, '12G-SDI'));
+          f.elements.regie.append(el('option', { value: 'r1', selected: '' }, 'Barco E2 Gen 2'));
+          f.elements.sourceAppareil.append(el('option', { value: 's1', selected: '' }, 'Serveur média de démonstration'));
+          f.elements.longueurM.value = '12';
+          f.elements.latenceSource.value = '3-5';
+          f.elements.nbConvertisseurs.value = '3';
+          f.querySelectorAll('.convertisseur').forEach((x) => { x.hidden = false; });
+        });
+        if (!data.bloc || !elec.bloc || !canvas.bloc) {
+          v.vrai('un bloc « Réglages » dans chaque formulaire', false);
+          return;
+        }
+        v.egal('état lu dans localStorage, un par onglet', [data.details.open, elec.details.open, canvas.details.open], [false, true, false]);
+        data.details.querySelector('summary').click();
+        v.egal('appui dans Data : seul Data change', JSON.parse(localStorage.getItem(rg.CLE_REGLAGES)), { data: 'ouvert', elec: 'ouvert', canvas: 'ferme' });
+        data.details.open = false;
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          for (const taille of ['normal', 'grand']) {
+            if (taille === 'grand') html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            const mini = taille === 'grand' ? 59.5 : 47.5;
+            for (const ouvert of [false, true]) {
+              for (const m of montes) {
+                m.details.open = ouvert;
+                m.bloc.actualiser({ ouvrir: false });
+                const resume = m.details.querySelector('summary');
+                const fautes = [];
+                const hauteur = resume.getBoundingClientRect().height;
+                if (hauteur < mini) fautes.push(`ligne de titre de ${hauteur.toFixed(0)} px`);
+                const cadre = m.racine.getBoundingClientRect();
+                fautes.push(...[...m.f.querySelectorAll('*')].filter((x) => {
+                  const b = x.getBoundingClientRect();
+                  if (!b.width || x.closest('.cache-visuel')) return false;
+                  for (let p = x.parentElement; p && p !== m.racine; p = p.parentElement) if (['auto', 'scroll', 'hidden'].includes(getComputedStyle(p).overflowX)) return false;
+                  return b.right > cadre.right + 0.5;
+                }).map((x) => `dépasse : ${x.tagName.toLowerCase()}.${x.className}`));
+                for (const t of [...resume.querySelectorAll('*')].filter((x) => !x.closest('.cache-visuel') && [...x.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim()))) {
+                  const k = contraste(rgbVersHex(getComputedStyle(t).color), fondDe(t));
+                  if (k < 4.5) fautes.push(`« ${texteDe(t)} » à ${k.toFixed(2)}:1`);
+                }
+                v.egal(`${m.f.id}, ${mode}, ${taille}, ${ouvert ? 'ouvert' : 'fermé'} : ligne de titre, 375 px, contrastes`, fautes, []);
+              }
+            }
+          }
+        }
+        delete html.dataset.mode;
+        delete html.dataset.taille;
+        const alertes = [...data.details.querySelectorAll('summary .reglages-alerte')];
+        v.egal('saisie illisible en couleur d\'alerte', alertes.map((x) => [texteDe(x), rgbVersHex(getComputedStyle(x).color)]), [['longueur du cuivre illisible', '#f3b845']]);
+        v.vrai('longue ligne de Data passée à la ligne (plusieurs lignes de texte)', data.details.querySelector('summary').getBoundingClientRect().height > 60,
+          data.details.querySelector('summary').getBoundingClientRect().height);
+      } finally {
+        delete html.dataset.mode;
+        delete html.dataset.taille;
+        for (const m of montes) {
+          m.bloc?.retirer?.();
+          m.racine.remove();
+        }
+        try {
+          if (avant === null) localStorage.removeItem(rg.CLE_REGLAGES);
+          else localStorage.setItem(rg.CLE_REGLAGES, avant);
+        } catch (erreur) {
+          // Stockage indisponible : rien à remettre.
+        }
+        retirer();
+      }
+    },
+  },
+  {
+    id: 'N149',
+    titre: 'Carte « Résumé » de l\'onglet Mur (étape 28, lot 28c, spec § 4 et § 5.1) : details.resume-mur dans #mur, après le bandeau « Données de départ… » et #alertes-mur-ouvert, avant #form-mur ; ligne de titre « Résumé » ; ni attribut data-copier, ni classe reprise par les bancs (.tuiles, .chiffre-groupe, .resultat-principal, .apercu, .selecteur-parc) ; src/ecran-resume.js dans les fichiers du cache',
+    etape: '28c',
+    async verifier(v) {
+      const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+      const mur = page.getElementById('mur');
+      const carte = mur?.querySelector('details.resume-mur');
+      if (!carte) {
+        v.vrai('details.resume-mur dans #mur', false);
+        return;
+      }
+      const enfants = [...mur.children];
+      const rang = (x) => enfants.indexOf(x);
+      v.vrai('enfant direct de #mur', carte.parentElement === mur);
+      v.vrai('après le bandeau et les alertes du mur ouvert, avant le formulaire',
+        rang(mur.querySelector('.bandeau-donnees')) < rang(carte) && rang(page.getElementById('alertes-mur-ouvert')) < rang(carte) && rang(carte) < rang(page.getElementById('form-mur')),
+        enfants.map((x) => x.id || x.className));
+      v.egal('ligne de titre « Résumé »', texteDe(carte.querySelector(':scope > summary .resume-titre')), 'Résumé');
+      v.vrai('fermée dans la page (le repli est posé par le code)', !carte.hasAttribute('open'));
+      v.egal('ni data-copier ni classes reprises par les bancs', [...carte.querySelectorAll('[data-copier], .tuiles, .chiffre-groupe, .resultat-principal, .apercu, .selecteur-parc')].length, 0);
+      const sw = await (await fetch('sw.js', { cache: 'no-store' })).text();
+      v.vrai('src/ecran-resume.js dans FICHIERS de sw.js', sw.includes('\'src/ecran-resume.js\''));
+    },
+  },
+  {
+    id: 'N150',
+    titre: 'Carte « Résumé » (étape 28, lot 28c, spec § 5) : fermée la première fois, ouverte ou fermée gardée sur un appui seulement (stockage d\'essai) ; ligne de titre « 1 × S8 · 4 ports · 3 lignes · 690 kg · 1 alerte grave », lue « Résumé, 1 × S8, … », alerte grave marquée ; sections Mur, Data, Canvas, Élec et Poids indicatifs, Terrain, chacune avec son lien (Mur sans lien, Terrain par un bouton) ; onglet sans calcul valide ; alertes graves suivies du lien de leur onglet ; « Copier le résumé » (texteResume, « Résumé copié. » ou « Copie impossible sur cet appareil. »), hors data-copier ; mur non valide',
+    etape: '28c',
+    async verifier(v) {
+      const er = await importerSiPresent('../src/ecran-resume.js');
+      const reponse = await importerSiPresent('../src/reponse.js');
+      if (!er?.monterResume) {
+        v.vrai('src/ecran-resume.js : monterResume', false);
+        return;
+      }
+      v.egal('clé de l\'appareil et défaut', [er.CLE_RESUME, er.REPLI_RESUME], ['mur-led-resume', 'ferme']);
+      const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+      const racine = el('div', { 'data-famille': 'image', style: 'position:absolute;left:-10000px;top:0;width:375px' });
+      document.body.append(racine);
+      const monter = (stockage, options = {}) => {
+        const details = document.importNode(page.querySelector('details.resume-mur'), true);
+        racine.append(details);
+        return { details, carte: er.monterResume(details, { stockage, ...options }) };
+      };
+      try {
+        // Repli : fermée la première fois ; état gardé sur l'appui seulement.
+        const vide = stockageEssai();
+        const a = monter(vide);
+        v.vrai('fermée la première fois, rien de gardé', !a.details.open && !vide.m.has(er.CLE_RESUME));
+        a.details.querySelector('summary').click();
+        v.egal('un appui garde « ouvert »', vide.m.get(er.CLE_RESUME), 'ouvert');
+        a.details.open = false;
+        await pauseCourte();
+        v.egal('fermée par le code : état gardé inchangé', vide.m.get(er.CLE_RESUME), 'ouvert');
+        const b = monter(stockageEssai({ [er.CLE_RESUME]: 'ouvert' }));
+        v.vrai('état « ouvert » relu', b.details.open);
+        const c = monter(stockageEssai({ [er.CLE_RESUME]: 'n\'importe quoi' }));
+        v.vrai('état illisible : fermée', !c.details.open);
+
+        // Contenu.
+        const textes = {
+          mur: 'MUR\nDalle : ROE BP2 V2\nDalles : 12 × 6 = 72\nTaille : 6 m × 3 m\nRésolution : 2112 × 1056 px',
+          data: 'DATA\nProcesseur : Brompton Tessera S8\nPorts : 4\nRefus : liaison trop longue',
+          canvas: null,
+          elec: 'ÉLECTRICITÉ : indicatif, à valider par l\'électricien\nPuissance totale : 9,36 kW\nLignes : 3',
+          poids: 'POIDS : indicatif, à valider par le rigger\nTotal suspendu : 690 kg',
+        };
+        const chiffres = {
+          data: { processeurs: '1 × S8', ports: 4, portsRedondance: null, chargeMax: 0.858, impose: false },
+          elec: { lignes: 3, ligneMaxW: 3280, departW: 3520, impose: false },
+        };
+        const resume = reponse.resumeDuMur({ textes, chiffres, materiel: null, terrain: { etat: { faites: 5, total: 12 }, pannes: [{ id: 'p1' }, { id: 'p2' }] } });
+        const contexte = { presta: { nom: 'Presta A' }, mur: { nom: 'Mur 1' } };
+        const copies = [];
+        let reussite = true;
+        const terrains = [];
+        const d = monter(stockageEssai({ [er.CLE_RESUME]: 'ouvert' }), {
+          copier: async (t) => { copies.push(t); return reussite; },
+          actions: { terrain: () => terrains.push('terrain') },
+        });
+        d.carte.afficher(resume, contexte);
+        const resumeLigne = d.details.querySelector('summary');
+        v.egal('ligne de titre vue', texteSans(resumeLigne, '.cache-visuel'), 'Résumé 1 × S8 · 4 ports · 3 lignes · 690 kg · 1 alerte grave');
+        v.egal('ligne de titre lue', texteSans(resumeLigne, '[aria-hidden="true"]'), 'Résumé, 1 × S8, 4 ports, 3 lignes, 690 kg, 1 alerte grave');
+        v.egal('alerte grave de la ligne de titre marquée', [...resumeLigne.querySelectorAll('.resume-grave-titre')].map(texteDe), ['1 alerte grave']);
+        const sections = [...d.details.querySelectorAll('.resume-section')];
+        v.egal('sections dans l\'ordre, Élec et Poids indicatifs', sections.map((s) => texteDe(s.querySelector('.resume-nom'))),
+          ['Mur', 'Data', 'Canvas', 'Élec, indicatif', 'Poids, indicatif', 'Terrain', 'Alertes graves']);
+        v.vrai('titres de section lus comme titres', sections.every((s) => s.querySelector('.resume-nom').getAttribute('role') === 'heading'));
+        const lien = (s) => s.querySelector('.resume-entete .resume-lien');
+        v.egal('liens vers les onglets (Mur sans lien)', sections.slice(0, 5).map((s) => lien(s)?.getAttribute('href') ?? null), [null, '#data', '#canvas', '#elec', '#poids']);
+        v.egal('… texte des liens', sections.slice(1, 5).map((s) => texteDe(lien(s))), ['Data ›', 'Canvas ›', 'Élec ›', 'Poids ›']);
+        const infos = (s) => [...s.querySelectorAll('.resume-info')].map(texteDe);
+        v.egal('Mur : lignes « Libellé : valeur »', infos(sections[0]), ['Dalle : ROE BP2 V2', 'Dalles : 12 × 6 = 72', 'Taille : 6 m × 3 m', 'Résolution : 2112 × 1056 px']);
+        v.vrai('Data : port le plus chargé', infos(sections[1]).includes('Port le plus chargé : 85,8 %'), infos(sections[1]));
+        v.egal('Canvas sans calcul valide', infos(sections[2]), ['Calcul non valide, ouvre l\'onglet.']);
+        v.egal('Terrain', infos(sections[5]), ['Mise en service : 5 sur 12', 'Pannes : 2']);
+        const boutonTerrain = sections[5].querySelector('.resume-entete button.resume-lien');
+        boutonTerrain?.click();
+        v.egal('Terrain : un bouton « Terrain › » ouvre l\'écran Terrain', [texteDe(boutonTerrain), terrains], ['Terrain ›', ['terrain']]);
+        const graves = sections[6];
+        v.egal('alertes graves : ligne et lien de son onglet', [...graves.querySelectorAll('.resume-grave-ligne')].map((g) => [texteDe(g.querySelector('.resume-grave-texte')), g.querySelector('a.resume-lien')?.getAttribute('href'), texteDe(g.querySelector('a.resume-lien'))]),
+          [['Refus : liaison trop longue', '#data', 'Data ›']]);
+        v.vrai('« Valeurs et sources dans chaque onglet. »', texteDe(d.details).includes('Valeurs et sources dans chaque onglet.'));
+        v.egal('ni data-copier ni classes reprises par les bancs', [...d.details.querySelectorAll('[data-copier], .tuiles, .chiffre-groupe, .resultat-principal, .apercu, .selecteur-parc, .barre-copie, .etat-copie')].length, 0);
+
+        // Copier le résumé.
+        const bouton = [...d.details.querySelectorAll('button')].find((x) => texteDe(x) === 'Copier le résumé');
+        v.vrai('bouton « Copier le résumé », icône copier', bouton?.dataset.icone === 'copier');
+        bouton?.click();
+        await pauseCourte();
+        await pauseCourte();
+        v.egal('texte copié : texteResume', copies, [reponse.texteResume(resume, contexte)]);
+        v.egal('« Résumé copié. »', texteDe(d.details.querySelector('.resume-etat')), 'Résumé copié.');
+        reussite = false;
+        bouton?.click();
+        await pauseCourte();
+        await pauseCourte();
+        v.egal('« Copie impossible sur cet appareil. »', texteDe(d.details.querySelector('.resume-etat')), 'Copie impossible sur cet appareil.');
+
+        // Refaite : un seul écouteur par construction.
+        d.carte.afficher(resume, contexte);
+        copies.length = 0;
+        reussite = true;
+        [...d.details.querySelectorAll('button')].find((x) => texteDe(x) === 'Copier le résumé')?.click();
+        await pauseCourte();
+        await pauseCourte();
+        v.egal('carte refaite : une seule copie par appui', copies.length, 1);
+
+        // Sans alerte grave ; mur non valide.
+        d.carte.afficher(reponse.resumeDuMur({ textes: { ...textes, data: 'DATA\nProcesseur : Brompton Tessera S8\nPorts : 4' }, chiffres, materiel: null, terrain: null }), contexte);
+        v.vrai('sans alerte grave : « Alertes graves : aucune »', [...d.details.querySelectorAll('.resume-info')].map(texteDe).includes('Alertes graves : aucune'));
+        v.egal('… ligne de titre sans alerte', texteSans(d.details.querySelector('summary'), '.cache-visuel'), 'Résumé 1 × S8 · 4 ports · 3 lignes · 690 kg');
+        d.carte.afficher(reponse.resumeDuMur({ textes: { mur: null }, chiffres, materiel: null, terrain: null }), contexte);
+        v.egal('mur non valide : message, aucune section', [texteDe(d.details.querySelector('.resume-non-valide')), d.details.querySelectorAll('.resume-section').length],
+          ['Mur non valide : corrige-le ci-dessous.', 0]);
+        v.egal('… ligne de titre « Résumé » seule', texteSans(d.details.querySelector('summary'), '.cache-visuel'), 'Résumé');
+        copies.length = 0;
+        [...d.details.querySelectorAll('button')].find((x) => texteDe(x) === 'Copier le résumé')?.click();
+        await pauseCourte();
+        await pauseCourte();
+        v.egal('… copie « Mur non valide »', copies, ['RÉSUMÉ\nPresta : Presta A\nMur : Mur 1\nMur non valide']);
+      } finally {
+        racine.remove();
+      }
+    },
+  },
+  {
+    id: 'N151',
+    titre: 'Carte « Résumé » à l\'écran (étape 28, lot 28c, spec § 4 et § 7) : localStorage « mur-led-resume » par défaut (clé gardée et remise par le test) ; ligne de titre, liens et bouton de 48 px (60 en grand affichage) ; rien ne dépasse à 375 px, carte fermée et ouverte ; textes à 4,5:1 en sombre et en mode rouge, alerte grave en couleur d\'échec',
+    etape: '28c',
+    async verifier(v) {
+      const er = await importerSiPresent('../src/ecran-resume.js');
+      const reponse = await importerSiPresent('../src/reponse.js');
+      if (!er?.monterResume) {
+        v.vrai('src/ecran-resume.js : monterResume', false);
+        return;
+      }
+      const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+      const retirer = await chargerStylesLook();
+      const html = document.documentElement;
+      const racine = el('div', { 'data-famille': 'image', style: 'position:absolute;left:-10000px;top:0;width:375px;padding:0 16px;box-sizing:border-box' });
+      let avant = null;
+      try {
+        avant = localStorage.getItem(er.CLE_RESUME);
+      } catch (erreur) {
+        avant = null;
+      }
+      try {
+        localStorage.setItem(er.CLE_RESUME, 'ouvert');
+        document.body.append(racine);
+        const details = document.importNode(page.querySelector('details.resume-mur'), true);
+        racine.append(details);
+        const carte = er.monterResume(details, { copier: async () => true, actions: { terrain: () => {}, materiel: () => {} } });
+        v.vrai('état lu dans localStorage', details.open);
+        details.querySelector('summary').click();
+        v.egal('appui : « ferme » gardé dans localStorage', localStorage.getItem(er.CLE_RESUME), 'ferme');
+        const textes = {
+          mur: 'MUR\nDalle : ROE Black Pearl BP2 V2 (2,84 mm, 176 × 176 px)\nDalles : 12 × 6 = 72\nTaille : 6 m × 3 m\nRésolution : 2112 × 1056 px\nAlerte : gabarit générique non sourcé, pour une estimation seulement',
+          data: 'DATA\nProcesseur : Novastar MCTRL4K (fourchette 8,8 M px, borne haute retenue)\nPorts : 16\nRefus : liaison trop longue entre le processeur et la première dalle',
+          canvas: 'CANVAS ET SOURCE\nSource : 3840 × 2160 à 60 Hz, 8 bits, RGB Full, sur HDMI 2.0 du serveur média de démonstration',
+          elec: 'ÉLECTRICITÉ : indicatif, à valider par l\'électricien\nPuissance totale : 9,36 kW\nArrivées : 2\nArrivée 1 : tri 63 A, 13 860 W utiles par phase, lignes 1 à 3\nArrivée 2 : mono 32 A, 7 040 W utiles, ligne 4',
+          poids: 'POIDS : indicatif, à valider par le rigger\nTotal suspendu : 690 kg',
+        };
+        const resume = reponse.resumeDuMur({
+          textes,
+          chiffres: { data: { processeurs: '2 × MCTRL4K + 2 de secours', ports: 16, portsRedondance: null, chargeMax: 0.858, impose: false }, elec: { lignes: 4, ligneMaxW: 3280, departW: 3520, impose: false } },
+          materiel: null,
+          terrain: { etat: { faites: 5, total: 12 }, pannes: [{ id: 'p1' }] },
+        });
+        carte.afficher(resume, { presta: { nom: 'Presta A' }, mur: { nom: 'Mur 1' } });
+        for (const mode of ['sombre', 'rouge']) {
+          if (mode === 'rouge') html.dataset.mode = 'rouge';
+          else delete html.dataset.mode;
+          for (const taille of ['normal', 'grand']) {
+            if (taille === 'grand') html.dataset.taille = 'grand';
+            else delete html.dataset.taille;
+            const mini = taille === 'grand' ? 59.5 : 47.5;
+            for (const ouvert of [false, true]) {
+              details.open = ouvert;
+              const fautes = [];
+              for (const cible of [details.querySelector('summary'), ...(ouvert ? details.querySelectorAll('.resume-lien, button') : [])]) {
+                const h = cible.getBoundingClientRect().height;
+                if (h < mini) fautes.push(`« ${texteDe(cible).slice(0, 20)} » haut de ${h.toFixed(0)} px`);
+              }
+              const cadre = racine.getBoundingClientRect();
+              fautes.push(...[...details.querySelectorAll('*')].filter((x) => {
+                const b = x.getBoundingClientRect();
+                return b.width && !x.closest('.cache-visuel') && b.right > cadre.right - 16 + 0.5;
+              }).map((x) => `dépasse : ${x.tagName.toLowerCase()}.${x.className}`));
+              const zone = ouvert ? details : details.querySelector('summary');
+              for (const t of [...zone.querySelectorAll('*')].filter((x) => !x.closest('.cache-visuel') && x.getClientRects().length && [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()))) {
+                const k = contraste(rgbVersHex(getComputedStyle(t).color), fondDe(t));
+                if (k < 4.5) fautes.push(`« ${texteDe(t).slice(0, 24)} » à ${k.toFixed(2)}:1`);
+              }
+              v.egal(`${mode}, ${taille}, ${ouvert ? 'ouverte' : 'fermée'} : cibles, 375 px, contrastes`, fautes, []);
+            }
+          }
+        }
+        delete html.dataset.mode;
+        delete html.dataset.taille;
+        const echec = getComputedStyle(document.documentElement).getPropertyValue('--echec').trim().toLowerCase();
+        v.egal('alerte grave de la ligne de titre en couleur d\'échec', rgbVersHex(getComputedStyle(details.querySelector('.resume-grave-titre')).color), echec);
+      } finally {
+        delete html.dataset.mode;
+        delete html.dataset.taille;
+        racine.remove();
+        try {
+          if (avant === null) localStorage.removeItem(er.CLE_RESUME);
+          else localStorage.setItem(er.CLE_RESUME, avant);
+        } catch (erreur) {
+          // Stockage indisponible : rien à remettre.
+        }
+        retirer();
+      }
+    },
+  },
 ];
+
+// Bloc « Réglages » (étape 28, lot 28b) : saisies gardées des trois formulaires relevées en v64, avant le lot (nom et valeur
+// de départ, dans l'ordre du formulaire, comme les lit configuration.js) ; le bloc ne doit rien y changer.
+const SAISIES_V64 = {
+  'form-data': [['decoupage', ''], ['mapping', ''], ['famille', 'novastar'], ['processeur', ''], ['frequence', '60'], ['bits', '8'], ['luminosite', ''], ['redondance', false],
+    ['secours', 'ports'], ['liaisonSecours', 'sansCascade'], ['ull', false], ['distributeur', 'brompton-xd'], ['reseauSwitches', '0'], ['reseauConvertisseurs', '0'],
+    ['reseauManageable', false], ['reseau10G', false], ['fibreMode', ''], ['fibreConnecteur', 'PC'], ['cuivreCategorie', ''], ['cuivreLongueurM', ''],
+    ['switchMegapixel', 'netgear-m4250-msm4214x'], ['lien25G', false], ['mode20G', false], ['cartesPro', false], ['modeOptique', false], ['carteSortie', 'auto'],
+    ['portsImposes', ''], ['fibreImposee', false], ['paireFibre', 'novastar-cvt310']],
+  'form-elec': [['typeArrivee', 'tri'], ['arriveeA', ''], ['arriveeLibre', ''], ['branchement1', 'armoire'], ['autresArrivees', ''], ['arriveesLignes', ''], ['departA', '16'],
+    ['tensionV', '220'], ['marge', '0.8'], ['puissanceUtileW', ''], ['courbe', ''], ['lignesImposees', '']],
+  'form-source': [['sortie', ''], ['largeurPx', '3840'], ['hauteurPx', '2160'], ['frequenceHz', '60'], ['bits', '8'], ['liaison', ''], ['sourceAppareil', ''], ['longueurM', ''],
+    ['latenceSource', ''], ['espace', 'RGB'], ['plage', 'Full'], ['regie', ''], ['multiviewer', false], ['programSeul', false], ['couchesParSortie', '1'], ['nbConvertisseurs', '0'],
+    ...[1, 2, 3].flatMap((i) => [[`conv${i}Fiche`, ''], [`conv${i}Nom`, ''], [`conv${i}Liaison`, ''], [`conv${i}Longueur`, ''], [`conv${i}Latence`, '']])],
+};
+// Saisies d'un formulaire telles que configuration.js les garde (lireFormulaire), dans l'ordre.
+function saisiesFormulaire(f) {
+  const valeurs = [];
+  for (const c of f.elements) {
+    if (!c.name || c.name === 'parc' || ['button', 'submit', 'file'].includes(c.type)) continue;
+    if (c.type === 'checkbox') valeurs.push([c.name, c.checked]);
+    else if (c.type === 'radio') {
+      if (c.checked) valeurs.push([c.name, c.value]);
+    } else valeurs.push([c.name, c.value]);
+  }
+  return valeurs;
+}
+// Texte vu (sans le texte réservé aux lecteurs d'écran) et texte lu (sans ce qui leur est caché).
+const texteSans = (x, selecteur) => {
+  const copie = x.cloneNode(true);
+  copie.querySelectorAll(selecteur).forEach((e) => e.remove());
+  return texteDe(copie);
+};
+function stockageEssai(initial = {}) {
+  const m = new Map(Object.entries(initial));
+  return { m, getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, x) => m.set(k, String(x)) };
+}
+const pauseCourte = () => new Promise((fin) => setTimeout(fin, 0));
+
+// Bloc « Réglages » d'un onglet (lot 28b) : sa place dans index.html, puis src/reglages.js sur une copie du formulaire,
+// montée hors écran avec un stockage d'essai (jamais le localStorage de l'appli).
+async function essaiReglages(v, cas) {
+  const { onglet, formulaire, famille, apres, champs, horsBloc, listes = {}, preparer = () => {}, ligne, lu, invalide, suivre, attendus } = cas;
+  const page = new DOMParser().parseFromString(await (await fetch('index.html', { cache: 'no-store' })).text(), 'text/html');
+  const f = page.getElementById(formulaire);
+  v.egal('saisies gardées : mêmes champs, noms et valeurs qu\'en v64, dans le même ordre', saisiesFormulaire(f), SAISIES_V64[formulaire]);
+  const blocs = [...f.querySelectorAll('details.reglages')];
+  v.egal('un seul bloc « Réglages », dans le formulaire', [blocs.length, blocs[0]?.id], [1, `reglages-${onglet}`]);
+  const bloc = blocs[0];
+  if (!bloc) return;
+  v.vrai('replié dans la page, sans data-famille ni hidden (ni sur lui ni au-dessus dans le formulaire)',
+    !bloc.open && !bloc.hidden && ![bloc, ...(() => { const l = []; for (let x = bloc.parentElement; x && x !== f; x = x.parentElement) l.push(x); return l; })()].some((x) => x.hasAttribute('data-famille') || x.hidden));
+  v.egal('à la fin du formulaire', [bloc.parentElement === f, bloc.nextElementSibling?.id ?? null], [true, apres]);
+  v.egal('ligne de titre puis un conteneur .formulaire', [...bloc.children].map((x) => `${x.tagName.toLowerCase()}${x.className ? `.${x.className}` : ''}`), ['summary', 'div.formulaire']);
+  v.egal('ligne de titre : « Réglages » et la ligne des réglages', [texteDe(bloc.querySelector('summary .reglages-titre')), Boolean(bloc.querySelector('summary .reglages-ligne'))], ['Réglages', true]);
+  v.egal('champs du bloc', [...new Set([...bloc.querySelectorAll('[name]')].map((x) => x.name))], champs);
+  v.egal('champs hors du bloc (choix principal, Ma config)', [...new Set([...f.elements].filter((x) => x.name && !bloc.contains(x)).map((x) => x.name))], horsBloc);
+
+  const rg = await importerSiPresent('../src/reglages.js');
+  if (!rg?.monterReglages) {
+    v.vrai('src/reglages.js : monterReglages, debutReprise, finReprise', false);
+    return;
+  }
+  const racine = el('div', { 'data-famille': famille, style: 'position:absolute;left:-10000px;top:0;width:375px' });
+  const copie = document.importNode(f, true);
+  racine.append(copie);
+  document.body.append(racine);
+  const montes = [];
+  try {
+    preparer(copie);
+    const details = copie.querySelector('details.reglages');
+    const resume = details.querySelector(':scope > summary');
+    const s = stockageEssai();
+    const etat = () => JSON.parse(s.m.get(rg.CLE_REGLAGES) ?? 'null');
+    const b = rg.monterReglages(details, { onglet, stockage: s, listes: () => listes });
+    montes.push(b);
+    v.egal('replié la première fois, rien d\'écrit', [details.open, s.m.size], [false, 0]);
+    v.egal('ligne de titre vue', texteSans(resume, '.cache-visuel'), `Réglages ${ligne}`);
+    v.egal('ligne de titre lue', texteSans(resume, '[aria-hidden="true"]'), lu);
+    const defaut = { data: 'ferme', elec: 'ferme', canvas: 'ferme' };
+    resume.click();
+    await pauseCourte();
+    v.egal('appui : ouvert, gardé pour cet onglet seulement', [details.open, etat()], [true, { ...defaut, [onglet]: 'ouvert' }]);
+    resume.click();
+    await pauseCourte();
+    v.egal('second appui : fermé, gardé', [details.open, etat()?.[onglet]], [false, 'ferme']);
+    details.open = true;
+    await pauseCourte();
+    details.open = false;
+    await pauseCourte();
+    v.egal('ouvert puis fermé par le code : état gardé inchangé', etat()?.[onglet], 'ferme');
+    // Saisie invalide : jamais pendant la reprise des saisies ; à sa fin, puis à la fin d'un calcul.
+    copie.elements[invalide.champ].value = invalide.texte;
+    rg.debutReprise();
+    b.actualiser();
+    v.egal('saisie invalide pendant la reprise des saisies : reste replié', details.open, false);
+    rg.finReprise();
+    v.egal('fin de la reprise : ouvert de lui-même, état gardé inchangé', [details.open, etat()?.[onglet]], [true, 'ferme']);
+    v.egal('saisie illisible signalée en alerte', [...resume.querySelectorAll('.reglages-alerte')].map(texteDe), [invalide.alerte]);
+    details.open = false;
+    b.actualiser();
+    v.egal('fin d\'un calcul : ouvert de lui-même', [details.open, etat()?.[onglet]], [true, 'ferme']);
+    copie.elements[invalide.champ].value = invalide.correct;
+    b.actualiser();
+    v.egal('saisie corrigée : le bloc ne se referme pas seul, plus d\'alerte', [details.open, resume.querySelectorAll('.reglages-alerte').length], [true, 0]);
+    copie.elements[invalide.champ].value = invalide.texte;
+    b.actualiser({ ouvrir: false });
+    details.open = false;
+    b.actualiser({ ouvrir: false });
+    v.egal('actualisation sans ouverture (montage) : reste replié', details.open, false);
+    // Ligne qui suit les champs (valeurs écrites par le code comprises), depuis la valeur de départ du champ.
+    copie.elements[invalide.champ].value = copie.elements[invalide.champ].defaultValue;
+    const lignes = suivre(copie, () => {
+      b.actualiser();
+      return texteSans(details.querySelector(':scope > summary .reglages-ligne'), '.cache-visuel');
+    });
+    v.egal('ligne de titre qui suit les champs', lignes, attendus);
+    // État gardé « ouvert » : le bloc s'ouvre au montage.
+    const autre = document.importNode(f, true);
+    racine.append(autre);
+    preparer(autre);
+    const s2 = stockageEssai({ [rg.CLE_REGLAGES]: JSON.stringify({ ...defaut, [onglet]: 'ouvert' }) });
+    const b2 = rg.monterReglages(autre.querySelector('details.reglages'), { onglet, stockage: s2, listes: () => listes });
+    montes.push(b2);
+    v.egal('état gardé « ouvert » : ouvert au montage', autre.querySelector('details.reglages').open, true);
+    v.egal('saisies gardées de la copie montée : inchangées par le bloc', saisiesFormulaire(autre).map(([nom]) => nom), SAISIES_V64[formulaire].map(([nom]) => nom));
+  } finally {
+    for (const b of montes) b.retirer?.();
+    racine.remove();
+  }
+}
 
 // Carnet d'essai de l'écran Terrain (27c) : deux pannes du mur 1 (dalle de spare en lot A, puis « Autre »), spares du mur et
 // de la presta (le mur 2 sans liste), lots A et B du parc pour ROE BP2 V2, le lot A retenu.

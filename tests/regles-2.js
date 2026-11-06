@@ -18,6 +18,8 @@ import * as pdf from '../src/pdf.js';
 import * as novalct from '../src/novalct.js';
 import * as connexion from '../src/connexion.js';
 import * as terrain from '../src/terrain.js';
+import * as reponse from '../src/reponse.js';
+import { texteProcesseurs } from '../src/secours.js';
 import { nombre, sourceCourte } from '../src/format.js';
 import {
   DALLE_CAS_13, P10, CB5, CB5_DEMI, CB5_DEMI_ATYPIQUE, DEMI_TROP_ETROITE,
@@ -4866,4 +4868,300 @@ export const REGLES_2 = [
       v.egal('dupliquer un mur importé : étapes ajoutées seules', d.murs[d.index.ouverte.mur].terrain, { ajouts: [{ id: 'e1', texte: 'Scotcher' }] });
     },
   },
+  {
+    id: 'R471',
+    titre: 'Résumé du mur (étape 28, spec § 5.2) : BP2 V2 12 × 6 sur S8 en 10 bits, une section par onglet dans l\'ordre Mur, Data, Canvas, Élec, Poids, Matériel, avec les lignes de la synthèse du chef de projet (Canvas : source, liaison, sortie, régie, sorties), le port et la ligne les plus chargés, les dalles et spares de la liste ; Élec et Poids indicatifs ; ligne de titre : processeurs, ports, lignes, poids',
+    etape: '28a',
+    verifier(v, contexte) {
+      const x = xBp2(contexte, 'brompton-s8', 12, 6, { bits: 10 });
+      const textes = textesBp2(contexte, x);
+      const liste = calculs.listeMateriel({ mur: x.m, dalle: x.dalle, sparesPourcent: 5 });
+      const chiffres = {
+        data: { processeurs: texteProcesseurs(x.e), ports: 6, portsRedondance: null, chargeMax: 0.858, impose: false },
+        elec: { lignes: 3, ligneMaxW: 3280, departW: 3520, impose: false },
+      };
+      const r = reponse.resumeDuMur({ textes, chiffres, materiel: liste, terrain: null });
+      const lignes = (onglet) => r.sections.find((s) => s.onglet === onglet)?.lignes.map((l) => `${l.libelle} : ${l.valeur}`);
+      v.egal('valide, sections dans l\'ordre, sans Terrain ni alerte grave', [r.valide, r.sections.map((s) => s.onglet), r.graves], [true, ['mur', 'data', 'canvas', 'elec', 'poids', 'materiel'], []]);
+      v.egal('titres et indicatifs', r.sections.map((s) => [s.titre, s.indicatif]),
+        [['Mur', false], ['Data', false], ['Canvas', false], ['Élec', true], ['Poids', true], ['Matériel', false]]);
+      v.egal('ligne de titre', r.titre, [{ texte: '1 × S8' }, { texte: '6 ports' }, { texte: '3 lignes' }, { texte: ligneDe(textes.poids, 'Total suspendu').split(' : ')[1] }]);
+      v.egal('Mur, avec la source « à confirmer » signalée', lignes('mur'), [ligneDe(textes.mur, 'Dalle'), 'Dalles : 12 × 6 = 72 (colonnes × lignes)', ligneDe(textes.mur, 'Taille'), ligneDe(textes.mur, 'Résolution'),
+        ligneDe(textes.mur, 'Dimensions et pixels')]);
+      v.vrai('… « à confirmer » dans sa valeur', /à confirmer/.test(ligneDe(textes.mur, 'Dimensions et pixels')));
+      v.egal('Data : processeur, ports, puis le port le plus chargé', lignes('data'),
+        [ligneDe(textes.data, 'Processeur'), ligneDe(textes.data, 'Ports en colonnes entières'), 'Port le plus chargé : 85,8 %']);
+      v.egal('Canvas : source et liaison', lignes('canvas'), [ligneDe(textes.canvas, 'Source'), ligneDe(textes.canvas, 'Liaison')]);
+      v.egal('Élec : puissance, lignes, arrivée, puis la ligne la plus chargée', lignes('elec'),
+        [ligneDe(textes.elec, 'Puissance totale'), ...['Arrivée', 'Lignes en colonnes entières'].map((l) => ligneDe(textes.elec, l)).filter((l) => !l.endsWith('absente'))
+          .sort((a, b) => textes.elec.indexOf(a) - textes.elec.indexOf(b)), 'Ligne la plus chargée : 3280 W sur 3520 W (93,2 %)']);
+      v.egal('Poids', lignes('poids'), ['Mode : accroche', ligneDe(textes.poids, 'Total suspendu')]);
+      const d = liste.sections.find((s) => s.id === 'dalles').lignes[0];
+      v.egal('Matériel : dalles et spares', lignes('materiel'), [`Dalles et spares : ${d.quantite} × ${calculs.libelleLigne(d)}, ${d.detail}`]);
+      v.vrai('aucune ligne vide ni « absente »', r.sections.every((s) => s.lignes.every((l) => l.valeur && !/absente$/.test(l.valeur))));
+    },
+  },
+  {
+    id: 'R472',
+    titre: 'Résumé du mur (étape 28, spec § 5.1 et 5.2) : secours par un second processeur (« 2 × MCTRL4K + 2 de secours »), redondance dans le même processeur (« 4 ports, 8 avec la redondance »), singuliers, Ma config imposée ; onglet sans calcul valide : section « calcul non valide » et chiffres omis ; mur non valide : rien d\'autre ; liste de matériel absente ; mise en service et pannes du mur',
+    etape: '28a',
+    verifier(v, contexte) {
+      const textes = textesEssai(contexte);
+      const data = { processeurs: '2 × MCTRL4K + 2 de secours', ports: 4, portsRedondance: 8, chargeMax: 0.5, impose: false };
+      const elec = { lignes: 1, ligneMaxW: 2000, departW: 3520, impose: false };
+      const r = (o = {}) => reponse.resumeDuMur({ textes, chiffres: { data, elec }, materiel: null, terrain: null, ...o });
+      const titre = (x) => x.titre.map((m) => m.texte);
+      const poids = ligneDe(textes.poids, 'Total suspendu').split(' : ')[1];
+      v.egal('secours, redondance et singulier dans la ligne de titre', titre(r()), ['2 × MCTRL4K + 2 de secours', '4 ports, 8 avec la redondance', '1 ligne', poids]);
+      v.egal('un port', titre(r({ chiffres: { data: { ...data, ports: 1, portsRedondance: null }, elec } }))[1], '1 port');
+      const impose = r({ chiffres: { data: { ...data, impose: true }, elec: { ...elec, impose: true } } });
+      const derniere = (x, onglet) => x.sections.find((s) => s.onglet === onglet).lignes.at(-1);
+      v.egal('Ma config imposée : chiffres marqués', [derniere(impose, 'data'), derniere(impose, 'elec')],
+        [{ libelle: 'Port le plus chargé', valeur: '50,0 %, Ma config' }, { libelle: 'Ligne la plus chargée', valeur: '2000 W sur 3520 W (56,8 %), Ma config' }]);
+      v.vrai('liste de matériel absente : pas de section Matériel', !r().sections.some((s) => s.onglet === 'materiel'));
+      const sansData = r({ textes: { ...textes, data: null, canvas: null } });
+      v.egal('Data et Canvas non valides : sections sans lignes', sansData.sections.filter((s) => !s.valide).map((s) => [s.onglet, s.lignes]), [['data', []], ['canvas', []]]);
+      v.egal('… chiffres de Data omis de la ligne de titre', titre(sansData), ['1 ligne', poids]);
+      v.egal('chiffres absents : rien d\'inventé', [titre(r({ chiffres: { data: null, elec: null } })), derniere(r({ chiffres: { data: null, elec: null } }), 'data')],
+        [[poids], { libelle: 'Ports en colonnes entières', valeur: ligneDe(textes.data, 'Ports en colonnes entières').split(' : ')[1] }]);
+      v.egal('mur non valide : rien d\'autre', r({ textes: { ...textes, mur: null } }), { valide: false, titre: [], sections: [], graves: [] });
+      const t = (terrainMur) => r({ terrain: terrainMur }).sections.find((s) => s.onglet === 'terrain')?.lignes.map((l) => `${l.libelle} : ${l.valeur}`) ?? null;
+      v.egal('Terrain : mise en service et pannes', t({ etat: { faites: 5, total: 12 }, pannes: [{ id: 'p1' }, { id: 'p2' }] }), ['Mise en service : 5 sur 12', 'Pannes : 2']);
+      v.egal('Terrain : pannes seules (écran Terrain jamais ouvert)', t({ etat: null, pannes: [{ id: 'p1' }] }), ['Pannes : 1']);
+      v.egal('Terrain : rien avant l\'écran Terrain, sans panne', [t(null), t({ coches: {}, pannes: [] })], [null, null]);
+    },
+  },
+  {
+    id: 'R473',
+    titre: 'Résumé du mur (étape 28, spec § 4 et 5.2) : plusieurs arrivées (« Arrivées », « Arrivée 1 »…), valeurs estimées, déduites, à confirmer ou non sourcées signalées (mots entiers, hors notes et rappels) ; alertes graves de la synthèse du chef de projet avec leur onglet, sans doublon, comptées dans la ligne de titre',
+    etape: '28a',
+    verifier(v, contexte) {
+      const textes = textesEssai(contexte);
+      const elec = ['ÉLECTRICITÉ : indicatif, à valider par l\'électricien', 'Puissance totale : 9,36 kW', 'P max retenue : 130 W (estimée avec le repère de 1 kVA/m²)',
+        'Arrivées : 2', 'Arrivée 1 : tri 63 A, 13 860 W utiles par phase, lignes 1 à 3', 'Arrivée 2 : mono 32 A, 7 040 W utiles, ligne 4',
+        'Arrivée 1, phase L1 : 2 lignes, 7 000 W, 31,8 A, dépasse', 'Note : une valeur estimée', 'Rappel : à confirmer avec l\'électricien'].join('\n');
+      const mur = `${textes.mur}\nAlerte : gabarit générique non sourcé, pour une estimation seulement\nAlerte : pour une estimation seulement\nAlerte : capacité déduite\nAlerte : par déduction`;
+      const graves = {
+        ...textes, mur, elec,
+        data: `${textes.data}\nRefus : liaison trop longue\nAlerte : une alerte ordinaire qui dépasse`,
+        canvas: `${textes.canvas}\nRefus : liaison trop longue\nRefus : liaison trop longue\nLiaison : ne passe pas, 120 % du débit maxi (approximation)`,
+        poids: `${textes.poids}\nMaximum en accroche : 7 pour 6 dalles en hauteur, dépassé (essai)`,
+      };
+      const r = reponse.resumeDuMur({ textes: graves, chiffres: { data: null, elec: null }, materiel: null, terrain: null });
+      const lignes = (onglet) => r.sections.find((s) => s.onglet === onglet).lignes.map((l) => `${l.libelle} : ${l.valeur}`);
+      v.egal('Élec : arrivées et P max estimée, ni phase, ni note, ni rappel', lignes('elec'),
+        ['Puissance totale : 9,36 kW', 'P max retenue : 130 W (estimée avec le repère de 1 kVA/m²)', 'Arrivées : 2', 'Arrivée 1 : tri 63 A, 13 860 W utiles par phase, lignes 1 à 3', 'Arrivée 2 : mono 32 A, 7 040 W utiles, ligne 4']);
+      v.egal('Mur : gabarit non sourcé et capacité déduite signalés, « estimation » et « déduction » non', lignes('mur').slice(-2),
+        ['Alerte : gabarit générique non sourcé, pour une estimation seulement', 'Alerte : capacité déduite']);
+      v.egal('alertes graves : onglet, ordre des onglets, sans doublon', r.graves.map((g) => [g.onglet, `${g.libelle} : ${g.valeur}`]), [
+        ['data', 'Refus : liaison trop longue'], ['canvas', 'Liaison : ne passe pas, 120 % du débit maxi (approximation)'],
+        ['elec', 'Arrivée 1, phase L1 : 2 lignes, 7 000 W, 31,8 A, dépasse'], ['poids', 'Maximum en accroche : 7 pour 6 dalles en hauteur, dépassé (essai)']]);
+      v.egal('ligne de titre : alertes graves en dernier, marquées', r.titre.at(-1), { texte: '4 alertes graves', grave: true });
+      const une = reponse.resumeDuMur({ textes: { ...textes, canvas: `${textes.canvas}\nRefus : liaison trop longue` }, chiffres: null, materiel: null, terrain: null });
+      v.egal('une alerte grave', une.titre.at(-1), { texte: '1 alerte grave', grave: true });
+      v.egal('mêmes alertes que la fiche du chef de projet', r.graves.map((g) => `${g.libelle} : ${g.valeur}`).sort(),
+        Object.values(graves).flatMap((t) => fichesMetier.lignesTexte(t)).filter(fichesMetier.estGrave).map((l) => `${l.libelle} : ${l.valeur}`)
+          .filter((l, i, a) => a.indexOf(l) === i).sort());
+    },
+  },
+  {
+    id: 'R474',
+    titre: 'Copier le résumé (étape 28, spec § 5.4) : « RÉSUMÉ », presta, mur, une section par onglet (titres des textes copiés, Élec et Poids « indicatif, à valider »), alertes graves suivies de leur onglet, ou « Alertes graves : aucune » ; section non valide : « Data : calcul non valide » ; mur non valide : « Mur non valide » ; ni tiret, ni puce, ni ligne vide, ni double espace',
+    etape: '28a',
+    verifier(v, contexte) {
+      const textes = textesEssai(contexte);
+      const liste = listeEssai();
+      const chiffres = { data: { processeurs: '2 × MCTRL660', ports: 8, portsRedondance: null, chargeMax: 0.858, impose: false }, elec: { lignes: 3, ligneMaxW: 3280, departW: 3520, impose: false } };
+      const resume = (o = {}) => reponse.resumeDuMur({ textes, chiffres, materiel: liste, terrain: { etat: { faites: 5, total: 12 }, pannes: [] }, ...o });
+      const t = reponse.texteResume(resume(), { presta: { nom: 'Presta A' }, mur: { nom: 'Mur 1' } }).split('\n');
+      v.egal('début', t.slice(0, 4), ['RÉSUMÉ', 'Presta : Presta A', 'Mur : Mur 1', 'MUR']);
+      const titres = ['MUR', 'DATA', 'CANVAS ET SOURCE', 'ÉLECTRICITÉ : indicatif, à valider par l\'électricien', 'POIDS : indicatif, à valider par le rigger', 'MATÉRIEL', 'TERRAIN'];
+      v.egal('titres des sections, dans l\'ordre', t.filter((l) => titres.includes(l)), titres);
+      v.vrai('lignes des chiffres, mise en service, dalles et spares', t.includes('Port le plus chargé : 85,8 %') && t.includes('Ligne la plus chargée : 3280 W sur 3520 W (93,2 %)')
+        && t.includes('Mise en service : 5 sur 12') && t.some((l) => l.startsWith('Dalles et spares : ')), t);
+      v.egal('sans alerte grave : la dernière ligne', t.at(-1), 'Alertes graves : aucune');
+      const propre = (lignes) => [/[—–•]/.test(lignes.join('\n')), lignes.filter((l) => !l.trim() || /^\s*[-*]/.test(l) || /\s\s|[  ]/.test(l) || l !== l.trim()).length];
+      v.egal('ni tiret, ni puce, ni ligne vide, ni double espace', propre(t), [false, 0]);
+      const graves = resume({ textes: { ...textes, canvas: `${textes.canvas}\nRefus : liaison trop longue`, elec: null } });
+      const tg = reponse.texteResume(graves, { presta: null, mur: { nom: 'Mur 1' } }).split('\n');
+      v.egal('sans presta : le mur en deuxième ligne', tg.slice(0, 2), ['RÉSUMÉ', 'Mur : Mur 1']);
+      v.egal('alertes graves avec leur onglet', tg.slice(-2), ['ALERTES GRAVES', 'Refus : liaison trop longue (Canvas)']);
+      v.vrai('section non valide', tg.includes('Élec : calcul non valide') && !tg.some((l) => l.startsWith('ÉLECTRICITÉ')), tg);
+      v.egal('mur non valide', reponse.texteResume(resume({ textes: { ...textes, mur: null } }), { presta: { nom: 'Presta A' }, mur: { nom: 'Mur 1' } }),
+        'RÉSUMÉ\nPresta : Presta A\nMur : Mur 1\nMur non valide');
+    },
+  },
+  {
+    id: 'R475',
+    titre: 'Ligne de titre des Réglages de Data (étape 28, spec § 6.2) : « 60 Hz · 12 bits · sans redondance », « redondance » ou « secours par un second processeur » et « cascade », puis les réglages qui diffèrent du défaut ou cochés, des champs visibles seulement ; saisie illisible signalée, à partir des textes bruts',
+    etape: '28a',
+    verifier(v) {
+      const textes = (bruts, o) => reponse.ligneReglagesData(bruts, o).map((m) => m.texte);
+      const base = { frequence: '60', bits: '12', distributeur: 'brompton-xd', reseauSwitches: '0', reseauConvertisseurs: '0', fibreMode: '', fibreConnecteur: 'PC', cuivreCategorie: '',
+        cuivreLongueurM: '', switchMegapixel: 'netgear-m4250-msm4214x', carteSortie: 'auto', luminosite: '', secours: 'ports', liaisonSecours: 'sansCascade' };
+      const tous = { visibles: null };
+      v.egal('défauts', textes(base, tous), ['60 Hz', '12 bits', 'sans redondance']);
+      v.egal('redondance dans le même processeur', textes({ ...base, bits: '8', redondance: 'on' }, tous), ['60 Hz', '8 bits', 'redondance']);
+      v.egal('secours par un second processeur, en cascade', textes({ ...base, redondance: 'on', secours: 'processeur', liaisonSecours: 'cascade' }, tous),
+        ['60 Hz', '12 bits', 'secours par un second processeur', 'cascade']);
+      v.egal('choix du secours caché : redondance', textes({ ...base, redondance: 'on', secours: 'processeur' }, { visibles: ['frequence', 'bits', 'redondance'] }), ['60 Hz', '12 bits', 'redondance']);
+      const brompton = { ...base, frequence: '59,94', bits: '10', luminosite: '1500', ull: 'on', distributeur: 'brompton-xd-t', reseauSwitches: '2', reseauConvertisseurs: '1', reseauManageable: 'on',
+        reseau10G: 'on', fibreMode: 'monomode', fibreConnecteur: 'PC', cuivreCategorie: 'Cat6A', cuivreLongueurM: '30' };
+      const libelles = { distributeur: 'XD-T (10 ports sur 12 avec un SX40, fibre seulement)' };
+      v.egal('Brompton, réseau rempli', textes(brompton, { visibles: null, libelles }),
+        ['59,94 Hz', '10 bits', 'sans redondance', '1500 cd/m²', 'ULL', 'XD-T', '2 switches', '1 convertisseur fibre', 'switch manageable', '10G', 'fibre monomode PC', 'cuivre Cat6A 30 m']);
+      v.egal('mêmes saisies, champs Brompton cachés', textes(brompton, { visibles: ['frequence', 'bits', 'redondance', 'cartesPro', 'modeOptique', 'carteSortie'], libelles }), ['59,94 Hz', '10 bits', 'sans redondance']);
+      v.egal('singulier et pluriel du réseau', textes({ ...base, reseauSwitches: '1', reseauConvertisseurs: '2' }, tous).slice(3), ['1 switch', '2 convertisseurs fibre']);
+      v.egal('Megapixel', textes({ ...base, switchMegapixel: 'netgear-m4200-gsm4210p', lien25G: 'on', mode20G: 'on' }, { visibles: null, libelles: { switchMegapixel: 'Netgear M4200 (GSM4210P), 8 ports 1G, ancien' } }).slice(3),
+        ['Netgear M4200', '2,5G', 'mode 20G']);
+      v.egal('Novastar', textes({ ...base, cartesPro: 'on', modeOptique: 'on', carteSortie: '4x10g' }, { visibles: null, libelles: { carteSortie: '4x10G (ports 1G, CVT10)' } }).slice(3),
+        ['cartes Pro', 'mode 40 ports', 'carte 4x10G']);
+      v.egal('sans libellé : la valeur', textes({ ...base, carteSortie: '4x10g' }, tous).slice(3), ['carte 4x10g']);
+      const illisible = reponse.ligneReglagesData({ ...base, frequence: 'abc', reseauSwitches: '2,5', cuivreCategorie: 'Cat6A', cuivreLongueurM: 'x' }, tous);
+      v.egal('saisies illisibles, en alerte', illisible, [{ texte: 'fréquence illisible', alerte: true }, { texte: '12 bits' }, { texte: 'sans redondance' },
+        { texte: 'switches illisible', alerte: true }, { texte: 'cuivre Cat6A' }, { texte: 'longueur du cuivre illisible', alerte: true }]);
+      v.egal('ligne et saisies invalides d\'accord', reponse.champsInvalidesData({ ...base, frequence: 'abc', reseauSwitches: '2,5', cuivreCategorie: 'Cat6A', cuivreLongueurM: 'x' }, tous),
+        ['frequence', 'reseauSwitches', 'cuivreLongueurM']);
+    },
+  },
+  {
+    id: 'R476',
+    titre: 'Lignes de titre des Réglages d\'Élec et de Canvas (étape 28, spec § 6.2) : « départs 16 A · 220 V · marge 80 % », puissance utile et courbe saisies ; « 60 Hz · 8 bits · HDMI 2.0 · RGB Full », source, longueur, latence, régie, convertisseurs ; saisie illisible signalée',
+    etape: '28a',
+    verifier(v) {
+      const elec = (bruts) => reponse.ligneReglagesElec(bruts, { visibles: null }).map((m) => m.texte);
+      const e = { departA: '16', tensionV: '220', marge: '0.8', puissanceUtileW: '', courbe: '' };
+      v.egal('Élec, défauts', elec(e), ['départs 16 A', '220 V', 'marge 80 %']);
+      v.egal('Élec, réglages saisis', elec({ ...e, departA: '32', tensionV: '230', marge: '0.7', puissanceUtileW: '3 000', courbe: 'C' }),
+        ['départs 32 A', '230 V', 'marge 70 %', 'puissance utile 3000 W', 'courbe C']);
+      v.egal('Élec, saisies illisibles', reponse.ligneReglagesElec({ ...e, departA: '', tensionV: '0', puissanceUtileW: 'trois' }, { visibles: null }),
+        [{ texte: 'départs illisible', alerte: true }, { texte: 'tension illisible', alerte: true }, { texte: 'marge 80 %' }, { texte: 'puissance utile illisible', alerte: true }]);
+      const listes = { liaisons: [{ id: 'hdmi-2.0', nom: 'HDMI 2.0' }, { id: '12g-sdi', nom: '12G-SDI' }], regies: [{ id: 'r1', nom: 'Régie B' }], sources: [{ id: 's1', nom: 'Serveur A' }] };
+      const canvas = (bruts, visibles = null) => reponse.ligneReglagesCanvas(bruts, { visibles, ...listes }).map((m) => m.texte);
+      const c = { frequenceHz: '60', bits: '8', liaison: 'hdmi-2.0', espace: 'RGB', plage: 'Full', sourceAppareil: '', longueurM: '', latenceSource: '', regie: '', nbConvertisseurs: '0', couchesParSortie: '1' };
+      v.egal('Canvas, défauts', canvas(c), ['60 Hz', '8 bits', 'HDMI 2.0', 'RGB Full']);
+      v.egal('Canvas, réglages saisis', canvas({ ...c, frequenceHz: '50', bits: '10', liaison: '12g-sdi', espace: 'YUV', plage: 'Limited', sourceAppareil: 's1', longueurM: '12', latenceSource: '3-5', regie: 'r1', nbConvertisseurs: '2' }),
+        ['50 Hz', '10 bits', '12G-SDI', 'YUV Limited', 'Serveur A', '12 m', 'latence 3 à 5 images', 'Régie B', '2 convertisseurs']);
+      v.egal('Canvas : une image, un convertisseur, liaison inconnue', canvas({ ...c, liaison: 'x', latenceSource: '3', nbConvertisseurs: '1' }), ['60 Hz', '8 bits', 'x', 'RGB Full', 'latence 3 images', '1 convertisseur']);
+      v.egal('Canvas : source de la base cachée', canvas({ ...c, sourceAppareil: 's1' }, ['frequenceHz', 'bits', 'liaison', 'espace', 'plage']), ['60 Hz', '8 bits', 'HDMI 2.0', 'RGB Full']);
+      v.egal('Canvas, saisies illisibles', canvas({ ...c, frequenceHz: '', longueurM: '-2', latenceSource: 'trois', couchesParSortie: '0', nbConvertisseurs: '1', conv1Latence: 'x' }),
+        ['fréquence illisible', '8 bits', 'HDMI 2.0', 'RGB Full', 'longueur illisible', 'latence illisible', 'couches par sortie illisible', '1 convertisseur', 'latence du convertisseur 1 illisible']);
+    },
+  },
+  {
+    id: 'R477',
+    titre: 'Saisies invalides du bloc Réglages (étape 28, spec § 6.3) : Data (fréquence, switches, convertisseurs, longueur du cuivre), Élec (départs, tension, puissance utile), Canvas (fréquence, longueurs, latences « 3 », « 3-5 » ou « 3 à 5 », couches par sortie) ; champs visibles seulement',
+    etape: '28a',
+    verifier(v) {
+      const d = { frequence: '0', reseauSwitches: '-1', reseauConvertisseurs: '', cuivreLongueurM: '2,5' };
+      v.egal('Data', reponse.champsInvalidesData(d, { visibles: null }), ['frequence', 'reseauSwitches']);
+      v.egal('Data, switches cachés', reponse.champsInvalidesData(d, { visibles: ['frequence', 'reseauConvertisseurs', 'cuivreLongueurM'] }), ['frequence']);
+      v.egal('Data, défauts', reponse.champsInvalidesData({ frequence: '60', reseauSwitches: '0', reseauConvertisseurs: '0', cuivreLongueurM: '' }, { visibles: null }), []);
+      v.egal('Élec', reponse.champsInvalidesElec({ departA: '16', tensionV: 'abc', puissanceUtileW: '0' }, { visibles: null }), ['tensionV', 'puissanceUtileW']);
+      v.egal('Élec, défauts', reponse.champsInvalidesElec({ departA: '16', tensionV: '220', puissanceUtileW: '' }, { visibles: null }), []);
+      const c = { frequenceHz: '60', longueurM: 'x', latenceSource: '3 à 5', couchesParSortie: '1,5', conv1Longueur: '-1', conv1Latence: '3', conv2Latence: 'z', conv2Longueur: '' };
+      v.egal('Canvas', reponse.champsInvalidesCanvas(c, { visibles: null }), ['longueurM', 'couchesParSortie', 'conv1Longueur', 'conv2Latence']);
+      v.egal('Canvas, convertisseur 2 caché', reponse.champsInvalidesCanvas(c, { visibles: ['frequenceHz', 'longueurM', 'latenceSource', 'couchesParSortie', 'conv1Longueur', 'conv1Latence'] }),
+        ['longueurM', 'couchesParSortie', 'conv1Longueur']);
+      v.egal('Canvas : latences acceptées', ['', '3', '3-5', '3 - 5', '3 à 5'].map((l) => reponse.champsInvalidesCanvas({ frequenceHz: '60', latenceSource: l }, { visibles: null })), [[], [], [], [], []]);
+    },
+  },
+  {
+    id: 'R478',
+    titre: 'États de repli (étape 28, spec § 4) : lus et écrits dans le stockage reçu, « ouvert » ou « ferme », par onglet pour les Réglages ; valeur inconnue, illisible, stockage absent ou en erreur : le défaut, sans planter',
+    etape: '28a',
+    verifier(v) {
+      const stockage = () => {
+        const m = new Map();
+        return { m, getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, x) => m.set(k, String(x)) };
+      };
+      const s = stockage();
+      v.egal('vide : le défaut', reponse.lireRepli(s, 'mur-led-resume', 'ouvert'), 'ouvert');
+      v.egal('gardé, puis relu', [reponse.garderRepli(s, 'mur-led-resume', 'ferme'), s.m.get('mur-led-resume'), reponse.lireRepli(s, 'mur-led-resume', 'ouvert')], [true, 'ferme', 'ferme']);
+      s.setItem('mur-led-resume', 'bidon');
+      v.egal('valeur inconnue : le défaut', reponse.lireRepli(s, 'mur-led-resume', 'ouvert'), 'ouvert');
+      const defaut = { data: 'ferme', elec: 'ferme', canvas: 'ferme' };
+      v.egal('par onglet', [reponse.garderRepli(s, 'mur-led-reglages', { ...defaut, elec: 'ouvert' }), reponse.lireRepli(s, 'mur-led-reglages', defaut)], [true, { data: 'ferme', elec: 'ouvert', canvas: 'ferme' }]);
+      s.setItem('mur-led-reglages', '{"data":"ouvert","elec":"x","autre":"ouvert"}');
+      v.egal('par onglet : clés inconnues et valeurs fausses ignorées', reponse.lireRepli(s, 'mur-led-reglages', defaut), { data: 'ouvert', elec: 'ferme', canvas: 'ferme' });
+      s.setItem('mur-led-reglages', '{pas du json');
+      v.egal('illisible : le défaut', reponse.lireRepli(s, 'mur-led-reglages', defaut), defaut);
+      const lu = reponse.lireRepli(s, 'mur-led-reglages', defaut);
+      lu.data = 'ouvert';
+      v.egal('défaut jamais modifié', defaut.data, 'ferme');
+      const panne = { getItem: () => { throw new Error('refus'); }, setItem: () => { throw new Error('plein'); } };
+      v.egal('stockage absent ou en erreur', [reponse.lireRepli(null, 'mur-led-resume', 'ouvert'), reponse.lireRepli(panne, 'mur-led-resume', 'ouvert'),
+        reponse.garderRepli(null, 'mur-led-resume', 'ferme'), reponse.garderRepli(panne, 'mur-led-resume', 'ferme')], ['ouvert', 'ouvert', false, false]);
+    },
+  },
+  {
+    id: 'R479',
+    titre: 'Résumé et fiche du chef de projet (étape 28, spec § 3 et 8) : SYNTHESE, estGrave et lignesTexte exportés sans changer la fiche ; chaque ligne de sa synthèse (hors dalles et spares, et alertes graves) se retrouve dans la section de son onglet du résumé, dans le même ordre',
+    etape: '28a',
+    verifier(v, contexte) {
+      const textes = textesEssai(contexte);
+      v.egal('SYNTHESE exportée', fichesMetier.SYNTHESE.map(([o]) => o), ['mur', 'dalles', 'data', 'elec', 'poids']);
+      v.egal('estGrave et lignesTexte exportés', [fichesMetier.estGrave({ libelle: 'Refus', valeur: 'x' }), fichesMetier.estGrave({ libelle: 'Alerte', valeur: 'dépasse' }), fichesMetier.lignesTexte('DATA\nPorts : 4')],
+        [true, false, [{ libelle: 'Ports', valeur: '4' }]]);
+      const fiche = fichesMetier.ficheMetier('chefProjet', { presta: { nom: 'Presta A', murs: [] }, murs: [{ nom: 'Mur 1', fiche: { textes, calculeeLe: '2026-11-06T10:00:00.000Z' }, materiel: null }], date: new Date(2026, 10, 6, 12) });
+      const synthese = fiche.blocs[0].lignes.filter((l) => !l.titre && !['Alertes graves', 'Matériel', 'Dalles et spares'].includes(l.libelle)).map((l) => `${l.libelle} : ${l.valeur}`);
+      const r = reponse.resumeDuMur({ textes, chiffres: null, materiel: null, terrain: null });
+      const duResume = r.sections.filter((s) => ['mur', 'data', 'elec', 'poids'].includes(s.onglet)).flatMap((s) => s.lignes.map((l) => `${l.libelle} : ${l.valeur}`));
+      v.egal('synthèse retrouvée dans le résumé, même ordre', duResume.filter((l) => synthese.includes(l)), synthese);
+      v.egal('fiche du chef de projet : lignes d\'avant l\'étape', synthese.length, 11);
+    },
+  },
+  {
+    id: 'R480',
+    titre: 'Chiffres clés de Data et d\'Élec pour le résumé (étape 28, lot 28b, spec § 8) : processeurs (« 1 × S8 », « 1 × MCTRL660 Pro + 1 de secours »), ports retenus, ports avec la redondance dans le même processeur, port le plus chargé, Ma config ; lignes retenues, ligne la plus chargée et son départ U × I ; les chiffres affichés par les onglets, null sans calcul',
+    etape: '28b',
+    verifier(v, contexte) {
+      if (!reponse.chiffresData || !reponse.chiffresElec) {
+        v.vrai('chiffresData et chiffresElec exportées par src/reponse.js', false);
+        return;
+      }
+      const x = xBp2(contexte, 'brompton-s8', 12, 6, { bits: 10 });
+      const d = reponse.chiffresData(x.e);
+      // Calcul à la main : 176 × 176 = 30 976 px par dalle, 420 000 px par port en 10 bits, 13 dalles par port, donc 2 colonnes
+      // de 6 dalles par port : 6 ports, 12 × 30 976 / 420 000 = 88,5 %.
+      v.egal('BP2 V2 12 × 6 sur S8 en 10 bits : 1 × S8, 6 ports, 88,5 %', [d.processeurs, d.ports, d.portsRedondance, nombre(d.chargeMax * 100, 1), d.impose], ['1 × S8', 6, null, '88,5', false]);
+      v.egal('… ceux des chiffres clés de Data (colonnes entières)', [d.ports, d.chargeMax], [x.e.global.colonnes.ports, x.e.global.chargeMax.colonnes.taux]);
+      const red = xBp2(contexte, 'brompton-s8', 12, 6, { bits: 10, redondance: true }).e;
+      const dr = reponse.chiffresData(red);
+      v.egal('redondance dans le même processeur : ports doublés, comme le texte copié', [dr.ports, dr.portsRedondance], [red.global.colonnes.ports, red.global.redondance.colonnes]);
+      v.vrai('… plus que les ports principaux', dr.portsRedondance > dr.ports, [dr.ports, dr.portsRedondance]);
+      const sec = reponse.chiffresData(exercice(contexte, 8, 6, 'novastar-mctrl660-pro', { redondance: true, secours: 'processeur' }).e);
+      v.egal('secours par un second processeur : processeurs, ports non doublés', [sec.processeurs, sec.portsRedondance], ['1 × MCTRL660 Pro + 1 de secours', null]);
+      const ex = exercice(contexte);
+      const t = imposerData(contexte, ex, { ports: 2 });
+      const vi = varianteImposee(t);
+      const di = reponse.chiffresData(ex.e, { variante: vi, resume: t.imposee });
+      v.egal('Ma config imposée : ses ports et sa charge, sans « avec la redondance »', [di.ports, nombre(di.chargeMax * 100, 1), di.portsRedondance, di.impose], [2, '45,4', null, true]);
+      const r = calculs.electricite(x.m, x.dalle, {});
+      const e = reponse.chiffresElec(r);
+      // Calcul à la main : P max retenue 190 W, ligne utile 220 V × 16 A × 80 % = 2 816 W, 14 dalles, donc 2 colonnes de 6 dalles
+      // par ligne : 6 lignes de 12 × 190 = 2 280 W, sur un départ de 220 × 16 = 3 520 W.
+      v.egal('Élec : 6 lignes, 2 280 W sur 3 520 W', [e.lignes, e.ligneMaxW, e.departW, e.impose], [6, 2280, 3520, false]);
+      // Ma config de 12 lignes : une colonne de 6 dalles par ligne, 6 × 190 = 1 140 W.
+      const te = calculs.cablageElec(x.m, x.dalle, r, { imposee: { lignes: 12 } });
+      const ve = te.variantes.find((y) => y.mode === 'imposee');
+      const ei = reponse.chiffresElec(r, { variante: ve, resume: te.imposee });
+      v.egal('Élec, 12 lignes imposées (possible) : 1 140 W sur 3 520 W', [te.imposee?.possible, ei.lignes, ei.ligneMaxW, ei.departW, ei.impose], [true, 12, 1140, 3520, true]);
+      v.egal('sans calcul : null', [reponse.chiffresData(null), reponse.chiffresElec(null)], [null, null]);
+    },
+  },
 ];
+
+// Textes copiés d'un mur de BP2 V2 sur processeur Brompton (étape 28), comme les onglets les copient (60 Hz, profondeur réseau du calcul).
+function textesBp2(contexte, x) {
+  const liaisons = liaisonsDeBase(contexte);
+  const source = { ...calculs.sourceConseillee(x.e, liaisons, 60), bits: x.e.reglages.bits, espace: 'RGB', plage: 'Full' };
+  const c = calculs.controleSource(source, x.e, liaisons, { famille: 'brompton', bitsReseau: x.e.reglages.bits, frequenceHz: 60 });
+  return {
+    mur: resumes.resumeMur({ dalle: x.dalle, mur: x.m }),
+    data: resumes.resumeData(x.e, {}),
+    canvas: resumes.resumeCanvas(c, { evaluation: x.e, source }),
+    elec: resumes.resumeElec(calculs.electricite(x.m, x.dalle, {}), { dalle: x.dalle, mur: x.m }),
+    poids: resumes.resumePoids(calculs.poids(x.m, x.dalle, {}), { dalle: x.dalle, mur: x.m }),
+  };
+}

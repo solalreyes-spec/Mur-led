@@ -21,9 +21,13 @@ import {
 } from './fiches.js';
 import { listerFichiers } from './stockage.js';
 import { rappelsConfig } from './rappels.js';
+import { chiffresData } from './reponse.js';
+import { monterReglages } from './reglages.js';
 
 const formulaire = document.getElementById('form-data');
 const zone = document.getElementById('resultats-data');
+// Bloc « Réglages » (étape 28, lot 28b) : ligne de titre refaite à la fin de chaque calcul.
+let blocReglages = null;
 
 let processeurs = [];
 // Fiches d'information (VX4, MCTRL610) : grisées dans le choix du processeur.
@@ -779,6 +783,12 @@ export function resumeOngletData() {
   return dernier ? resumeData(dernier.choisie, dernier) : null;
 }
 
+// Chiffres clés affichés (étape 28, spec § 8) : { processeurs, ports, portsRedondance, chargeMax, impose }, null sans
+// calcul valide.
+export function chiffresClesData() {
+  return dernier?.chiffres ?? null;
+}
+
 // Calcule et affiche ; renvoie le processeur retenu (ou null) pour l'onglet Canvas.
 function calculer(e) {
   dernier = null;
@@ -932,6 +942,8 @@ function calculer(e) {
     configs,
     reseau,
     quantiteParc,
+    // Chiffres clés affichés (étape 28), pour le résumé du mur.
+    chiffres: chiffresData(choisie, impose),
   };
   remplacer(zone, recap,
     ...alertes,
@@ -969,6 +981,9 @@ function mettreAJour() {
     // Réseau Brompton saisi (19b), pour la liaison du SX40 à ses XD dans la chaîne du Schéma.
     reseau: e.reseau,
   });
+  // Ligne de titre des Réglages : après le calcul (profondeur remise au changement de marque, distributeur et secours
+  // montrés ou cachés), ouverte d'elle-même sur une saisie invalide du bloc (étape 28).
+  blocReglages?.actualiser();
 }
 
 // `base` : { processeurs, distributeurs, sources } déjà résolus. `rappel(etat)` reçoit le processeur retenu
@@ -994,6 +1009,7 @@ export function initialiserData(base, rappel = () => {}, { surConfigImposee = ()
     formulaire.dispatchEvent(new Event('change', { bubbles: true }));
   });
   formulaire.addEventListener('submit', (evenement) => evenement.preventDefault());
+  blocReglages = monterReglages(id('reglages-data'), { onglet: 'data' });
   initialiserChoixProcesseur();
   // Luminosité maxi : le choix est retenu dans le champ caché dès « input », avant le recalcul.
   for (const type of ['input', 'change']) {

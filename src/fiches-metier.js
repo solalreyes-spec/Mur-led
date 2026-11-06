@@ -37,7 +37,7 @@ function enLigne(texte) {
   return i < 0 ? { libelle: '', valeur: texte } : { libelle: texte.slice(0, i), valeur: texte.slice(i + 3) };
 }
 // Lignes d'un texte copié, sans son titre (première ligne : « POIDS : indicatif… », « DATA »…).
-const lignesTexte = (texte) => String(texte).split('\n').slice(1).filter((l) => l.trim()).map(enLigne);
+export const lignesTexte = (texte) => String(texte).split('\n').slice(1).filter((l) => l.trim()).map(enLigne);
 
 // Lignes de Data utiles à la régie : processeurs, réglages, processeur n° i (et sa sortie dans la pixel map, ses zones),
 // mapping, découpage, réglage des zones, config imposée (ports, fibre, refus ; étape 18c3) ; ni capacités, ni ports du
@@ -74,11 +74,11 @@ const materielOuManque = (materiel, titre, id) => (materiel?.liste
 // ou « ne passe pas » (phase, maximum en accroche, liaison, charge, courant d'appel), manques de stock du parc (15b ; les
 // spares incomplets restent une alerte du Mur) ; les alertes, notes et rappels
 // restent sur la fiche de leur métier. Une même ligne une fois.
-const estGrave = (l) => ['Refus', 'Impossible', 'Manque de stock'].includes(l.libelle)
+export const estGrave = (l) => ['Refus', 'Impossible', 'Manque de stock'].includes(l.libelle)
   || (!['Alerte', 'Note', 'Rappel'].includes(l.libelle) && /(^|, )(dépasse|dépassé|ne passe pas)(?=$|[ ,(])/.test(l.valeur));
 
 // Synthèse du chef de projet : quelques lignes de chaque onglet, les dalles et spares de la liste, les alertes graves.
-const SYNTHESE = [
+export const SYNTHESE = [
   ['mur', ['Dalle', 'Dalles', 'Demi-dalles', 'Zones', 'Taille', 'Taille réelle', 'Taille développée', 'Résolution', 'Pixel map']],
   ['dalles'],
   ['data', ['Processeur', 'Redondance', 'Ports en colonnes entières', 'Ports avec la redondance', 'Ports', 'Fibre (imposée)', 'Config imposée refusée']],

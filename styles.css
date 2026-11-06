@@ -683,6 +683,65 @@ main, main section, .carte, details, .champ, .resultats, .bloc-resultats { min-w
 .etat-ma-config .alerte { margin: 0; }
 .conseil-impose { color: var(--texte-doux); font-size: 0.875rem; margin: 4px 0 0; overflow-wrap: anywhere; }
 
+/* Réponse d'abord (étape 28, lot 28b) : bloc « Réglages » replié à la fin des formulaires de Data, Élec et Canvas. Ligne de
+   titre de 48 px (60 en grand affichage) : « Réglages » puis les réglages en cours en texte doux, séparés par « · », qui
+   passent à la ligne ; saisie illisible en couleur d'alerte. Les champs sont dans un conteneur .formulaire (la grille du
+   formulaire ne traverse pas le details, et Safari applique mal un display posé sur un details). */
+.reglages { border-top: 1px solid var(--bordure); min-width: 0; }
+.reglages > summary {
+  display: flex; align-items: center; min-height: var(--cible); padding: 6px 0; cursor: pointer; list-style: none; overflow-wrap: anywhere;
+}
+.reglages > summary::-webkit-details-marker { display: none; }
+.reglages-texte { min-width: 0; line-height: 1.35; }
+/* Marqueur dans la ligne, devant « Réglages » : les lignes suivantes repartent du bord. */
+.reglages-titre { font-weight: 600; }
+.reglages-titre::before { content: "▸"; content: "▸" / ""; display: inline-block; width: 1.1em; font-size: 1.2em; line-height: 1; color: var(--famille); }
+.reglages[open] .reglages-titre::before { content: "▾"; content: "▾" / ""; }
+.reglages-ligne { color: var(--texte-doux); font-size: 0.875rem; }
+.reglages-ligne .insecable { white-space: nowrap; }
+.reglages-alerte { color: var(--alerte); font-weight: 600; }
+.reglages[open] > summary { margin-bottom: 8px; }
+.reglages > .formulaire { padding-bottom: 6px; }
+
+/* Carte « Résumé » de l'onglet Mur (étape 28, lot 28c) : repliable, fermée la première fois. Ligne de titre de 48 px (60 en
+   grand affichage) : « Résumé » puis les chiffres clés en texte doux, séparés par « · », qui passent à la ligne, alerte
+   grave en couleur d'échec. Ouverte : une section par onglet (titre, lien « Data › » de 48 px), lignes « Libellé :
+   valeur », alertes graves, copie. Sans classe reprise par les bancs (.tuiles, .chiffre-groupe, .resultat-principal…). */
+.resume-mur {
+  margin: 0 0 16px; padding: 0 16px; background: var(--surface); border: 1px solid var(--bordure); border-top-color: var(--lisere);
+  border-radius: 14px; min-width: 0;
+}
+.resume-mur > summary {
+  display: flex; align-items: center; min-height: var(--cible); padding: 6px 0; cursor: pointer; list-style: none; overflow-wrap: anywhere;
+}
+.resume-mur > summary::-webkit-details-marker { display: none; }
+.resume-texte { min-width: 0; line-height: 1.35; }
+.resume-titre { font-weight: 600; }
+.resume-titre::before { content: "▸"; content: "▸" / ""; display: inline-block; width: 1.1em; font-size: 1.2em; line-height: 1; color: var(--famille); }
+.resume-mur[open] .resume-titre::before { content: "▾"; content: "▾" / ""; }
+.resume-chiffres { color: var(--texte-doux); font-size: 0.875rem; }
+.resume-morceau, .resume-grave-titre { white-space: nowrap; }
+.resume-grave-titre { color: var(--echec); font-weight: 600; }
+.resume-contenu { padding-bottom: 12px; }
+.resume-section { border-top: 1px solid var(--bordure); padding: 2px 0 8px; min-width: 0; }
+.resume-entete { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--cible); }
+.resume-nom { margin: 0; font-weight: 600; color: var(--famille); }
+.resume-indicatif { color: var(--texte-doux); font-weight: 400; font-size: 0.875rem; }
+.resume-lien {
+  display: inline-flex; align-items: center; justify-content: flex-end; flex: none; min-height: var(--cible); min-width: var(--cible); padding: 0 4px;
+  color: var(--famille); background: none; border: 0; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer;
+}
+.resume-info, .resume-grave-texte { margin: 2px 0; line-height: 1.4; overflow-wrap: anywhere; }
+.resume-libelle, .resume-doux, .resume-note { color: var(--texte-doux); }
+.resume-grave-ligne { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.resume-grave-texte { flex: 1; min-width: 0; }
+.resume-grave { color: var(--echec); font-weight: 600; }
+.resume-non-valide { margin: 4px 0 8px; color: var(--echec); font-weight: 600; }
+.resume-note { margin: 8px 0 0; font-size: 0.875rem; }
+.resume-copie { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.resume-etat { color: var(--texte-doux); font-size: 0.875rem; }
+.resume-etat:empty { display: none; }
+
 .fiche summary {
   display: flex;
   align-items: center;

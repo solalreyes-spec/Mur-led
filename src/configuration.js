@@ -5,6 +5,7 @@
 
 import { lire, ecrire } from './stockage.js';
 import { sourceEstModifiee, definirSourceModifiee } from './ecran-canvas.js';
+import { debutReprise, finReprise } from './reglages.js';
 
 const CLE = 'configuration';
 // Version 2 : défaut Brompton passé à 12 bits ; la profondeur réseau gardée par une version précédente (souvent
@@ -92,16 +93,22 @@ export async function restaurerConfiguration(donnee = undefined) {
   if (schema?.distanceArmoireM && !config.formulaires['form-distribution']) {
     config = { ...config, formulaires: { ...config.formulaires, 'form-distribution': { distanceArmoireM: schema.distanceArmoireM } } };
   }
-  for (let passe = 0; passe < 2; passe += 1) {
-    for (const f of formulaires()) {
-      const valeurs = config.formulaires[f.id];
-      if (!valeurs) continue;
-      let garder;
-      if (f.id === 'form-source' && !config.sourceModifiee) garder = (nom) => !CHAMPS_SOURCE.has(nom);
-      if (f.id === 'form-data' && (config.version ?? 1) < 2) garder = (nom) => nom !== 'bits';
-      ecrireFormulaire(f, valeurs, garder);
-      recalculer(f);
+  // Blocs « Réglages » (étape 28) : pas d'ouverture d'elle-même pendant les passes, seulement sur les saisies reprises.
+  debutReprise();
+  try {
+    for (let passe = 0; passe < 2; passe += 1) {
+      for (const f of formulaires()) {
+        const valeurs = config.formulaires[f.id];
+        if (!valeurs) continue;
+        let garder;
+        if (f.id === 'form-source' && !config.sourceModifiee) garder = (nom) => !CHAMPS_SOURCE.has(nom);
+        if (f.id === 'form-data' && (config.version ?? 1) < 2) garder = (nom) => nom !== 'bits';
+        ecrireFormulaire(f, valeurs, garder);
+        recalculer(f);
+      }
     }
+  } finally {
+    finReprise();
   }
   return true;
 }
@@ -111,13 +118,19 @@ function remettreDefauts() {
   definirSourceModifiee(false);
   // Le parc actif n'est pas une saisie : il reste tel quel.
   const parcs = [...document.querySelectorAll('.selecteur-parc')].map((s) => [s, s.value]);
-  for (let passe = 0; passe < 2; passe += 1) {
-    for (const f of formulaires()) {
-      f.reset();
-      if (defauts?.[f.id]) ecrireFormulaire(f, defauts[f.id]);
-      for (const [select, valeur] of parcs) select.value = valeur;
-      recalculer(f);
+  // Blocs « Réglages » (étape 28) : leur repli ne change pas ; pas d'ouverture d'elle-même pendant les passes.
+  debutReprise();
+  try {
+    for (let passe = 0; passe < 2; passe += 1) {
+      for (const f of formulaires()) {
+        f.reset();
+        if (defauts?.[f.id]) ecrireFormulaire(f, defauts[f.id]);
+        for (const [select, valeur] of parcs) select.value = valeur;
+        recalculer(f);
+      }
     }
+  } finally {
+    finReprise();
   }
   clearTimeout(minuterie);
   minuterie = null;

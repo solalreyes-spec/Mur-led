@@ -12,9 +12,12 @@ import { resumeCanvas } from './resumes.js';
 import { texteProcesseurs } from './secours.js';
 import { pixelMapEnCanvas, canvasEnPng, modeEnregistrement, enregistrer, telecharger } from './export.js';
 import { preparerMires, dessinerMire, pngRvb } from './mire.js';
+import { monterReglages } from './reglages.js';
 
 const formulaire = document.getElementById('form-source');
 const zone = document.getElementById('resultats-canvas');
+// Bloc « Réglages » (étape 28, lot 28b) : ligne de titre refaite à la fin de chaque contrôle.
+let blocReglages = null;
 
 let liaisons = [];
 let regies = [];
@@ -292,6 +295,9 @@ export function chaineAffichee() {
 function mettreAJour() {
   controler();
   surChaine(chaineAffichee());
+  // Ligne de titre des Réglages : après le contrôle, qui écrit la source conseillée (fréquence, liaison) sans événement
+  // de saisie ; ouverte d'elle-même sur une saisie invalide du bloc (étape 28).
+  blocReglages?.actualiser();
 }
 
 function controler() {
@@ -510,6 +516,11 @@ export function initialiserCanvas(base, { surSortieModifiee = () => {}, surChain
   }
   for (const bloc of formulaire.querySelectorAll('[data-base-convertisseurs]')) bloc.hidden = appareils.convertisseurs.length === 0;
   remplirRegies(base.erreurRegies);
+  // Noms de la liaison, de la régie et de la source pour la ligne de titre des Réglages (étape 28).
+  blocReglages = monterReglages(document.getElementById('reglages-canvas'), {
+    onglet: 'canvas',
+    listes: () => ({ liaisons, regies, sources: [...(appareils.melangeurs ?? []), ...(appareils.serveurs ?? [])] }),
+  });
   const surSaisie = (evenement) => {
     if (CHAMPS_SOURCE.includes(evenement.target.name)) sourceModifiee = true;
     mettreAJour();

@@ -11,9 +11,10 @@ import { surveillerOnglets } from './onglets.js';
 import { initialiserMur, actualiserMur, signalerErreurMur, resumeOngletMur } from './ecran-mur.js';
 import {
   initialiserData, actualiserData, murModifie, definirDepartData, processeurRetenu, resumeOngletData, definirNovaLCT, configsNovaLCT, entreesTerrainData,
+  chiffresClesData,
 } from './ecran-data.js';
 import { initialiserCanvas, actualiserRegies, donneesModifiees, resumeOngletCanvas, sourceAffichee, controleAffiche } from './ecran-canvas.js';
-import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec, resumeOngletElec, resultatElec } from './ecran-elec.js';
+import { initialiserElec, murModifiePourElec, definirDepartElec, definirModeElec, resumeOngletElec, resultatElec, chiffresClesElec } from './ecran-elec.js';
 import {
   initialiserSchema, murModifiePourSchema, dataModifieePourSchema, elecModifiePourSchema, definirModeMur, effacerMontage, actualiserAffichageSchema, revenirAMaConfig,
   cablageRetenu, sortieModifieePourSchema, chaineModifieePourSchema, definirStockageMontage, rechargerMontage, entreesMateriel, dessinPortNovaLCT,
@@ -41,6 +42,8 @@ import { METIERS, ficheMetier, texteFiche, nomFichierFiche } from './fiches-meti
 import { pdfFiche } from './pdf.js';
 import { enregistrer, fichierTexte } from './export.js';
 import { initialiserCopie, copier } from './copie.js';
+import { resumeDuMur } from './reponse.js';
+import { monterResume } from './ecran-resume.js';
 import { resumeMateriel } from './resumes.js';
 import { monterDepannage, marqueDuProcesseur } from './ecran-depannage.js';
 import { monterMireFiche } from './ecran-mire.js';
@@ -174,6 +177,46 @@ window.addEventListener('hashchange', () => {
   window.scrollTo(0, 0);
 });
 afficherOnglet();
+
+// Carte « Résumé » de l'onglet Mur (étape 28, lot 28c, spec § 5.3) : refaite, sans rien enregistrer, seulement quand
+// l'onglet Mur est affiché (#mur sans hidden) : à l'ouverture de l'appli, à l'arrivée sur Mur, à l'ouverture d'un autre
+// mur, après un changement de parc ou de base, à la fermeture des écrans Terrain, Prestas, Matériel et Fiches, et 400 ms
+// après le dernier calcul que le Mur transmet aux autres onglets (jamais sur la frappe : les textes des onglets seraient
+// ceux d'avant). Dalles et spares : listeMateriel du mur seul, jamais entreesMateriel (le Schéma caché ne se calcule pas).
+let ecranResume = null;
+let etatMurResume = null;
+let minuterieResume = null;
+const ATTENTE_RESUME_MS = 400;
+function actualiserResume() {
+  clearTimeout(minuterieResume);
+  if (!ecranResume || document.getElementById('mur').hidden) return;
+  const textes = { mur: resumeOngletMur(), data: resumeOngletData(), canvas: resumeOngletCanvas(), elec: resumeOngletElec(), poids: resumeOngletPoids() };
+  const presta = prestas.prestaOuverte(etatPrestas);
+  const mur = prestas.murOuvert(etatPrestas);
+  const e = etatMurResume;
+  let materiel = null;
+  if (textes.mur && e?.mur && e.dalle && !e.erreurs?.length) {
+    try {
+      materiel = listeMateriel({ mur: e.mur, dalle: e.dalle, sparesPourcent: prestas.materielPresta(presta).sparesPourcent });
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaisie)) throw erreur;
+    }
+  }
+  const t = mur ? prestas.terrainMur(etatPrestas, mur.id) : null;
+  ecranResume.afficher(resumeDuMur({
+    textes,
+    chiffres: { data: chiffresClesData(), elec: chiffresClesElec() },
+    materiel,
+    terrain: t ? { etat: t.etat, pannes: terrain.pannesDe(t) } : null,
+  }), { presta, mur });
+}
+// Rappel du Mur, après la propagation aux autres onglets.
+function resumeApresMur(etat) {
+  etatMurResume = etat;
+  clearTimeout(minuterieResume);
+  minuterieResume = setTimeout(actualiserResume, ATTENTE_RESUME_MS);
+}
+window.addEventListener('hashchange', () => actualiserResume());
 
 // Planning des piges (étape 23, lot 23c1) : monté avant la base, il ne dépend d'aucune donnée du mur. Lecture par le
 // relais à l'ouverture de l'appli, au retour sur l'appli et à l'ouverture de l'onglet (si la dernière a plus de 15 min).
@@ -624,6 +667,7 @@ function appliquer() {
     actualiserMur(pourMur());
   }
   actualiserEcranBase({ base, depart, fusion: courant.fusion, parcActif, persistant });
+  actualiserResume();
 }
 
 // Enregistre ma nouvelle base ; renvoie false si le stockage local n'a pas pu l'écrire.
@@ -685,6 +729,7 @@ if (depart.dalles) {
     murModifiePourElec(etat);
     murModifiePourPoids(etat);
     murModifiePourSchema(etat);
+    resumeApresMur(etat);
   });
 }
 initialiserBase({ base, depart, fusion: courant.fusion, parcActif, persistant }, enregistrerBase);
@@ -898,6 +943,7 @@ async function ouvrirMurCourant() {
   await appliquerConfiguration(prestas.murOuvert(etatPrestas)?.configuration ?? null);
   await rechargerMontage();
   alertesMurOuvert();
+  actualiserResume();
 }
 // Liste de matériel du mur ouvert (étape 13b) : calculée sur les résultats affichés (Mur, Data, câblage retenu du
 // Schéma, distribution d'Élec, Poids) et gardée avec lui. Calculée à l'ouverture de Prestas ou de Matériel et avant de
@@ -960,6 +1006,7 @@ function fermerPrestas() {
   if (panneauPrestas.hidden) return false;
   panneauPrestas.hidden = true;
   document.body.classList.remove('montage-ouvert');
+  actualiserResume();
   return true;
 }
 function ouvrirPrestas() {
@@ -1088,6 +1135,7 @@ function fermerMateriel() {
   panneauMateriel.hidden = true;
   vueMateriel = null;
   if (panneauPrestas.hidden) document.body.classList.remove('montage-ouvert');
+  actualiserResume();
   return true;
 }
 const ecranMateriel = monterMateriel(document.getElementById('ecran-materiel'), {
@@ -1172,6 +1220,7 @@ function fermerFiches() {
   panneauFiches.hidden = true;
   vueFiches = null;
   if (panneauPrestas.hidden) document.body.classList.remove('montage-ouvert');
+  actualiserResume();
   return true;
 }
 const ecranFiches = monterFiches(document.getElementById('ecran-fiches'), {
@@ -1371,6 +1420,7 @@ function fermerTerrain() {
     // Rien à faire : le navigateur a déjà relâché l'écran.
   }
   verrouTerrain = null;
+  actualiserResume();
   return true;
 }
 const ecranTerrain = monterTerrain(document.getElementById('ecran-terrain'), {
@@ -1460,6 +1510,18 @@ releverDefauts();
 await restaurerConfiguration(prestas.murOuvert(etatPrestas)?.configuration ?? null);
 suivreConfiguration();
 alertesMurOuvert();
+ecranResume = monterResume(document.getElementById('resume-mur'), {
+  copier,
+  actions: {
+    materiel: () => {
+      const presta = prestas.prestaOuverte(etatPrestas);
+      const mur = prestas.murOuvert(etatPrestas);
+      if (presta && mur) ouvrirMateriel(presta.id, mur.id);
+    },
+    terrain: () => ouvrirTerrain(),
+  },
+});
+actualiserResume();
 initialiserCopie({
   lignePresta: () => {
     const p = prestas.prestaOuverte(etatPrestas);

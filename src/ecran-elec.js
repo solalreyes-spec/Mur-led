@@ -9,9 +9,13 @@ import { barreCharge } from './look.js';
 import { alertesSansManques, ligneManques } from './manques.js';
 import { resumeElec, lignesParZone, lignesDistribution, texteLongueurCable } from './resumes.js';
 import { carteSaisieArrivee, sectionArrivees, versArrivee, nouvelleSaisieArrivee } from './ecran-arrivees.js';
+import { chiffresElec } from './reponse.js';
+import { monterReglages } from './reglages.js';
 
 const formulaire = document.getElementById('form-elec');
 const zone = document.getElementById('resultats-elec');
+// Bloc « Réglages » (étape 28, lot 28b) : ligne de titre refaite à la fin de chaque calcul.
+let blocReglages = null;
 // Distribution (étape 12b) : son formulaire, gardé avec le mur, ses résultats ; puis courant d'appel et rappels.
 const formDistribution = document.getElementById('form-distribution');
 const zoneDistribution = document.getElementById('resultats-distribution');
@@ -331,7 +335,19 @@ export function resumeOngletElec() {
   return dernier ? resumeElec(dernier.r, dernier) : null;
 }
 
+// Chiffres clés affichés (étape 28, spec § 8) : { lignes, ligneMaxW, departW, impose }, null sans calcul valide.
+export function chiffresClesElec() {
+  return dernier?.chiffres ?? null;
+}
+
+// Calcul, puis la ligne de titre des Réglages, ouverte d'elle-même sur une saisie invalide du bloc (étape 28) : à la fin
+// de chaque calcul, quelle que soit sa sortie (mur non valide, saisie refusée).
 function mettreAJour() {
+  calculer();
+  blocReglages?.actualiser();
+}
+
+function calculer() {
   dernier = null;
   afficherMaConfig(null);
   const e = lireFormulaire();
@@ -424,7 +440,7 @@ function mettreAJour() {
 
   const impose = cablage?.imposee?.possible ? { variante: cablage.variantes.find((x) => x.mode === 'imposee'), resume: cablage.imposee } : null;
   afficherMaConfig(cablage?.imposee ?? null, impose, r);
-  dernier = { r, dalle, mur, distribution: distribution?.d ?? null, imposee: cablage?.imposee ?? null, repartition, arrivees };
+  dernier = { r, dalle, mur, distribution: distribution?.d ?? null, imposee: cablage?.imposee ?? null, repartition, arrivees, chiffres: chiffresElec(r, impose) };
   publier({ r, dalle, mur, distribution: reglagesDistribution, imposee: e.imposee, arrivees, manuel: arrivees ? choixLignes() : null });
   const alertesElec = arrivees ? sansAlertesArrivee(r.alertes) : r.alertes;
   const surChoix = (dalle1, id) => {
@@ -546,6 +562,7 @@ export function initialiserElec(rappel = () => {}, { surConfigImposee = () => {}
   document.getElementById('ajouter-arrivee').addEventListener('click', () => {
     garder('autresArrivees', [...saisiesArrivees(), nouvelleSaisieArrivee(`arr-${Date.now().toString(36)}`)]);
   });
+  blocReglages = monterReglages(document.getElementById('reglages-elec'), { onglet: 'elec' });
   preparerArrivee(lireFormulaire().type);
 }
 

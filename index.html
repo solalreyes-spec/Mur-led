@@ -79,6 +79,11 @@
       <h2 id="titre-mur" class="cache-visuel">Dimensionnement du mur</h2>
       <p class="alerte alerte-info bandeau-donnees">Données de départ relevées sur des fiches constructeur, des loueurs ou des bases tierces, chacune avec sa source. Vérifie la fiche officielle de ta dalle avant une presta.</p>
       <div id="alertes-mur-ouvert" class="alertes-mur-ouvert" aria-live="polite"></div>
+      <!-- Résumé du mur ouvert (étape 28, lot 28c) : repliable, rempli par src/ecran-resume.js. -->
+      <details id="resume-mur" class="resume-mur">
+        <summary><span class="resume-texte"><span class="resume-titre">Résumé</span><span class="resume-chiffres"></span></span></summary>
+        <div class="resume-contenu"></div>
+      </details>
 
       <form id="form-mur" class="carte formulaire" novalidate>
         <div class="champ">
@@ -238,140 +243,148 @@
           <select id="processeur" name="processeur" hidden></select>
         </fieldset>
 
-        <div class="paire">
-          <div class="champ">
-            <label for="frequence">Fréquence (Hz)</label>
-            <input id="frequence" name="frequence" inputmode="decimal" autocomplete="off" value="60">
-          </div>
-          <fieldset class="segmente">
-            <legend>Bit depth réseau</legend>
-            <div class="segments">
-              <label><input type="radio" name="bits" value="8" checked><span>8</span></label>
-              <label><input type="radio" name="bits" value="10"><span>10</span></label>
-              <label><input type="radio" name="bits" value="12"><span>12</span></label>
+        <!-- Réponse d'abord (étape 28, lot 28b) : réglages secondaires repliés sous une ligne de titre qui les résume,
+             tenue par src/reglages.js ; ni data-famille ni hidden sur le bloc, champs dans un conteneur .formulaire. -->
+        <details id="reglages-data" class="reglages">
+          <summary><span class="reglages-texte"><span class="reglages-titre">Réglages</span><span class="cache-visuel">, </span> <span class="reglages-ligne"></span></span></summary>
+          <div class="formulaire">
+            <div class="paire">
+              <div class="champ">
+                <label for="frequence">Fréquence (Hz)</label>
+                <input id="frequence" name="frequence" inputmode="decimal" autocomplete="off" value="60">
+              </div>
+              <fieldset class="segmente">
+                <legend>Bit depth réseau</legend>
+                <div class="segments">
+                  <label><input type="radio" name="bits" value="8" checked><span>8</span></label>
+                  <label><input type="radio" name="bits" value="10"><span>10</span></label>
+                  <label><input type="radio" name="bits" value="12"><span>12</span></label>
+                </div>
+              </fieldset>
             </div>
-          </fieldset>
-        </div>
-        <!-- Luminosité maxi du fichier NovaLCT (étape 20) : visible quand un lot du mur a des fichiers de luminosités
-             différentes ; la valeur retenue est gardée dans le champ caché (les choix de la liste changent). -->
-        <div id="bloc-luminosite" class="champ" hidden>
-          <label for="luminosite-choix">Luminosité maxi</label>
-          <select id="luminosite-choix"></select>
-        </div>
-        <input type="hidden" name="luminosite" value="">
+            <!-- Luminosité maxi du fichier NovaLCT (étape 20) : visible quand un lot du mur a des fichiers de luminosités
+                 différentes ; la valeur retenue est gardée dans le champ caché (les choix de la liste changent), dans le bloc :
+                 caché avec lui, il ne compte pas dans la ligne de titre des Réglages (étape 28). -->
+            <div id="bloc-luminosite" class="champ" hidden>
+              <label for="luminosite-choix">Luminosité maxi</label>
+              <select id="luminosite-choix"></select>
+              <input type="hidden" name="luminosite" value="">
+            </div>
 
-        <label class="case"><input type="checkbox" name="redondance"><span>Redondance (ports doublés)</span></label>
-        <!-- Secours par un second processeur (étape 22) : avec la redondance, pour la marque Novastar ou un processeur
-             réglé dans NovaLCT ; cachés, les choix gardent leur valeur et ne comptent pas. -->
-        <div id="bloc-secours" class="groupe-secours" hidden>
-          <fieldset class="segmente">
-            <legend>Secours</legend>
-            <div class="segments">
-              <label><input type="radio" name="secours" value="ports" checked><span>Dans le même processeur (ports doublés)</span></label>
-              <label><input type="radio" name="secours" value="processeur"><span>Par un second processeur</span></label>
+            <label class="case"><input type="checkbox" name="redondance"><span>Redondance (ports doublés)</span></label>
+            <!-- Secours par un second processeur (étape 22) : avec la redondance, pour la marque Novastar ou un processeur
+                 réglé dans NovaLCT ; cachés, les choix gardent leur valeur et ne comptent pas. -->
+            <div id="bloc-secours" class="groupe-secours" hidden>
+              <fieldset class="segmente">
+                <legend>Secours</legend>
+                <div class="segments">
+                  <label><input type="radio" name="secours" value="ports" checked><span>Dans le même processeur (ports doublés)</span></label>
+                  <label><input type="radio" name="secours" value="processeur"><span>Par un second processeur</span></label>
+                </div>
+              </fieldset>
+              <fieldset id="bloc-liaison-secours" class="segmente" hidden>
+                <legend>Liaison des deux processeurs</legend>
+                <div class="segments">
+                  <label><input type="radio" name="liaisonSecours" value="sansCascade" checked><span>Sans cascade (Primary et Backup)</span></label>
+                  <label><input type="radio" name="liaisonSecours" value="cascade"><span>Cascade (tableau)</span></label>
+                </div>
+              </fieldset>
             </div>
-          </fieldset>
-          <fieldset id="bloc-liaison-secours" class="segmente" hidden>
-            <legend>Liaison des deux processeurs</legend>
-            <div class="segments">
-              <label><input type="radio" name="liaisonSecours" value="sansCascade" checked><span>Sans cascade (Primary et Backup)</span></label>
-              <label><input type="radio" name="liaisonSecours" value="cascade"><span>Cascade (tableau)</span></label>
-            </div>
-          </fieldset>
-        </div>
-        <label class="case" data-famille="brompton" hidden><input type="checkbox" name="ull"><span>ULL, Ultra Low Latency (capacité divisée par 2)</span></label>
-        <div id="bloc-distributeur" class="champ" data-famille="brompton" data-sx40 hidden>
-          <label for="distributeur">Distributeur du SX40</label>
-          <select id="distributeur" name="distributeur">
-            <option value="brompton-xd" selected>XD (10 ports 1G)</option>
-            <option value="brompton-xd-t">XD-T (10 ports sur 12 avec un SX40, fibre seulement)</option>
-            <option value="brompton-xd-s">XD-S (10 ports sur 12 avec un SX40, SFP+ 10GBASE-LR)</option>
-          </select>
-        </div>
-        <fieldset class="groupe" data-famille="brompton" hidden>
-          <legend>Réseau entre le processeur et les dalles</legend>
-          <div class="paire">
-            <div class="champ">
-              <label for="reseau-switches">Switches 1G</label>
-              <input id="reseau-switches" name="reseauSwitches" inputmode="numeric" autocomplete="off" value="0">
-            </div>
-            <div class="champ">
-              <label for="reseau-convertisseurs">Convertisseurs fibre</label>
-              <input id="reseau-convertisseurs" name="reseauConvertisseurs" inputmode="numeric" autocomplete="off" value="0">
-            </div>
-          </div>
-          <label class="case"><input type="checkbox" name="reseauManageable"><span>Switch manageable</span></label>
-          <label class="case"><input type="checkbox" name="reseau10G"><span>Switch en 10G entre le SX40 et ses XD</span></label>
-          <div class="paire">
-            <div class="champ">
-              <label for="fibre-mode">Fibre SX40 vers XD</label>
-              <select id="fibre-mode" name="fibreMode">
-                <option value="" selected>Pas de fibre</option>
-                <option value="monomode">Monomode</option>
-                <option value="multimode">Multimode</option>
+            <label class="case" data-famille="brompton" hidden><input type="checkbox" name="ull"><span>ULL, Ultra Low Latency (capacité divisée par 2)</span></label>
+            <div id="bloc-distributeur" class="champ" data-famille="brompton" data-sx40 hidden>
+              <label for="distributeur">Distributeur du SX40</label>
+              <select id="distributeur" name="distributeur">
+                <option value="brompton-xd" selected>XD (10 ports 1G)</option>
+                <option value="brompton-xd-t">XD-T (10 ports sur 12 avec un SX40, fibre seulement)</option>
+                <option value="brompton-xd-s">XD-S (10 ports sur 12 avec un SX40, SFP+ 10GBASE-LR)</option>
               </select>
             </div>
-            <div class="champ">
-              <label for="fibre-connecteur">Connecteurs</label>
-              <select id="fibre-connecteur" name="fibreConnecteur">
-                <option value="PC" selected>PC</option>
-                <option value="UPC">UPC</option>
-                <option value="APC">APC</option>
+            <fieldset class="groupe" data-famille="brompton" hidden>
+              <legend>Réseau entre le processeur et les dalles</legend>
+              <div class="paire">
+                <div class="champ">
+                  <label for="reseau-switches">Switches 1G</label>
+                  <input id="reseau-switches" name="reseauSwitches" inputmode="numeric" autocomplete="off" value="0">
+                </div>
+                <div class="champ">
+                  <label for="reseau-convertisseurs">Convertisseurs fibre</label>
+                  <input id="reseau-convertisseurs" name="reseauConvertisseurs" inputmode="numeric" autocomplete="off" value="0">
+                </div>
+              </div>
+              <label class="case"><input type="checkbox" name="reseauManageable"><span>Switch manageable</span></label>
+              <label class="case"><input type="checkbox" name="reseau10G"><span>Switch en 10G entre le SX40 et ses XD</span></label>
+              <div class="paire">
+                <div class="champ">
+                  <label for="fibre-mode">Fibre SX40 vers XD</label>
+                  <select id="fibre-mode" name="fibreMode">
+                    <option value="" selected>Pas de fibre</option>
+                    <option value="monomode">Monomode</option>
+                    <option value="multimode">Multimode</option>
+                  </select>
+                </div>
+                <div class="champ">
+                  <label for="fibre-connecteur">Connecteurs</label>
+                  <select id="fibre-connecteur" name="fibreConnecteur">
+                    <option value="PC" selected>PC</option>
+                    <option value="UPC">UPC</option>
+                    <option value="APC">APC</option>
+                  </select>
+                </div>
+              </div>
+              <div class="paire">
+                <div class="champ">
+                  <label for="cuivre-categorie">Cuivre 10G SX40 vers XD</label>
+                  <select id="cuivre-categorie" name="cuivreCategorie">
+                    <option value="" selected>Pas de cuivre 10G</option>
+                    <option value="Cat6A">Cat6A</option>
+                    <option value="Cat5e">Cat5e</option>
+                    <option value="Cat6">Cat6</option>
+                  </select>
+                </div>
+                <div class="champ">
+                  <label for="cuivre-longueur">Longueur (m)</label>
+                  <input id="cuivre-longueur" name="cuivreLongueurM" inputmode="decimal" autocomplete="off" placeholder="facultatif">
+                </div>
+              </div>
+            </fieldset>
+            <div class="champ" data-famille="megapixel" hidden>
+              <label for="switch-megapixel">Switch des HELIOS 8K et 4K</label>
+              <select id="switch-megapixel" name="switchMegapixel">
+                <option value="netgear-m4250-msm4214x" selected>Netgear M4250 (MSM4214X), 12 ports 1G ou 2,5G</option>
+                <option value="netgear-m4200-gsm4210p">Netgear M4200 (GSM4210P), 8 ports 1G, ancien</option>
+              </select>
+            </div>
+            <label class="case" data-famille="megapixel" hidden><input type="checkbox" name="lien25G"><span>Dalles en 2,5G (si la dalle le permet ; M4250)</span></label>
+            <label class="case" data-famille="megapixel" hidden><input type="checkbox" name="mode20G"><span>Mode 20G : 2 fibres par M4250 (ports 1 à 6 et 7 à 12)</span></label>
+            <label class="case" data-famille="novastar"><input type="checkbox" name="cartesPro"><span>Cartes A8s Pro ou A10s Pro (MX40 Pro, 10 bits)</span></label>
+            <label class="case" data-famille="novastar"><input type="checkbox" name="modeOptique"><span>MX40 Pro : mode 40 ports (sorties optiques et convertisseurs)</span></label>
+            <div class="champ" data-famille="novastar colorlight">
+              <label for="carte-sortie">Cartes de sortie (MX2000 Pro, MX6000 Pro, série H, X100 Pro, Z8t)</label>
+              <select id="carte-sortie" name="carteSortie">
+                <option value="auto" selected>Par défaut (selon la carte des dalles ; H_20xRJ45 sur la série H, 10×1G sur le X100 Pro)</option>
+                <optgroup label="MX2000 Pro et MX6000 Pro">
+                  <option value="4x10g">4x10G (ports 1G, CVT10)</option>
+                  <option value="1x40g">1 × 40G (ports 5G, CVT8-5G)</option>
+                  <option value="8x5g-base-t">8×5G Base-T (ports 5G en cuivre, MX6000 Pro seulement)</option>
+                </optgroup>
+                <optgroup label="Série H (Novastar)">
+                  <option value="h-20xrj45">H_20xRJ45 (20 ports 1G)</option>
+                  <option value="h-16xrj45">H_16xRJ45+2xfiber (16 ports, fibre en copie)</option>
+                  <option value="h-4xfiber">H_4xfiber (4 fibres, CVT10)</option>
+                </optgroup>
+                <optgroup label="X100 Pro (Colorlight)">
+                  <option value="x100-10x1g">10×1G (10 ports 1G)</option>
+                  <option value="x100-2x10g">2×10G (fibre, un H10FN2 de 10 ports)</option>
+                  <option value="x100-4x5g">4×5G (2 ports 5G, ancienne version de fiche)</option>
+                </optgroup>
+                <optgroup label="Z8t (Colorlight)">
+                  <option value="z8t-4x5g">4×5G (4 ports 5G)</option>
+                  <option value="z8t-4x10g">4×10G (fibre, 2 H10FN2 de 10 ports)</option>
+                </optgroup>
               </select>
             </div>
           </div>
-          <div class="paire">
-            <div class="champ">
-              <label for="cuivre-categorie">Cuivre 10G SX40 vers XD</label>
-              <select id="cuivre-categorie" name="cuivreCategorie">
-                <option value="" selected>Pas de cuivre 10G</option>
-                <option value="Cat6A">Cat6A</option>
-                <option value="Cat5e">Cat5e</option>
-                <option value="Cat6">Cat6</option>
-              </select>
-            </div>
-            <div class="champ">
-              <label for="cuivre-longueur">Longueur (m)</label>
-              <input id="cuivre-longueur" name="cuivreLongueurM" inputmode="decimal" autocomplete="off" placeholder="facultatif">
-            </div>
-          </div>
-        </fieldset>
-        <div class="champ" data-famille="megapixel" hidden>
-          <label for="switch-megapixel">Switch des HELIOS 8K et 4K</label>
-          <select id="switch-megapixel" name="switchMegapixel">
-            <option value="netgear-m4250-msm4214x" selected>Netgear M4250 (MSM4214X), 12 ports 1G ou 2,5G</option>
-            <option value="netgear-m4200-gsm4210p">Netgear M4200 (GSM4210P), 8 ports 1G, ancien</option>
-          </select>
-        </div>
-        <label class="case" data-famille="megapixel" hidden><input type="checkbox" name="lien25G"><span>Dalles en 2,5G (si la dalle le permet ; M4250)</span></label>
-        <label class="case" data-famille="megapixel" hidden><input type="checkbox" name="mode20G"><span>Mode 20G : 2 fibres par M4250 (ports 1 à 6 et 7 à 12)</span></label>
-        <label class="case" data-famille="novastar"><input type="checkbox" name="cartesPro"><span>Cartes A8s Pro ou A10s Pro (MX40 Pro, 10 bits)</span></label>
-        <label class="case" data-famille="novastar"><input type="checkbox" name="modeOptique"><span>MX40 Pro : mode 40 ports (sorties optiques et convertisseurs)</span></label>
-        <div class="champ" data-famille="novastar colorlight">
-          <label for="carte-sortie">Cartes de sortie (MX2000 Pro, MX6000 Pro, série H, X100 Pro, Z8t)</label>
-          <select id="carte-sortie" name="carteSortie">
-            <option value="auto" selected>Par défaut (selon la carte des dalles ; H_20xRJ45 sur la série H, 10×1G sur le X100 Pro)</option>
-            <optgroup label="MX2000 Pro et MX6000 Pro">
-              <option value="4x10g">4x10G (ports 1G, CVT10)</option>
-              <option value="1x40g">1 × 40G (ports 5G, CVT8-5G)</option>
-              <option value="8x5g-base-t">8×5G Base-T (ports 5G en cuivre, MX6000 Pro seulement)</option>
-            </optgroup>
-            <optgroup label="Série H (Novastar)">
-              <option value="h-20xrj45">H_20xRJ45 (20 ports 1G)</option>
-              <option value="h-16xrj45">H_16xRJ45+2xfiber (16 ports, fibre en copie)</option>
-              <option value="h-4xfiber">H_4xfiber (4 fibres, CVT10)</option>
-            </optgroup>
-            <optgroup label="X100 Pro (Colorlight)">
-              <option value="x100-10x1g">10×1G (10 ports 1G)</option>
-              <option value="x100-2x10g">2×10G (fibre, un H10FN2 de 10 ports)</option>
-              <option value="x100-4x5g">4×5G (2 ports 5G, ancienne version de fiche)</option>
-            </optgroup>
-            <optgroup label="Z8t (Colorlight)">
-              <option value="z8t-4x5g">4×5G (4 ports 5G)</option>
-              <option value="z8t-4x10g">4×10G (fibre, 2 H10FN2 de 10 ports)</option>
-            </optgroup>
-          </select>
-        </div>
+        </details>
         <!-- Config imposée (étape 18c) : gardée avec les saisies du mur ; vide, le conseil de l'appli. -->
         <details id="ma-config-data" class="fiche ma-config">
           <summary>Ma config : imposer un découpage</summary>
@@ -436,151 +449,158 @@
             <input id="source-hauteur" name="hauteurPx" inputmode="numeric" autocomplete="off" value="2160">
           </div>
         </div>
-        <div class="paire">
-          <div class="champ">
-            <label for="source-frequence">Fréquence (Hz)</label>
-            <input id="source-frequence" name="frequenceHz" inputmode="decimal" autocomplete="off" value="60">
-          </div>
-          <fieldset class="segmente">
-            <legend>Bit depth source</legend>
-            <div class="segments">
-              <label><input type="radio" name="bits" value="8" checked><span>8</span></label>
-              <label><input type="radio" name="bits" value="10"><span>10</span></label>
-              <label><input type="radio" name="bits" value="12"><span>12</span></label>
-            </div>
-          </fieldset>
-        </div>
-        <div class="champ">
-          <label for="source-liaison">Liaison en sortie de la source ou de la régie</label>
-          <select id="source-liaison" name="liaison"></select>
-        </div>
-        <div id="bloc-source-appareil" class="champ" hidden>
-          <label for="source-appareil">Source</label>
-          <select id="source-appareil" name="sourceAppareil"></select>
-        </div>
-        <div class="paire">
-          <div class="champ">
-            <label for="source-longueur">Longueur du câble (m)</label>
-            <input id="source-longueur" name="longueurM" inputmode="decimal" autocomplete="off" placeholder="facultatif">
-          </div>
-          <div class="champ">
-            <label for="source-latence">Latence de la source (images)</label>
-            <input id="source-latence" name="latenceSource" inputmode="numeric" autocomplete="off" placeholder="ex. 3 ou 3-5">
-          </div>
-        </div>
-        <div class="paire">
-          <fieldset class="segmente">
-            <legend>Espace</legend>
-            <div class="segments">
-              <label><input type="radio" name="espace" value="RGB" checked><span>RGB</span></label>
-              <label><input type="radio" name="espace" value="YUV"><span>YUV</span></label>
-            </div>
-          </fieldset>
-          <fieldset class="segmente">
-            <legend>Plage</legend>
-            <div class="segments">
-              <label><input type="radio" name="plage" value="Full" checked><span>Full</span></label>
-              <label><input type="radio" name="plage" value="Limited"><span>Limited</span></label>
-            </div>
-          </fieldset>
-        </div>
-        <div class="champ">
-          <label for="regie">Régie ou scaler en amont</label>
-          <select id="regie" name="regie"></select>
-        </div>
-        <label id="bloc-multiviewer" class="case" hidden><input type="checkbox" name="multiviewer"><span>Multiviewer utilisé (moins de sorties)</span></label>
-        <label id="bloc-program-seul" class="case" hidden><input type="checkbox" name="programSeul"><span>Program seul (sans prévisualisation)</span></label>
-        <div id="bloc-couches" class="champ" hidden>
-          <label for="couches-sortie">Couches par sortie</label>
-          <input id="couches-sortie" name="couchesParSortie" inputmode="numeric" autocomplete="off" value="1">
-        </div>
-        <fieldset class="chaine-convertisseurs">
-          <legend>Convertisseurs jusqu'au processeur</legend>
-          <div class="champ">
-            <label for="nb-convertisseurs">Nombre de convertisseurs</label>
-            <select id="nb-convertisseurs" name="nbConvertisseurs">
-              <option value="0" selected>Aucun</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-            </select>
-          </div>
-          <div class="convertisseur" data-rang="1" hidden>
-            <p class="note">Convertisseur 1 (une paire émetteur-récepteur compte pour un)</p>
-            <div class="champ" data-base-convertisseurs hidden>
-              <label for="conv1-fiche">Appareil de la base</label>
-              <select id="conv1-fiche" name="conv1Fiche" class="liste-convertisseurs"></select>
+        <!-- Réponse d'abord (étape 28, lot 28b) : réglages secondaires repliés sous une ligne de titre qui les résume,
+             tenue par src/reglages.js ; ni data-famille ni hidden sur le bloc, champs dans un conteneur .formulaire. -->
+        <details id="reglages-canvas" class="reglages">
+          <summary><span class="reglages-texte"><span class="reglages-titre">Réglages</span><span class="cache-visuel">, </span> <span class="reglages-ligne"></span></span></summary>
+          <div class="formulaire">
+            <div class="paire">
+              <div class="champ">
+                <label for="source-frequence">Fréquence (Hz)</label>
+                <input id="source-frequence" name="frequenceHz" inputmode="decimal" autocomplete="off" value="60">
+              </div>
+              <fieldset class="segmente">
+                <legend>Bit depth source</legend>
+                <div class="segments">
+                  <label><input type="radio" name="bits" value="8" checked><span>8</span></label>
+                  <label><input type="radio" name="bits" value="10"><span>10</span></label>
+                  <label><input type="radio" name="bits" value="12"><span>12</span></label>
+                </div>
+              </fieldset>
             </div>
             <div class="champ">
-              <label for="conv1-nom">Nom</label>
-              <input id="conv1-nom" name="conv1Nom" autocomplete="off" placeholder="ex. HDMI vers 12G-SDI">
+              <label for="source-liaison">Liaison en sortie de la source ou de la régie</label>
+              <select id="source-liaison" name="liaison"></select>
+            </div>
+            <div id="bloc-source-appareil" class="champ" hidden>
+              <label for="source-appareil">Source</label>
+              <select id="source-appareil" name="sourceAppareil"></select>
             </div>
             <div class="paire">
               <div class="champ">
-                <label for="conv1-liaison">Liaison en sortie</label>
-                <select id="conv1-liaison" name="conv1Liaison" class="liste-liaisons"></select>
+                <label for="source-longueur">Longueur du câble (m)</label>
+                <input id="source-longueur" name="longueurM" inputmode="decimal" autocomplete="off" placeholder="facultatif">
               </div>
               <div class="champ">
-                <label for="conv1-longueur">Longueur (m)</label>
-                <input id="conv1-longueur" name="conv1Longueur" inputmode="decimal" autocomplete="off" placeholder="facultatif">
+                <label for="source-latence">Latence de la source (images)</label>
+                <input id="source-latence" name="latenceSource" inputmode="numeric" autocomplete="off" placeholder="ex. 3 ou 3-5">
               </div>
-            </div>
-            <div class="champ">
-              <label for="conv1-latence">Latence (images)</label>
-              <input id="conv1-latence" name="conv1Latence" inputmode="numeric" autocomplete="off" placeholder="facultatif">
-            </div>
-          </div>
-          <div class="convertisseur" data-rang="2" hidden>
-            <p class="note">Convertisseur 2 (une paire émetteur-récepteur compte pour un)</p>
-            <div class="champ" data-base-convertisseurs hidden>
-              <label for="conv2-fiche">Appareil de la base</label>
-              <select id="conv2-fiche" name="conv2Fiche" class="liste-convertisseurs"></select>
-            </div>
-            <div class="champ">
-              <label for="conv2-nom">Nom</label>
-              <input id="conv2-nom" name="conv2Nom" autocomplete="off" placeholder="ex. HDMI vers 12G-SDI">
             </div>
             <div class="paire">
-              <div class="champ">
-                <label for="conv2-liaison">Liaison en sortie</label>
-                <select id="conv2-liaison" name="conv2Liaison" class="liste-liaisons"></select>
-              </div>
-              <div class="champ">
-                <label for="conv2-longueur">Longueur (m)</label>
-                <input id="conv2-longueur" name="conv2Longueur" inputmode="decimal" autocomplete="off" placeholder="facultatif">
-              </div>
+              <fieldset class="segmente">
+                <legend>Espace</legend>
+                <div class="segments">
+                  <label><input type="radio" name="espace" value="RGB" checked><span>RGB</span></label>
+                  <label><input type="radio" name="espace" value="YUV"><span>YUV</span></label>
+                </div>
+              </fieldset>
+              <fieldset class="segmente">
+                <legend>Plage</legend>
+                <div class="segments">
+                  <label><input type="radio" name="plage" value="Full" checked><span>Full</span></label>
+                  <label><input type="radio" name="plage" value="Limited"><span>Limited</span></label>
+                </div>
+              </fieldset>
             </div>
             <div class="champ">
-              <label for="conv2-latence">Latence (images)</label>
-              <input id="conv2-latence" name="conv2Latence" inputmode="numeric" autocomplete="off" placeholder="facultatif">
+              <label for="regie">Régie ou scaler en amont</label>
+              <select id="regie" name="regie"></select>
             </div>
+            <label id="bloc-multiviewer" class="case" hidden><input type="checkbox" name="multiviewer"><span>Multiviewer utilisé (moins de sorties)</span></label>
+            <label id="bloc-program-seul" class="case" hidden><input type="checkbox" name="programSeul"><span>Program seul (sans prévisualisation)</span></label>
+            <div id="bloc-couches" class="champ" hidden>
+              <label for="couches-sortie">Couches par sortie</label>
+              <input id="couches-sortie" name="couchesParSortie" inputmode="numeric" autocomplete="off" value="1">
+            </div>
+            <fieldset class="chaine-convertisseurs">
+              <legend>Convertisseurs jusqu'au processeur</legend>
+              <div class="champ">
+                <label for="nb-convertisseurs">Nombre de convertisseurs</label>
+                <select id="nb-convertisseurs" name="nbConvertisseurs">
+                  <option value="0" selected>Aucun</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+              <div class="convertisseur" data-rang="1" hidden>
+                <p class="note">Convertisseur 1 (une paire émetteur-récepteur compte pour un)</p>
+                <div class="champ" data-base-convertisseurs hidden>
+                  <label for="conv1-fiche">Appareil de la base</label>
+                  <select id="conv1-fiche" name="conv1Fiche" class="liste-convertisseurs"></select>
+                </div>
+                <div class="champ">
+                  <label for="conv1-nom">Nom</label>
+                  <input id="conv1-nom" name="conv1Nom" autocomplete="off" placeholder="ex. HDMI vers 12G-SDI">
+                </div>
+                <div class="paire">
+                  <div class="champ">
+                    <label for="conv1-liaison">Liaison en sortie</label>
+                    <select id="conv1-liaison" name="conv1Liaison" class="liste-liaisons"></select>
+                  </div>
+                  <div class="champ">
+                    <label for="conv1-longueur">Longueur (m)</label>
+                    <input id="conv1-longueur" name="conv1Longueur" inputmode="decimal" autocomplete="off" placeholder="facultatif">
+                  </div>
+                </div>
+                <div class="champ">
+                  <label for="conv1-latence">Latence (images)</label>
+                  <input id="conv1-latence" name="conv1Latence" inputmode="numeric" autocomplete="off" placeholder="facultatif">
+                </div>
+              </div>
+              <div class="convertisseur" data-rang="2" hidden>
+                <p class="note">Convertisseur 2 (une paire émetteur-récepteur compte pour un)</p>
+                <div class="champ" data-base-convertisseurs hidden>
+                  <label for="conv2-fiche">Appareil de la base</label>
+                  <select id="conv2-fiche" name="conv2Fiche" class="liste-convertisseurs"></select>
+                </div>
+                <div class="champ">
+                  <label for="conv2-nom">Nom</label>
+                  <input id="conv2-nom" name="conv2Nom" autocomplete="off" placeholder="ex. HDMI vers 12G-SDI">
+                </div>
+                <div class="paire">
+                  <div class="champ">
+                    <label for="conv2-liaison">Liaison en sortie</label>
+                    <select id="conv2-liaison" name="conv2Liaison" class="liste-liaisons"></select>
+                  </div>
+                  <div class="champ">
+                    <label for="conv2-longueur">Longueur (m)</label>
+                    <input id="conv2-longueur" name="conv2Longueur" inputmode="decimal" autocomplete="off" placeholder="facultatif">
+                  </div>
+                </div>
+                <div class="champ">
+                  <label for="conv2-latence">Latence (images)</label>
+                  <input id="conv2-latence" name="conv2Latence" inputmode="numeric" autocomplete="off" placeholder="facultatif">
+                </div>
+              </div>
+              <div class="convertisseur" data-rang="3" hidden>
+                <p class="note">Convertisseur 3 (une paire émetteur-récepteur compte pour un)</p>
+                <div class="champ" data-base-convertisseurs hidden>
+                  <label for="conv3-fiche">Appareil de la base</label>
+                  <select id="conv3-fiche" name="conv3Fiche" class="liste-convertisseurs"></select>
+                </div>
+                <div class="champ">
+                  <label for="conv3-nom">Nom</label>
+                  <input id="conv3-nom" name="conv3Nom" autocomplete="off" placeholder="ex. HDMI vers 12G-SDI">
+                </div>
+                <div class="paire">
+                  <div class="champ">
+                    <label for="conv3-liaison">Liaison en sortie</label>
+                    <select id="conv3-liaison" name="conv3Liaison" class="liste-liaisons"></select>
+                  </div>
+                  <div class="champ">
+                    <label for="conv3-longueur">Longueur (m)</label>
+                    <input id="conv3-longueur" name="conv3Longueur" inputmode="decimal" autocomplete="off" placeholder="facultatif">
+                  </div>
+                </div>
+                <div class="champ">
+                  <label for="conv3-latence">Latence (images)</label>
+                  <input id="conv3-latence" name="conv3Latence" inputmode="numeric" autocomplete="off" placeholder="facultatif">
+                </div>
+              </div>
+            </fieldset>
           </div>
-          <div class="convertisseur" data-rang="3" hidden>
-            <p class="note">Convertisseur 3 (une paire émetteur-récepteur compte pour un)</p>
-            <div class="champ" data-base-convertisseurs hidden>
-              <label for="conv3-fiche">Appareil de la base</label>
-              <select id="conv3-fiche" name="conv3Fiche" class="liste-convertisseurs"></select>
-            </div>
-            <div class="champ">
-              <label for="conv3-nom">Nom</label>
-              <input id="conv3-nom" name="conv3Nom" autocomplete="off" placeholder="ex. HDMI vers 12G-SDI">
-            </div>
-            <div class="paire">
-              <div class="champ">
-                <label for="conv3-liaison">Liaison en sortie</label>
-                <select id="conv3-liaison" name="conv3Liaison" class="liste-liaisons"></select>
-              </div>
-              <div class="champ">
-                <label for="conv3-longueur">Longueur (m)</label>
-                <input id="conv3-longueur" name="conv3Longueur" inputmode="decimal" autocomplete="off" placeholder="facultatif">
-              </div>
-            </div>
-            <div class="champ">
-              <label for="conv3-latence">Latence (images)</label>
-              <input id="conv3-latence" name="conv3Latence" inputmode="numeric" autocomplete="off" placeholder="facultatif">
-            </div>
-          </div>
-        </fieldset>
+        </details>
       </form>
 
       <div class="barre-copie">
@@ -626,37 +646,44 @@
         </div>
         <input type="hidden" name="autresArrivees" value="">
         <input type="hidden" name="arriveesLignes" value="">
-        <div class="paire">
-          <div class="champ">
-            <label for="depart-a">Départs (A)</label>
-            <input id="depart-a" name="departA" inputmode="decimal" autocomplete="off" value="16">
+        <!-- Réponse d'abord (étape 28, lot 28b) : réglages secondaires repliés sous une ligne de titre qui les résume,
+             tenue par src/reglages.js ; ni data-famille ni hidden sur le bloc, champs dans un conteneur .formulaire. -->
+        <details id="reglages-elec" class="reglages">
+          <summary><span class="reglages-texte"><span class="reglages-titre">Réglages</span><span class="cache-visuel">, </span> <span class="reglages-ligne"></span></span></summary>
+          <div class="formulaire">
+            <div class="paire">
+              <div class="champ">
+                <label for="depart-a">Départs (A)</label>
+                <input id="depart-a" name="departA" inputmode="decimal" autocomplete="off" value="16">
+              </div>
+              <div class="champ">
+                <label for="tension-v">Tension de calcul (V)</label>
+                <input id="tension-v" name="tensionV" inputmode="decimal" autocomplete="off" value="220">
+              </div>
+            </div>
+            <fieldset class="segmente">
+              <legend>Marge : 80 % par défaut, 70 % sur groupe, en plein soleil ou sans fiche, 60 % en cas de doute</legend>
+              <div class="segments">
+                <label><input type="radio" name="marge" value="0.8" checked><span>80 %</span></label>
+                <label><input type="radio" name="marge" value="0.7"><span>70 %</span></label>
+                <label><input type="radio" name="marge" value="0.6"><span>60 %</span></label>
+              </div>
+            </fieldset>
+            <div class="champ">
+              <label for="puissance-utile">Puissance utile par ligne (W), facultatif : remplace tension × départ × marge</label>
+              <input id="puissance-utile" name="puissanceUtileW" inputmode="decimal" autocomplete="off" placeholder="par exemple 3000">
+            </div>
+            <fieldset class="segmente">
+              <legend>Courbe des disjoncteurs</legend>
+              <div class="segments">
+                <label><input type="radio" name="courbe" value="" checked><span>Inconnue</span></label>
+                <label><input type="radio" name="courbe" value="B"><span>B</span></label>
+                <label><input type="radio" name="courbe" value="C"><span>C</span></label>
+                <label><input type="radio" name="courbe" value="D"><span>D</span></label>
+              </div>
+            </fieldset>
           </div>
-          <div class="champ">
-            <label for="tension-v">Tension de calcul (V)</label>
-            <input id="tension-v" name="tensionV" inputmode="decimal" autocomplete="off" value="220">
-          </div>
-        </div>
-        <fieldset class="segmente">
-          <legend>Marge : 80 % par défaut, 70 % sur groupe, en plein soleil ou sans fiche, 60 % en cas de doute</legend>
-          <div class="segments">
-            <label><input type="radio" name="marge" value="0.8" checked><span>80 %</span></label>
-            <label><input type="radio" name="marge" value="0.7"><span>70 %</span></label>
-            <label><input type="radio" name="marge" value="0.6"><span>60 %</span></label>
-          </div>
-        </fieldset>
-        <div class="champ">
-          <label for="puissance-utile">Puissance utile par ligne (W), facultatif : remplace tension × départ × marge</label>
-          <input id="puissance-utile" name="puissanceUtileW" inputmode="decimal" autocomplete="off" placeholder="par exemple 3000">
-        </div>
-        <fieldset class="segmente">
-          <legend>Courbe des disjoncteurs</legend>
-          <div class="segments">
-            <label><input type="radio" name="courbe" value="" checked><span>Inconnue</span></label>
-            <label><input type="radio" name="courbe" value="B"><span>B</span></label>
-            <label><input type="radio" name="courbe" value="C"><span>C</span></label>
-            <label><input type="radio" name="courbe" value="D"><span>D</span></label>
-          </div>
-        </fieldset>
+        </details>
         <!-- Config imposée (étape 18c) : gardée avec les saisies du mur ; vide, le conseil de l'appli. -->
         <details id="ma-config-elec" class="fiche ma-config">
           <summary>Ma config : imposer un découpage</summary>
